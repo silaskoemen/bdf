@@ -1,0 +1,8 @@
+/data/
+
+*.egg-info/
+*.egg
+*.whl
+*.pyc
+__pycache__/
+*/__pycache__/
