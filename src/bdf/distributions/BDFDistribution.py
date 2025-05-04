@@ -45,3 +45,13 @@ class BDFDistribution(ABC):
         """ Get the posterior parameters of the distribution.
         """
         raise NotImplementedError("Subclasses must implement this method.")     
+
+    @property
+    def __name__(self):
+        return self.name
+    
+    def __repr__(self):
+        return f"{self.__class__.__name__}(name={self.name}, prior_params={self.prior_params}, params={self.params})"
+    
+    def __str__(self):
+        return f"{self.__class__.__name__}(name={self.name}, prior_params={self.prior_params}, params={self.params})"
