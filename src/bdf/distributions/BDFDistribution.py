@@ -5,8 +5,7 @@ from abc import ABC, abstractmethod
 class BDFDistribution(ABC):
     """ Abstract base class for all BDF distributions.
     """
-    def __init__(self, name: str, prior_params: dict, params: tuple = None):
-        self.name = name
+    def __init__(self, prior_params: dict, params: tuple = None):
         self.prior_params = prior_params
         self.params = params
     
@@ -35,7 +34,13 @@ class BDFDistribution(ABC):
         raise NotImplementedError("Subclasses must implement this method.")
     
     @abstractmethod
-    def sample(self, size: int) -> numpy.ndarray:
+    def sample_prior(self, size: int) -> numpy.ndarray:
+        """ Sample from the distribution.
+        """
+        raise NotImplementedError("Subclasses must implement this method.")
+    
+    @abstractmethod
+    def sample_posterior(self, size: int) -> numpy.ndarray:
         """ Sample from the distribution.
         """
         raise NotImplementedError("Subclasses must implement this method.")
@@ -45,13 +50,9 @@ class BDFDistribution(ABC):
         """ Get the posterior parameters of the distribution.
         """
         raise NotImplementedError("Subclasses must implement this method.")     
-
-    @property
-    def __name__(self):
-        return self.name
     
     def __repr__(self):
-        return f"{self.__class__.__name__}(name={self.name}, prior_params={self.prior_params}, params={self.params})"
+        return f"{self.__class__.__name__}(prior_params={self.prior_params}, params={self.params})"
     
     def __str__(self):
-        return f"{self.__class__.__name__}(name={self.name}, prior_params={self.prior_params}, params={self.params})"
+        return f"{self.__class__.__name__}(prior_params={self.prior_params}, params={self.params})"
