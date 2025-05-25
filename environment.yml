@@ -6,3 +6,9 @@ dependencies:
   - numpy
   - pandas
   - pip
+  - scikit-learn
+  - ipykernel
+  - rich
+  - tqdm
+  - matplotlib
+  - pytest

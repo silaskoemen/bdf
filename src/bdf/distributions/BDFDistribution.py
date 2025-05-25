@@ -16,7 +16,7 @@ class BDFDistribution(ABC):
         raise NotImplementedError("Subclasses must implement this method.")
     
     @abstractmethod
-    def nll(self, data: numpy.ndarray, mean: bool = True) -> float:
+    def nll(self, data: numpy.ndarray) -> float:
         """ Compute the negative log-likelihood of the data given the distribution.
         """
         raise NotImplementedError("Subclasses must implement this method.")
