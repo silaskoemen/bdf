@@ -11,17 +11,18 @@ data = pd.read_csv("../data/abaloneage.csv")
 X = data.iloc[:, 1:-1]
 X.iloc[:, 0] = X.iloc[:, 0].map({'M': 0, 'F': 1, 'I': 2})
 X.fillna(0, inplace=True)
-y = data.iloc[:,-1]
+y = data.iloc[:,-1].astype(float)
 X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.2, random_state=42)
 # %%
 bdf = BDFRegressor(
     data_dist='normal',
     prior_params={'mean': 0, 'std': 5},
     n_trees=15,
-    reg_beta=1,
-    reg_lambda=3,
-    max_depth=15,
-    colsample=.8
+    reg_beta=3,
+    reg_lambda=1.5,
+    max_depth=10,
+    subsample=.9,
+    colsample=.9
 )
 bdf.fit(X_train.values, y_train.values, standardize_y=True, verbose=True)
 rf = RandomForestRegressor(max_depth=8, n_estimators=100, random_state=42)

@@ -12,3 +12,5 @@ dependencies:
   - tqdm
   - matplotlib
   - pytest
+  - maturin
+  - pyo3

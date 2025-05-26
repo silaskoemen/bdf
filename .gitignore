@@ -6,3 +6,6 @@
 *.pyc
 __pycache__/
 */__pycache__/
+
+*/compiled/rust/target/
+compiled/rust/target/

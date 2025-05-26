@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 
 from bdf.distributions import (
     Normal,
@@ -114,6 +115,28 @@ class BDFNode:
             - `best_left_indices`: Boolean array indicating indices for left child
             - `best_right_indices`: Boolean array indicating indices for right child
         """
+        try:
+            # Import and use the Rust implementation
+            import bdf_optimized
+            # Convert any list col_idcs to numpy array if provided
+            if col_idcs is not None:
+                col_idcs = np.array(col_idcs, dtype=np.uint64)
+                
+            # Call the Rust implementation
+            feature_idx, threshold, loss_reduction, left_indices, right_indices = bdf_optimized.find_best_split_rust(  # type: ignore | can't find function from Rust module
+                X, y, min_samples_leaf, min_child_weight, self.distribution, eta, col_idcs
+            )
+            
+            return feature_idx, threshold, loss_reduction, left_indices, right_indices
+            
+        except ImportError:
+            # Fall back to Python implementation if the compiled version isn't available
+            warnings.warn("Using slower Python implementation for find_best_split")
+            return self._find_best_split_python(X, y, min_samples_leaf, min_child_weight, col_idcs, eta)
+    
+    def _find_best_split_python(self, X: np.ndarray, y: np.ndarray,
+                        min_samples_leaf: int, min_child_weight: float,
+                        col_idcs: list | np.ndarray | None = None, eta = 0.025) -> tuple[int, float, float, np.ndarray, np.ndarray] | tuple[None, None, float, None, None]:
         n_samples, n_features = X.shape
         best_feature: int | None = None
         best_threshold: float | None = None

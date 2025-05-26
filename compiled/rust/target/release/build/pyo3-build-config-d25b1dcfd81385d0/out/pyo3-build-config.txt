@@ -1,0 +1,10 @@
+implementation=CPython
+version=3.13
+shared=true
+abi3=false
+lib_name=python3.13
+lib_dir=/opt/homebrew/Cellar/micromamba/2.1.0/envs/bdf/lib
+executable=/opt/homebrew/Cellar/micromamba/2.1.0/envs/bdf/bin/python
+pointer_width=64
+build_flags=
+suppress_build_script_link_lines=false
