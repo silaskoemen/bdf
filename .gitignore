@@ -7,5 +7,10 @@
 __pycache__/
 */__pycache__/
 
-*/compiled/rust/target/
+/.pytest_cache/
+
 compiled/rust/target/
+
+debug/
+target/
+**/*.rs.bk

@@ -126,7 +126,6 @@ class BDFNode:
             feature_idx, threshold, loss_reduction, left_indices, right_indices = bdf_optimized.find_best_split_rust(  # type: ignore | can't find function from Rust module
                 X, y, min_samples_leaf, min_child_weight, self.distribution, eta, col_idcs
             )
-            
             return feature_idx, threshold, loss_reduction, left_indices, right_indices
             
         except ImportError:

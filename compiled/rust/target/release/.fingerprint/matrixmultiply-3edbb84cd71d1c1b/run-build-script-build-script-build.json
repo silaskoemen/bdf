@@ -1,1 +1,0 @@
-{"rustc":15497389221046826682,"features":"","declared_features":"","target":0,"profile":0,"path":0,"deps":[[15826188163127377936,"build_script_build",false,10817257125135453352]],"local":[{"RerunIfChanged":{"output":"release/build/matrixmultiply-3edbb84cd71d1c1b/output","paths":["build.rs"]}}],"rustflags":["-g"],"config":0,"compile_kind":0}
