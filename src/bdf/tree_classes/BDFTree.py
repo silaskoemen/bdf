@@ -16,7 +16,7 @@ class BDFTree:
         min_samples_leaf: int,
         min_samples_split: int,
         min_child_weight: float | int
-    ) -> 'BDFTree':
+    ):
         """ Initialize the BDFTree with distribution and regularization parameters.
         
         Args
@@ -117,7 +117,7 @@ class BDFTree:
             print(f"Tree built with {self.n_leaves} leaves and total loss: {self.tree_loss:.4f}")
         return self
 
-    def predict(self, X: np.ndarray, method: str = 'params') -> np.ndarray:
+    def predict(self, X: np.ndarray, method: str = 'params') -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         """ Predict using the BDFTree.
         
         Args

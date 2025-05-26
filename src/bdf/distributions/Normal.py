@@ -5,7 +5,7 @@ from bdf.distributions.BDFDistribution import BDFDistribution
 class Normal(BDFDistribution):
     """ Normal distribution class for Bayesian Distributional Forests.
     """
-    def __init__(self, prior_params: dict, params: tuple = None, var_ddof: int = 1):
+    def __init__(self, prior_params: dict, params: tuple | None = None, var_ddof: int = 1):
         """ Initialize the Normal distribution with prior parameters.
         Args
         ----

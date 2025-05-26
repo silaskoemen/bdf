@@ -25,7 +25,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         subsample: float = .7,
         colsample: float = 1.0,
         eta: float = 0.025
-    ) -> 'BDFRegressor':
+    ):
         """ Initialize the BDFRegressor with prior parameters.
         Args
         ----
@@ -125,8 +125,9 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         self.y_mean, self.y_std = mean_y, std_y
         return standardized_y
     
-    def predict(self, X: np.ndarray | pd.DataFrame, method: str = 'mean', values: list = None) -> np.ndarray:
+    def predict(self, X: np.ndarray | pd.DataFrame, method: str = 'mean', values: list | None = None) -> np.ndarray:
         X = self._validate_prediction_input(X, method=method, values=values)
+        preds = np.empty((X.shape[0],), dtype=float)
         match method:
             case 'mean':
                 preds = np.mean([tree.predict(X, method='params')[0] for tree in self.trees], axis=0)
@@ -134,16 +135,16 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
                 preds = np.mean([tree.predict(X, method='params') for tree in self.trees], axis=0)
             case 'samples-ind':
                 preds = np.concatenate([tree.predict(X, method='sample') for tree in self.trees])
-            case 'samples-avg':
-                preds = -1#np.mean([tree.predict(X, method='sample') for tree in self.trees], axis=0)
-            case 'quantiles-ind':
-                preds = -1#np.concatenate([tree.predict(X, method='quantile', values=values) for tree in self.trees])
-            case 'quantiles-avg':
-                preds = -1#np.mean([tree.predict(X, method='quantile', values=values) for tree in self.trees], axis=0)
-            case 'confint-ind':
-                preds = -1#np.concatenate([tree.predict(X, method='confint', values=values) for tree in self.trees])
-            case 'confint-avg':
-                preds = -1#np.mean([tree.predict(X, method='confint', values=values) for tree in self.trees], axis=0)
+            # case 'samples-avg':
+            #     preds = -1#np.mean([tree.predict(X, method='sample') for tree in self.trees], axis=0)
+            # case 'quantiles-ind':
+            #     preds = -1#np.concatenate([tree.predict(X, method='quantile', values=values) for tree in self.trees])
+            # case 'quantiles-avg':
+            #     preds = -1#np.mean([tree.predict(X, method='quantile', values=values) for tree in self.trees], axis=0)
+            # case 'confint-ind':
+            #     preds = -1#np.concatenate([tree.predict(X, method='confint', values=values) for tree in self.trees])
+            # case 'confint-avg':
+            #     preds = -1#np.mean([tree.predict(X, method='confint', values=values) for tree in self.trees], axis=0)
         if hasattr(self, 'y_mean') and hasattr(self, 'y_std'):
             if method in ['mean', 'params']:
                 preds = preds * self.y_std + self.y_mean
@@ -187,7 +188,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         self.subsample = subsample
         self.colsample = colsample
 
-    def _validate_prediction_input(self, X: np.ndarray | pd.DataFrame, method: str = 'mean', values: list = None):
+    def _validate_prediction_input(self, X: np.ndarray | pd.DataFrame, method: str = 'mean', values: list | None = None):
         """ Validate the input for prediction.
 
         should allow:
@@ -213,14 +214,14 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         assert X.shape[0] > 0, "X must contain at least one sample"
         return X
     
-    def _validate_fit_input(self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series):
+    def _validate_fit_input(self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series) -> tuple[np.ndarray, np.ndarray]:
         """ Validate the input for fitting.
         """
         if isinstance(X, pd.DataFrame):
             self.feature_names = X.columns
             X = X.values
         if isinstance(y, pd.Series):
-            y = y.values
+            y = y.to_numpy()
         assert X.ndim == 2, f"X must be a 2D array, got {X.ndim}D array"
         assert y.ndim == 1, f"y must be a 1D array, got {y.ndim}D array"
         assert X.shape[0] == y.shape[0], f"Number of samples in X ({X.shape[0]}) must match number of samples in y ({y.shape[0]})"

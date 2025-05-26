@@ -17,7 +17,7 @@ class BDFNode:
     def estimate_posterior(self, y: np.ndarray):
         self.posterior_mean, self.posterior_std = self.distribution.calc_posterior_params(y)
 
-    def predict(self, X: np.ndarray, method: str = 'params') -> np.ndarray:
+    def predict(self, X: np.ndarray, method: str = 'params') -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         assert isinstance(method, str) and method in ['params', 'sample'], "Method must be str 'params' or 'sample'"
         if self.left_node is None and self.right_node is None:
             # Leaf node
@@ -26,7 +26,9 @@ class BDFNode:
                 assert hasattr(self, 'posterior_std'), "Posterior std not estimated. Call estimate_posterior() first."
                 return self.posterior_mean, self.posterior_std
             elif method == 'sample':
-                return self.distribution.sample_posterior(size=X.shape[0])
+                return self.distribution.sample_posterior(size=X.shape[0], data=X)  # Sample from the posterior distribution
+            else:
+                raise ValueError("Method must be 'params' or 'sample'")
         else:
             # Non-leaf node
             assert self.left_node is not None and self.right_node is not None, "Invalid tree structure"
@@ -85,7 +87,7 @@ class BDFNode:
     
     def find_best_split(self, X: np.ndarray, y: np.ndarray,
                         min_samples_leaf: int, min_child_weight: float,
-                        col_idcs: list | np.ndarray = None, eta = 0.025) -> tuple[int, float, float, np.ndarray, np.ndarray]:
+                        col_idcs: list | np.ndarray | None = None, eta = 0.025) -> tuple[int, float, float, np.ndarray, np.ndarray] | tuple[None, None, float, None, None]:
         """Find best split considering constraints directly in the node
         
         Args
@@ -113,11 +115,11 @@ class BDFNode:
             - `best_right_indices`: Boolean array indicating indices for right child
         """
         n_samples, n_features = X.shape
-        best_feature = None
-        best_threshold = None
-        best_loss_reduction = 0
-        best_left_indices = None
-        best_right_indices = None
+        best_feature: int | None = None
+        best_threshold: float | None = None
+        best_loss_reduction = 0.
+        best_left_indices: np.ndarray | None = None
+        best_right_indices: np.ndarray | None = None
         n_thresholds = int(np.ceil(1/eta))  # Number of thresholds to consider per feature
         
         # Current node NLL
@@ -156,7 +158,7 @@ class BDFNode:
                     best_left_indices = left_indices
                     best_right_indices = right_indices
         
-        if best_feature is None:
+        if best_feature is None or best_threshold is None or best_left_indices is None or best_right_indices is None:
             return None, None, 0, None, None
             
         return best_feature, best_threshold, best_loss_reduction, best_left_indices, best_right_indices
