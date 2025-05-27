@@ -3,9 +3,9 @@ import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
 from tqdm import tqdm
 
-from bdf.distributions import BDFDistribution
-from bdf.distributions.initialize import init_distribution
-from bdf.tree_classes.BDFTree import BDFTree
+from bdf.distributions.bdf_distribution import BDFDistribution
+from bdf.distributions.distribution_manager import DistributionManager as DM
+from bdf.tree_classes.bdf_tree import BDFTree
 
 
 class BDFRegressor(BaseEstimator, RegressorMixin):
@@ -13,8 +13,8 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
     """
     def __init__(
         self,
-        data_dist: str | BDFDistribution.BDFDistribution = 'normal',
-        prior_params: str | BDFDistribution.BDFDistribution | dict = 'auto',
+        dist: str,
+        prior_params: dict,
         n_trees: int = 100,
         reg_beta: float = 0,
         reg_lambda: float = 0,
@@ -48,8 +48,8 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         `min_child_weight` : int | float, optional
             Minimum sum of instance weight (hessian) needed in a child, default is 1.
         """
-        self.distribution = init_distribution(data_dist=data_dist, prior_dist=prior_params)
-        self.data_dist, self.prior_params = data_dist, prior_params
+        self.distribution = DM.create_distribution(dist=dist, prior_params=prior_params)
+        self.dist, self.prior_params = dist, prior_params
         self._validate_init_params(
             n_trees=n_trees,
             reg_beta=reg_beta,
@@ -73,6 +73,8 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             Training data target values.
         """
         X, y = self._validate_fit_input(X, y)
+        if standardize_y:
+            y = self._standardize_y(y.copy())
 
         # Otherwise regularization depends on size of the dataset (NLL as sum)
         n_features_iter = int(np.ceil(X.shape[1] * self.colsample))

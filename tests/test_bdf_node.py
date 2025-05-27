@@ -1,8 +1,9 @@
 import pytest
 import numpy as np
 
-from bdf.tree_classes.BDFNode import BDFNode
-from bdf.distributions import Normal, BDFDistribution, initialize
+from bdf.tree_classes.bdf_node import BDFNode
+from bdf.distributions.distribution_manager import DistributionManager as DM
+
 
 
 class TestFindBestSplit:
@@ -18,7 +19,7 @@ class TestFindBestSplit:
         print(X)
         y = np.array([1, 2, 11, 12])
         
-        dist = initialize.init_distribution('normal', prior_dist={'mean': 6.5, 'std': 20})
+        dist = DM.create_distribution('normal', prior_params={'mean': 6.5, 'std': 20})
         # Create a BDFNode with this data
         node = BDFNode(distribution=dist, depth=1)
         
@@ -41,7 +42,7 @@ class TestFindBestSplit:
         ], dtype=float)
         y = np.array([1, 2, 11, 12])
         
-        dist = initialize.init_distribution('normal', prior_dist={'mean': 6.5, 'std': 20})
+        dist = DM.create_distribution('normal', prior_params={'mean': 6.5, 'std': 20})
         # Create a BDFNode with this data
         node = BDFNode(distribution=dist, depth=1)
         
@@ -62,7 +63,7 @@ class TestFindBestSplit:
             [1, 1, 1, 1],
         ], dtype=float)
         y = np.array([0, 0, 1, 1])  
-        dist = initialize.init_distribution('normal', prior_dist={'mean': 0, 'std': 1})
+        dist = DM.create_distribution('normal', prior_params={'mean': 8, 'std': 1})
         # Create a BDFNode with this data
         node = BDFNode(distribution=dist, depth=1)
         # Find the best split

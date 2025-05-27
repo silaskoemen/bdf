@@ -1,36 +1,46 @@
-// In splitter.rs
 use ndarray::{ArrayView1, ArrayView2, Array1, s};
 use crate::distribution::Distribution;
+use rayon::prelude::*;
+use std::sync::Mutex;
 
-pub fn find_best_split_rust(
+pub fn find_best_split(
     x: &ArrayView2<f64>,
     y: &ArrayView1<f64>,
     min_samples_leaf: usize,
     min_child_weight: f64,
     distribution: &dyn Distribution,
     eta: f64,
-    col_idcs: Option<ArrayView1<usize>>,
+    col_idcs: Option<Array1<usize>>,
 ) -> (Option<usize>, Option<f64>, f64, Option<Array1<bool>>, Option<Array1<bool>>) {
-    let (n_samples, n_features) = (x.shape()[0], x.shape()[1]);
+    let n_features = x.shape()[1];
     
-    let mut best_feature: Option<usize> = None;
-    let mut best_threshold: Option<f64> = None;
-    let mut best_loss_reduction: f64 = 0.0;
-    let mut best_left_indices: Option<Array1<bool>> = None;
-    let mut best_right_indices: Option<Array1<bool>> = None;
+    // Shared best results using Mutex for thread safety
+    let best_results = Mutex::new((
+        None as Option<usize>,
+        None as Option<f64>,
+        0.0f64,
+        None as Option<Array1<bool>>,
+        None as Option<Array1<bool>>
+    ));
     
     let n_thresholds = (1.0 / eta).ceil() as usize;
     
-    // Current node NLL
+    // Current node NLL (calculated once)
     let current_nll = distribution.nll(y);
     
     // Determine which features to iterate through
     let feature_idcs: Vec<usize> = match col_idcs {
-        Some(indices) => indices.to_vec(),
+        Some(ref indices) => indices.to_vec(),
         None => (0..n_features).collect(),
     };
     
-    for &feature_idx in feature_idcs.iter() {
+    feature_idcs.par_iter().for_each(|&feature_idx| {
+        // Local best tracking variables
+        let mut local_best_loss = 0.0;
+        let mut local_best_threshold = None;
+        let mut local_best_left = None;
+        let mut local_best_right = None;
+
         // Extract column and compute quantiles
         let column = x.slice(s![.., feature_idx]);
         let mut values: Vec<f64> = column.to_vec();
@@ -49,18 +59,13 @@ pub fn find_best_split_rust(
         // Deduplicate thresholds
         thresholds.dedup();
         
-        // For each pair of adjacent thresholds, use the midpoint
         for i in 1..thresholds.len() {
             if thresholds[i] == thresholds[i-1] {
                 continue;
             }
-            
             let threshold = (thresholds[i] + thresholds[i-1]) / 2.0;
-            
-            // Split data
-            let left_indices: Array1<bool> = column.mapv(|val| val <= threshold);
-            let right_indices: Array1<bool> = column.mapv(|val| val > threshold);
-            
+            let (left_indices, right_indices) = create_threshold_masks(&column, threshold);
+                    
             // Check constraints
             let left_count = left_indices.iter().filter(|&&v| v).count();
             let right_count = right_indices.iter().filter(|&&v| v).count();
@@ -73,33 +78,62 @@ pub fn find_best_split_rust(
             // Calculate NLL for each child
             let left_y = Array1::from_iter(
                 y.iter()
-                 .zip(left_indices.iter())
-                 .filter(|(_, mask)| **mask)
-                 .map(|(&val, _)| val)
+                .zip(left_indices.iter())
+                .filter(|(_, mask)| **mask)
+                .map(|(&val, _)| val)
             );
             
             let right_y = Array1::from_iter(
                 y.iter()
                 .zip(right_indices.iter())
-                .filter(|(_, mask)| **mask)  // Just dereference once with *mask
+                .filter(|(_, mask)| **mask)
                 .map(|(&val, _)| val)
             );
             
             let left_nll = distribution.nll(&left_y.view());
             let right_nll = distribution.nll(&right_y.view());
-            
-            // Calculate loss reduction
+                    
             let loss_reduction = current_nll - (left_nll + right_nll);
-            
-            if loss_reduction > best_loss_reduction {
-                best_loss_reduction = loss_reduction;
-                best_feature = Some(feature_idx);
-                best_threshold = Some(threshold);
-                best_left_indices = Some(left_indices.clone());
-                best_right_indices = Some(right_indices.clone());
+                    
+            // Update local best (no mutex needed yet)
+            if loss_reduction > local_best_loss {
+                local_best_loss = loss_reduction;
+                local_best_threshold = Some(threshold);
+                local_best_left = Some(left_indices);
+                local_best_right = Some(right_indices);
             }
         }
+
+        if let Some(threshold) = local_best_threshold {
+            let mut best = best_results.lock().unwrap();
+            if local_best_loss > best.2 {
+                *best = (
+                    Some(feature_idx),
+                    Some(threshold),
+                    local_best_loss,
+                    local_best_left,
+                    local_best_right
+                );
+            }
+        }
+    });
+    
+    // Extract results from mutex
+    let best = best_results.lock().unwrap();
+    (best.0, best.1, best.2, best.3.clone(), best.4.clone())
+}
+
+fn create_threshold_masks(column: &ArrayView1<f64>, threshold: f64) -> (Array1<bool>, Array1<bool>) {
+    let len = column.len();
+    let mut left_mask = Array1::from_elem(len, false);
+    let mut right_mask = Array1::from_elem(len, false);
+    
+    // Simple scalar implementation - no SIMD
+    for i in 0..len {
+        let val = column[i];
+        left_mask[i] = val <= threshold;
+        right_mask[i] = val > threshold;
     }
     
-    (best_feature, best_threshold, best_loss_reduction, best_left_indices, best_right_indices)
+    (left_mask, right_mask)
 }

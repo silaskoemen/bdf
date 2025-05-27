@@ -10,7 +10,7 @@ class BDFDistribution(ABC):
         self.params = params
     
     @abstractmethod
-    def calc_posterior_params(self, data: np.ndarray) -> dict | tuple:
+    def calc_posterior_params(self, data: np.ndarray) -> dict | tuple | np.ndarray:
         """ Get the posterior parameters of the distribution given the data.
         """
         raise NotImplementedError("Subclasses must implement this method.")
@@ -22,13 +22,13 @@ class BDFDistribution(ABC):
         raise NotImplementedError("Subclasses must implement this method.")
     
     @abstractmethod
-    def likelihood(self, data: np.ndarray) -> float:
+    def likelihood(self, data: np.ndarray) -> np.ndarray:
         """ Compute the likelihood of the data given the distribution.
         """
         raise NotImplementedError("Subclasses must implement this method.")
     
     @abstractmethod
-    def log_likelihood(self, data: np.ndarray) -> float:
+    def log_likelihood(self, data: np.ndarray) -> np.ndarray:
         """ Compute the log-likelihood of the data given the distribution.
         """
         raise NotImplementedError("Subclasses must implement this method.")
@@ -40,7 +40,7 @@ class BDFDistribution(ABC):
         raise NotImplementedError("Subclasses must implement this method.")
     
     @abstractmethod
-    def sample_posterior(self, data: np.ndarray, size: int) -> np.ndarray:
+    def sample_posterior(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None, size: int = 1) -> np.ndarray:
         """ Sample from the distribution.
         """
         raise NotImplementedError("Subclasses must implement this method.")

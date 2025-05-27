@@ -1,8 +1,8 @@
 import numpy as np
 import heapq
 
-from bdf.distributions.BDFDistribution import BDFDistribution
-from bdf.tree_classes.BDFNode import BDFNode
+from bdf.distributions.bdf_distribution import BDFDistribution
+from bdf.tree_classes.bdf_node import BDFNode
 
 class BDFTree:
     """ Base class for all BDF trees.

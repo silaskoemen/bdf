@@ -2,15 +2,15 @@ import numpy as np
 import warnings
 
 from bdf.distributions import (
-    Normal,
-    BDFDistribution,
+    normal,
+    bdf_distribution,
 )
 
 
 class BDFNode:
     """ Base class for all BDF nodes.
     """
-    def __init__(self, distribution: BDFDistribution.BDFDistribution, depth: int = 0):
+    def __init__(self, distribution: bdf_distribution.BDFDistribution, depth: int = 0):
         self.distribution = distribution
         self.depth = depth
         self.left_node, self.right_node = None, None
@@ -22,12 +22,12 @@ class BDFNode:
         assert isinstance(method, str) and method in ['params', 'sample'], "Method must be str 'params' or 'sample'"
         if self.left_node is None and self.right_node is None:
             # Leaf node
+            assert hasattr(self, 'posterior_mean'), "Posterior mean not estimated. Call estimate_posterior() first."
+            assert hasattr(self, 'posterior_std'), "Posterior std not estimated. Call estimate_posterior() first."
             if method == 'params':
-                assert hasattr(self, 'posterior_mean'), "Posterior mean not estimated. Call estimate_posterior() first."
-                assert hasattr(self, 'posterior_std'), "Posterior std not estimated. Call estimate_posterior() first."
                 return self.posterior_mean, self.posterior_std
             elif method == 'sample':
-                return self.distribution.sample_posterior(size=X.shape[0], data=X)  # Sample from the posterior distribution
+                return self.distribution.sample_posterior(size=X.shape[0], params={'mean': self.posterior_mean, 'std': self.posterior_std})  # Sample from the posterior distribution
             else:
                 raise ValueError("Method must be 'params' or 'sample'")
         else:
@@ -117,20 +117,31 @@ class BDFNode:
         """
         try:
             # Import and use the Rust implementation
-            import bdf_optimized
-            # Convert any list col_idcs to numpy array if provided
-            if col_idcs is not None:
-                col_idcs = np.array(col_idcs, dtype=np.uint64)
-                
-            # Call the Rust implementation
-            feature_idx, threshold, loss_reduction, left_indices, right_indices = bdf_optimized.find_best_split_rust(  # type: ignore | can't find function from Rust module
-                X, y, min_samples_leaf, min_child_weight, self.distribution, eta, col_idcs
-            )
-            return feature_idx, threshold, loss_reduction, left_indices, right_indices
+            import bdf_rust
+            from bdf.distributions.distribution_manager import DistributionManager as DM
             
-        except ImportError:
-            # Fall back to Python implementation if the compiled version isn't available
-            warnings.warn("Using slower Python implementation for find_best_split")
+            # Create distribution spec with native and fallback options
+            dist_spec = DM.to_rust_spec(self.distribution)
+            
+            # Always include the Python object as fallback
+            dist_spec["_python_object"] = self.distribution
+            
+            # Convert column indices if provided
+            if col_idcs is not None:
+                col_idcs = np.array(col_idcs, dtype=np.int64)
+                
+            # Call the unified Rust implementation
+            feature_idx, threshold, loss_reduction, left_indices, right_indices = (
+                bdf_rust.find_best_split(  # type: ignore
+                    X, y, min_samples_leaf, min_child_weight, 
+                    dist_spec, eta, col_idcs
+                )
+            )
+        
+            return feature_idx, threshold, loss_reduction, left_indices, right_indices
+    
+        except (ImportError, Exception) as e:
+            warnings.warn(f"Rust implementation not available or failed: {e}. Falling back to Python implementation.")
             return self._find_best_split_python(X, y, min_samples_leaf, min_child_weight, col_idcs, eta)
     
     def _find_best_split_python(self, X: np.ndarray, y: np.ndarray,
@@ -151,7 +162,7 @@ class BDFNode:
         feature_idcs = range(n_features) if col_idcs is None else col_idcs
         for feature_idx in feature_idcs:
             # thresholds = np.quantile(X[:, feature_idx], np.linspace(0, 1, n_thresholds+2)[1:-1], method='closest_observation')
-            thresholds = np.quantile(X[:, feature_idx], np.linspace(0, 1, n_thresholds), method='closest_observation')
+            thresholds = self._generate_candidate_thresholds(X[:, feature_idx], n_thresholds)
             
             # Ensures constant values will return None, always value in between taken as threshold
             for i in range(1, len(thresholds)):
@@ -184,3 +195,23 @@ class BDFNode:
             return None, None, 0, None, None
             
         return best_feature, best_threshold, best_loss_reduction, best_left_indices, best_right_indices
+    
+    def _generate_candidate_thresholds(self, data: np.ndarray, n_thresholds: int) -> np.ndarray:
+        """Generate candidate thresholds based on the data and eta value.
+        
+        Args
+        -----
+        `data` : np.ndarray
+            1D array of feature values to generate thresholds from
+        `n_thresholds` : int
+            Number of candidate thresholds to generate
+        
+        Returns
+        -------
+        `thresholds` : np.ndarray
+            1D array of candidate thresholds
+        """
+        if data.ndim != 1:
+            raise ValueError("Data must be a 1D array of feature values.")
+        
+        return np.quantile(data, np.linspace(0, 1, n_thresholds), method='closest_observation')
