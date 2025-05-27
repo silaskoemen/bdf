@@ -185,3 +185,20 @@ class NormGammaNormal(BDFDistribution):
         )
         return posterior_mean, posterior_std
     
+
+class InverseGammaNormal(BDFDistribution):
+    """ Inverse-Gamma distribution class for Bayesian Distributional Forests.
+    This class models a Normal distribution with an Inverse-Gamma prior on the variance.
+    """
+    
+    def __init__(self, prior_params: dict, params: tuple | None = None):
+        """ Initialize the Inverse-Gamma distribution with prior parameters.
+        
+        Args
+        ----
+        `prior_params` : dict
+            Dictionary containing prior parameters, must include 'mean', 'std', 'alpha', and 'beta'.
+        `params` : tuple, optional
+            Additional parameters for the distribution, default is None.
+        """
+        pass
