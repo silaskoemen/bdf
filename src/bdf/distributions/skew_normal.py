@@ -56,11 +56,21 @@ class NormalNormalSkewNormal(BDFDistribution):
         z = (data - sample_mean) / np.sqrt(sample_var)
 
         if self.prior_mean_alpha == 0:
-            posterior_mean_alpha = (
-                np.sum(z) / (
-                    np.sum(z**2) + 2*np.pi/self.prior_std_alpha**2
-                )
-            )
+            phi = np.exp(-0.5 * z**2) / np.sqrt(2 * np.pi)
+
+            # Numerically stable approximation of Phi(z)
+            from scipy.stats import norm
+            Phi = norm.cdf(z)
+
+            # Avoid division by zero or very small values
+            Phi_safe = np.clip(Phi, 1e-10, 1 - 1e-10)
+
+            # Score and Fisher Information
+            score = np.sum((z * phi) / Phi_safe)
+            Fisher_info = np.sum((z**2 * phi**2) / (Phi_safe**2))
+
+            # Posterior for alpha
+            posterior_mean_alpha = score / (Fisher_info + 1 / self.prior_std_alpha**2)
         else:
             raise NotImplementedError(
                 "Posterior mean for alpha is not implemented for non-zero prior mean_alpha."
