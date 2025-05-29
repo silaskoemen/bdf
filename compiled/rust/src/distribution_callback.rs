@@ -26,7 +26,7 @@ impl Distribution for PythonDistributionWrapper {
             let result = self.py_dist
                 .call_method1(py, "nll", (y_array,))
                 .expect("Failed to call nll method");
-            
+
             result.extract(py).expect("Failed to extract NLL value")
         })
     }

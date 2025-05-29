@@ -32,5 +32,5 @@ repos:
     hooks:
       - id: pyright
         files: ^src/.*\.py$  # Only check src and compiled directories
-        exclude: ^examples/.*\.py$      # Explicitly exclude examples
-        additional_dependencies: ["numpy", "matplotlib", "scipy", "pydantic"]
+        exclude: ^examples/.*\.py$  # Explicitly exclude examples
+        additional_dependencies: ["numpy", "matplotlib", "scipy", "pydantic", ".", "pandas", "scikit-learn", "tqdm"]

@@ -1,1 +1,1 @@
-""" Weibull distribution with inverse gamma prior, posterior is inverse gamma """
+"""Weibull distribution with inverse gamma prior, posterior is inverse gamma"""

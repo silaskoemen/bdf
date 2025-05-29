@@ -1,51 +1,39 @@
-from typing import Dict, Any, Optional, Type
-import numpy as np
+from typing import Any, Dict
+
 from bdf.distributions.bdf_distribution import BDFDistribution
-from bdf.distributions.normal import NormalNormal
+from bdf.distributions.normal import NormalNormal, NormalNormalParams
+from bdf.distributions.skew_normal import NormalEBSkewNormal, NormalEBSkewNormalParams
+
 # Import other distribution classes as needed
+
 
 class DistributionManager:
     """Single manager class for handling distribution creation and conversion"""
-    
+
     # Registry of available distributions
     DISTRIBUTIONS = {
         "normal_normal": NormalNormal,
         # "zip": ZeroInflatedPoisson,
         # Add other distributions here
     }
-    
+
     @classmethod
     def create_distribution(cls, dist: str, prior_params: Dict[str, Any]) -> BDFDistribution:
         """Create a distribution instance from name and parameters"""
         # Convert name to lowercase and handle aliases
         name = dist.lower().replace("-", "_").replace(" ", "_")
-        
+
         # Match pattern for distribution creation
         match name:
             case "normal" | "normal_normal" | "gaussian":
-                # Check whether mean and std are present, also allow kw mu and sigma
-                if "mean" in prior_params or "mu" in prior_params:
-                    mean = prior_params.get("mean", prior_params.get("mu"))
-                else:
-                    raise ValueError("Prior parameters must include 'mean' or 'mu'")
-                if "std" in prior_params or "sigma" in prior_params:
-                    std = prior_params.get("std", prior_params.get("sigma"))
-                else:
-                    raise ValueError("Prior parameters must include 'std' or 'sigma'")
-                return NormalNormal(prior_params={
-                    "mean": mean,
-                    "std": std
-                })
-            # case "zip" | "zero_inflated_poisson":
-            #     return ZeroInflatedPoisson(prior_params={
-            #         "lambda_alpha": prior_params.get("lambda_alpha", 1.0),
-            #         "lambda_beta": prior_params.get("lambda_beta", 1.0),
-            #         "zero_alpha": prior_params.get("zero_alpha", 1.0),
-            #         "zero_beta": prior_params.get("zero_beta", 1.0)
-            #     })
+                prior_params = NormalNormalParams.model_validate(prior_params)  # type: ignore
+                return NormalNormal(prior_params=prior_params)
+            case "skewnormal" | "sn" | "normal_skewnormal" | "normaleb_skewnormal":
+                prior_params = NormalEBSkewNormalParams.model_validate(prior_params)  # type: ignore
+                return NormalEBSkewNormal(prior_params=prior_params)
             case _:
                 raise ValueError(f"Unknown distribution: {name}")
-    
+
     @classmethod
     def to_rust_spec(cls, distribution: BDFDistribution) -> Dict[str, Any]:
         """Convert a Python distribution to a spec dict for Rust"""
@@ -55,7 +43,7 @@ class DistributionManager:
                 return {
                     "dist_type": "NormalNormal",
                     "prior_mean": distribution.prior_params.get("mean", 0.0),
-                    "prior_std": distribution.prior_params.get("std", 1.0)
+                    "prior_std": distribution.prior_params.get("std", 1.0),
                 }
             # case ZeroInflatedPoisson():
             #     return {
@@ -67,16 +55,15 @@ class DistributionManager:
             #     }
             case _:
                 raise ValueError(f"Unknown distribution type: {type(distribution)}")
-    
+
     @classmethod
     def from_rust_spec(cls, spec: Dict[str, Any]) -> BDFDistribution:
         """Create a Python distribution from Rust spec dict"""
         match spec.get("dist_type"):
             case "NormalNormal":
-                return NormalNormal(prior_params={
-                    "mean": spec.get("prior_mean", 0.0),
-                    "std": spec.get("prior_std", 1.0)
-                })
+                return NormalNormal(
+                    prior_params={"mean": spec.get("prior_mean", 0.0), "std": spec.get("prior_std", 1.0)}
+                )
             # case "ZeroInflatedPoisson":
             #     return ZeroInflatedPoisson(prior_params={
             #         "lambda_alpha": spec.get("lambda_prior_alpha", 1.0),

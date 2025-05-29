@@ -1,19 +1,22 @@
-""" Dirichlet prior over categories, where certain real number per category is prior.
-larger numbers mean stronger influence of priors, as posterior counts absolute number of 
+"""Dirichlet prior over categories, where certain real number per category is prior.
+larger numbers mean stronger influence of priors, as posterior counts absolute number of
 events in category"""
+
+from typing import Any, Dict
+
 import numpy as np
+
 from bdf.distributions.bdf_distribution import BDFDistribution
-from typing import Dict, Any
 
 
 class DirichletCategorical(BDFDistribution):
-    """ Dirichlet-Categorical distribution class for Bayesian Distributional Forests.
+    """Dirichlet-Categorical distribution class for Bayesian Distributional Forests.
     This class models a Categorical distribution with a Dirichlet prior on the category probabilities.
     """
-    
+
     def __init__(self, prior_params: Dict[str, Any], params: tuple | None = None):
-        """ Initialize the Dirichlet-Categorical distribution with prior parameters.
-        
+        """Initialize the Dirichlet-Categorical distribution with prior parameters.
+
         Args
         ----
         `prior_params` : dict
@@ -22,19 +25,19 @@ class DirichletCategorical(BDFDistribution):
             Additional parameters for the distribution, default is None.
         """
         super().__init__(prior_params, params)
-        self.prior_alpha = np.array(prior_params.get('alpha', [1.0] * len(prior_params)))
+        self.prior_alpha = np.array(prior_params.get("alpha", [1.0] * len(prior_params)))
         if np.any(self.prior_alpha <= 0):
             raise ValueError("Prior parameters 'alpha' must be positive.")
         self.params = tuple(self.prior_alpha)
-    
+
     def calc_posterior_params(self, data: np.ndarray) -> np.ndarray:
-        """ Calculate posterior parameters based on the data.
-        
+        """Calculate posterior parameters based on the data.
+
         Args
         ----
         `data` : np.ndarray
             The data to calculate the posterior parameters from.
-        
+
         Returns
         -------
         np.ndarray

@@ -1,7 +1,8 @@
-#%%
-import matplotlib.pyplot as plt
+# %%
 import matplotlib as mpl
-mpl.rcParams.update({'font.family': 'serif', 'font.size': 12})
+import matplotlib.pyplot as plt
+
+mpl.rcParams.update({"font.family": "serif", "font.size": 12})
 import numpy as np
 from scipy import stats
 
@@ -20,27 +21,32 @@ for shape, scale in zip(shapes, scales):
 
 # Plot histogram of all samples combined
 plt.figure(figsize=(10, 6))
-plt.hist(np.concatenate(samples), bins=50, alpha=0.5, color='gray', label='Combined')
+plt.hist(np.concatenate(samples), bins=50, alpha=0.5, color="gray", label="Combined")
 
 # Plot histogram for each gamma distribution
-colors = ['blue', 'green', 'red', 'purple', 'orange']
+colors = ["blue", "green", "red", "purple", "orange"]
 for i, (s, shape, scale) in enumerate(zip(samples, shapes, scales)):
-    plt.hist(s, bins=50, alpha=0.5, color=colors[i], label=f'Gamma(k={shape}, θ={scale})')
+    plt.hist(s, bins=50, alpha=0.5, color=colors[i], label=f"Gamma(k={shape}, θ={scale})")
 
 # Plot normal distribution that approximates the combined data
 combined = np.concatenate(samples)
 mu, std = combined.mean(), combined.std()
 x = np.linspace(min(combined), max(combined), 100)
-plt.plot(x, stats.norm.pdf(x, mu, std) * len(combined) * (max(combined) - min(combined)) / 50, 
-         'k--', linewidth=2, label=f'Normal(μ={mu:.2f}, σ={std:.2f})')
+plt.plot(
+    x,
+    stats.norm.pdf(x, mu, std) * len(combined) * (max(combined) - min(combined)) / 50,
+    "k--",
+    linewidth=2,
+    label=f"Normal(μ={mu:.2f}, σ={std:.2f})",
+)
 
-plt.title('Mixture of 5 Gamma Distributions Approximating a Normal Distribution')
-plt.xlabel('Value')
-plt.ylabel('Frequency')
+plt.title("Mixture of 5 Gamma Distributions Approximating a Normal Distribution")
+plt.xlabel("Value")
+plt.ylabel("Frequency")
 plt.legend()
 plt.grid(alpha=0.3)
 plt.tight_layout()
-plt.savefig('../outputs/figures/locally_gamma_normal.png', dpi=300)
+plt.savefig("../outputs/figures/locally_gamma_normal.png", dpi=300)
 plt.show()
 # %%
 # Test normality of the combined samples

@@ -28,17 +28,10 @@ class NormalEBSkewNormal(BDFDistribution):
         """
         # Input has already been validated in the DistributionManager with Pydantic BaseModel below
         super().__init__(prior_params, params)
-        if not all(
-            key in prior_params and isinstance(key, float)
-            for key in ["mu", "sigma", "mean_alpha", "m_alpha"]
-        ):
-            raise ValueError(
-                "Prior parameters must include 'mu', 'sigma', 'mean_alpha', and 'm_alpha'."
-            )
-        self.prior_mu = prior_params.get("mu")
-        self.prior_sigma = prior_params.get("sigma")
-        self.prior_mean_alpha = prior_params.get("mean_alpha")
-        self.prior_m_alpha = prior_params.get("m_alpha")
+        self.prior_mu = prior_params.get("mu", 0.0)
+        self.prior_sigma = prior_params.get("sigma", 1.0)
+        self.prior_mean_alpha = prior_params.get("mean_alpha", 0.0)
+        self.prior_m_alpha = prior_params.get("m_alpha", 10.0)
         if self.prior_sigma <= 0 or self.prior_m_alpha <= 0:  # type: ignore
             raise ValueError("Prior parameters 'sigma' and 'm_alpha' must be positive.")
 
@@ -58,14 +51,10 @@ class NormalEBSkewNormal(BDFDistribution):
         n = data.shape[0]
         sample_mean = np.mean(data)
         sample_var = np.var(data, ddof=1)
-        sample_skewness = np.clip(
-            np.mean(((data - sample_mean) / np.sqrt(sample_var)) ** 3), 0.995, 0.995
-        )
+        sample_skewness = np.clip(np.mean(((data - sample_mean) / np.sqrt(sample_var)) ** 3), 0.995, 0.995)
 
         # Posterior mean for xi (Normal prior)
-        posterior_mean = (
-            self.prior_mu / self.prior_sigma**2 + n * sample_mean / sample_var  # type: ignore
-        ) / (
+        posterior_mean = (self.prior_mu / self.prior_sigma**2 + n * sample_mean / sample_var) / (  # type: ignore
             1 / self.prior_sigma**2 + n / sample_var  # type: ignore
         )
 
@@ -77,14 +66,13 @@ class NormalEBSkewNormal(BDFDistribution):
         )
         alpha = np.sign(delta) * (np.abs(delta) / np.sqrt(1 - delta**2)) ** (1 / 2)
         posterior_alpha = (
-            n / (n + self.prior_m_alpha) * alpha
-            + self.prior_m_alpha / (n + self.prior_m_alpha) * self.prior_mean_alpha
+            n / (n + self.prior_m_alpha) * alpha + self.prior_m_alpha / (n + self.prior_m_alpha) * self.prior_mean_alpha
         )  # type: ignore
         posterior_omega = np.sqrt(sample_var) / np.sqrt(1 - 2 * delta**2 / np.pi)
 
-        posterior_xi = posterior_mean - posterior_omega * posterior_alpha / np.sqrt(
-            1 + posterior_alpha**2
-        ) * np.sqrt(2 / np.pi)
+        posterior_xi = posterior_mean - posterior_omega * posterior_alpha / np.sqrt(1 + posterior_alpha**2) * np.sqrt(
+            2 / np.pi
+        )
 
         return posterior_alpha, posterior_xi, posterior_omega
 
@@ -255,13 +243,9 @@ class NormalEBSkewNormalParams(BaseModel):
     """Pydantic model for Skew-Normal distribution parameters."""
 
     mu: float = Field(default=0.0, alias="mean", description="Prior mean for mean mu of data")
-    sigma: float = Field(
-        default=1.0, gt=0, alias="std", description="Prior standard deviation for mu of data"
-    )
+    sigma: float = Field(default=1.0, gt=0, alias="std", description="Prior standard deviation for mu of data")
     mean_alpha: float = Field(default=0.0, alias="mu_alpha", description="Prior mean for alpha")
-    m_alpha: float = Field(
-        default=10.0, gt=0, alias="belief_alpha", description="Prior strength of belief for alpha"
-    )
+    m_alpha: float = Field(default=10.0, gt=0, alias="belief_alpha", description="Prior strength of belief for alpha")
 
     class Config:
         """Pydantic configuration to allow extra fields and use aliases."""

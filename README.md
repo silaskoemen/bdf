@@ -30,7 +30,7 @@ y = np.random.randn(1000)
 
 # Initialize the model
 bdf_model = BayesianDistributionalForest(
-    n_estimators=100, 
+    n_estimators=100,
     prior_type='gaussian',
     max_depth=10
 )

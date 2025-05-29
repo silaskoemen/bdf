@@ -12,7 +12,7 @@ fn find_best_split(
     py: Python<'_>,
     x: PyReadonlyArray2<f64>,
     y: PyReadonlyArray1<f64>,
-    min_samples_leaf: usize, 
+    min_samples_leaf: usize,
     min_child_weight: f64,
     distribution_spec: &PyDict,
     eta: f64,
@@ -20,10 +20,10 @@ fn find_best_split(
 ) -> PyResult<(Option<usize>, Option<f64>, f64, Option<Py<PyArray1<bool>>>, Option<Py<PyArray1<bool>>>)> {
     let x_array = x.as_array();
     let y_array = y.as_array();
-    
+
     // Create distribution based on specifications
     let distribution = create_distribution_from_spec(distribution_spec, py)?;
-    
+
     // Process optional column indices
     let col_indices = col_idcs.as_ref().map(|arr| {
         let indices = arr.as_array();
@@ -32,11 +32,11 @@ fn find_best_split(
             .collect();
         Array1::from(indices_usize)
     });
-    
+
     // Call splitter implementation
-    let (feat_idx, threshold, loss_reduction, left_indices, right_indices) = 
+    let (feat_idx, threshold, loss_reduction, left_indices, right_indices) =
         splitter::find_best_split(
-            &x_array, 
+            &x_array,
             &y_array,
             min_samples_leaf,
             min_child_weight,
@@ -44,11 +44,11 @@ fn find_best_split(
             eta,
             col_indices
         );
-    
+
     // Convert results back to Python
     let py_left = left_indices.map(|arr| PyArray1::from_array(py, &arr).into());
     let py_right = right_indices.map(|arr| PyArray1::from_array(py, &arr).into());
-    
+
     Ok((feat_idx, threshold, loss_reduction, py_left, py_right))
 }
 
@@ -65,13 +65,13 @@ fn create_distribution_from_spec(spec: &PyDict, py: Python) -> PyResult<Box<dyn 
                 .and_then(|pm| pm.extract::<f64>().ok());
             let prior_std = spec.get_item("prior_std")
                 .and_then(|ps| ps.extract::<f64>().ok());
-                
+
             if let (Some(prior_mean), Some(prior_std)) = (prior_mean, prior_std) {
                 let spec = distribution::NormalNormalSpec {
                     prior_mean,
                     prior_std,
                 };
-                
+
                 return Ok(Box::new(distribution::NormalNormal::new(&spec)));
             }
         },
@@ -81,14 +81,14 @@ fn create_distribution_from_spec(spec: &PyDict, py: Python) -> PyResult<Box<dyn 
             }
         }
     }
-    
+
     // Fallback: use Python distribution via wrapper
     if let Some(py_dist) = spec.get_item("_python_object") {
         return Ok(Box::new(distribution::PythonDistributionWrapper::new(
             py_dist.to_object(py)
         )));
     }
-    
+
     // If we get here, we couldn't create any distribution
     Err(pyo3::exceptions::PyValueError::new_err(
         "Could not create distribution from spec - missing _python_object fallback"
@@ -107,10 +107,10 @@ fn generate_thresholds(py: Python<'_>, data: PyReadonlyArray1<f64>, eta: f64) ->
     let data_array = data.as_array();
     let mut values: Vec<f64> = data_array.to_vec();
     values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    
+
     let n_thresholds = (1.0 / eta).ceil() as usize;
     let mut thresholds: Vec<f64> = Vec::with_capacity(n_thresholds);
-    
+
     // Generate thresholds from quantiles (same code as in find_best_split)
     for i in 0..n_thresholds {
         let q = i as f64 / (n_thresholds as f64);
@@ -119,10 +119,10 @@ fn generate_thresholds(py: Python<'_>, data: PyReadonlyArray1<f64>, eta: f64) ->
             thresholds.push(values[idx]);
         }
     }
-    
+
     // Deduplicate
     thresholds.dedup();
-    
+
     // Return midpoints as thresholds
     let mut midpoints = Vec::new();
     for i in 1..thresholds.len() {
@@ -131,7 +131,7 @@ fn generate_thresholds(py: Python<'_>, data: PyReadonlyArray1<f64>, eta: f64) ->
         }
         midpoints.push((thresholds[i] + thresholds[i-1]) / 2.0);
     }
-    
+
     Ok(midpoints)
 }
 

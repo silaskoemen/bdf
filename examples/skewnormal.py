@@ -66,9 +66,7 @@ posterior_mean_alpha = n / (n + lambda_alpha) * posterior_mean_alpha + lambda_al
 posterior_omega = np.std(data) / np.sqrt(1 - 2 * delta**2 / np.pi)
 posterior_mean_xi = posterior_mean - posterior_omega * delta * np.sqrt(2 / np.pi)
 
-print(
-    f"Posterior estimates: xi={posterior_mean_xi:.4f}, omega={posterior_omega:.4f}, alpha={posterior_mean_alpha:.4f}"
-)
+print(f"Posterior estimates: xi={posterior_mean_xi:.4f}, omega={posterior_omega:.4f}, alpha={posterior_mean_alpha:.4f}")
 print(f"Mean MLE estimates: {xi_mle + omega_mle * (alpha_mle / np.sqrt(1 + alpha_mle**2)) * np.sqrt(2/np.pi):.4f}")  # type: ignore
 print(f"Mean Posterior estimates: {posterior_mean_xi + posterior_omega * (posterior_mean_alpha / np.sqrt(1 + posterior_mean_alpha**2)) * np.sqrt(2/np.pi):.4f}")  # type: ignore
 print(f"Mean data: {np.mean(data):.4f}")
@@ -158,9 +156,7 @@ posterior_mean_xi = posterior_mean - posterior_omega * posterior_mean_alpha / np
     1 + posterior_mean_alpha**2
 ) * np.sqrt(2 / np.pi)
 
-print(
-    f"Posterior estimates: xi={posterior_mean_xi:.4f}, omega={posterior_omega:.4f}, alpha={posterior_mean_alpha:.4f}"
-)
+print(f"Posterior estimates: xi={posterior_mean_xi:.4f}, omega={posterior_omega:.4f}, alpha={posterior_mean_alpha:.4f}")
 print(
     f"True mean: {XI + OMEGA * (ALPHA / np.sqrt(1 + ALPHA**2)) * np.sqrt(2/np.pi):.4f}, data mean: {sample_mean:.4f}, posterior mean: {posterior_mean_xi + posterior_omega * (posterior_mean_alpha / np.sqrt(1 + posterior_mean_alpha**2)) * np.sqrt(2/np.pi):.4f}"
 )

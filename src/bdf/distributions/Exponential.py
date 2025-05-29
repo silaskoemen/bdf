@@ -1,1 +1,1 @@
-""" Exponential data with Gamma prior, posterior is Gamma """
+"""Exponential data with Gamma prior, posterior is Gamma"""
