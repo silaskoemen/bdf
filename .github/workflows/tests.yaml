@@ -50,7 +50,7 @@ jobs:
       run: ruff check --config pyproject.toml src compiled
 
     - name: Type check with mypy
-      run: mypy --config-file pyproject.toml src
+      run: mypy --config-file --explicit-package-bases pyproject.toml src
 
     - name: Check Rust code
       run: |
