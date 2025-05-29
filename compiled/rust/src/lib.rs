@@ -75,10 +75,31 @@ fn create_distribution_from_spec(spec: &PyDict, py: Python) -> PyResult<Box<dyn 
                 return Ok(Box::new(distribution::NormalNormal::new(&spec)));
             }
         },
-            // Add other distribution types here
-            _ => {
-                // Unknown distribution type - fall through to fallback
+        "NormalEBSkewNormal" => {
+            let prior_mu = spec.get_item("prior_mu")
+                .and_then(|pm| pm.extract::<f64>().ok());
+            let prior_sigma = spec.get_item("prior_sigma")
+                .and_then(|ps| ps.extract::<f64>().ok());
+            let prior_mean_alpha = spec.get_item("prior_mean_alpha")
+                .and_then(|pma| pma.extract::<f64>().ok());
+            let prior_m_alpha = spec.get_item("prior_m_alpha")
+                .and_then(|pma| pma.extract::<f64>().ok());
+            if let (Some(prior_mu), Some(prior_sigma), Some(prior_mean_alpha), Some(prior_m_alpha)) =
+                (prior_mu, prior_sigma, prior_mean_alpha, prior_m_alpha) {
+                let spec = distribution::NormalEBSkewNormalSpec {
+                    prior_mu,
+                    prior_sigma,
+                    prior_mean_alpha,
+                    prior_m_alpha,
+                };
+
+                return Ok(Box::new(distribution::NormalEBSkewNormal::new(&spec)));
             }
+
+        },
+        _ => {
+
+        }
         }
     }
 
@@ -103,7 +124,7 @@ fn calculate_nll(py: Python<'_>, data: PyReadonlyArray1<f64>, distribution_spec:
 }
 
 #[pyfunction]
-fn generate_thresholds(py: Python<'_>, data: PyReadonlyArray1<f64>, eta: f64) -> PyResult<Vec<f64>> {
+fn generate_thresholds(_py: Python<'_>, data: PyReadonlyArray1<f64>, eta: f64) -> PyResult<Vec<f64>> {
     let data_array = data.as_array();
     let mut values: Vec<f64> = data_array.to_vec();
     values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
