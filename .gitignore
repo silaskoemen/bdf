@@ -14,3 +14,5 @@ compiled/rust/target/
 debug/
 target/
 **/*.rs.bk
+
+.ruff_cache/
