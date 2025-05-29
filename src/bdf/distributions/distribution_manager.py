@@ -45,6 +45,14 @@ class DistributionManager:
                     "prior_mean": distribution.prior_params.mean,  # type: ignore
                     "prior_std": distribution.prior_params.std,  # type: ignore
                 }
+            case NormalEBSkewNormal():
+                return {
+                    "dist_type": "NormalEBSkewNormal",
+                    "prior_mu": distribution.prior_params.mu,  # type: ignore
+                    "prior_sigma": distribution.prior_params.sigma,  # type: ignore
+                    "prior_mean_alpha": distribution.prior_params.mean_alpha,  # type: ignore
+                    "prior_m_alpha": distribution.prior_params.m_alpha,  # type: ignore
+                }
             # case ZeroInflatedPoisson():
             #     return {
             #         "dist_type": "ZeroInflatedPoisson",

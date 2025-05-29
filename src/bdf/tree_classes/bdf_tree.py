@@ -66,7 +66,8 @@ class BDFTree:
 
         # Calculate initial tree loss (NLL at root + regularization)
         root_nll = self.distribution.nll(y)
-        self.tree_loss = root_nll + self.reg_beta * self.n_leaves + self.reg_lambda * (self.n_leaves**2)
+        print(f"Initial root NLL: {root_nll:.4f}")
+        self.tree_loss = root_nll + self.reg_beta + self.reg_lambda
 
         # Initialize priority queue with potential splits
         split_candidates: list[tuple] = []
@@ -77,6 +78,7 @@ class BDFTree:
             feature_idx, threshold, loss_reduction, left_indices, right_indices = self.root.find_best_split(
                 X, y, self.min_samples_leaf, self.min_child_weight, col_idcs=col_idcs, eta=eta
             )
+            print(f"Initial proposed split has loss reduction: {loss_reduction:.4f}")
 
             if loss_reduction > 0 and feature_idx is not None:
                 heapq.heappush(
@@ -131,6 +133,7 @@ class BDFTree:
                         c_feat, c_thresh, c_loss_reduction, c_left_idx, c_right_idx = child_node.find_best_split(
                             child_X, child_y, self.min_samples_leaf, self.min_child_weight, col_idcs=col_idcs, eta=eta
                         )
+                        print(f"New proposed split has loss reduction: {c_loss_reduction:.4f}")
 
                         # Only add to queue if split is beneficial
                         if c_loss_reduction > 0 and c_feat is not None:
@@ -154,7 +157,7 @@ class BDFTree:
             print(f"Tree built with {self.n_leaves} leaves and total loss: {self.tree_loss:.4f}")
         return self
 
-    def predict(self, X: np.ndarray, method: str = "params") -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+    def predict(self, X: np.ndarray, method: str = "mean", values: dict = {}) -> np.ndarray:
         """Predict using the BDFTree.
 
         Args
@@ -167,4 +170,4 @@ class BDFTree:
         np.ndarray
             Predicted values.
         """
-        return self.root.predict(X, method=method)
+        return self.root.predict(X, method=method, values=values)  # type: ignore[return-value]

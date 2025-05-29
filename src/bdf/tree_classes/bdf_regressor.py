@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
@@ -12,8 +14,8 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
 
     def __init__(
         self,
-        dist: str,
-        prior_params: dict,
+        dist: str = "normal_normal",
+        prior_params: dict = {},
         n_trees: int = 100,
         reg_beta: float = 0,
         reg_lambda: float = 0,
@@ -125,16 +127,46 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         self.y_mean, self.y_std = mean_y, std_y
         return standardized_y
 
-    def predict(self, X: np.ndarray | pd.DataFrame, method: str = "mean", values: list | None = None) -> np.ndarray:
+    def predict(self, X: np.ndarray | pd.DataFrame, method: str = "mean", values: dict = {}) -> np.ndarray:
         X = self._validate_prediction_input(X, method=method, values=values)
         preds = np.empty((X.shape[0],), dtype=float)
         match method:
             case "mean":
-                preds = np.mean([tree.predict(X, method="params")[0] for tree in self.trees], axis=0)
+                preds = np.mean(
+                    np.concat([np.expand_dims(tree.predict(X, method="mean"), -1) for tree in self.trees], axis=-1),
+                    axis=1,
+                )
+            case "median":
+                if "total_size" in values:
+                    values = {"size": np.ceil(values["total_size"] / self.n_trees).astype(int)}
+                else:
+                    size = values.get("size", 100)
+                    values = {"size": size}
+                preds = np.median(
+                    np.concat([tree.predict(X, method="sample", values=values) for tree in self.trees], axis=1), axis=1
+                )
             case "params":
-                preds = np.mean([tree.predict(X, method="params") for tree in self.trees], axis=0)
+                # Initialize an empty dictionary to store aggregated parameters
+                preds = np.empty((X.shape[0],), dtype=object)
+
+                # Predict parameters using each tree
+                tree_params = [tree.predict(X, method="params", values=values) for tree in self.trees]
+
+                # For each sample index
+                for sample_idx in range(X.shape[0]):
+                    # Get all parameter dictionaries for this sample from each tree
+                    sample_params_list = [tree_param[sample_idx] for tree_param in tree_params]
+
+                    # Get all parameter names from the first tree
+                    param_names = sample_params_list[0].keys()
+
+                    # Calculate the mean for each parameter across trees
+                    preds[sample_idx] = {
+                        param_name: np.mean([params[param_name] for params in sample_params_list])
+                        for param_name in param_names
+                    }
             case "samples-ind":
-                preds = np.concatenate([tree.predict(X, method="sample") for tree in self.trees])
+                preds = np.concatenate([tree.predict(X, method="sample", values=values) for tree in self.trees])
             # case 'samples-avg':
             #     preds = -1#np.mean([tree.predict(X, method='sample') for tree in self.trees], axis=0)
             # case 'quantiles-ind':
@@ -146,18 +178,123 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             # case 'confint-avg':
             #     preds = -1#np.mean([tree.predict(X, method='confint', values=values) for tree in self.trees], axis=0)
         if hasattr(self, "y_mean") and hasattr(self, "y_std"):
-            if method in ["mean", "params"]:
-                preds = preds * self.y_std + self.y_mean
-            elif method in [
-                "samples-ind",
-                "samples-avg",
-                "quantiles-ind",
-                "quantiles-avg",
-                "confint-ind",
-                "confint-avg",
+            if method in [
+                "mean",  # mean of all trees
+                "median",  # median of all trees
+                "samples-ind",  # concat samples from trees
+                "samples-avg",  # sample from avg params
+                "quantiles-ind",  # quantiles from concat samples from trees
+                "quantiles-avg",  # quantiles from sampling avg params
+                "confint-ind",  # confints from concat samples from trees
+                "confint-avg",  # confints from sampling avg params
             ]:
-                preds = preds * self.y_std + self.y_mean
+                preds: np.ndarray = preds * self.y_std + self.y_mean
+            elif method == "params":  # params
+                warnings.warn("Returning parameters fitted on standardized data.")
+            else:
+                raise ValueError(f"Method '{method}' is not supported for prediction with standardized y.")
         return preds
+
+    def plot_tree(self, tree_index: int = 0, figsize: tuple[int, int] = (20, 16), dpi: int = 300):
+        import io
+
+        import graphviz  # type: ignore
+        import matplotlib.image as mpimg
+        import matplotlib.pyplot as plt
+
+        if tree_index >= len(self.trees):
+            raise ValueError(f"Tree index {tree_index} out of range. Only {len(self.trees)} trees available.")
+
+        # Create digraph with hierarchical layout
+        dot = graphviz.Digraph()
+        dot.attr(rankdir="TB")  # Top to bottom layout
+        dot.attr("node", shape="ellipse")  # Default shape for all nodes
+        dot.attr(ranksep="0.6")  # Increase spacing between ranks
+        dot.attr(nodesep="2")  # Increase spacing between nodes
+        dot.attr(ratio="fill")
+
+        # Make nodes larger with custom fonts
+        dot.attr("node", shape="ellipse", style="filled", fontsize="20", width="1.7", height="1.4", margin="0.2,0.1")
+
+        # Make edges thicker and more visible
+        dot.attr("edge", fontsize="16", penwidth="2")
+
+        # Use the root of the specified tree
+        root = self.trees[tree_index].root
+
+        def traverse_tree(node, node_id=None):
+            if node_id is None:
+                node_id = str(id(node))
+
+            # Check if it's a leaf node (no children)
+            if node.left_node is None and node.right_node is None:
+                # Format posterior parameters more readably
+                params_list = []
+                for k, v in node.posterior_params.items():
+                    if isinstance(v, float):
+                        params_list.append(f"{k}: {v:.3f}")
+                    else:
+                        params_list.append(f"{k}: {v}")
+                leaf_mean = self.distribution.get_posterior_mean(params=node.posterior_params)
+                if hasattr(self, "y_mean") and hasattr(self, "y_std"):
+                    leaf_mean = leaf_mean * self.y_std + self.y_mean
+                # Join parameters with newlines for better readability
+                params_str = "\n".join(params_list)
+
+                dot.node(node_id, label=f"LEAF | {leaf_mean:.2f}\n{params_str}", style="filled", fillcolor="lightgreen")
+            else:
+                # It's a split node
+                dot.node(
+                    node_id,
+                    label=f"Feature: {node.best_feature}\nThreshold: {node.best_threshold:.3f}",
+                    style="filled",
+                    fillcolor="lightgrey",
+                )
+
+                # Create unique IDs for children
+                left_id = f"{node_id}_left"
+                right_id = f"{node_id}_right"
+
+                # Connect to children
+                dot.edge(node_id, left_id, label="≤")
+                dot.edge(node_id, right_id, label=">")
+
+                # Traverse children
+                traverse_tree(node.left_node, left_id)
+                traverse_tree(node.right_node, right_id)
+
+        # Start traversal
+        traverse_tree(root)
+
+        # Set graph rendering options
+        dot.attr(dpi=str(dpi))  # Higher resolution
+
+        try:
+            # Create a PNG image
+            png_str = dot.pipe(format="png")
+
+            # Use BytesIO to read the PNG image
+            sio = io.BytesIO(png_str)
+            img = mpimg.imread(sio, format="png")
+
+            # Plot the image using Matplotlib
+            plt.figure(figsize=figsize, dpi=dpi)
+            plt.imshow(img)
+            plt.axis("off")
+            plt.title(f"Tree {tree_index} (of {len(self.trees)})")
+            plt.tight_layout()
+            plt.show()
+        except Exception as e:
+            print(f"Error rendering tree: {e}")
+            print("Trying alternate rendering approach...")
+            try:
+                # Try saving to file and opening directly
+                dot.render(f"tree_{tree_index}", format="png", cleanup=True)
+                print(f"Tree rendered to tree_{tree_index}.png")
+            except Exception as e2:
+                print(f"Error with alternative rendering: {e2}")
+                print("Displaying DOT source instead:")
+                print(dot.source)
 
     def _validate_init_params(
         self,
@@ -214,9 +351,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         self.subsample = subsample
         self.colsample = colsample
 
-    def _validate_prediction_input(
-        self, X: np.ndarray | pd.DataFrame, method: str = "mean", values: list | None = None
-    ):
+    def _validate_prediction_input(self, X: np.ndarray | pd.DataFrame, method: str = "mean", values: dict = {}):
         """Validate the input for prediction.
 
         should allow:
@@ -239,6 +374,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
 
         assert isinstance(method, str) and method in [
             "mean",
+            "median",
             "params",
             "samples-ind",
             "samples-avg",
@@ -246,13 +382,13 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             "quantiles-avg",
             "confint-ind",
             "confint-avg",
-        ], f"Invalid method '{method}' for prediction. Must be one of ['mean', 'params', 'samples-ind', 'samples-avg', 'quantiles-ind', 'quantiles-avg', 'confint-ind', 'confint-avg']"
+        ], f"Invalid method '{method}' for prediction. Must be one of ['mean', 'median', 'params', 'samples-ind', 'samples-avg', 'quantiles-ind', 'quantiles-avg', 'confint-ind', 'confint-avg']"
 
         if method in ["quantiles-ind", "quantiles-avg", "confint-ind", "confint-avg"]:
             assert values is not None, "values must be provided for quantile/confidence interval predictions"
-            assert isinstance(values, list) and all(
-                isinstance(v, (int, float)) for v in values
-            ), "values must be a list of numeric quantiles or confidence levels"
+            assert isinstance(values, dict) and all(
+                isinstance(v, (int, float)) for v in values.values()
+            ), "values must be a dict of numeric quantiles or confidence levels"
         assert X.ndim == 2, f"X must be a 2D array, got {X.ndim}D array"
         assert X.shape[0] > 0, "X must contain at least one sample"
         return X

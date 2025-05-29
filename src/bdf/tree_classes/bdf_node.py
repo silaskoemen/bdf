@@ -14,57 +14,103 @@ class BDFNode:
         self.left_node, self.right_node = None, None
 
     def estimate_posterior(self, y: np.ndarray):
-        self.posterior_mean, self.posterior_std = self.distribution.calc_posterior_params(y)
+        self.posterior_params: dict = self.distribution.calc_posterior_params(y, return_dict=True)  # type: ignore
 
-    def predict(self, X: np.ndarray, method: str = "params") -> np.ndarray | tuple[np.ndarray, np.ndarray]:
-        assert isinstance(method, str) and method in ["params", "sample"], "Method must be str 'params' or 'sample'"
-        if self.left_node is None and self.right_node is None:
-            # Leaf node
-            assert hasattr(self, "posterior_mean"), "Posterior mean not estimated. Call estimate_posterior() first."
-            assert hasattr(self, "posterior_std"), "Posterior std not estimated. Call estimate_posterior() first."
-            if method == "params":
-                return self.posterior_mean, self.posterior_std
-            elif method == "sample":
-                return self.distribution.sample_posterior(
-                    size=X.shape[0], params={"mean": self.posterior_mean, "std": self.posterior_std}
-                )  # Sample from the posterior distribution
-            else:
-                raise ValueError("Method must be 'params' or 'sample'")
+    def predict(self, X: np.ndarray, method: str = "params", values: dict = {}) -> np.ndarray | float | dict:
+        """Predict the output for given input data X using the specified method.
+
+        Args
+        ----
+        `X` : np.ndarray
+            Input data of shape (n_samples, n_features)
+        `method` : str, optional
+            Method to use for prediction. Can be one of 'params', 'sample', or 'mean'.
+        `value` : dict, optional
+            Additional parameters for the prediction method, e.g., size for sampling.
+
+        Returns
+        -------
+        `np.ndarray` | `tuple[np.ndarray, np.ndarray]` | `float` | `dict`
+            - If method is 'params', returns the posterior parameters as a dict.
+            - If method is 'sample', returns a numpy array of samples.
+            - If method is 'mean', returns the posterior mean as a float.
+        """
+        assert isinstance(method, str) and method in [
+            "params",
+            "sample",
+            "mean",
+        ], "Method must be one of str ['params', 'sample', 'mean']"
+        if self._is_leaf():  # Leaf node
+            return self._predict_leaf(X, method=method, values=values)
+        else:  # Non-leaf node
+            return self._predict_children(X, method=method, values=values)
+
+    def _predict_leaf(self, X: np.ndarray, method: str = "params", values: dict = {}) -> np.ndarray | float | dict:
+        assert hasattr(
+            self, "posterior_params"
+        ), "Posterior params not estimated. Call estimate_posterior() first (done during fit)"
+        match method:
+            case "mean":
+                if self.depth == 0:
+                    warnings.warn("Using mean prediction at root node, indicating tree is not fully grown!")
+                    return self.distribution.get_posterior_mean(params=self.posterior_params) * np.ones(X.shape[0])
+                return self.distribution.get_posterior_mean(params=self.posterior_params)
+            case "params":
+                if self.depth == 0:
+                    warnings.warn("Using params prediction at root node, indicating tree is not fully grown!")
+                    preds = np.empty(X.shape[0], dtype=object)
+                    preds.fill(self.posterior_params)
+                    return preds
+                return self.posterior_params
+            case "sample":
+                size = values.get("size", 1)
+                samples = self.distribution.sample_posterior(size=size, params=self.posterior_params)
+                if self.depth == 0:
+                    warnings.warn("Using sample prediction at root node, indicating tree is not fully grown!")
+                    return np.tile(samples, (X.shape[0], size))
+                return self.distribution.sample_posterior(size=size, params=self.posterior_params)
+        raise ValueError(f"Invalid method: {method}. Must be one of ['params', 'sample', 'mean']")
+
+    def _predict_children(self, X: np.ndarray, method: str = "params", values: dict = {}) -> np.ndarray | float | dict:
+        assert (
+            self.left_node is not None and self.right_node is not None
+        ), "Invalid tree structure, BDFNode is not a leaf but has no children"
+
+        left_mask = X[:, self.best_feature] <= self.best_threshold
+        right = X[~left_mask]
+        left = X[left_mask]
+
+        if method == "params":
+            # For params method, we need to handle two return value
+            params_array = np.empty(X.shape[0], dtype=object)
+            if left.shape[0] > 0:
+                params_array[left_mask] = self.left_node.predict(left, method=method, values=values)
+            if right.shape[0] > 0:
+                params_array[~left_mask] = self.right_node.predict(right, method=method, values=values)
+            return params_array
+        elif method == "sample":
+            # For sample method, we handle a single return value
+            size = values.get("size", 1)
+            preds = np.zeros((X.shape[0], size), dtype=float)
+            if left.shape[0] > 0:
+                preds[left_mask] = self.left_node.predict(left, method=method, values=values)
+            if right.shape[0] > 0:
+                preds[~left_mask] = self.right_node.predict(right, method=method, values=values)
+            return preds
+        elif method == "mean":
+            # For mean method, we handle a single return value
+            preds = np.zeros(X.shape[0], dtype=float)
+            if left.shape[0] > 0:
+                preds[left_mask] = self.left_node.predict(left, method=method, values=values)
+            if right.shape[0] > 0:
+                preds[~left_mask] = self.right_node.predict(right, method=method, values=values)
+            return preds
         else:
-            # Non-leaf node
-            assert self.left_node is not None and self.right_node is not None, "Invalid tree structure"
+            raise ValueError(f"Invalid method: {method}. Must be one of ['params', 'sample', 'mean']")
 
-            left_mask = X[:, self.best_feature] <= self.best_threshold
-            right = X[~left_mask]
-            left = X[left_mask]
-
-            if method == "params":
-                # For params method, we need to handle two return values
-                means = np.zeros(X.shape[0], dtype=float)
-                stds = np.zeros(X.shape[0], dtype=float)
-
-                if left.shape[0] > 0:
-                    left_means, left_stds = self.left_node.predict(left, method=method)
-                    means[left_mask] = left_means
-                    stds[left_mask] = left_stds
-
-                if right.shape[0] > 0:
-                    right_means, right_stds = self.right_node.predict(right, method=method)
-                    means[~left_mask] = right_means
-                    stds[~left_mask] = right_stds
-
-                return means, stds
-            else:  # method == 'sample'
-                # For sample method, we handle a single return value
-                preds = np.zeros(X.shape[0], dtype=float)
-
-                if left.shape[0] > 0:
-                    preds[left_mask] = self.left_node.predict(left, method=method)
-
-                if right.shape[0] > 0:
-                    preds[~left_mask] = self.right_node.predict(right, method=method)
-
-                return preds
+    def _is_leaf(self) -> bool:
+        """Check if the node is a leaf node."""
+        return self.left_node is None and self.right_node is None
 
     def split_node(self, y, feat_idx: int, threshold: float, left_idx, right_idx):
         """Split the node into left and right children based on the best feature and threshold.

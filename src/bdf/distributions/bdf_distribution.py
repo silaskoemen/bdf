@@ -16,7 +16,7 @@ class BDFDistribution(ABC):
         self.params = params
 
     @abstractmethod
-    def calc_posterior_params(self, data: np.ndarray) -> dict | tuple | np.ndarray:
+    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = True) -> dict | tuple:
         """Get the posterior parameters of the distribution given the data."""
         raise NotImplementedError("Subclasses must implement this method.")
 
@@ -45,6 +45,11 @@ class BDFDistribution(ABC):
         self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None, size: int = 1
     ) -> np.ndarray:
         """Sample from the distribution."""
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    @abstractmethod
+    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
+        """Get the posterior mean of the distribution."""
         raise NotImplementedError("Subclasses must implement this method.")
 
     @abstractmethod

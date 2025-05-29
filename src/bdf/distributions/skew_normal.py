@@ -76,7 +76,9 @@ class NormalEBSkewNormal(BDFDistribution):
         self.prior_mean_alpha = prior_params.mean_alpha
         self.prior_m_alpha = prior_params.m_alpha
 
-    def calc_posterior_params(self, data: np.ndarray) -> tuple[float, float, float]:
+    def calc_posterior_params(
+        self, data: np.ndarray, return_dict: bool = True
+    ) -> dict[str, float] | tuple[float, float, float]:
         """Calculate posterior parameters based on the data.
 
         Args
@@ -92,11 +94,11 @@ class NormalEBSkewNormal(BDFDistribution):
         n = data.shape[0]
         sample_mean = np.mean(data)
         sample_var = np.var(data, ddof=1)
-        sample_skewness = np.clip(np.mean(((data - sample_mean) / np.sqrt(sample_var)) ** 3), 0.995, 0.995)
+        sample_skewness = np.clip(np.mean(((data - sample_mean) / np.sqrt(sample_var + 1e-5)) ** 3), -0.995, 0.995)
 
         # Posterior mean for xi (Normal prior)
-        posterior_mean = (self.prior_mu / self.prior_sigma**2 + n * sample_mean / sample_var) / (  # type: ignore
-            1 / self.prior_sigma**2 + n / sample_var  # type: ignore
+        posterior_mean = (self.prior_mu / self.prior_sigma**2 + n * sample_mean / (sample_var + 1e-5)) / (  # type: ignore
+            1 / self.prior_sigma**2 + n / (sample_var + 1e-5)  # type: ignore
         )
 
         delta = np.sign(sample_skewness) * np.sqrt(
@@ -105,7 +107,7 @@ class NormalEBSkewNormal(BDFDistribution):
             * np.abs(sample_skewness) ** (2 / 3)
             / (np.abs(sample_skewness) ** (2 / 3) + ((4 - np.pi) / 2) ** (2 / 3))
         )
-        alpha = np.sign(delta) * (np.abs(delta) / np.sqrt(1 - delta**2)) ** (1 / 2)
+        alpha = np.sign(delta) * (np.abs(delta) / np.sqrt(1 - delta**2)) ** (1 / 3)
         posterior_alpha = (
             n / (n + self.prior_m_alpha) * alpha + self.prior_m_alpha / (n + self.prior_m_alpha) * self.prior_mean_alpha
         )  # type: ignore
@@ -114,8 +116,14 @@ class NormalEBSkewNormal(BDFDistribution):
         posterior_xi = posterior_mean - posterior_omega * posterior_alpha / np.sqrt(1 + posterior_alpha**2) * np.sqrt(
             2 / np.pi
         )
-
-        return posterior_alpha, posterior_xi, posterior_omega
+        if return_dict:
+            return {
+                "posterior_alpha": posterior_alpha,
+                "posterior_xi": posterior_xi,
+                "posterior_omega": posterior_omega,
+            }
+        else:
+            return posterior_alpha, posterior_xi, posterior_omega
 
     def log_likelihood(self, data: np.ndarray) -> np.ndarray:
         """Compute the log-likelihood of the data given the distribution.
@@ -130,8 +138,8 @@ class NormalEBSkewNormal(BDFDistribution):
         np.ndarray
             A numpy array containing the log-likelihood values for each data point.
         """
-        posterior_alpha, posterior_xi, omega = self.calc_posterior_params(data)
-        return skewnorm.logpdf(data, a=posterior_alpha, loc=posterior_xi, scale=omega)
+        posterior_alpha, posterior_xi, posterior_omega = self.calc_posterior_params(data, return_dict=False)
+        return skewnorm.logpdf(data, a=posterior_alpha, loc=posterior_xi, scale=posterior_omega)
 
     def likelihood(self, data: np.ndarray) -> np.ndarray:
         """Compute the likelihood of the data given the distribution.
@@ -146,7 +154,7 @@ class NormalEBSkewNormal(BDFDistribution):
         np.ndarray
             A numpy array containing the likelihood values for each data point.
         """
-        posterior_alpha, posterior_xi, omega = self.calc_posterior_params(data)
+        posterior_alpha, posterior_xi, omega = self.calc_posterior_params(data, return_dict=False)
         return skewnorm.pdf(data, a=posterior_alpha, loc=posterior_xi, scale=omega)
 
     def nll(self, data: np.ndarray) -> float:
@@ -258,10 +266,33 @@ class NormalEBSkewNormal(BDFDistribution):
         np.ndarray
             Samples drawn from the posterior distribution based on the data.
         """
-        posterior_alpha, posterior_xi, omega = self.calc_posterior_params(data)
+        posterior_alpha, posterior_xi, omega = self.calc_posterior_params(data, return_dict=False)
         return skewnorm.rvs(  # type: ignore
             a=posterior_alpha, loc=posterior_xi, scale=omega, size=size, random_state=RANDOM_SEED
         )
+
+    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
+        """Get the posterior mean of the distribution.
+
+        Args
+        ----
+        `data` : np.ndarray | None, optional
+            The data to calculate the posterior mean from, if available.
+        `params` : dict[str, float] | None, optional
+            The posterior parameters to use for calculating the mean, if available.
+
+        Returns
+        -------
+        float
+            The posterior mean of the distribution.
+        """
+        if params is not None:
+            return params.get("posterior_xi") + params.get("posterior_omega") * params.get("posterior_alpha") / np.sqrt(1 + params.get("posterior_alpha") ** 2) * np.sqrt(2 / np.pi)  # type: ignore
+        elif data is not None:
+            posterior_alpha, posterior_xi, omega = self.calc_posterior_params(data, return_dict=False)
+            return posterior_xi + omega * posterior_alpha / np.sqrt(1 + posterior_alpha**2) * np.sqrt(2 / np.pi)  # type: ignore
+        else:
+            raise ValueError("Either 'data' or 'params' must be provided to calculate the posterior mean.")
 
     def get_posterior_params(self, data: np.ndarray) -> dict:
         """Get the posterior parameters of the distribution.

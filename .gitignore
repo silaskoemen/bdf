@@ -16,3 +16,6 @@ target/
 **/*.rs.bk
 
 .ruff_cache/
+
+**/*.db
+*.db
