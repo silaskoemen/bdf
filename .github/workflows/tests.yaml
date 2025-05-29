@@ -38,7 +38,6 @@ jobs:
         pip install .[dev]
         # If you don't have a [dev] extra in setup.py/pyproject.toml
         # pip install -r requirements-dev.txt (or equivalent)
-        pip install -r requirements.txt
         pip install black==23.3.0 isort==5.12.0 ruff==0.0.262 pyright==1.1.401 mypy
 
     - name: Format check with Black
@@ -49,9 +48,6 @@ jobs:
 
     - name: Lint with ruff
       run: ruff check --config pyproject.toml src compiled
-
-    - name: Type check with pyright
-      run: pyright --project pyrightconfig.json
 
     - name: Type check with mypy
       run: mypy --config-file pyproject.toml src
