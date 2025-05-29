@@ -69,7 +69,7 @@ class BDFTree:
         self.tree_loss = root_nll + self.reg_beta * self.n_leaves + self.reg_lambda * (self.n_leaves**2)
 
         # Initialize priority queue with potential splits
-        split_candidates = []
+        split_candidates: list[tuple] = []
 
         # Only try splitting if we have enough samples
         if len(y) >= self.min_samples_split:
