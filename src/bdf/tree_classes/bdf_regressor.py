@@ -229,9 +229,9 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         if isinstance(X, pd.DataFrame):
             if hasattr(self, "feature_names"):
                 assert all(
-                    col in X.columns for col in self.feature_names  # type: ignore | pyright sees as np.ndarray
+                    col in X.columns for col in self.feature_names  # type: ignore
                 ), "X must contain all feature names used during fitting"
-                X = X[self.feature_names].values  # type: ignore | pyright sees as np.ndarray
+                X = X[self.feature_names].values  # type: ignore
             else:
                 raise ValueError(
                     "X is a DataFrame but no feature names were stored during fitting. Ensure to fit with a DataFrame to predict on DataFrame or fit on np.ndarray"
@@ -262,10 +262,10 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
     ) -> tuple[np.ndarray, np.ndarray]:
         """Validate the input for fitting."""
         if isinstance(X, pd.DataFrame):
-            self.feature_names = X.columns  # type: ignore | pyright sees as np.ndarray
-            X = X.values  # type: ignore | pyright sees as np.ndarray
+            self.feature_names = X.columns  # type: ignore
+            X = X.values  # type: ignore
         if isinstance(y, pd.Series):
-            y = y.to_numpy()  # type: ignore | pyright sees as np.ndarray
+            y = y.to_numpy()  # type: ignore
         assert X.ndim == 2, f"X must be a 2D array, got {X.ndim}D array"
         assert y.ndim == 1, f"y must be a 1D array, got {y.ndim}D array"
         assert (
