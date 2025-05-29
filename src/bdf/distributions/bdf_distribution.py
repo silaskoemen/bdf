@@ -1,12 +1,17 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
+from pydantic import BaseModel
+
+
+class BDFDistributionParams(BaseModel, ABC):
+    pass
 
 
 class BDFDistribution(ABC):
     """Abstract base class for all BDF distributions."""
 
-    def __init__(self, prior_params: dict, params: tuple | None = None):
+    def __init__(self, prior_params: BDFDistributionParams, params: tuple | None = None):
         self.prior_params = prior_params
         self.params = params
 

@@ -42,8 +42,8 @@ class DistributionManager:
             case NormalNormal():
                 return {
                     "dist_type": "NormalNormal",
-                    "prior_mean": distribution.prior_params.get("mean", 0.0),
-                    "prior_std": distribution.prior_params.get("std", 1.0),
+                    "prior_mean": distribution.prior_params.mean,  # type: ignore
+                    "prior_std": distribution.prior_params.std,  # type: ignore
                 }
             # case ZeroInflatedPoisson():
             #     return {

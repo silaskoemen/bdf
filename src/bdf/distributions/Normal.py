@@ -1,15 +1,57 @@
 import warnings
 
 import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from bdf.distributions.bdf_distribution import BDFDistribution
+from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
+
+
+class NormalNormalParams(BDFDistributionParams):
+    """Parameters for the Normal distribution in Bayesian Distributional Forests.
+
+    Attributes
+    ----------
+    mean : float
+        The prior mean of the Normal distribution.
+    std : float
+        The prior standard deviation of the Normal distribution.
+    """
+
+    mean: float = Field(default=0.0, alias="mu", description="Prior mean of the Normal distribution")
+    std: float = Field(
+        default=1.0, alias="sigma", gt=0, description="Prior standard deviation of the Normal distribution"
+    )
+
+    class Config:
+        """Pydantic configuration to allow extra fields and use aliases."""
+
+        extra = "forbid"
+        validate_by_name = True
+
+    def __init__(self, **data: dict) -> None:
+        # Check for missing fields before initialization
+        missing_fields = {}
+        if "mu" not in data and "mean" not in data:
+            missing_fields["mean"] = self.__class__.model_fields["mean"].default
+        if "sigma" not in data and "std" not in data:
+            missing_fields["std"] = self.__class__.model_fields["std"].default
+
+        # Initialize the model
+        super().__init__(**data)
+
+        # Issue warnings for missing fields
+        for field, default_value in missing_fields.items():
+            warnings.warn(
+                f"No value provided for '{field}', using default: {default_value}",
+                UserWarning,
+                stacklevel=2,
+            )
 
 
 class NormalNormal(BDFDistribution):
     """Normal distribution class for Bayesian Distributional Forests."""
 
-    def __init__(self, prior_params: dict, params: tuple | None = None, var_ddof: int = 1):
+    def __init__(self, prior_params: dict | NormalNormalParams, params: tuple | None = None, var_ddof: int = 1):
         """Initialize the Normal distribution with prior parameters.
         Args
         ----
@@ -20,9 +62,11 @@ class NormalNormal(BDFDistribution):
         `var_ddof` : int, optional
             Degrees of freedom for variance calculation, default is 1 (sample standard deviation).
         """
+        if not isinstance(prior_params, NormalNormalParams):
+            prior_params = NormalNormalParams.model_validate(prior_params)  # type: ignore
         super().__init__(prior_params, params)
-        self.prior_mean = prior_params.get("mean", 0.0)
-        self.prior_std = prior_params.get("std", 1.0)
+        self.prior_mean = prior_params.mean
+        self.prior_std = prior_params.std
         self.var_ddof = var_ddof  # Degrees of freedom for sample variance calculation
 
     def calc_posterior_params(self, data: np.ndarray, eps: float = 1e-5) -> tuple[float, float]:
@@ -140,8 +184,8 @@ class NormalNormal(BDFDistribution):
         return self.prior_mean == other.prior_mean and self.prior_std == other.prior_std
 
 
-class NormalNormalParams(BaseModel):
-    """Parameters for the Normal distribution in Bayesian Distributional Forests.
+class NormGammaNormalParams(BDFDistributionParams):
+    """Parameters for the Normal-EBSkewNormal distribution in Bayesian Distributional Forests.
 
     Attributes
     ----------
@@ -149,12 +193,18 @@ class NormalNormalParams(BaseModel):
         The prior mean of the Normal distribution.
     std : float
         The prior standard deviation of the Normal distribution.
+    alpha : float
+        The prior shape parameter for the skewness.
+    beta : float
+        The prior scale parameter for the skewness.
     """
 
     mean: float = Field(default=0.0, alias="mu", description="Prior mean of the Normal distribution")
-    std: float = Field(
+    n: float = Field(
         default=1.0, alias="sigma", gt=0, description="Prior standard deviation of the Normal distribution"
     )
+    nu: float = Field(default=0.0, alias="alpha", description="Prior shape parameter for skewness")
+    phi: float = Field(default=1.0, alias="beta", gt=0, description="Prior scale parameter for skewness")
 
     class Config:
         """Pydantic configuration to allow extra fields and use aliases."""
@@ -169,6 +219,10 @@ class NormalNormalParams(BaseModel):
             missing_fields["mean"] = self.__class__.model_fields["mean"].default
         if "sigma" not in data and "std" not in data:
             missing_fields["std"] = self.__class__.model_fields["std"].default
+        if "alpha" not in data:
+            missing_fields["alpha"] = self.__class__.model_fields["alpha"].default
+        if "beta" not in data:
+            missing_fields["beta"] = self.__class__.model_fields["beta"].default
 
         # Initialize the model
         super().__init__(**data)
@@ -188,7 +242,7 @@ class NormGammaNormal(BDFDistribution):
     This class models a Normal distribution with a Gamma prior on the variance.
     """
 
-    def __init__(self, prior_params: dict, params: tuple | None = None):
+    def __init__(self, prior_params: dict | BDFDistributionParams, params: tuple | None = None):
         """Initialize the Normal-Gamma distribution with prior parameters.
 
         Args
@@ -198,11 +252,13 @@ class NormGammaNormal(BDFDistribution):
         `params` : tuple, optional
             Additional parameters for the distribution, default is None.
         """
+        if not isinstance(prior_params, NormGammaNormalParams):
+            prior_params = NormGammaNormalParams.model_validate(prior_params)
         super().__init__(prior_params, params)
-        self.prior_mean = prior_params.get("mean", 0)  # alternatively mu
-        self.prior_n = prior_params.get("n", 1)  # number of observations for prior mean
-        self.prior_nu = prior_params.get("nu", 1)  # prior for gamma on sigma
-        self.prior_phi = prior_params.get("phi", 1)  # prior for gamma on sigma
+        self.prior_mean = prior_params.mean
+        self.prior_n = prior_params.n
+        self.prior_nu = prior_params.nu
+        self.prior_phi = prior_params.phi
 
     def calc_posterior_params(self, data: np.ndarray) -> tuple[float, float]:
         """Calculate posterior parameters based on the data.

@@ -1,11 +1,49 @@
 import warnings
 
 import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import Field
 from scipy.stats import skewnorm
 
-from bdf.distributions.bdf_distribution import BDFDistribution
+from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
 from bdf.utils.constants import RANDOM_SEED
+
+
+class NormalEBSkewNormalParams(BDFDistributionParams):
+    """Pydantic model for Skew-Normal distribution parameters."""
+
+    mu: float = Field(default=0.0, alias="mean", description="Prior mean for mean mu of data")
+    sigma: float = Field(default=1.0, gt=0, alias="std", description="Prior standard deviation for mu of data")
+    mean_alpha: float = Field(default=0.0, alias="mu_alpha", description="Prior mean for alpha")
+    m_alpha: float = Field(default=10.0, gt=0, alias="belief_alpha", description="Prior strength of belief for alpha")
+
+    class Config:
+        """Pydantic configuration to allow extra fields and use aliases."""
+
+        extra = "forbid"
+        validate_by_name = True
+
+    def __init__(self, **data: dict) -> None:
+        # Check for missing fields before initialization
+        missing_fields = {}
+        if "mu" not in data and "mean" not in data:
+            missing_fields["mu"] = self.__class__.model_fields["mu"].default
+        if "sigma" not in data and "std" not in data:
+            missing_fields["sigma"] = self.__class__.model_fields["sigma"].default
+        if "mean_alpha" not in data and "mu_alpha" not in data:
+            missing_fields["mean_alpha"] = self.__class__.model_fields["mean_alpha"].default
+        if "m_alpha" not in data and "belief_alpha" not in data:
+            missing_fields["m_alpha"] = self.__class__.model_fields["m_alpha"].default
+
+        # Initialize the model
+        super().__init__(**data)
+
+        # Issue warnings for missing fields
+        for field, default_value in missing_fields.items():
+            warnings.warn(
+                f"No value provided for '{field}', using default: {default_value}",
+                UserWarning,
+                stacklevel=2,
+            )
 
 
 class NormalEBSkewNormal(BDFDistribution):
@@ -16,7 +54,7 @@ class NormalEBSkewNormal(BDFDistribution):
     Score and Fisher information.
     """
 
-    def __init__(self, prior_params: dict[str, float], params: tuple | None = None):
+    def __init__(self, prior_params: dict[str, float] | NormalEBSkewNormalParams, params: tuple | None = None):
         """Initialize the Skew-Normal distribution with prior parameters.
 
         Args
@@ -27,13 +65,13 @@ class NormalEBSkewNormal(BDFDistribution):
             Additional parameters for the distribution, default is None.
         """
         # Input has already been validated in the DistributionManager with Pydantic BaseModel below
+        if not isinstance(prior_params, NormalEBSkewNormalParams):
+            prior_params = NormalEBSkewNormalParams.model_validate(prior_params)  # type: ignore
         super().__init__(prior_params, params)
-        self.prior_mu = prior_params.get("mu", 0.0)
-        self.prior_sigma = prior_params.get("sigma", 1.0)
-        self.prior_mean_alpha = prior_params.get("mean_alpha", 0.0)
-        self.prior_m_alpha = prior_params.get("m_alpha", 10.0)
-        if self.prior_sigma <= 0 or self.prior_m_alpha <= 0:  # type: ignore
-            raise ValueError("Prior parameters 'sigma' and 'm_alpha' must be positive.")
+        self.prior_mu = prior_params.mu
+        self.prior_sigma = prior_params.sigma
+        self.prior_mean_alpha = prior_params.mean_alpha
+        self.prior_m_alpha = prior_params.m_alpha
 
     def calc_posterior_params(self, data: np.ndarray) -> tuple[float, float, float]:
         """Calculate posterior parameters based on the data.
@@ -237,41 +275,3 @@ class NormalEBSkewNormal(BDFDistribution):
         """
         posterior_alpha, posterior_xi, omega = self.calc_posterior_params(data)
         return {"alpha": posterior_alpha, "xi": posterior_xi, "omega": omega}
-
-
-class NormalEBSkewNormalParams(BaseModel):
-    """Pydantic model for Skew-Normal distribution parameters."""
-
-    mu: float = Field(default=0.0, alias="mean", description="Prior mean for mean mu of data")
-    sigma: float = Field(default=1.0, gt=0, alias="std", description="Prior standard deviation for mu of data")
-    mean_alpha: float = Field(default=0.0, alias="mu_alpha", description="Prior mean for alpha")
-    m_alpha: float = Field(default=10.0, gt=0, alias="belief_alpha", description="Prior strength of belief for alpha")
-
-    class Config:
-        """Pydantic configuration to allow extra fields and use aliases."""
-
-        extra = "forbid"
-        validate_by_name = True
-
-    def __init__(self, **data: dict) -> None:
-        # Check for missing fields before initialization
-        missing_fields = {}
-        if "mu" not in data and "mean" not in data:
-            missing_fields["mu"] = self.__class__.model_fields["mu"].default
-        if "sigma" not in data and "std" not in data:
-            missing_fields["sigma"] = self.__class__.model_fields["sigma"].default
-        if "mean_alpha" not in data and "mu_alpha" not in data:
-            missing_fields["mean_alpha"] = self.__class__.model_fields["mean_alpha"].default
-        if "m_alpha" not in data and "belief_alpha" not in data:
-            missing_fields["m_alpha"] = self.__class__.model_fields["m_alpha"].default
-
-        # Initialize the model
-        super().__init__(**data)
-
-        # Issue warnings for missing fields
-        for field, default_value in missing_fields.items():
-            warnings.warn(
-                f"No value provided for '{field}', using default: {default_value}",
-                UserWarning,
-                stacklevel=2,
-            )
