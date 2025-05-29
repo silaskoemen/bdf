@@ -64,6 +64,9 @@ class NormalNormal(BDFDistribution):
         """
         if isinstance(prior_params, dict):
             prior_params = NormalNormalParams.model_validate(prior_params)  # type: ignore
+        assert isinstance(
+            prior_params, NormalNormalParams
+        ), "prior_params must be an instance of NormalNormalParams after possible conversion from dict."
         super().__init__(prior_params, params)
         self.prior_mean = prior_params.mean
         self.prior_std = prior_params.std

@@ -67,6 +67,9 @@ class NormalEBSkewNormal(BDFDistribution):
         # Input has already been validated in the DistributionManager with Pydantic BaseModel below
         if isinstance(prior_params, dict):
             prior_params = NormalEBSkewNormalParams.model_validate(prior_params)  # type: ignore
+        assert isinstance(
+            prior_params, NormalEBSkewNormalParams
+        ), "prior_params must be an instance of NormalEBSkewNormalParams after possible conversion from dict."
         super().__init__(prior_params, params)
         self.prior_mu = prior_params.mu
         self.prior_sigma = prior_params.sigma
