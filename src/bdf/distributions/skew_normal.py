@@ -65,7 +65,7 @@ class NormalEBSkewNormal(BDFDistribution):
             Additional parameters for the distribution, default is None.
         """
         # Input has already been validated in the DistributionManager with Pydantic BaseModel below
-        if not isinstance(prior_params, NormalEBSkewNormalParams):
+        if isinstance(prior_params, dict):
             prior_params = NormalEBSkewNormalParams.model_validate(prior_params)  # type: ignore
         super().__init__(prior_params, params)
         self.prior_mu = prior_params.mu

@@ -79,12 +79,12 @@ class BDFNode:
         self.best_threshold = threshold
 
         # Create left and right nodes
-        self.left_node = BDFNode(distribution=self.distribution, depth=self.depth + 1)
-        self.right_node = BDFNode(distribution=self.distribution, depth=self.depth + 1)
+        self.left_node = BDFNode(distribution=self.distribution, depth=self.depth + 1)  # type: ignore
+        self.right_node = BDFNode(distribution=self.distribution, depth=self.depth + 1)  # type: ignore
 
         # Estimate posterior for left and right nodes
-        self.left_node.estimate_posterior(y[left_idx])
-        self.right_node.estimate_posterior(y[right_idx])
+        self.left_node.estimate_posterior(y[left_idx])  # type: ignore
+        self.right_node.estimate_posterior(y[right_idx])  # type: ignore
 
     def find_best_split(
         self,

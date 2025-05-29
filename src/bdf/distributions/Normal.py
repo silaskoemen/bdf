@@ -62,7 +62,7 @@ class NormalNormal(BDFDistribution):
         `var_ddof` : int, optional
             Degrees of freedom for variance calculation, default is 1 (sample standard deviation).
         """
-        if not isinstance(prior_params, NormalNormalParams):
+        if isinstance(prior_params, dict):
             prior_params = NormalNormalParams.model_validate(prior_params)  # type: ignore
         super().__init__(prior_params, params)
         self.prior_mean = prior_params.mean
