@@ -1,0 +1,14 @@
+numpy
+pandas
+pip
+scikit-learn
+ipykernel
+rich
+tqdm
+matplotlib
+pytest
+maturin
+pyo3
+pydantic
+matplotlib
+scipy
