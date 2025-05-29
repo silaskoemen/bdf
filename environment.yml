@@ -14,3 +14,4 @@ dependencies:
   - pytest
   - maturin
   - pyo3
+  - pydantic
