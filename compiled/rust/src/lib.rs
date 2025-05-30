@@ -23,7 +23,6 @@ fn find_best_split(
 
     // Create distribution based on specifications
     let distribution = create_distribution_from_spec(distribution_spec, py)?;
-
     // Process optional column indices
     let col_indices = col_idcs.as_ref().map(|arr| {
         let indices = arr.as_array();

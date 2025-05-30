@@ -3,6 +3,7 @@ use crate::distribution::Distribution;
 use rayon::prelude::*;
 use std::sync::Mutex;
 
+
 pub fn find_best_split(
     x: &ArrayView2<f64>,
     y: &ArrayView1<f64>,
@@ -27,7 +28,6 @@ pub fn find_best_split(
 
     // Current node NLL (calculated once)
     let current_nll = distribution.nll(y);
-
     // Determine which features to iterate through
     let feature_idcs: Vec<usize> = match col_idcs {
         Some(ref indices) => indices.to_vec(),
@@ -117,7 +117,6 @@ pub fn find_best_split(
             }
         }
     });
-
     // Extract results from mutex
     let best = best_results.lock().unwrap();
     (best.0, best.1, best.2, best.3.clone(), best.4.clone())

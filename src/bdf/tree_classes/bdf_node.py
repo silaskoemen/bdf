@@ -53,7 +53,9 @@ class BDFNode:
             case "mean":
                 if self.depth == 0:
                     warnings.warn("Using mean prediction at root node, indicating tree is not fully grown!")
-                    return self.distribution.get_posterior_mean(params=self.posterior_params) * np.ones(X.shape[0])
+                    return self.distribution.get_posterior_mean(params=self.posterior_params) * np.ones(
+                        X.shape[0], dtype=float
+                    )
                 return self.distribution.get_posterior_mean(params=self.posterior_params)
             case "params":
                 if self.depth == 0:

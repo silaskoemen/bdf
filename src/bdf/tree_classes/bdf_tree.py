@@ -60,13 +60,10 @@ class BDFTree:
         # Create root node
         self.root = BDFNode(distribution=self.distribution, depth=0)
         self.root.estimate_posterior(y)
-
-        # Track global tree metrics
-        self.n_leaves = 1  # Start with just the root
+        self.n_leaves = 1
 
         # Calculate initial tree loss (NLL at root + regularization)
         root_nll = self.distribution.nll(y)
-        print(f"Initial root NLL: {root_nll:.4f}")
         self.tree_loss = root_nll + self.reg_beta + self.reg_lambda
 
         # Initialize priority queue with potential splits
@@ -78,7 +75,6 @@ class BDFTree:
             feature_idx, threshold, loss_reduction, left_indices, right_indices = self.root.find_best_split(
                 X, y, self.min_samples_leaf, self.min_child_weight, col_idcs=col_idcs, eta=eta
             )
-            print(f"Initial proposed split has loss reduction: {loss_reduction:.4f}")
 
             if loss_reduction > 0 and feature_idx is not None:
                 heapq.heappush(
@@ -101,7 +97,6 @@ class BDFTree:
             # Get best split from queue
             neg_gain, _, node, node_X, node_y, feat_idx, thresh, left_idx, right_idx = heapq.heappop(split_candidates)
             nll_reduction = -neg_gain
-
             # Check whether split given tree structure and regularization is still beneficial
             # Calculate exact penalty for adding one leaf node
             # When splitting, one leaf becomes two leaves (net +1)
@@ -133,7 +128,6 @@ class BDFTree:
                         c_feat, c_thresh, c_loss_reduction, c_left_idx, c_right_idx = child_node.find_best_split(
                             child_X, child_y, self.min_samples_leaf, self.min_child_weight, col_idcs=col_idcs, eta=eta
                         )
-                        print(f"New proposed split has loss reduction: {c_loss_reduction:.4f}")
 
                         # Only add to queue if split is beneficial
                         if c_loss_reduction > 0 and c_feat is not None:

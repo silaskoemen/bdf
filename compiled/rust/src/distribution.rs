@@ -1,9 +1,10 @@
 use ndarray::ArrayView1;
 use pyo3::prelude::*;
 use numpy::ToPyArray;
-use std::f64::consts::PI;
-//use statrs::function::erf;
-use statrs::distribution::{Normal, ContinuousCDF, Continuous};
+use std::f64::consts::{PI, SQRT_2};
+use statrs::function::erf;
+use log::{warn};
+
 
 // Unified Distribution trait
 pub trait Distribution: Sync + Send {
@@ -110,7 +111,7 @@ impl Distribution for NormalEBSkewNormal {
         };
 
         if sample_var.is_nan() || sample_var <= 0.0 {
-            println!("Warning: Invalid sample variance: {}", sample_var);
+            warn!("Warning: Invalid sample variance: {}", sample_var);
             return std::f64::INFINITY;
         }
 
@@ -139,39 +140,20 @@ impl Distribution for NormalEBSkewNormal {
         let posterior_alpha = n / (n + self.prior_m_alpha) * alpha + self.prior_mean_alpha * self.prior_m_alpha / (n + self.prior_m_alpha);
         let posterior_omega = sample_var.sqrt() / (1.0 - 2. * delta.powi(2) / PI);
         let posterior_xi = posterior_mean - posterior_omega * posterior_alpha / (1. + posterior_alpha.powi(2)).sqrt() * (2./PI).sqrt();
-        println!("Posterior xi: {}, omega: {}, alpha: {}", posterior_xi, posterior_omega, posterior_alpha);
 
         // Standardize the data
         // Final NLL calculation, leverage implementations of normal pdf and cdf from statrs
-        let log_2 = (2.0_f64).ln();
-        let log_posterior_omega = posterior_omega.ln();
-
-        if log_posterior_omega.is_nan() || log_posterior_omega.is_infinite() {
-            println!("Warning: Invalid log_posterior_omega: {}", log_posterior_omega);
+        if posterior_omega <= 0.0 || posterior_omega.is_nan() || !posterior_omega.is_finite() {
+            warn!("Warning: Invalid posterior_omega: {}", posterior_omega);
             return std::f64::INFINITY;
         }
 
-        let normal = Normal::new(0.0, 1.0).unwrap();
-        let mut nll = 0.0;
-
-        for &x in data.iter() {
-            let z = (x - posterior_xi) / posterior_omega;
-            let cdf_value = normal.cdf(posterior_alpha * z).max(1e-10);
-            let point_nll = -log_2 + log_posterior_omega - normal.ln_pdf(z) - cdf_value.ln();
-
-            // Check for invalid values
-            if point_nll.is_nan() || point_nll.is_infinite() {
-                println!("Warning: Point NLL is invalid: {} for z={}, cdf={}",
-                        point_nll, z, cdf_value);
-                continue; // Skip this point
-            }
-
-            nll += point_nll;
-        }
-
-        println!("Final NLL: {} | xi: {}, omega: {}, alpha: {}",
-                nll, posterior_xi, posterior_omega, posterior_alpha);
-        nll
+        // Extract non-pdf/cdf calculations to closed form, iterate over data for others, use statrs for pdf/cdf
+        - n * (2.0_f64).ln() + n * posterior_omega.ln() + 0.5 * n * (2.0_f64 * PI).ln() -
+        data.iter().map(|&x| {
+            let zi = (x - posterior_xi) / posterior_omega;
+            -0.5 * zi * zi + (0.5 * (1.0 + erf::erf(posterior_alpha * zi / SQRT_2))).ln()
+        }).sum::<f64>()
     }
 }
 

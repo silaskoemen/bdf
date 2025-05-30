@@ -79,12 +79,11 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
 
         # Otherwise regularization depends on size of the dataset (NLL as sum)
         n_features_iter = int(np.ceil(X.shape[1] * self.colsample))
-
-        self.trees = np.empty(self.n_trees, dtype=object)
+        self.trees: list[BDFTree] = []
         # Create a progress bar for tree creation and fitting
         for i in tqdm(range(self.n_trees)):
             # Create and fit a tree
-            self.trees[i] = BDFTree(
+            iter_tree = BDFTree(
                 distribution=self.distribution,
                 reg_beta=self.reg_beta,
                 reg_lambda=self.reg_lambda,
@@ -96,6 +95,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             # Subsample rows and columns if specified
             if self.subsample < 1.0:
                 n_samples = int(X.shape[0] * self.subsample)
+                # Could allow kw bootstrap to allow replacement, do replacement below too
                 row_indices = np.random.choice(X.shape[0], n_samples, replace=False)
                 X_iter = X[row_indices]
                 y_iter = y[row_indices]
@@ -103,7 +103,8 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
                 X_iter = X
                 y_iter = y
             col_idcs = np.random.choice(X.shape[1], n_features_iter, replace=False) if self.colsample < 1.0 else None
-            self.trees[i].fit(X_iter, y_iter, col_idcs=col_idcs, verbose=verbose, eta=self.eta)
+            iter_tree.fit(X_iter, y_iter, col_idcs=col_idcs, verbose=verbose, eta=self.eta)
+            self.trees.append(iter_tree)
         self.is_fitted_ = True
         return self
 
@@ -123,12 +124,12 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         mean_y, std_y = np.mean(y), np.std(y)
         if std_y == 0:
             raise ValueError("Standard deviation of y is zero, cannot standardize.")
-        standardized_y = (y - mean_y) / std_y
+        standardized_y = (y - mean_y) / std_y  # type: ignore
         self.y_mean, self.y_std = mean_y, std_y
         return standardized_y
 
-    def predict(self, X: np.ndarray | pd.DataFrame, method: str = "mean", values: dict = {}) -> np.ndarray:
-        X = self._validate_prediction_input(X, method=method, values=values)
+    def predict(self, X: np.ndarray | pd.DataFrame, method: str = "mean", values: dict = {}) -> np.ndarray:  # type: ignore
+        X: np.ndarray = self._validate_prediction_input(X, method=method, values=values)
         preds = np.empty((X.shape[0],), dtype=float)
         match method:
             case "mean":
@@ -351,7 +352,9 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         self.subsample = subsample
         self.colsample = colsample
 
-    def _validate_prediction_input(self, X: np.ndarray | pd.DataFrame, method: str = "mean", values: dict = {}):
+    def _validate_prediction_input(
+        self, X: np.ndarray | pd.DataFrame, method: str = "mean", values: dict = {}
+    ) -> np.ndarray:
         """Validate the input for prediction.
 
         should allow:
@@ -371,6 +374,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
                 raise ValueError(
                     "X is a DataFrame but no feature names were stored during fitting. Ensure to fit with a DataFrame to predict on DataFrame or fit on np.ndarray"
                 )
+        assert isinstance(X, np.ndarray), f"X must be a numpy array, got {type(X)}"
 
         assert isinstance(method, str) and method in [
             "mean",

@@ -13,7 +13,9 @@ dependencies:
   - matplotlib
   - pytest
   - maturin
-  - pyo3
   - pydantic
   - matplotlib
   - scipy
+  - pip:
+    - graphviz
+    - -e .
