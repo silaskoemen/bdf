@@ -8,9 +8,10 @@ from bdf.distributions import bdf_distribution
 class BDFNode:
     """Base class for all BDF nodes."""
 
-    def __init__(self, distribution: bdf_distribution.BDFDistribution, depth: int = 0):
+    def __init__(self, distribution: bdf_distribution.BDFDistribution, depth: int, random_state: int):
         self.distribution = distribution
         self.depth = depth
+        self.random_state = random_state
         self.left_node, self.right_node = None, None
 
     def estimate_posterior(self, y: np.ndarray):
@@ -66,11 +67,13 @@ class BDFNode:
                 return self.posterior_params
             case "sample":
                 size = values.get("size", 1)
-                samples = self.distribution.sample_posterior(size=size, params=self.posterior_params)
+                samples = self.distribution.sample_posterior(
+                    size=size, params=self.posterior_params, random_state=self.random_state
+                )
                 if self.depth == 0:
                     warnings.warn("Using sample prediction at root node, indicating tree is not fully grown!")
                     return np.tile(samples, (X.shape[0], size))
-                return self.distribution.sample_posterior(size=size, params=self.posterior_params)
+                return samples
         raise ValueError(f"Invalid method: {method}. Must be one of ['params', 'sample', 'mean']")
 
     def _predict_children(self, X: np.ndarray, method: str = "params", values: dict = {}) -> np.ndarray | float | dict:
@@ -127,8 +130,8 @@ class BDFNode:
         self.best_threshold = threshold
 
         # Create left and right nodes
-        self.left_node = BDFNode(distribution=self.distribution, depth=self.depth + 1)  # type: ignore
-        self.right_node = BDFNode(distribution=self.distribution, depth=self.depth + 1)  # type: ignore
+        self.left_node = BDFNode(distribution=self.distribution, depth=self.depth + 1, random_state=self.random_state)  # type: ignore
+        self.right_node = BDFNode(distribution=self.distribution, depth=self.depth + 1, random_state=self.random_state)  # type: ignore
 
         # Estimate posterior for left and right nodes
         self.left_node.estimate_posterior(y[left_idx])  # type: ignore

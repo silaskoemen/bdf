@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 from pydantic import BaseModel
 
+from bdf.utils.constants import RANDOM_SEED
+
 
 class BDFDistributionParams(BaseModel, ABC):
     pass
@@ -42,7 +44,12 @@ class BDFDistribution(ABC):
 
     @abstractmethod
     def sample_posterior(
-        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None, size: int = 1
+        self,
+        *,
+        data: np.ndarray | None = None,
+        params: dict[str, float] | None = None,
+        size: int = 1,
+        random_state: int = RANDOM_SEED,
     ) -> np.ndarray:
         """Sample from the distribution."""
         raise NotImplementedError("Subclasses must implement this method.")

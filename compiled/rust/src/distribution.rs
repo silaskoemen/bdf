@@ -129,7 +129,7 @@ impl Distribution for NormalEBSkewNormal {
             skewness_sum += z.powi(3);
         }
         let gamma = skewness_sum / n;
-        let gamma = gamma.clamp(-0.995, 0.995);
+        let gamma = gamma.clamp(-0.99, 0.99);
         let delta = gamma.signum() * (
             PI / 2. * gamma.abs().powf(2./3.) / (
                 (gamma.abs().powf(2./3.) + ((4. - PI)/2.).powf(2./3.))
@@ -138,15 +138,17 @@ impl Distribution for NormalEBSkewNormal {
 
         let alpha = delta.signum() * (delta.abs() / (1. - delta.powi(2))).powf(1./3.);
         let posterior_alpha = n / (n + self.prior_m_alpha) * alpha + self.prior_mean_alpha * self.prior_m_alpha / (n + self.prior_m_alpha);
-        let posterior_omega = sample_var.sqrt() / (1.0 - 2. * delta.powi(2) / PI);
-        let posterior_xi = posterior_mean - posterior_omega * posterior_alpha / (1. + posterior_alpha.powi(2)).sqrt() * (2./PI).sqrt();
-
-        // Standardize the data
-        // Final NLL calculation, leverage implementations of normal pdf and cdf from statrs
-        if posterior_omega <= 0.0 || posterior_omega.is_nan() || !posterior_omega.is_finite() {
+        let mut posterior_omega = sample_var.sqrt() / (1.0 - 2. * delta.powi(2) / PI);
+        if posterior_omega.is_nan() || !posterior_omega.is_finite() {
             warn!("Warning: Invalid posterior_omega: {}", posterior_omega);
             return std::f64::INFINITY;
+        } else if posterior_omega <= 0.0 {
+            warn!("Warning: Non-positive posterior_omega: {}", posterior_omega);
+            posterior_omega = 1e-5; // Avoid division by zero
         }
+        let posterior_xi = posterior_mean - posterior_omega * posterior_alpha / (1. + posterior_alpha.powi(2)).sqrt() * (2./PI).sqrt();
+
+
 
         // Extract non-pdf/cdf calculations to closed form, iterate over data for others, use statrs for pdf/cdf
         - n * (2.0_f64).ln() + n * posterior_omega.ln() + 0.5 * n * (2.0_f64 * PI).ln() -

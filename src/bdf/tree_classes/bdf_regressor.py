@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from bdf.distributions.distribution_manager import DistributionManager as DM
 from bdf.tree_classes.bdf_tree import BDFTree
+from bdf.utils.constants import RANDOM_SEED
 
 
 class BDFRegressor(BaseEstimator, RegressorMixin):
@@ -26,6 +27,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         subsample: float = 0.7,
         colsample: float = 1.0,
         eta: float = 0.025,
+        random_state: int = RANDOM_SEED,
     ):
         """Initialize the BDFRegressor with prior parameters.
         Args
@@ -62,6 +64,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             subsample=subsample,
             colsample=colsample,
             eta=eta,
+            random_state=random_state,
         )
 
     def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False, standardize_y: bool = True) -> "BDFRegressor":
@@ -73,6 +76,8 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         `y` : np.ndarray | pd.Series
             Training data target values.
         """
+        # Seed for reproducibility of subsample and colsample
+        np.random.seed(self.random_state)
         X, y = self._validate_fit_input(X, y)
         if standardize_y:
             y = self._standardize_y(y.copy())
@@ -91,12 +96,17 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
                 min_samples_leaf=self.min_samples_leaf,
                 min_samples_split=self.min_samples_split,
                 min_child_weight=self.min_child_weight,
+                random_state=self.random_state,
             )
             # Subsample rows and columns if specified
             if self.subsample < 1.0:
                 n_samples = int(X.shape[0] * self.subsample)
                 # Could allow kw bootstrap to allow replacement, do replacement below too
-                row_indices = np.random.choice(X.shape[0], n_samples, replace=False)
+                row_indices = np.random.choice(
+                    X.shape[0],
+                    n_samples,
+                    replace=False,
+                )
                 X_iter = X[row_indices]
                 y_iter = y[row_indices]
             else:
@@ -129,6 +139,8 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         return standardized_y
 
     def predict(self, X: np.ndarray | pd.DataFrame, method: str = "mean", values: dict = {}) -> np.ndarray:  # type: ignore
+        # Seed for reproducibility of sampling
+        np.random.seed(self.random_state)
         X: np.ndarray = self._validate_prediction_input(X, method=method, values=values)
         preds = np.empty((X.shape[0],), dtype=float)
         match method:
@@ -309,6 +321,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         subsample: float,
         colsample: float,
         eta: float,
+        random_state: int,
     ):
         """Validate the initialization parameters."""
         assert (
@@ -341,6 +354,10 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         assert (
             isinstance(eta, float) and 0 < eta <= 1
         ), f"eta must be a float between 0 and 1, got {eta} of type {type(eta)}"
+        assert (
+            isinstance(random_state, int) and random_state >= 0
+        ), f"random_state must be a non-negative integer, got {random_state} of type {type(random_state)}"
+        self.random_state = random_state
         self.eta = eta
         self.reg_beta = reg_beta
         self.reg_lambda = reg_lambda

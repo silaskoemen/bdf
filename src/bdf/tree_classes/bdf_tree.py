@@ -18,6 +18,7 @@ class BDFTree:
         min_samples_leaf: int,
         min_samples_split: int,
         min_child_weight: float | int,
+        random_state: int,
     ):
         """Initialize the BDFTree with distribution and regularization parameters.
 
@@ -45,6 +46,7 @@ class BDFTree:
         self.min_samples_leaf = min_samples_leaf
         self.min_samples_split = min_samples_split
         self.min_child_weight = min_child_weight
+        self.random_state = random_state
 
     def fit(
         self,
@@ -58,7 +60,7 @@ class BDFTree:
         # node can be split simply by considering NLL reduction and including reg_beta; no need for a queue.
         # TODO: Implement separate fit functions given reg_lambda == 0 and reg_lambda > 0.
         # Create root node
-        self.root = BDFNode(distribution=self.distribution, depth=0)
+        self.root = BDFNode(distribution=self.distribution, depth=0, random_state=self.random_state)
         self.root.estimate_posterior(y)
         self.n_leaves = 1
 

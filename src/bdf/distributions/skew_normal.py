@@ -94,7 +94,7 @@ class NormalEBSkewNormal(BDFDistribution):
         n = data.shape[0]
         sample_mean = np.mean(data)
         sample_var = np.var(data, ddof=1)
-        sample_skewness = np.clip(np.mean(((data - sample_mean) / np.sqrt(sample_var + 1e-5)) ** 3), -0.995, 0.995)
+        sample_skewness = np.clip(np.mean(((data - sample_mean) / np.sqrt(sample_var + 1e-5)) ** 3), -0.99, 0.99)
 
         # Posterior mean for xi (Normal prior)
         posterior_mean = (self.prior_mu / self.prior_sigma**2 + n * sample_mean / (sample_var + 1e-5)) / (  # type: ignore
@@ -112,6 +112,12 @@ class NormalEBSkewNormal(BDFDistribution):
             n / (n + self.prior_m_alpha) * alpha + self.prior_m_alpha / (n + self.prior_m_alpha) * self.prior_mean_alpha
         )  # type: ignore
         posterior_omega = np.sqrt(sample_var) / np.sqrt(1 - 2 * delta**2 / np.pi)
+        if posterior_omega <= 0 or np.isnan(posterior_omega) or np.isinf(posterior_omega):
+            warnings.warn(
+                "Posterior omega is non-positive or invalid, setting to a small positive value (either all values identical or skewness too high).",
+                UserWarning,
+            )
+            posterior_omega = 1e-5  # Set a small positive value to avoid issues in sampling
 
         posterior_xi = posterior_mean - posterior_omega * posterior_alpha / np.sqrt(1 + posterior_alpha**2) * np.sqrt(
             2 / np.pi
@@ -172,7 +178,7 @@ class NormalEBSkewNormal(BDFDistribution):
         """
         return -np.sum(self.log_likelihood(data))
 
-    def sample_prior(self, size: int) -> np.ndarray:
+    def sample_prior(self, size: int, random_state: int) -> np.ndarray:
         """Sample from the prior distribution.
 
         Args
@@ -196,6 +202,7 @@ class NormalEBSkewNormal(BDFDistribution):
         data: np.ndarray | None = None,
         params: dict[str, float] | None = None,
         size: int = 1,
+        random_state: int = RANDOM_SEED,
     ) -> np.ndarray:
         """Sample from the posterior distribution.
 
@@ -218,15 +225,15 @@ class NormalEBSkewNormal(BDFDistribution):
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
         if params is not None:
-            return self.sample_posterior_params(params, size=size)
+            return self.sample_posterior_params(params, size=size, random_state=random_state)
         elif data is not None:
-            return self.sample_posterior_data(data, size=size)
+            return self.sample_posterior_data(data, size=size, random_state=random_state)
         else:  # This case should not happen due to the initial check but is required for type safety
             raise ValueError(
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
 
-    def sample_posterior_params(self, params: dict[str, float], size: int = 1) -> np.ndarray:
+    def sample_posterior_params(self, params: dict[str, float], *, size: int = 1, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution using provided parameters.
 
         Args
@@ -249,9 +256,9 @@ class NormalEBSkewNormal(BDFDistribution):
         if alpha is None or xi is None or omega is None:
             raise ValueError("params must contain 'alpha', 'xi', and 'omega' keys")
         assert omega > 0, "Omega parameter must be positive"
-        return skewnorm.rvs(alpha, loc=xi, scale=omega, size=size, random_state=RANDOM_SEED)  # type: ignore
+        return skewnorm.rvs(alpha, loc=xi, scale=omega, size=size, random_state=random_state)  # type: ignore
 
-    def sample_posterior_data(self, data: np.ndarray, size: int = 1) -> np.ndarray:
+    def sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution using the data.
 
         Args
@@ -268,7 +275,7 @@ class NormalEBSkewNormal(BDFDistribution):
         """
         posterior_alpha, posterior_xi, omega = self.calc_posterior_params(data, return_dict=False)
         return skewnorm.rvs(  # type: ignore
-            a=posterior_alpha, loc=posterior_xi, scale=omega, size=size, random_state=RANDOM_SEED
+            a=posterior_alpha, loc=posterior_xi, scale=omega, size=size, random_state=random_state
         )
 
     def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
