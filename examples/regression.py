@@ -19,14 +19,14 @@ X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.2, random_state=42)
 start_time = time()
 bdf = BDFRegressor(
     dist="sn",
-    prior_params={"mean": 0, "std": 3},  # , "mean_alpha": 0, "m_alpha": 20},
-    n_trees=100,
-    reg_beta=0,
-    reg_lambda=0,
+    prior_params={"mean": 0, "std": 3, "mean_alpha": 0, "m_alpha": 10},
+    n_trees=50,
+    reg_beta=0.5,
+    reg_lambda=0.01,
     max_depth=10,
     subsample=0.9,
-    colsample=1.0,
-    min_samples_leaf=20,
+    colsample=0.9,
+    min_samples_leaf=10,
 )
 bdf.fit(X_train.values, y_train.values, standardize_y=True)
 print(f"BDF fit time: {time() - start_time:.2f} seconds")
@@ -43,6 +43,7 @@ print(
     f"MSE BDF: {np.mean((bdf.predict(X_test.values, method='mean', values={'total_size': 1000}) - y_test.values) ** 2)} | MSE RF: {np.mean((rf.predict(X_test.values) - y_test.values) ** 2)}, MSE GB: {np.mean((gb.predict(X_test.values) - y_test.values) ** 2)}"
 )
 # %%
+assert False
 ###################### Real estate dataset ######################
 data = pd.read_csv("../data/realestate.csv")
 data.describe()
@@ -135,7 +136,7 @@ features = (
     "PPE",
 )
 target = "total_UPDRS"
-X = data.loc[:, features]
+X = data.loc[:, features]  # type: ignore
 X.columns = [f.replace(" ", "_").replace("%", "perc").replace(":", "_") for f in X.columns]
 y = data[target]
 X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.2, random_state=1234)

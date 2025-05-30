@@ -1,0 +1,278 @@
+digraph {
+	rankdir=TB
+	node [shape=ellipse]
+	ranksep=0.6
+	nodesep=2
+	ratio=fill
+	node [fontsize=20 height=1.4 margin="0.2,0.1" shape=ellipse style=filled width=1.7]
+	edge [fontsize=16 penwidth=2]
+	4983733968 [label="Feature: 0
+Threshold: 67.500" fillcolor=lightgrey style=filled]
+	4983733968 -> "4983733968_left" [label="≤"]
+	4983733968 -> "4983733968_right" [label=">"]
+	"4983733968_left" [label="Feature: 0
+Threshold: 42.500" fillcolor=lightgrey style=filled]
+	"4983733968_left" -> "4983733968_left_left" [label="≤"]
+	"4983733968_left" -> "4983733968_left_right" [label=">"]
+	"4983733968_left_left" [label="LEAF | 12.98
+posterior_alpha: 0.606
+posterior_xi: -1.648
+posterior_omega: 0.351" fillcolor=lightgreen style=filled]
+	"4983733968_left_right" [label="Feature: 0
+Threshold: 66.500" fillcolor=lightgrey style=filled]
+	"4983733968_left_right" -> "4983733968_left_right_left" [label="≤"]
+	"4983733968_left_right" -> "4983733968_left_right_right" [label=">"]
+	"4983733968_left_right_left" [label="Feature: 0
+Threshold: 65.500" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left" -> "4983733968_left_right_left_left" [label="≤"]
+	"4983733968_left_right_left" -> "4983733968_left_right_left_right" [label=">"]
+	"4983733968_left_right_left_left" [label="Feature: 0
+Threshold: 64.000" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left" -> "4983733968_left_right_left_left_left" [label="≤"]
+	"4983733968_left_right_left_left" -> "4983733968_left_right_left_left_right" [label=">"]
+	"4983733968_left_right_left_left_left" [label="Feature: 0
+Threshold: 62.500" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_left" -> "4983733968_left_right_left_left_left_left" [label="≤"]
+	"4983733968_left_right_left_left_left" -> "4983733968_left_right_left_left_left_right" [label=">"]
+	"4983733968_left_right_left_left_left_left" [label="Feature: 0
+Threshold: 57.500" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_left_left" -> "4983733968_left_right_left_left_left_left_left" [label="≤"]
+	"4983733968_left_right_left_left_left_left" -> "4983733968_left_right_left_left_left_left_right" [label=">"]
+	"4983733968_left_right_left_left_left_left_left" [label="Feature: 1
+Threshold: 0.500" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_left_left_left" -> "4983733968_left_right_left_left_left_left_left_left" [label="≤"]
+	"4983733968_left_right_left_left_left_left_left" -> "4983733968_left_right_left_left_left_left_left_right" [label=">"]
+	"4983733968_left_right_left_left_left_left_left_left" [label="LEAF | 29.84
+posterior_alpha: 1.109
+posterior_xi: -0.391
+posterior_omega: 0.779" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_left_left_left_right" [label="Feature: 0
+Threshold: 56.500" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_left_left_left_right" -> "4983733968_left_right_left_left_left_left_left_right_left" [label="≤"]
+	"4983733968_left_right_left_left_left_left_left_right" -> "4983733968_left_right_left_left_left_left_left_right_right" [label=">"]
+	"4983733968_left_right_left_left_left_left_left_right_left" [label="Feature: 2
+Threshold: 91.782" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_left_left_left_right_left" -> "4983733968_left_right_left_left_left_left_left_right_left_left" [label="≤"]
+	"4983733968_left_right_left_left_left_left_left_right_left" -> "4983733968_left_right_left_left_left_left_left_right_left_right" [label=">"]
+	"4983733968_left_right_left_left_left_left_left_right_left_left" [label="LEAF | 37.53
+posterior_alpha: -0.478
+posterior_xi: 0.897
+posterior_omega: 0.315" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_left_left_left_right_left_right" [label="LEAF | 45.62
+posterior_alpha: 0.369
+posterior_xi: 1.496
+posterior_omega: 0.174" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_left_left_left_right_right" [label="LEAF | 13.40
+posterior_alpha: -0.800
+posterior_xi: -1.281
+posterior_omega: 0.366" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_left_left_right" [label="Feature: 0
+Threshold: 58.500" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_left_left_right" -> "4983733968_left_right_left_left_left_left_right_left" [label="≤"]
+	"4983733968_left_right_left_left_left_left_right" -> "4983733968_left_right_left_left_left_left_right_right" [label=">"]
+	"4983733968_left_right_left_left_left_left_right_left" [label="Feature: 2
+Threshold: 100.362" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_left_left_right_left" -> "4983733968_left_right_left_left_left_left_right_left_left" [label="≤"]
+	"4983733968_left_right_left_left_left_left_right_left" -> "4983733968_left_right_left_left_left_left_right_left_right" [label=">"]
+	"4983733968_left_right_left_left_left_left_right_left_left" [label="LEAF | 15.75
+posterior_alpha: 0.598
+posterior_xi: -1.347
+posterior_omega: 0.251" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_left_left_right_left_right" [label="LEAF | 20.64
+posterior_alpha: -0.689
+posterior_xi: -0.682
+posterior_omega: 0.231" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_left_left_right_right" [label="Feature: 15
+Threshold: 0.669" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_left_left_right_right" -> "4983733968_left_right_left_left_left_left_right_right_left" [label="≤"]
+	"4983733968_left_right_left_left_left_left_right_right" -> "4983733968_left_right_left_left_left_left_right_right_right" [label=">"]
+	"4983733968_left_right_left_left_left_left_right_right_left" [label="LEAF | 29.76
+posterior_alpha: -1.109
+posterior_xi: 0.396
+posterior_omega: 0.560" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_left_left_right_right_right" [label="Feature: 0
+Threshold: 59.500" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_left_left_right_right_right" -> "4983733968_left_right_left_left_left_left_right_right_right_left" [label="≤"]
+	"4983733968_left_right_left_left_left_left_right_right_right" -> "4983733968_left_right_left_left_left_left_right_right_right_right" [label=">"]
+	"4983733968_left_right_left_left_left_left_right_right_right_left" [label="Feature: 1
+Threshold: 0.500" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_left_left_right_right_right_left" -> "4983733968_left_right_left_left_left_left_right_right_right_left_left" [label="≤"]
+	"4983733968_left_right_left_left_left_left_right_right_right_left" -> "4983733968_left_right_left_left_left_left_right_right_right_left_right" [label=">"]
+	"4983733968_left_right_left_left_left_left_right_right_right_left_left" [label="LEAF | 32.20
+posterior_alpha: 0.761
+posterior_xi: 0.210
+posterior_omega: 0.170" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_left_left_right_right_right_left_right" [label="Feature: 2
+Threshold: 64.939" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_left_left_right_right_right_left_right" -> "4983733968_left_right_left_left_left_left_right_right_right_left_right_left" [label="≤"]
+	"4983733968_left_right_left_left_left_left_right_right_right_left_right" -> "4983733968_left_right_left_left_left_left_right_right_right_left_right_right" [label=">"]
+	"4983733968_left_right_left_left_left_left_right_right_right_left_right_left" [label="LEAF | 22.67
+posterior_alpha: 0.376
+posterior_xi: -0.638
+posterior_omega: 0.142" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_left_left_right_right_right_left_right_right" [label="LEAF | 26.91
+posterior_alpha: -0.576
+posterior_xi: -0.171
+posterior_omega: 0.078" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_left_left_right_right_right_right" [label="LEAF | 18.83
+posterior_alpha: 3.484
+posterior_xi: -1.294
+posterior_omega: 0.441" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_left_right" [label="Feature: 2
+Threshold: 92.840" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_left_right" -> "4983733968_left_right_left_left_left_right_left" [label="≤"]
+	"4983733968_left_right_left_left_left_right" -> "4983733968_left_right_left_left_left_right_right" [label=">"]
+	"4983733968_left_right_left_left_left_right_left" [label="LEAF | 39.51
+posterior_alpha: -0.447
+posterior_xi: 0.984
+posterior_omega: 0.030" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_left_right_right" [label="LEAF | 43.05
+posterior_alpha: 0.474
+posterior_xi: 1.242
+posterior_omega: 0.182" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_right" [label="Feature: 2
+Threshold: 176.990" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_left_right" -> "4983733968_left_right_left_left_right_left" [label="≤"]
+	"4983733968_left_right_left_left_right" -> "4983733968_left_right_left_left_right_right" [label=">"]
+	"4983733968_left_right_left_left_right_left" [label="LEAF | 14.69
+posterior_alpha: -0.944
+posterior_xi: -0.945
+posterior_omega: 0.727" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_left_right_right" [label="LEAF | 22.77
+posterior_alpha: 0.292
+posterior_xi: -0.594
+posterior_omega: 0.028" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_right" [label="Feature: 1
+Threshold: 0.500" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_right" -> "4983733968_left_right_left_right_left" [label="≤"]
+	"4983733968_left_right_left_right" -> "4983733968_left_right_left_right_right" [label=">"]
+	"4983733968_left_right_left_right_left" [label="Feature: 2
+Threshold: 85.869" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_right_left" -> "4983733968_left_right_left_right_left_left" [label="≤"]
+	"4983733968_left_right_left_right_left" -> "4983733968_left_right_left_right_left_right" [label=">"]
+	"4983733968_left_right_left_right_left_left" [label="LEAF | 37.84
+posterior_alpha: -0.527
+posterior_xi: 0.908
+posterior_omega: 0.244" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_right_left_right" [label="LEAF | 43.07
+posterior_alpha: -0.410
+posterior_xi: 1.330
+posterior_omega: 0.079" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_right_right" [label="Feature: 2
+Threshold: 44.804" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_left_right_right" -> "4983733968_left_right_left_right_right_left" [label="≤"]
+	"4983733968_left_right_left_right_right" -> "4983733968_left_right_left_right_right_right" [label=">"]
+	"4983733968_left_right_left_right_right_left" [label="LEAF | 28.00
+posterior_alpha: 0.438
+posterior_xi: -0.151
+posterior_omega: 0.157" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_left_right_right_right" [label="LEAF | 32.52
+posterior_alpha: 0.602
+posterior_xi: 0.184
+posterior_omega: 0.335" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_right" [label="Feature: 15
+Threshold: 0.692" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_right" -> "4983733968_left_right_right_left" [label="≤"]
+	"4983733968_left_right_right" -> "4983733968_left_right_right_right" [label=">"]
+	"4983733968_left_right_right_left" [label="LEAF | 26.38
+posterior_alpha: -3.409
+posterior_xi: 0.033
+posterior_omega: 0.372" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_right_right" [label="Feature: 2
+Threshold: 50.332" fillcolor=lightgrey style=filled]
+	"4983733968_left_right_right_right" -> "4983733968_left_right_right_right_left" [label="≤"]
+	"4983733968_left_right_right_right" -> "4983733968_left_right_right_right_right" [label=">"]
+	"4983733968_left_right_right_right_left" [label="LEAF | 17.89
+posterior_alpha: -0.439
+posterior_xi: -1.030
+posterior_omega: 0.045" fillcolor=lightgreen style=filled]
+	"4983733968_left_right_right_right_right" [label="LEAF | 16.57
+posterior_alpha: -0.561
+posterior_xi: -1.153
+posterior_omega: 0.036" fillcolor=lightgreen style=filled]
+	"4983733968_right" [label="Feature: 0
+Threshold: 77.000" fillcolor=lightgrey style=filled]
+	"4983733968_right" -> "4983733968_right_left" [label="≤"]
+	"4983733968_right" -> "4983733968_right_right" [label=">"]
+	"4983733968_right_left" [label="Feature: 0
+Threshold: 75.500" fillcolor=lightgrey style=filled]
+	"4983733968_right_left" -> "4983733968_right_left_left" [label="≤"]
+	"4983733968_right_left" -> "4983733968_right_left_right" [label=">"]
+	"4983733968_right_left_left" [label="Feature: 0
+Threshold: 71.500" fillcolor=lightgrey style=filled]
+	"4983733968_right_left_left" -> "4983733968_right_left_left_left" [label="≤"]
+	"4983733968_right_left_left" -> "4983733968_right_left_left_right" [label=">"]
+	"4983733968_right_left_left_left" [label="Feature: 0
+Threshold: 69.500" fillcolor=lightgrey style=filled]
+	"4983733968_right_left_left_left" -> "4983733968_right_left_left_left_left" [label="≤"]
+	"4983733968_right_left_left_left" -> "4983733968_right_left_left_left_right" [label=">"]
+	"4983733968_right_left_left_left_left" [label="Feature: 1
+Threshold: 0.500" fillcolor=lightgrey style=filled]
+	"4983733968_right_left_left_left_left" -> "4983733968_right_left_left_left_left_left" [label="≤"]
+	"4983733968_right_left_left_left_left" -> "4983733968_right_left_left_left_left_right" [label=">"]
+	"4983733968_right_left_left_left_left_left" [label="LEAF | 25.07
+posterior_alpha: -0.489
+posterior_xi: -0.337
+posterior_omega: 0.108" fillcolor=lightgreen style=filled]
+	"4983733968_right_left_left_left_left_right" [label="Feature: 2
+Threshold: 60.106" fillcolor=lightgrey style=filled]
+	"4983733968_right_left_left_left_left_right" -> "4983733968_right_left_left_left_left_right_left" [label="≤"]
+	"4983733968_right_left_left_left_left_right" -> "4983733968_right_left_left_left_left_right_right" [label=">"]
+	"4983733968_right_left_left_left_left_right_left" [label="LEAF | 39.69
+posterior_alpha: -0.427
+posterior_xi: 1.044
+posterior_omega: 0.170" fillcolor=lightgreen style=filled]
+	"4983733968_right_left_left_left_left_right_right" [label="LEAF | 44.15
+posterior_alpha: -0.516
+posterior_xi: 1.448
+posterior_omega: 0.112" fillcolor=lightgreen style=filled]
+	"4983733968_right_left_left_left_right" [label="Feature: 2
+Threshold: 149.980" fillcolor=lightgrey style=filled]
+	"4983733968_right_left_left_left_right" -> "4983733968_right_left_left_left_right_left" [label="≤"]
+	"4983733968_right_left_left_left_right" -> "4983733968_right_left_left_left_right_right" [label=">"]
+	"4983733968_right_left_left_left_right_left" [label="LEAF | 54.50
+posterior_alpha: 0.610
+posterior_xi: 2.360
+posterior_omega: 0.031" fillcolor=lightgreen style=filled]
+	"4983733968_right_left_left_left_right_right" [label="LEAF | 53.51
+posterior_alpha: -0.281
+posterior_xi: 2.287
+posterior_omega: 0.029" fillcolor=lightgreen style=filled]
+	"4983733968_right_left_left_right" [label="LEAF | 32.07
+posterior_alpha: 0.981
+posterior_xi: -0.236
+posterior_omega: 0.921" fillcolor=lightgreen style=filled]
+	"4983733968_right_left_right" [label="Feature: 2
+Threshold: 81.405" fillcolor=lightgrey style=filled]
+	"4983733968_right_left_right" -> "4983733968_right_left_right_left" [label="≤"]
+	"4983733968_right_left_right" -> "4983733968_right_left_right_right" [label=">"]
+	"4983733968_right_left_right_left" [label="LEAF | 46.43
+posterior_alpha: 0.608
+posterior_xi: 1.569
+posterior_omega: 0.121" fillcolor=lightgreen style=filled]
+	"4983733968_right_left_right_right" [label="LEAF | 51.15
+posterior_alpha: 0.524
+posterior_xi: 1.982
+posterior_omega: 0.211" fillcolor=lightgreen style=filled]
+	"4983733968_right_right" [label="Feature: 1
+Threshold: 0.500" fillcolor=lightgrey style=filled]
+	"4983733968_right_right" -> "4983733968_right_right_left" [label="≤"]
+	"4983733968_right_right" -> "4983733968_right_right_right" [label=">"]
+	"4983733968_right_right_left" [label="LEAF | 31.44
+posterior_alpha: -0.703
+posterior_xi: 0.320
+posterior_omega: 0.218" fillcolor=lightgreen style=filled]
+	"4983733968_right_right_right" [label="Feature: 2
+Threshold: 123.740" fillcolor=lightgrey style=filled]
+	"4983733968_right_right_right" -> "4983733968_right_right_right_left" [label="≤"]
+	"4983733968_right_right_right" -> "4983733968_right_right_right_right" [label=">"]
+	"4983733968_right_right_right_left" [label="LEAF | 27.05
+posterior_alpha: 0.340
+posterior_xi: -0.202
+posterior_omega: 0.050" fillcolor=lightgreen style=filled]
+	"4983733968_right_right_right_right" [label="LEAF | 23.86
+posterior_alpha: 0.404
+posterior_xi: -0.520
+posterior_omega: 0.111" fillcolor=lightgreen style=filled]
+	dpi=300
+}
