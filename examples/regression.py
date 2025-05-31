@@ -3,9 +3,9 @@ from time import time
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split as TTS
-from xgboost import XGBRegressor
+from xgboost import XGBRegressor  # type: ignore
 
 from bdf.tree_classes.bdf_regressor import BDFRegressor
 

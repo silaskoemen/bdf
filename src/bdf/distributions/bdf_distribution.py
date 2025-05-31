@@ -60,6 +60,11 @@ class BDFDistribution(ABC):
         raise NotImplementedError("Subclasses must implement this method.")
 
     @abstractmethod
+    def get_posterior_std(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
+        """Get the posterior standard deviation of the distribution."""
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    @abstractmethod
     def get_posterior_params(self, data: np.ndarray) -> dict:
         """Get the posterior parameters of the distribution."""
         raise NotImplementedError("Subclasses must implement this method.")
