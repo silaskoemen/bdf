@@ -147,8 +147,8 @@ X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.2, random_state=1234)
 # %%
 start_time = time()
 bdf = BDFRegressor(
-    dist="sn",
-    prior_params={"mean": 0, "std": 3, "mean_alpha": 0, "m_alpha": 10},
+    dist="nnsn",
+    prior_params={"mu_zero": 0, "sigma_zero": 3, "mu_gamma": 0, "sigma_gamma": 0.5},  # "mean_alpha": 0, "m_alpha": 10},
     n_trees=25,
     reg_beta=0.1,
     reg_lambda=0.01,

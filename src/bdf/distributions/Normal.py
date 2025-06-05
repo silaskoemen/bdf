@@ -198,6 +198,31 @@ class NormalNormal(BDFDistribution):
         else:
             raise ValueError("Either 'data' or 'params' must be provided to get the posterior mean.")
 
+    def get_posterior_variance(
+        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
+    ) -> float:
+        """Get the posterior standard deviation of the distribution.
+
+        Args
+        ----
+        `data` : np.ndarray, optional
+            The data to calculate the posterior parameters from, default is None.
+        `params` : dict[str, float], optional
+            Dictionary containing the posterior parameters 'mean' and 'std', default is None.
+
+        Returns
+        -------
+        float
+            The posterior standard deviation of the distribution.
+        """
+        if params is not None:
+            return params["posterior_std"] ** 2
+        elif data is not None:
+            _, posterior_std = self.calc_posterior_params(data, return_dict=False)
+            return posterior_std**2  # type: ignore
+        else:
+            raise ValueError("Either 'data' or 'params' must be provided to get the posterior standard deviation.")
+
     def get_posterior_params(self, data: np.ndarray) -> dict:
         """Get the posterior parameters of the distribution."""
         posterior_mean, posterior_std = self.calc_posterior_params(data)

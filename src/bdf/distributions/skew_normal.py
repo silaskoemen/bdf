@@ -114,7 +114,7 @@ class NormalEBSkewNormal(BDFDistribution):
         posterior_omega = np.sqrt(sample_var) / np.sqrt(1 - 2 * delta**2 / np.pi)
         if posterior_omega <= 0 or np.isnan(posterior_omega) or np.isinf(posterior_omega):
             warnings.warn(
-                "Posterior omega is non-positive or invalid, setting to a small positive value (either all values identical or skewness too high).",
+                "Posterior omega is non-positive or invalid, setting to a small positive value.",
                 UserWarning,
             )
             posterior_omega = 1e-5  # Set a small positive value to avoid issues in sampling
@@ -359,7 +359,7 @@ class NormalMeanNormalGammaSkewNormalParams(BDFDistributionParams):
 
     mu_zero: float = Field(default=0.0, description="Prior mean for mean of data")
     sigma_zero: float = Field(default=1.0, gt=0, description="Prior standard deviation for mean of data")
-    mu_gamma: float = Field(default=1.0, gt=0, alias="mean_gamma", description="Prior mean of skewness parameter gamma")
+    mu_gamma: float = Field(default=1.0, alias="mean_gamma", description="Prior mean of skewness parameter gamma")
     sigma_gamma: float = Field(
         default=1.0, gt=0, alias="std_gamma", description="Prior std fof skewness parameter gamma"
     )
@@ -463,7 +463,7 @@ class NormalMeanNormalGammaSkewNormal(BDFDistribution):
         posterior_omega = np.sqrt(sample_var) / np.sqrt(1 - 2 * delta**2 / np.pi)
         if posterior_omega <= 0 or np.isnan(posterior_omega) or np.isinf(posterior_omega):
             warnings.warn(
-                "Posterior omega is non-positive or invalid, setting to a small positive value (either all values identical or skewness too high).",
+                "Posterior omega is non-positive or invalid, setting to a small positive value.",
                 UserWarning,
             )
             posterior_omega = 1e-5  # Set a small positive value to avoid issues in sampling

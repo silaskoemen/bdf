@@ -2,7 +2,12 @@ from typing import Any, Dict
 
 from bdf.distributions.bdf_distribution import BDFDistribution
 from bdf.distributions.normal import NormalNormal, NormalNormalParams
-from bdf.distributions.skew_normal import NormalEBSkewNormal, NormalEBSkewNormalParams
+from bdf.distributions.skew_normal import (
+    NormalEBSkewNormal,
+    NormalEBSkewNormalParams,
+    NormalMeanNormalGammaSkewNormal,
+    NormalMeanNormalGammaSkewNormalParams,
+)
 
 # Import other distribution classes as needed
 
@@ -25,12 +30,15 @@ class DistributionManager:
 
         # Match pattern for distribution creation
         match name:
-            case "normal" | "normal_normal" | "gaussian":
+            case "normal" | "normalnormal" | "normal_normal" | "gaussian":
                 prior_params = NormalNormalParams.model_validate(prior_params)  # type: ignore
                 return NormalNormal(prior_params=prior_params)
-            case "skewnormal" | "sn" | "normal_skewnormal" | "normaleb_skewnormal":
+            case "normalmeanpseudoalphakewnormal" | "normalmeanpseudoalpha_skewnormal" | "normalpseudoskewnormal" | "normalpseudo_skewnormal" | "npsn" | "np_sn" | "nmpasn" | "nmpa_sn":
                 prior_params = NormalEBSkewNormalParams.model_validate(prior_params)  # type: ignore
                 return NormalEBSkewNormal(prior_params=prior_params)
+            case "normalmeannormalgammaskewnormal" | "normalmeannormalgamma_skewnormal" | "normalnormalskewnormal" | "normalnormal_skewnormal" | "nnsn" | "nn_sn" | "nmngsn" | "nmng_sn":
+                prior_params = NormalMeanNormalGammaSkewNormalParams.model_validate(prior_params)  # type: ignore
+                return NormalMeanNormalGammaSkewNormal(prior_params=prior_params)
             case _:
                 raise ValueError(f"Unknown distribution: {name}")
 
