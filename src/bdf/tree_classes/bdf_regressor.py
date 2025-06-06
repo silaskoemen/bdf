@@ -149,6 +149,21 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
                     np.concat([np.expand_dims(tree.predict(X, method="mean"), -1) for tree in self.trees], axis=-1),
                     axis=1,
                 )
+            case "weighted_mean":
+                weight = values.get("weight", "variance")
+                if weight == "variance":
+                    # Each tree predicts mean and variance, meaning shape [n_samples, 2], concat around new 3rd axis
+                    preds = np.concat(
+                        [
+                            np.expand_dims(tree.predict(X, method="weighted_mean", values=values), -1)
+                            for tree in self.trees
+                        ],
+                        axis=-1,
+                    )
+                    # Form preds by adding up mean/variance, then divide by sum of variances
+                    preds = np.sum(preds[:, 0, :] / preds[:, 1, :], axis=-1) / np.sum(1 / preds[:, 1, :], axis=-1)
+                else:
+                    raise ValueError(f"Weight '{weight}' is not supported for weighted mean prediction.")
             case "median":
                 if "total_size" in values:
                     values = {"size": np.ceil(values["total_size"] / self.n_trees).astype(int)}
@@ -180,6 +195,8 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
                     }
             case "samples-ind":
                 preds = np.concatenate([tree.predict(X, method="sample", values=values) for tree in self.trees])
+            case _:
+                raise ValueError(f"Method '{method}' is not supported for prediction with BDFRegressor.")
             # case 'samples-avg':
             #     preds = -1#np.mean([tree.predict(X, method='sample') for tree in self.trees], axis=0)
             # case 'quantiles-ind':
@@ -193,6 +210,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         if hasattr(self, "y_mean") and hasattr(self, "y_std"):
             if method in [
                 "mean",  # mean of all trees
+                "weighted_mean",  # weighted mean of all trees
                 "median",  # median of all trees
                 "samples-ind",  # concat samples from trees
                 "samples-avg",  # sample from avg params
@@ -403,7 +421,8 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             "quantiles-avg",
             "confint-ind",
             "confint-avg",
-        ], f"Invalid method '{method}' for prediction. Must be one of ['mean', 'median', 'params', 'samples-ind', 'samples-avg', 'quantiles-ind', 'quantiles-avg', 'confint-ind', 'confint-avg']"
+            "weighted_mean",
+        ], f"Invalid method '{method}' for prediction. Must be one of ['mean', 'median', 'params', 'samples-ind', 'samples-avg', 'quantiles-ind', 'quantiles-avg', 'confint-ind', 'confint-avg', 'weighted_mean']"
 
         if method in ["quantiles-ind", "quantiles-avg", "confint-ind", "confint-avg"]:
             assert values is not None, "values must be provided for quantile/confidence interval predictions"

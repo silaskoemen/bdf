@@ -2,8 +2,10 @@ import warnings
 
 import numpy as np
 from pydantic import Field
+from scipy.stats import norm
 
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
+from bdf.utils.constants import RANDOM_SEED
 
 
 class NormalNormalParams(BDFDistributionParams):
@@ -122,7 +124,12 @@ class NormalNormal(BDFDistribution):
         return np.random.normal(loc=self.prior_mean, scale=self.prior_std, size=size)
 
     def sample_posterior(
-        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None, size: int = 1
+        self,
+        *,
+        data: np.ndarray | None = None,
+        params: dict[str, float] | None = None,
+        size: int = 1,
+        random_state: int = RANDOM_SEED,
     ) -> np.ndarray:
         """Sample from the distribution."""
         if data is None and params is None:
@@ -130,15 +137,15 @@ class NormalNormal(BDFDistribution):
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
         if params is not None:
-            return self.sample_posterior_params(params, size=size)
+            return self.sample_posterior_params(params, size=size, random_state=random_state)
         elif data is not None:
-            return self.sample_posterior_data(data, size=size)
+            return self.sample_posterior_data(data, size=size, random_state=random_state)  # type: ignore
         else:  # This case should not happen due to the initial check but is required for type safety
             raise ValueError(
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
 
-    def sample_posterior_params(self, params: dict[str, float], size: int = 1) -> np.ndarray:
+    def sample_posterior_params(self, params: dict[str, float], *, size: int = 1, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution using provided parameters.
 
         Args
@@ -155,9 +162,9 @@ class NormalNormal(BDFDistribution):
         """
         assert "posterior_mean" in params and "posterior_std" in params, "params must contain 'mean' and 'std' keys"
         assert params["posterior_std"] > 0, "Standard deviation must be positive"
-        return np.random.normal(loc=params["posterior_mean"], scale=params["posterior_std"], size=size)
+        return norm.rvs(loc=params["posterior_mean"], scale=params["posterior_std"], size=size, random_state=random_state)  # type: ignore
 
-    def sample_posterior_data(self, data: np.ndarray, size: int = 1) -> np.ndarray:
+    def sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution using the data.
 
         Args
@@ -173,7 +180,7 @@ class NormalNormal(BDFDistribution):
             Samples drawn from the posterior distribution based on the data.
         """
         posterior_mean, posterior_std = self.calc_posterior_params(data, return_dict=False)
-        return np.random.normal(loc=posterior_mean, scale=posterior_std, size=size)  # type: ignore
+        return norm.rvs(loc=posterior_mean, scale=posterior_std, size=size, random_state=random_state)  # type: ignore
 
     def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
         """Get the posterior mean of the distribution.

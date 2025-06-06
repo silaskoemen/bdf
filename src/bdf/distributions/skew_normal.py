@@ -359,9 +359,9 @@ class NormalMeanNormalGammaSkewNormalParams(BDFDistributionParams):
 
     mu_zero: float = Field(default=0.0, description="Prior mean for mean of data")
     sigma_zero: float = Field(default=1.0, gt=0, description="Prior standard deviation for mean of data")
-    mu_gamma: float = Field(default=1.0, alias="mean_gamma", description="Prior mean of skewness parameter gamma")
+    mu_gamma: float = Field(default=0.0, alias="mean_gamma", description="Prior mean of skewness parameter gamma")
     sigma_gamma: float = Field(
-        default=1.0, gt=0, alias="std_gamma", description="Prior std fof skewness parameter gamma"
+        default=0.5, gt=0, alias="std_gamma", description="Prior std fof skewness parameter gamma"
     )
 
     class Config:

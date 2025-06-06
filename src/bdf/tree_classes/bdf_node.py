@@ -40,7 +40,8 @@ class BDFNode:
             "params",
             "sample",
             "mean",
-        ], "Method must be one of str ['params', 'sample', 'mean']"
+            "weighted_mean",
+        ], "Method must be one of str ['params', 'sample', 'mean', 'weighted_mean']"
         if self._is_leaf():  # Leaf node
             return self._predict_leaf(X, method=method, values=values)
         else:  # Non-leaf node
@@ -58,6 +59,25 @@ class BDFNode:
                         X.shape[0], dtype=float
                     )
                 return self.distribution.get_posterior_mean(params=self.posterior_params)
+            case "weighted_mean":
+                if self.depth == 0:
+                    warnings.warn("Using weighted mean prediction at root node, indicating tree is not fully grown!")
+                    mean = self.distribution.get_posterior_mean(params=self.posterior_params)
+                    preds = np.zeros((X.shape[0], 2), dtype=float)
+                    preds[:, 0] = mean
+                    preds[:, 1] = 1.0
+                    return preds
+                weight = values.get("weight", "variance")
+                if weight == "variance":
+                    return np.array(
+                        [
+                            self.distribution.get_posterior_mean(params=self.posterior_params),
+                            self.distribution.get_posterior_variance(params=self.posterior_params),
+                        ],
+                        dtype=float,
+                    )
+                else:
+                    raise ValueError(f"Invalid weight: {weight}. Must be 'variance'.")
             case "params":
                 if self.depth == 0:
                     warnings.warn("Using params prediction at root node, indicating tree is not fully grown!")
@@ -81,7 +101,7 @@ class BDFNode:
             self.left_node is not None and self.right_node is not None
         ), "Invalid tree structure, BDFNode is not a leaf but has no children"
 
-        left_mask = X[:, self.best_feature] <= self.best_threshold
+        left_mask = X[:, self.best_feature] <= self.best_threshold  # type: ignore
         right = X[~left_mask]
         left = X[left_mask]
 
@@ -109,6 +129,14 @@ class BDFNode:
                 preds[left_mask] = self.left_node.predict(left, method=method, values=values)
             if right.shape[0] > 0:
                 preds[~left_mask] = self.right_node.predict(right, method=method, values=values)
+            return preds
+        elif method == "weighted_mean":
+            # For each observation, return mean and weight
+            preds = np.zeros((X.shape[0], 2), dtype=float)
+            if left.shape[0] > 0:
+                preds[left_mask, :] = self.left_node.predict(left, method=method, values=values)
+            if right.shape[0] > 0:
+                preds[~left_mask, :] = self.right_node.predict(right, method=method, values=values)
             return preds
         else:
             raise ValueError(f"Invalid method: {method}. Must be one of ['params', 'sample', 'mean']")

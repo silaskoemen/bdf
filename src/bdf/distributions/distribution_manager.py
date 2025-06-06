@@ -33,7 +33,7 @@ class DistributionManager:
             case "normal" | "normalnormal" | "normal_normal" | "gaussian":
                 prior_params = NormalNormalParams.model_validate(prior_params)  # type: ignore
                 return NormalNormal(prior_params=prior_params)
-            case "normalmeanpseudoalphakewnormal" | "normalmeanpseudoalpha_skewnormal" | "normalpseudoskewnormal" | "normalpseudo_skewnormal" | "npsn" | "np_sn" | "nmpasn" | "nmpa_sn":
+            case "normalmeanpseudoalphaskewnormal" | "normalmeanpseudoalpha_skewnormal" | "normalpseudoskewnormal" | "normalpseudo_skewnormal" | "npsn" | "np_sn" | "nmpasn" | "nmpa_sn":
                 prior_params = NormalEBSkewNormalParams.model_validate(prior_params)  # type: ignore
                 return NormalEBSkewNormal(prior_params=prior_params)
             case "normalmeannormalgammaskewnormal" | "normalmeannormalgamma_skewnormal" | "normalnormalskewnormal" | "normalnormal_skewnormal" | "nnsn" | "nn_sn" | "nmngsn" | "nmng_sn":
