@@ -1,12 +1,12 @@
 from typing import Any, Dict
 
 from bdf.distributions.bdf_distribution import BDFDistribution
-from bdf.distributions.normal import NormalNormal, NormalNormalParams
+from bdf.distributions.normal import NormalMuNormal, NormalMuNormalParams
 from bdf.distributions.skew_normal import (
-    NormalEBSkewNormal,
-    NormalEBSkewNormalParams,
     NormalMeanNormalGammaSkewNormal,
     NormalMeanNormalGammaSkewNormalParams,
+    NormalMeanPseudoAlphaSkewNormal,
+    NormalMeanPseudoAlphaSkewNormalParams,
 )
 
 # Import other distribution classes as needed
@@ -17,7 +17,9 @@ class DistributionManager:
 
     # Registry of available distributions
     DISTRIBUTIONS = {
-        "normal_normal": NormalNormal,
+        "normalmu_normal": NormalMuNormal,
+        "normalmeannormalgamma_skewnormal": NormalMeanNormalGammaSkewNormal,
+        "normalmeanpseudoalpha_skewnormal": NormalMeanPseudoAlphaSkewNormal,
         # "zip": ZeroInflatedPoisson,
         # Add other distributions here
     }
@@ -30,12 +32,12 @@ class DistributionManager:
 
         # Match pattern for distribution creation
         match name:
-            case "normal" | "normalnormal" | "normal_normal" | "gaussian":
-                prior_params = NormalNormalParams.model_validate(prior_params)  # type: ignore
-                return NormalNormal(prior_params=prior_params)
+            case "n" | "normal" | "normalnormal" | "normal_normal" | "gaussian":
+                prior_params = NormalMuNormalParams.model_validate(prior_params)  # type: ignore
+                return NormalMuNormal(prior_params=prior_params)
             case "normalmeanpseudoalphaskewnormal" | "normalmeanpseudoalpha_skewnormal" | "normalpseudoskewnormal" | "normalpseudo_skewnormal" | "npsn" | "np_sn" | "nmpasn" | "nmpa_sn":
-                prior_params = NormalEBSkewNormalParams.model_validate(prior_params)  # type: ignore
-                return NormalEBSkewNormal(prior_params=prior_params)
+                prior_params = NormalMeanPseudoAlphaSkewNormalParams.model_validate(prior_params)  # type: ignore
+                return NormalMeanPseudoAlphaSkewNormal(prior_params=prior_params)
             case "normalmeannormalgammaskewnormal" | "normalmeannormalgamma_skewnormal" | "normalnormalskewnormal" | "normalnormal_skewnormal" | "nnsn" | "nn_sn" | "nmngsn" | "nmng_sn":
                 prior_params = NormalMeanNormalGammaSkewNormalParams.model_validate(prior_params)  # type: ignore
                 return NormalMeanNormalGammaSkewNormal(prior_params=prior_params)
@@ -47,19 +49,27 @@ class DistributionManager:
         """Convert a Python distribution to a spec dict for Rust"""
         # Match pattern for Rust conversion
         match distribution:
-            case NormalNormal():
+            case NormalMuNormal():
                 return {
-                    "dist_type": "NormalNormal",
-                    "prior_mean": distribution.prior_params.mean,  # type: ignore
-                    "prior_std": distribution.prior_params.std,  # type: ignore
+                    "dist_type": "NormalMuNormal",
+                    "mu_zero": distribution.prior_params.mu_zero,  # type: ignore
+                    "sigma_zero": distribution.prior_params.sigma_zero,  # type: ignore
                 }
-            case NormalEBSkewNormal():
+            case NormalMeanPseudoAlphaSkewNormal():
                 return {
-                    "dist_type": "NormalEBSkewNormal",
-                    "prior_mu": distribution.prior_params.mu,  # type: ignore
-                    "prior_sigma": distribution.prior_params.sigma,  # type: ignore
-                    "prior_mean_alpha": distribution.prior_params.mean_alpha,  # type: ignore
-                    "prior_m_alpha": distribution.prior_params.m_alpha,  # type: ignore
+                    "dist_type": "NormalMeanPseudoAlphaSkewNormal",
+                    "mu_zero": distribution.prior_params.mu_zero,  # type: ignore
+                    "sigma_zero": distribution.prior_params.sigma_zero,  # type: ignore
+                    "alpha_zero": distribution.prior_params.alpha_zero,  # type: ignore
+                    "m_alpha": distribution.prior_params.m_alpha,  # type: ignore
+                }
+            case NormalMeanNormalGammaSkewNormal():
+                return {
+                    "dist_type": "NormalMeanNormalGammaSkewNormal",
+                    "mu_zero": distribution.prior_params.mu_zero,  # type: ignore
+                    "sigma_zero": distribution.prior_params.sigma_zero,  # type: ignore
+                    "mu_gamma": distribution.prior_params.mu_gamma,  # type: ignore
+                    "sigma_gamma": distribution.prior_params.sigma_gamma,  # type: ignore
                 }
             # case ZeroInflatedPoisson():
             #     return {
@@ -76,9 +86,18 @@ class DistributionManager:
     def from_rust_spec(cls, spec: Dict[str, Any]) -> BDFDistribution:
         """Create a Python distribution from Rust spec dict"""
         match spec.get("dist_type"):
-            case "NormalNormal":
-                return NormalNormal(
+            case "NormalMuNormal":
+                return NormalMuNormal(
                     prior_params={"mean": spec.get("prior_mean", 0.0), "std": spec.get("prior_std", 1.0)}
+                )
+            case "NormalMeanPseudoAlphaSkewNormal":
+                return NormalMeanPseudoAlphaSkewNormal(
+                    prior_params={
+                        "mu": spec.get("prior_", 0.0),
+                        "sigma": spec.get("prior_sigma", 1.0),
+                        "mean_alpha": spec.get("prior_mean_alpha", 0.0),
+                        "m_alpha": spec.get("prior_m_alpha", 1.0),
+                    }
                 )
             # case "ZeroInflatedPoisson":
             #     return ZeroInflatedPoisson(prior_params={

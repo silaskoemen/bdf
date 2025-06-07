@@ -1,17 +1,17 @@
-// In distribution.rs
+use ndarray::ArrayView1;
 use pyo3::prelude::*;
-use ndarray::{ArrayView1};
 use numpy::ToPyArray;
 
-// Define trait for distributions
-pub trait Distribution {
-    fn nll(&self, y: &ArrayView1<f64>) -> f64;
+use crate::distributions::Distribution;
+
+
+// Python wrapper implementation
+pub struct PythonDistributionWrapper {
+    pub py_dist: PyObject,
 }
 
-// Wrapper for Python distribution objects
-pub struct PythonDistributionWrapper {
-    py_dist: PyObject,
-}
+unsafe impl Send for PythonDistributionWrapper {}
+unsafe impl Sync for PythonDistributionWrapper {}
 
 impl PythonDistributionWrapper {
     pub fn new(py_dist: PyObject) -> Self {
@@ -20,9 +20,9 @@ impl PythonDistributionWrapper {
 }
 
 impl Distribution for PythonDistributionWrapper {
-    fn nll(&self, y: &ArrayView1<f64>) -> f64 {
+    fn nll(&self, data: &ArrayView1<f64>) -> f64 {
         Python::with_gil(|py| {
-            let y_array = y.to_pyarray(py);
+            let y_array = data.to_pyarray(py);
             let result = self.py_dist
                 .call_method1(py, "nll", (y_array,))
                 .expect("Failed to call nll method");

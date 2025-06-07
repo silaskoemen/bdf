@@ -151,7 +151,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
                 )
             case "weighted_mean":
                 weight = values.get("weight", "variance")
-                if weight == "variance":
+                if weight == "variance" or weight == "var" or weight == "std" or weight == "stddev":
                     # Each tree predicts mean and variance, meaning shape [n_samples, 2], concat around new 3rd axis
                     preds = np.concat(
                         [

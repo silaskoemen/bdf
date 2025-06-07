@@ -8,7 +8,7 @@ from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionP
 from bdf.utils.constants import RANDOM_SEED
 
 
-class NormalNormalParams(BDFDistributionParams):
+class NormalMuNormalParams(BDFDistributionParams):
     """Parameters for the Normal distribution in Bayesian Distributional Forests.
 
     Attributes
@@ -19,9 +19,9 @@ class NormalNormalParams(BDFDistributionParams):
         The prior standard deviation of the Normal distribution.
     """
 
-    mean: float = Field(default=0.0, alias="mu", description="Prior mean of the Normal distribution")
-    std: float = Field(
-        default=1.0, alias="sigma", gt=0, description="Prior standard deviation of the Normal distribution"
+    mu_zero: float = Field(default=0.0, alias="mean", description="Prior mean of the Normal distribution")
+    sigma_zero: float = Field(
+        default=1.0, alias="std", gt=0, description="Prior standard deviation of the Normal distribution"
     )
 
     class Config:
@@ -33,10 +33,10 @@ class NormalNormalParams(BDFDistributionParams):
     def __init__(self, **data: dict) -> None:
         # Check for missing fields before initialization
         missing_fields = {}
-        if "mu" not in data and "mean" not in data:
-            missing_fields["mean"] = self.__class__.model_fields["mean"].default
-        if "sigma" not in data and "std" not in data:
-            missing_fields["std"] = self.__class__.model_fields["std"].default
+        if "mu_zero" not in data and "mean" not in data:
+            missing_fields["mu_zero"] = self.__class__.model_fields["mu_zero"].default
+        if "sigma_zero" not in data and "std" not in data:
+            missing_fields["sigma_zero"] = self.__class__.model_fields["sigma_zero"].default
 
         # Initialize the model
         super().__init__(**data)
@@ -50,10 +50,10 @@ class NormalNormalParams(BDFDistributionParams):
             )
 
 
-class NormalNormal(BDFDistribution):
+class NormalMuNormal(BDFDistribution):
     """Normal distribution class for Bayesian Distributional Forests."""
 
-    def __init__(self, prior_params: dict | NormalNormalParams, params: tuple | None = None, var_ddof: int = 1):
+    def __init__(self, prior_params: dict | NormalMuNormalParams, params: tuple | None = None, var_ddof: int = 1):
         """Initialize the Normal distribution with prior parameters.
         Args
         ----
@@ -65,13 +65,13 @@ class NormalNormal(BDFDistribution):
             Degrees of freedom for variance calculation, default is 1 (sample standard deviation).
         """
         if isinstance(prior_params, dict):
-            prior_params = NormalNormalParams.model_validate(prior_params)  # type: ignore
+            prior_params = NormalMuNormalParams.model_validate(prior_params)  # type: ignore
         assert isinstance(
-            prior_params, NormalNormalParams
+            prior_params, NormalMuNormalParams
         ), "prior_params must be an instance of NormalNormalParams after possible conversion from dict."
         super().__init__(prior_params, params)
-        self.prior_mean = prior_params.mean
-        self.prior_std = prior_params.std
+        self.mu_zero = prior_params.mu_zero
+        self.sigma_zero = prior_params.sigma_zero
         self.var_ddof = var_ddof  # Degrees of freedom for sample variance calculation
 
     def calc_posterior_params(
@@ -95,9 +95,9 @@ class NormalNormal(BDFDistribution):
         sample_mean = np.mean(data)
         sample_std = np.std(data, ddof=self.var_ddof)
         posterior_mean = (
-            (n / (sample_std**2 + eps)) * sample_mean + (1 / (self.prior_std**2 + eps)) * self.prior_mean
-        ) / ((n / (sample_std**2 + eps)) + (1 / (self.prior_std**2 + eps)))
-        posterior_std = np.sqrt(1 / ((n / (sample_std**2 + eps)) + (1 / (self.prior_std**2 + eps))))
+            (n / (sample_std**2 + eps)) * sample_mean + (1 / (self.sigma_zero**2 + eps)) * self.mu_zero
+        ) / ((n / (sample_std**2 + eps)) + (1 / (self.sigma_zero**2 + eps)))
+        posterior_std = np.sqrt(1 / ((n / (sample_std**2 + eps)) + (1 / (self.sigma_zero**2 + eps))))
         if return_dict:
             return {"posterior_mean": posterior_mean, "posterior_std": posterior_std}
         else:
@@ -121,7 +121,7 @@ class NormalNormal(BDFDistribution):
 
     def sample_prior(self, size: int) -> np.ndarray:
         """Sample from the distribution."""
-        return np.random.normal(loc=self.prior_mean, scale=self.prior_std, size=size)
+        return np.random.normal(loc=self.mu_zero, scale=self.sigma_zero, size=size)
 
     def sample_posterior(
         self,
@@ -236,15 +236,15 @@ class NormalNormal(BDFDistribution):
         return {"mean": posterior_mean, "std": posterior_std}
 
     def __repr__(self):
-        return f"Normal(prior_params={{'mean': {self.prior_mean}, 'std': {self.prior_std}}})"
+        return f"Normal(prior_params={{'mean': {self.mu_zero}, 'std': {self.sigma_zero}}})"
 
     def __str__(self):
-        return f"Normal(prior_params={{'mean': {self.prior_mean}, 'std': {self.prior_std}}})"
+        return f"Normal(prior_params={{'mean': {self.mu_zero}, 'std': {self.sigma_zero}}})"
 
     def __eq__(self, other):
-        if not isinstance(other, NormalNormal):
+        if not isinstance(other, NormalMuNormal):
             return False
-        return self.prior_mean == other.prior_mean and self.prior_std == other.prior_std
+        return self.mu_zero == other.mu_zero and self.sigma_zero == other.sigma_zero
 
 
 class NormGammaNormalParams(BDFDistributionParams):
@@ -318,7 +318,7 @@ class NormGammaNormal(BDFDistribution):
         if not isinstance(prior_params, NormGammaNormalParams):
             prior_params = NormGammaNormalParams.model_validate(prior_params)
         super().__init__(prior_params, params)
-        self.prior_mean = prior_params.mean
+        self.mu_zero = prior_params.mean
         self.prior_n = prior_params.n
         self.prior_nu = prior_params.nu
         self.prior_phi = prior_params.phi
@@ -339,14 +339,14 @@ class NormGammaNormal(BDFDistribution):
         n = data.shape[0]
         sample_mean = np.mean(data)
         sample_var = np.var(data, ddof=1)
-        posterior_mean = (self.prior_n * self.prior_mean + n * sample_mean) / (self.prior_n + n)
+        posterior_mean = (self.prior_n * self.mu_zero + n * sample_mean) / (self.prior_n + n)
         posterior_std = (
             1
             / (self.prior_nu + n)
             * (
                 (n - 1) * sample_var
                 + self.prior_nu * self.prior_phi
-                + (n * self.prior_n) / (self.prior_n + n) * (sample_mean - self.prior_mean) ** 2
+                + (n * self.prior_n) / (self.prior_n + n) * (sample_mean - self.mu_zero) ** 2
             )
         )
         return posterior_mean, posterior_std

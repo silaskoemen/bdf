@@ -4,7 +4,7 @@ use pyo3::types::{PyDict};
 use ndarray::{Array1};
 use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray2};
 
-pub mod distribution;
+pub mod distributions;
 pub mod splitter;
 
 #[pyfunction]
@@ -52,47 +52,69 @@ fn find_best_split(
 }
 
 // Distribution factory with explicit fallback mechanism
-fn create_distribution_from_spec(spec: &PyDict, py: Python) -> PyResult<Box<dyn distribution::Distribution>> {
+fn create_distribution_from_spec(spec: &PyDict, py: Python) -> PyResult<Box<dyn distributions::Distribution>> {
     // Extract the distribution type
     if let Some(Ok(dist_type)) = spec.get_item("dist_type").and_then(|dt| Some(dt.extract::<String>())) {
         // Try to create a native distribution based on type
         match dist_type.as_str() {
-        "NormalNormal" => {
+        "NormalMuNormal" => {
             // Use map_or to provide a default None if get_item fails
             // and convert the extraction to Option
-            let prior_mean = spec.get_item("prior_mean")
+            let mu_zero = spec.get_item("mu_zero")
                 .and_then(|pm| pm.extract::<f64>().ok());
-            let prior_std = spec.get_item("prior_std")
+            let sigma_zero = spec.get_item("sigma_zero")
                 .and_then(|ps| ps.extract::<f64>().ok());
 
-            if let (Some(prior_mean), Some(prior_std)) = (prior_mean, prior_std) {
-                let spec = distribution::NormalNormalSpec {
-                    prior_mean,
-                    prior_std,
+            if let (Some(mu_zero), Some(sigma_zero)) = (mu_zero, sigma_zero) {
+                let spec = distributions::NormalMuNormalSpec {
+                    mu_zero,
+                    sigma_zero,
                 };
 
-                return Ok(Box::new(distribution::NormalNormal::new(&spec)));
+                return Ok(Box::new(distributions::NormalMuNormal::new(&spec)));
             }
         },
-        "NormalEBSkewNormal" => {
-            let prior_mu = spec.get_item("prior_mu")
-                .and_then(|pm| pm.extract::<f64>().ok());
-            let prior_sigma = spec.get_item("prior_sigma")
-                .and_then(|ps| ps.extract::<f64>().ok());
-            let prior_mean_alpha = spec.get_item("prior_mean_alpha")
-                .and_then(|pma| pma.extract::<f64>().ok());
-            let prior_m_alpha = spec.get_item("prior_m_alpha")
-                .and_then(|pma| pma.extract::<f64>().ok());
-            if let (Some(prior_mu), Some(prior_sigma), Some(prior_mean_alpha), Some(prior_m_alpha)) =
-                (prior_mu, prior_sigma, prior_mean_alpha, prior_m_alpha) {
-                let spec = distribution::NormalEBSkewNormalSpec {
-                    prior_mu,
-                    prior_sigma,
-                    prior_mean_alpha,
-                    prior_m_alpha,
+        "NormalMeanPseudoAlphaSkewNormal" => {
+            let mu_zero = spec.get_item("mu_zero")
+                .and_then(|m0| m0.extract::<f64>().ok());
+            let sigma_zero = spec.get_item("sigma_zero")
+                .and_then(|s0| s0.extract::<f64>().ok());
+            let alpha_zero = spec.get_item("alpha_zero")
+                .and_then(|a0| a0.extract::<f64>().ok());
+            let m_alpha = spec.get_item("m_alpha")
+                .and_then(|ma| ma.extract::<f64>().ok());
+            if let (Some(mu_zero), Some(sigma_zero), Some(alpha_zero), Some(m_alpha)) =
+                (mu_zero, sigma_zero, alpha_zero, m_alpha) {
+                let spec = distributions::NormalMeanPseudoAlphaSkewNormalSpec {
+                    mu_zero,
+                    sigma_zero,
+                    alpha_zero,
+                    m_alpha,
                 };
 
-                return Ok(Box::new(distribution::NormalEBSkewNormal::new(&spec)));
+                return Ok(Box::new(distributions::NormalMeanPseudoAlphaSkewNormal::new(&spec)));
+            }
+
+        },
+        "NormalMeanNormalGammaSkewNormal" => {
+            let mu_zero = spec.get_item("mu_zero")
+                .and_then(|m0| m0.extract::<f64>().ok());
+            let sigma_zero = spec.get_item("sigma_zero")
+                .and_then(|s0| s0.extract::<f64>().ok());
+            let mu_gamma = spec.get_item("mu_gamma")
+                .and_then(|mg| mg.extract::<f64>().ok());
+            let sigma_gamma = spec.get_item("sigma_gamma")
+                .and_then(|sg| sg.extract::<f64>().ok());
+            if let (Some(mu_zero), Some(sigma_zero), Some(mu_gamma), Some(sigma_gamma)) =
+                (mu_zero, sigma_zero, mu_gamma, sigma_gamma) {
+                let spec = distributions::NormalMeanNormalGammaSkewNormalSpec {
+                    mu_zero,
+                    sigma_zero,
+                    mu_gamma,
+                    sigma_gamma,
+                };
+
+                return Ok(Box::new(distributions::NormalMeanNormalGammaSkewNormal::new(&spec)));
             }
 
         },
@@ -104,7 +126,7 @@ fn create_distribution_from_spec(spec: &PyDict, py: Python) -> PyResult<Box<dyn 
 
     // Fallback: use Python distribution via wrapper
     if let Some(py_dist) = spec.get_item("_python_object") {
-        return Ok(Box::new(distribution::PythonDistributionWrapper::new(
+        return Ok(Box::new(distributions::PythonDistributionWrapper::new(
             py_dist.to_object(py)
         )));
     }

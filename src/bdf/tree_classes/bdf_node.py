@@ -68,11 +68,19 @@ class BDFNode:
                     preds[:, 1] = 1.0
                     return preds
                 weight = values.get("weight", "variance")
-                if weight == "variance":
+                if weight == "variance" or weight == "var":
                     return np.array(
                         [
                             self.distribution.get_posterior_mean(params=self.posterior_params),
                             self.distribution.get_posterior_variance(params=self.posterior_params),
+                        ],
+                        dtype=float,
+                    )
+                elif weight == "std" or weight == "stddev":
+                    return np.array(
+                        [
+                            self.distribution.get_posterior_mean(params=self.posterior_params),
+                            np.sqrt(self.distribution.get_posterior_variance(params=self.posterior_params)),
                         ],
                         dtype=float,
                     )

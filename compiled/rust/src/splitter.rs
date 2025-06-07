@@ -1,5 +1,5 @@
 use ndarray::{ArrayView1, ArrayView2, Array1, s};
-use crate::distribution::Distribution;
+use crate::distributions::Distribution;
 use rayon::prelude::*;
 use std::sync::Mutex;
 
