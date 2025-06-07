@@ -20,7 +20,7 @@ X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.2, random_state=42)
 start_time = time()
 bdf = BDFRegressor(
     dist="npsn",
-    # prior_params={"mean": 0, "std": 1, "mean_alpha": 0, "m_alpha": 5},
+    prior_params={"mu_zero": 0, "sigma_zero": 1, "mean_alpha": 0, "m_alpha": 10},
     n_trees=25,
     reg_beta=0.04,
     reg_lambda=0.05,
@@ -41,8 +41,8 @@ xgb.fit(X_train.values, y_train.values)
 print(f"XGB fit time: {time() - start_time:.2f} seconds")
 # %%
 print(
-    f"MSE BDF: {np.mean((bdf.predict(X_test.values, method='mean', values={'total_size': 1000}) - y_test.values) ** 2)} | ",
-    f"MSE RF: {np.mean((rf.predict(X_test.values) - y_test.values) ** 2)} | MSE XGB: {np.mean((xgb.predict(X_test.values) - y_test.values) ** 2)} | ",
+    f"MSE BDF: {np.mean((bdf.predict(X_test.values, method='mean', values={'total_size': 1000, 'weight': 'std'}) - y_test.values) ** 2):.3f} | ",
+    f"MSE RF: {np.mean((rf.predict(X_test.values) - y_test.values) ** 2):.3f} | MSE XGB: {np.mean((xgb.predict(X_test.values) - y_test.values) ** 2):.3f} | ",
 )
 # %%
 """
