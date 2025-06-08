@@ -7,6 +7,8 @@ from bdf.distributions.skew_normal import (
     NormalMeanNormalGammaSkewNormalParams,
     NormalMeanPseudoAlphaSkewNormal,
     NormalMeanPseudoAlphaSkewNormalParams,
+    NormalXiNormalAlphaSkewNormalMAP,
+    NormalXiNormalAlphaSkewNormalMAPParams,
 )
 
 # Import other distribution classes as needed
@@ -41,6 +43,9 @@ class DistributionManager:
             case "normalmeannormalgammaskewnormal" | "normalmeannormalgamma_skewnormal" | "normalnormalskewnormal" | "normalnormal_skewnormal" | "nnsn" | "nn_sn" | "nmngsn" | "nmng_sn":
                 prior_params = NormalMeanNormalGammaSkewNormalParams.model_validate(prior_params)  # type: ignore
                 return NormalMeanNormalGammaSkewNormal(prior_params=prior_params)
+            case "normalxinormalalphaskewnormalmap" | "normalxinormalalpha_skewnormalmap" | "nnsnmap" | "nn_snmap" | "nn_sn_map" | "normalnormal_skewnormalmap" | "normalnormal_skewnormal_map":
+                prior_params = NormalXiNormalAlphaSkewNormalMAPParams.model_validate(prior_params)  # type: ignore
+                return NormalXiNormalAlphaSkewNormalMAP(prior_params=prior_params)
             case _:
                 raise ValueError(f"Unknown distribution: {name}")
 

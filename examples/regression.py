@@ -19,8 +19,10 @@ X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.2, random_state=42)
 # %%
 start_time = time()
 bdf = BDFRegressor(
-    dist="npsn",
-    prior_params={"mu_zero": 0, "sigma_zero": 1, "mean_alpha": 0, "m_alpha": 10},
+    dist="nnsnmap",
+    # prior_params={"mu_zero": 0, "sigma_zero": 1, "mu_gamma": 0, "sigma_gamma": .25},
+    prior_params={"mu_alpha": 0, "sigma_alpha": 5, "mu_xi": 0, "sigma_xi": 1},
+    # prior_params={"mu_zero": 0, "sigma_zero": 1, "mean_alpha": 0, "m_alpha": 10},
     n_trees=25,
     reg_beta=0.04,
     reg_lambda=0.05,
