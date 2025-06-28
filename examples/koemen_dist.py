@@ -59,7 +59,7 @@ def hermite3(t):
 def f(x, mu, sigma, alpha):
     t = (x - mu) / sigma
     base = norm.pdf(t)
-    val = base * (1 + alpha * hermite3(t)) / sigma
+    val = base * np.exp(alpha * hermite3(t)) / sigma  # * (1 + alpha * hermite3(t)) / sigma
     return np.clip(val, 0, None)  # clip negative values to zero to ensure positivity
 
 
@@ -198,4 +198,58 @@ for alpha in alphas:
     print(f"alpha={alpha:.3f}, mean={mean:.5f}")
 
 """
+import matplotlib.pyplot as plt
+
+# %%
+import numpy as np
+from scipy.special import logsumexp
+from scipy.stats import skewnorm
+
+# Assume we have samples (you can replace this with your own)
+np.random.seed(0)
+SAMPLES = skewnorm(5, loc=1, scale=2).rvs(1000)  # skewed samples from a skew-normal distribution
+
+
+# Step 1: Define the Hermite polynomial H3(z) = z^3 - 3z
+def H3(z):
+    return z**3 - 3 * z
+
+
+# Step 2: Define the log-partition function A(α) = log E[exp(α * H3(z))], z ~ N(0,1)
+def A(alpha, n_samples=1000):
+    z = np.random.randn(n_samples)
+    return logsumexp(alpha * H3(z)) - np.log(n_samples)
+
+
+# Step 3: Standardize samples using assumed mu and sigma
+mu = 1.0  # assume known
+sigma = 2.0  # assume known
+z_samples = (SAMPLES - mu) / sigma
+T = np.sum(H3(z_samples))  # sufficient statistic
+
+# Step 4: Define conjugate prior parameters (weak prior centered at 0)
+alpha_0 = 0.0  # prior mean
+nu = 0.25  # prior std deviation (wider prior)
+A_dd = 36.0  # Var[H3(z)] under z ~ N(0,1)
+tau = 1 / (nu**2 * A_dd)
+eta = tau * alpha_0
+
+# Step 5: Evaluate posterior over a grid
+alpha_grid = np.linspace(-1, 1, 1000)
+A_vals = np.array([A(a) for a in alpha_grid])
+n = len(SAMPLES)
+posterior_logpdf = eta * alpha_grid + alpha_grid * T - (tau + n) * A_vals
+posterior_pdf = np.exp(posterior_logpdf - logsumexp(posterior_logpdf))  # normalize
+
+# Step 6: Plot posterior
+plt.figure(figsize=(10, 6))
+plt.plot(alpha_grid, posterior_pdf, label="Posterior over α", lw=2)
+plt.title("Posterior Density of α Given Samples")
+plt.xlabel("α (skewness parameter)")
+plt.ylabel("Density")
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
 # %%
