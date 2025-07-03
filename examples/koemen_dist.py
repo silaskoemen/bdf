@@ -252,4 +252,123 @@ plt.legend()
 plt.tight_layout()
 plt.show()
 
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.special import gamma, gammainc
+
+# %%
+from scipy.stats import norm
+
+
+def cdf_gnd(z, beta):
+    """
+    Calculates the CDF of the standard Generalized Normal Distribution (GND).
+    This is the key component to generalize the skewing mechanism.
+    """
+    # The argument for the incomplete gamma function
+    gamma_arg = np.abs(z) ** beta
+
+    # Calculate the CDF using the lower incomplete gamma function
+    # np.sign(z) ensures the CDF is correctly handled for negative z
+    return 0.5 + np.sign(z) * 0.5 * gammainc(1.0 / beta, gamma_arg)
+
+
+def p(x, mu, sigma, alpha, beta):
+    """
+    Calculate the pdf of a skewed normal-like distribution with power beta
+    in the exponent.
+    """
+    # Standardize the variable x
+    z = (x - mu) / sigma
+
+    # The PDF of the (unscaled) generalized normal distribution
+    # Note: The normalization constant is for a standard normal (beta=2)
+    # and would need adjustment for other betas for p to be a true PDF.
+    pdf_gnd_part = 1 / (sigma * np.sqrt(2 * np.pi)) * np.exp(-(np.abs(x - mu) ** beta) / (2 * sigma**2))
+
+    # The skewing part, now using the generalized CDF
+    skew_part = cdf_gnd(alpha * z, beta)
+
+    return pdf_gnd_part * skew_part
+
+
+# Plot for different alphas and betas
+x = np.linspace(-5, 5, 1000)
+mu = 0
+sigma = 1
+alphas = [-2, 0, 2]
+betas = [0.5, 0.75, 1, 2, 4]
+
+# Plot varying alphas only
+plt.figure(figsize=(12, 8))
+for alpha in alphas:
+    y = p(x, mu, sigma, alpha, 1.5)
+    plt.plot(x, y, label=f"α={alpha}, β=2")
+plt.title("Skewed Normal-like Distribution with Power in Exponent")
+plt.xlabel("x")
+plt.ylabel("Density")
+plt.legend()
+plt.grid(alpha=0.2)
+plt.show()
+
+plt.figure(figsize=(12, 8))
+for beta in betas:
+    y = p(x, mu, sigma, 2, beta)
+    skewness = np.mean(((x - mu) / sigma) ** 3 * y) / np.mean(y)
+    plt.plot(x, y, label=f"α=1, β={beta}, skewness={skewness:.2f}")
+plt.title("Skewed Normal-like Distribution with Power in Exponent")
+plt.xlabel("x")
+plt.ylabel("Density")
+plt.legend()
+plt.grid(alpha=0.2)
+plt.show()
+import matplotlib.pyplot as plt
+
+# %%
+# sinh-arcsinh transformation
+import numpy as np
+from scipy.stats import norm
+
+
+def c_epsilon_delta(z, epsilon, delta):
+    return np.cosh(epsilon + delta * np.arcsinh(z))
+
+
+def s_epsilon_delta(z, epsilon, delta):
+    return np.sinh(epsilon + delta * np.arcsinh(z))
+
+
+def sinh_arcsinh_pdf(x, xi, eta, epsilon, delta):
+    """
+    Apply the sinh-arcsinh transformation to a normal distribution.
+    """
+    z = (x - xi) / eta
+    return (
+        1
+        / np.sqrt(2 * np.pi)
+        * delta
+        * c_epsilon_delta(z, epsilon, delta)
+        / np.sqrt(1 + z**2)
+        * np.exp(-0.5 * (s_epsilon_delta(z, epsilon, delta) ** 2))
+    )
+
+
+# Parameters
+xi = 0  # location parameter
+eta = 3  # scale parameter
+epsilons = [-1, 0, 1]  # skewness parameter
+deltas = [0.5, 1, 2]  # tail weights parameter
+# X-axis range
+x = np.linspace(-5, 5, 1000)
+# Calculate the PDF
+for epsilon in epsilons:
+    for delta in deltas:
+        y = sinh_arcsinh_pdf(x, xi, eta, epsilon, delta)
+        plt.plot(x, y, label=f"ε={epsilon}, δ={delta}")
+plt.title("Sinh-Arcsinh Transformation of Normal Distribution")
+plt.xlabel("x")
+plt.ylabel("Density")
+plt.legend()
+plt.grid(alpha=0.2)
+plt.show()
 # %%
