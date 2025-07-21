@@ -2,7 +2,6 @@
 of the sinh-arcsinh (SAS/SHASH) distribution based on moment estimates
 or other relations.
 """
-
 import matplotlib.pyplot as plt
 
 # %%
@@ -194,21 +193,36 @@ def run_empirical_analysis(n_simulations=500, n_samples_per_sim=1000):
             print(f"  Simulation {i}/{n_simulations}...")
 
         # --- 1. Generate Data from a Random Distribution ---
-        dist_type = np.random.choice(["skewt", "gh"])
+        dist_type = np.random.choice(["skewnorm", "gh", "uniform", "normal", "laplace"])
 
-        if dist_type == "skewt":
+        if dist_type == "skewnorm":
             # Random params for skew-t
             a = np.random.uniform(-10, 10)  # skew
             loc = np.random.uniform(-5, 5)
             scale = np.random.uniform(0.5, 5)
             data = skewnorm.rvs(a, loc=loc, scale=scale, size=n_samples_per_sim)
-        else:  # genhyperbolic
+        elif dist_type == "gh":  # genhyperbolic
             p = np.random.uniform(-0.5, 1.5)  # lambda
             a = np.random.uniform(0.1, 10)  # alpha
             b = np.random.uniform(-a + 1e-3, a - 1e-3)  # beta
             loc = np.random.uniform(-5, 5)
             scale = np.random.uniform(0.5, 5)
             data = genhyperbolic.rvs(p, a, b, loc=loc, scale=scale, size=n_samples_per_sim)
+        elif dist_type == "uniform":
+            # Uniform distribution
+            low = np.random.uniform(-10, 0)
+            high = np.random.uniform(0, 10)
+            data = np.random.uniform(low, high, n_samples_per_sim)
+        elif dist_type == "normal":
+            # Normal distribution
+            mean = np.random.uniform(-5, 5)
+            std = np.random.uniform(0.5, 5)
+            data = np.random.normal(mean, std, n_samples_per_sim)
+        elif dist_type == "laplace":
+            # Laplace distribution
+            loc = np.random.uniform(-5, 5)
+            scale = np.random.uniform(0.5, 5)
+            data = np.random.laplace(loc, scale, n_samples_per_sim)
 
         # --- 2. Calculate Moments and Fit SHASH via MLE ---
         mean = np.mean(data)
@@ -226,7 +240,7 @@ def run_empirical_analysis(n_simulations=500, n_samples_per_sim=1000):
             initial_params,
             args=(data,),
             method="L-BFGS-B",
-            bounds=[(-np.inf, np.inf), (1e-6, np.inf), (-5, 5), (1e-3, 10)],
+            bounds=[(-np.inf, np.inf), (1e-6, np.inf), (-5, 5), (1e-3, 100)],
         )
 
         if res.success:
@@ -281,32 +295,102 @@ plot_empirical_results(empirical_df)
 # %%
 def kurt_to_delta(kurtosis: float) -> float:
     """Approximate delta from excess kurtosis."""
-    # return 1 / (
-    #     .5 + np.abs(kurtosis) * 1 + kurtosis ** 2 * .1
-    # ) + .4
-    return (
-        1
-        / (
-            1 / (1 + np.abs(kurtosis)) * np.sqrt(kurtosis**2 + 0.25)
-            + np.abs(kurtosis) / (1 + np.abs(kurtosis)) * np.sqrt(np.abs(kurtosis) + 1)
-        )
-        + 0.25
-    )
-    return (
-        1
-        / (
-            1 / (1 + np.abs(kurtosis)) * np.log(kurtosis**2 + 1)
-            + np.abs(kurtosis) / (1 + np.abs(kurtosis)) * np.log(np.abs(kurtosis))
-            + 1
-        )
-        + 0.25
-    )
+    kurtosis = np.abs(kurtosis + np.pi / 3 + 0.25)  # excess kurtosis, map s.t. peak is around 0
+    return 1 / (np.log(kurtosis + 1)) + 0.25
 
 
 plt.plot(empirical_df["kurt"], empirical_df["delta_mle"], "o", alpha=0.5, markersize=3, label="Empirical Delta")
-kurt_space = np.linspace(empirical_df["kurt"].min(), empirical_df["kurt"].max(), 100)
+kurt_space = np.linspace(empirical_df["kurt"].min(), empirical_df["kurt"].max(), 1000)
 plt.plot(kurt_space, kurt_to_delta(kurt_space), "r--", label="Approximation: delta = 1 / (|kurtosis| + 1)", linewidth=2)
 plt.xlabel("Sample Excess Kurtosis")
+plt.xlim(-3, 5)
+plt.ylabel("Fitted Delta (MLE)")
+plt.title("Sample Kurtosis vs. Fitted Delta")
+plt.legend()
+plt.grid(alpha=0.2)
+plt.tight_layout()
+plt.show()
+
+
+# %%
+# Now simulate data from SAS distribution directly and fit the parameters
+# to see if the same pattern holds.
+# Sampling can be done directly from standard normal samples via the transformation
+# below
+def sinh_arcsinh_pdf(x, xi, eta, epsilon, delta):
+    """
+    Apply the sinh-arcsinh transformation to a normal distribution.
+    """
+    z = (x - xi) / eta
+    return (
+        1
+        / np.sqrt(2 * np.pi)
+        * delta
+        * c_epsilon_delta(z, epsilon, delta)
+        / np.sqrt(1 + z**2)
+        * np.exp(-0.5 * (s_epsilon_delta(z, epsilon, delta) ** 2))
+    )
+
+
+def run_empirical_sas_analysis(n_simulations=500, n_samples_per_sim=1000):
+    """
+    Runs a simulation to find the empirical relationship between moments
+    and SAS MLE parameters.
+    """
+    results = []
+
+    print("Running SAS simulations...")
+    for i in range(n_simulations):
+        if i % 50 == 0:
+            print(f"  Simulation {i}/{n_simulations}...")
+
+        # --- 1. Generate Data from SAS Distribution ---
+        xi = np.random.uniform(-50, 50)
+        eta = np.random.uniform(0.5, 50)
+        epsilon = np.random.uniform(-50, 50)
+        delta = np.random.uniform(0.25, 10)
+
+        # Sample from standard normal and apply transformation
+        z_samples = np.random.normal(size=n_samples_per_sim)
+        data = sinh_arcsinh_pdf(z_samples, xi, eta, epsilon, delta)
+
+        # --- 2. Calculate Moments and Fit SAS via MLE ---
+        mean = np.mean(data)
+        std = np.std(data, ddof=1)
+        if std < 1e-6:
+            continue
+
+        skew = np.mean(((data - mean) / std) ** 3)
+        kurt = np.mean(((data - mean) / std) ** 4) - 3
+
+        # Fit MLE
+        initial_params = np.array([mean, std, 0.0, 1.0])
+        res = minimize(
+            nll_shash,
+            initial_params,
+            args=(data,),
+            method="L-BFGS-B",
+            bounds=[(-np.inf, np.inf), (1e-6, np.inf), (-50, 50), (1e-3, 100)],
+        )
+
+        if res.success:
+            mu_mle, sigma_mle, eps_mle, delta_mle = res.x
+            results.append({"skew": skew, "kurt": kurt, "epsilon_mle": eps_mle, "delta_mle": delta_mle})
+
+    return pd.DataFrame(results)
+
+
+# Run the empirical analysis for SAS distribution
+sas_empirical_df = run_empirical_sas_analysis(n_simulations=500)
+plot_empirical_results(sas_empirical_df)
+
+# %%
+
+plt.plot(sas_empirical_df["kurt"], sas_empirical_df["delta_mle"], "o", alpha=0.5, markersize=3, label="Empirical Delta")
+kurt_space = np.linspace(sas_empirical_df["kurt"].min(), sas_empirical_df["kurt"].max(), 1000)
+plt.plot(kurt_space, kurt_to_delta(kurt_space), "r--", label="Approximation: delta = 1 / (|kurtosis| + 1)", linewidth=2)
+plt.xlabel("Sample Excess Kurtosis")
+# plt.xlim(-3, 5)
 plt.ylabel("Fitted Delta (MLE)")
 plt.title("Sample Kurtosis vs. Fitted Delta")
 plt.legend()
@@ -317,19 +401,43 @@ plt.show()
 
 # %%
 # Given the function above, plot skewness vs epsilon, coloring the points by delta.
-def skewness_delta_to_epsilon(
-    skewness: float, delta: float, scale_transition: float = 10, scale_skew: float = 0.5
-) -> float:
-    """Approximate epsilon from skewness and delta."""
-    skewness_tan = np.clip(skewness, -10, 10)  # Clip skewness to avoid extreme values
-    skewness_tan = skewness_tan / 2.1 * np.pi
-    delta_scaled = (delta) ** scale_transition
-    trans = delta_scaled / (1 + delta_scaled)
-    # NOTE: should be multiplicative s.t. delta = 1 results in epsilon = -skewness / 3
-    # for higher deltas, should be negative tan / 3rd degree polynomial
-    # for lower deltas, should be negative of tanh
-    print(trans)
-    return trans * (-3 * skewness**3) + (1 - trans) * ((-skewness / 3) ** (1 / 3))  # -np.tanh(skewness)
+def skewness_delta_to_epsilon(x: np.ndarray, delta: float, tanh_scale: float = 5, cubic_scale=10) -> np.ndarray:
+    """
+    A function that smoothly transitions between three behaviors based on delta.
+
+    - For delta > 1: Blends between a linear (-x) and a cubic (-x^3) function.
+                     As delta increases, the behavior becomes more cubic.
+    - For delta = 1: Behaves exactly like the line y = -x.
+    - For delta < 1: Blends between a linear (-x) and a hyperbolic tangent (-tanh(x)).
+                     As delta decreases towards 0, the behavior becomes more like -tanh(x).
+
+    Args:
+        x (np.ndarray): The input value(s).
+        delta (float): The parameter controlling the function's behavior. Must be positive.
+
+    Returns:
+        np.ndarray: The transformed value(s).
+    """
+    if delta <= 0:
+        raise ValueError("delta must be a positive number.")
+    # Ensure x is a numpy array for vectorized operations
+    x = np.asanyarray(x)
+
+    if delta > 1:
+        # For delta > 1, we blend between -x and -x^3.
+        # The weight for the cubic part increases from 0 to 1 as delta goes from 1 to infinity.
+        weight_cubic = 1 - (1 / delta**3)
+        weight_linear = 1 - weight_cubic
+
+        return weight_linear * (-x) + weight_cubic * (-delta * x**3)
+
+    else:  # This handles both delta == 1 and delta < 1
+        # For delta <= 1, we blend between -x and -tanh(x).
+        # The weight for the tanh part increases from 0 to 1 as delta goes from 1 to 0.
+        weight_tanh = 1 - delta**3
+        weight_linear = 1 - weight_tanh
+
+        return weight_linear * (-x) + weight_tanh * (-np.tanh(x))
 
 
 skewness_space = np.linspace(empirical_df["skew"].min(), empirical_df["skew"].max(), 100)
@@ -339,6 +447,36 @@ plt.scatter(
     empirical_df["skew"], empirical_df["epsilon_mle"], c=empirical_df["delta_mle"], cmap="viridis", alpha=0.5, s=10
 )
 # plot for delta in [.25, .4, 1.0, 1.5, 2.0
+for delta in [0.25, 0.4, 1.0, 1.5, 2.0, 10, 20]:
+    plt.plot(
+        skewness_space, skewness_delta_to_epsilon(skewness_space, delta), label=f"Delta = {delta:.2f}", linestyle="--"
+    )
+plt.colorbar(label="Fitted Delta (MLE)")
+plt.title("Sample Skewness vs. Fitted Epsilon (Colored by Delta)")
+plt.xlabel("Sample Skewness")
+plt.ylabel("Fitted Epsilon (MLE)")
+plt.axhline(0, color="red", linestyle="--", label="Epsilon = 0")
+plt.axvline(0, color="blue", linestyle="--", label="Skewness = 0")
+# plt.legend()
+plt.xlim(-2, 2)
+plt.ylim(-5, 5)
+plt.grid(alpha=0.2)
+plt.tight_layout()
+plt.show()
+
+# %%
+skewness_space = np.linspace(sas_empirical_df["skew"].min(), sas_empirical_df["skew"].max(), 1000)
+plt.style.use("seaborn-v0_8-whitegrid")
+plt.figure(figsize=(8, 6))
+plt.scatter(
+    sas_empirical_df["skew"],
+    sas_empirical_df["epsilon_mle"],
+    c=sas_empirical_df["delta_mle"],
+    cmap="viridis",
+    alpha=0.5,
+    s=10,
+)
+# plot for delta in [.25, .4, 1.0, 1.5, 2.0]
 for delta in [0.25, 0.4, 1.0, 1.5, 2.0]:
     plt.plot(
         skewness_space, skewness_delta_to_epsilon(skewness_space, delta), label=f"Delta = {delta:.2f}", linestyle="--"
@@ -349,9 +487,192 @@ plt.xlabel("Sample Skewness")
 plt.ylabel("Fitted Epsilon (MLE)")
 plt.axhline(0, color="red", linestyle="--", label="Epsilon = 0")
 plt.axvline(0, color="blue", linestyle="--", label="Skewness = 0")
-plt.legend()
+# plt.legend()
+# plt.xlim(-2, 2)
 plt.ylim(-5, 5)
 plt.grid(alpha=0.2)
+plt.tight_layout()
+plt.show()
+# %%
+# Sample from GH and fit SHASH
+# 1. Define GH parameters for a skewed, heavy-tailed distribution
+p_gh = -2.5  # Lambda
+a_gh = 50  # Alpha (tail heaviness, smaller is heavier)
+b_gh = -0.4  # Beta (skewness, |b| < a)
+loc_gh = 2.0
+scale_gh = 2.0
+gh_params = (p_gh, a_gh, b_gh, loc_gh, scale_gh)
+n_samples_gh = 2000
+
+# 2. Generate samples
+gh_data = genhyperbolic.rvs(*gh_params, size=n_samples_gh, random_state=123)
+
+# 3. Fit the SHASH distribution to the GH data
+initial_params_gh = np.array([np.mean(gh_data), np.std(gh_data), 0.0, 1.0])
+res_gh = minimize(
+    nll_shash,
+    initial_params_gh,
+    args=(gh_data,),
+    method="L-BFGS-B",
+    bounds=[(-np.inf, np.inf), (1e-6, np.inf), (-20, 20), (1e-3, 50)],
+)
+fitted_shash_params = res_gh.x
+# fitted_gh_params = genhyperbolic.fit(gh_data)
+
+print("\n--- GH to SHASH Fit ---")
+print(f"Original GH params (p, a, b, loc, scale): {gh_params}")
+print(f"Fitted SHASH params (mu, sigma, eps, delta): {np.round(fitted_shash_params, 4)}")
+
+
+# 4. Plot the results
+plt.figure(figsize=(10, 6))
+plt.hist(gh_data, bins=50, density=True, alpha=0.6, label="GH Samples Histogram")
+
+# Create x-range for plotting PDFs
+x_plot = np.linspace(gh_data.min(), gh_data.max(), 1000)
+
+# Original GH PDF
+gh_pdf = genhyperbolic.pdf(x_plot, *gh_params)
+plt.plot(x_plot, gh_pdf, "-", lw=2, c="dodgerblue", label="Original GH PDF")
+# Fitted GH PDF
+# gh_pdf_fitted = genhyperbolic.pdf(x_plot, *fitted_gh_params)
+# plt.plot(x_plot, gh_pdf_fitted, 'b--', lw=2, label="Fitted GH PDF")
+
+# Fitted SHASH PDF
+shash_pdf = np.exp(loglik_shash(x_plot, *fitted_shash_params))
+plt.plot(x_plot, shash_pdf, "--", c="crimson", lw=2, label="Fitted SHASH PDF")
+
+plt.title("Fitting SHASH Distribution to Generalized Hyperbolic Data")
+plt.xlabel("Value")
+plt.ylabel("Density")
+plt.legend()
+plt.grid(alpha=0.3)
+plt.tight_layout()
+plt.show()
+# %%
+# --- Combined Distribution Experiment ---
+
+# 1. Define parameters and generate data from three distributions
+n_samples_per_dist = 50
+common_loc = 5.0
+np.random.seed(420)  # for reproducibility
+
+# Uniform distribution
+unif_low = common_loc - 3
+unif_high = common_loc + 3
+data_unif = np.random.uniform(low=unif_low, high=unif_high, size=n_samples_per_dist)
+
+# Skew-Normal distribution
+a_sn = 4.0
+scale_sn = 3.0
+data_sn = skewnorm.rvs(a_sn, loc=common_loc, scale=scale_sn, size=n_samples_per_dist)
+
+# Generalized Hyperbolic distribution
+p_gh = -1.5
+a_gh = 20.0
+b_gh = 1.5
+scale_gh = 2.0
+data_gh = genhyperbolic.rvs(p_gh, a_gh, b_gh, loc=common_loc, scale=scale_gh, size=n_samples_per_dist)
+
+# 2. Combine the data
+combined_data = np.concatenate([data_unif, data_sn, data_gh])
+
+# 3. Fit the SHASH distribution to the combined data
+initial_params_comb = np.array([np.mean(combined_data), np.std(combined_data), 0.0, 1.0])
+res_comb = minimize(
+    nll_shash,
+    initial_params_comb,
+    args=(combined_data,),
+    method="L-BFGS-B",
+    bounds=[(-np.inf, np.inf), (1e-6, np.inf), (-50, 50), (1e-3, 100)],
+)
+fitted_shash_params_comb = res_comb.x
+
+print("\n--- Combined Data to SHASH Fit ---")
+print(f"Fitted SHASH params (mu, sigma, eps, delta): {np.round(fitted_shash_params_comb, 4)}")
+
+# 4. Plot the results
+plt.figure(figsize=(10, 6))
+plt.hist(
+    combined_data,
+    bins=20,
+    density=True,
+    alpha=0.6,
+    label="Combined Data Histogram",
+)
+
+# Create x-range for plotting PDF
+x_plot_comb = np.linspace(combined_data.min(), combined_data.max(), 1000)
+
+# Fitted SHASH PDF
+shash_pdf_comb = np.exp(loglik_shash(x_plot_comb, *fitted_shash_params_comb))
+plt.plot(x_plot_comb, shash_pdf_comb, "--", c="crimson", lw=2, label="Fitted SHASH PDF")
+
+plt.title("Fitting SHASH to a Mixture of Distributions")
+plt.xlabel("Value")
+plt.ylabel("Density")
+plt.legend()
+plt.grid(alpha=0.3)
+plt.tight_layout()
+plt.show()
+# %%
+# --- Uniform + Skew-Normal Experiment ---
+
+# 1. Define parameters and generate data
+n_samples_unif = 200
+n_samples_sn = 50  # Set to 0 to have only uniform data
+np.random.seed(1337)
+
+# Uniform distribution
+unif_low = -5
+unif_high = 10
+data_unif = np.random.uniform(low=unif_low, high=unif_high, size=n_samples_unif)
+
+# Heavily skewed Skew-Normal distribution
+a_sn = 15.0  # High skewness
+loc_sn = 8.0  # Place it towards one end of the uniform range
+scale_sn = 5.0
+data_sn = skewnorm.rvs(a_sn, loc=loc_sn, scale=scale_sn, size=n_samples_sn)
+
+# 2. Combine the data
+combined_data = np.concatenate([data_unif, data_sn])
+
+# 3. Fit the SHASH distribution to the combined data
+initial_params_comb = np.array([np.mean(combined_data), np.std(combined_data), 0.0, 1.0])
+res_comb = minimize(
+    nll_shash,
+    initial_params_comb,
+    args=(combined_data,),
+    method="L-BFGS-B",
+    bounds=[(-np.inf, np.inf), (1e-6, np.inf), (-50, 50), (1e-3, 100)],
+)
+fitted_shash_params_comb = res_comb.x
+
+print("\n--- Uniform + Skew-Normal Data to SHASH Fit ---")
+print(f"Fitted SHASH params (mu, sigma, eps, delta): {np.round(fitted_shash_params_comb, 4)}")
+
+# 4. Plot the results
+plt.figure(figsize=(10, 6))
+plt.hist(
+    combined_data,
+    bins=30,
+    density=True,
+    alpha=0.6,
+    label="Combined Data Histogram",
+)
+
+# Create x-range for plotting PDF
+x_plot_comb = np.linspace(combined_data.min(), combined_data.max(), 1000)
+
+# Fitted SHASH PDF
+shash_pdf_comb = np.exp(loglik_shash(x_plot_comb, *fitted_shash_params_comb))
+plt.plot(x_plot_comb, shash_pdf_comb, "--", c="crimson", lw=2, label="Fitted SHASH PDF")
+
+plt.title("Fitting SHASH to Uniform Data with a Skewed Component")
+plt.xlabel("Value")
+plt.ylabel("Density")
+plt.legend()
+plt.grid(alpha=0.3)
 plt.tight_layout()
 plt.show()
 # %%
