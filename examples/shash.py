@@ -2,9 +2,8 @@
 of the sinh-arcsinh (SAS/SHASH) distribution based on moment estimates
 or other relations.
 """
-import matplotlib.pyplot as plt
-
 # %%
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import kv
 from scipy.stats import skewnorm
@@ -498,7 +497,7 @@ plt.show()
 # 1. Define GH parameters for a skewed, heavy-tailed distribution
 p_gh = -2.5  # Lambda
 a_gh = 50  # Alpha (tail heaviness, smaller is heavier)
-b_gh = -0.4  # Beta (skewness, |b| < a)
+b_gh = -40  # Beta (skewness, |b| < a)
 loc_gh = 2.0
 scale_gh = 2.0
 gh_params = (p_gh, a_gh, b_gh, loc_gh, scale_gh)

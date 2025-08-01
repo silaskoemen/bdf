@@ -224,11 +224,8 @@ class SHASHBase(BDFDistribution):
         assert sigma > 0 and delta > 0, f"sigma and delta must be positive, got {sigma = }, {delta = }"
 
         # Generate samples from the SHASH distribution
-        norm.rvs(size=size, random_state=random_state)
-        raise NotImplementedError(
-            "Sampling from the SHASH distribution is not implemented yet. "
-            "Please implement the sampling logic using the parameters mu, sigma, epsilon, and delta."
-        )
+        z = norm.rvs(size=size, random_state=random_state)
+        return mu + sigma * np.sinh((np.arcsinh(z) - epsilon) / delta)
 
     def sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int = RANDOM_SEED) -> np.ndarray:
         """Sample from the posterior distribution given data.
