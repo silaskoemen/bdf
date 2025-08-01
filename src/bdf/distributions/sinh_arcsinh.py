@@ -225,6 +225,7 @@ class SHASHBase(BDFDistribution):
 
         # Generate samples from the SHASH distribution
         z = norm.rvs(size=size, random_state=random_state)
+        # NOTE: Summary article uses + epsilon, could change
         return mu + sigma * np.sinh((np.arcsinh(z) - epsilon) / delta)
 
     def sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int = RANDOM_SEED) -> np.ndarray:
