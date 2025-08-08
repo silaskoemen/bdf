@@ -138,7 +138,30 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         self.y_mean, self.y_std = mean_y, std_y
         return standardized_y
 
+    def predict_mean(self, X: np.ndarray) -> np.ndarray:
+        return np.zeros_like(X.shape[0], dtype=float)  # Placeholder for mean prediction
+
     def predict(self, X: np.ndarray | pd.DataFrame, method: str = "mean", values: dict = {}) -> np.ndarray:  # type: ignore
+        """
+        Overall prediction method for the BDFRegressor.
+
+        Predictions can be broadly categorized into:
+
+        median, mean, samples, params, samples
+
+        ### Single value
+        Predicts a single value for each observation. Can be either mean or median, where
+        both are supported for concatenation which can be based on the mean parameters of the
+        individual tree distributions, mean of the averaged distribution (from parameters), or mean from
+
+        ### Parameters
+
+        ### Samples
+
+        ### Quantiles
+
+        ### Confidence Intervals
+        """
         # Seed for reproducibility of sampling
         np.random.seed(self.random_state)
         X: np.ndarray = self._validate_prediction_input(X, method=method, values=values)
