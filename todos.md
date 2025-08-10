@@ -16,6 +16,5 @@
 
 ## BDFClassifier Enhancements
 - [ ] Implement basic Beta prior, Binomial likelihood
-- [ ] Implement Beta-Binomial distribution
 - [ ] Implement Gaussian prior on mean, Gaussian likelihood either clip or trunc or in log space
 - [ ] Build eval metrics for uncertainty about uncertainty (Brier score (Bias^2 + Var), calibration in certain bands?, Visualize uncertainty in predictions)

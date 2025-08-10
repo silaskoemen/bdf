@@ -1,6 +1,9 @@
 """Exponential data with Gamma prior, posterior is of lambda is Gamma
 
-Allowed versions:
+Gamma uses parameterization of alpha and beta (as in https://en.wikipedia.org/wiki/Conjugate_prior),
+corresponding to shape and rate (inverse scale) (alpha and lambda in https://en.wikipedia.org/wiki/Gamma_distribution)
+
+Implemented versions:
 - GammaABLambdaExponential: Gamma prior on mean lambda with parameters alpha and beta
 - GammaMVLambdaExponential: Gamma prior on mean lambda with parameters mean and variance
 - GammaABLambdaExponentialPP: Gamma prior on mean lambda with parameters alpha and beta, posterior predictive Lomax distribution
@@ -279,8 +282,13 @@ class GammaABLambdaExponential(ExponentialBase):
     The posterior is also a Gamma distribution.
     """
 
-    def __init__(self, prior_params: GammaABLambdaExponentialParams):
-        super().__init__(prior_params)
+    def __init__(self, prior_params: GammaABLambdaExponentialParams, params: tuple | None = None):
+        if isinstance(prior_params, dict):
+            prior_params = GammaABLambdaExponentialParams.model_validate(prior_params)  # type: ignore
+        assert isinstance(
+            prior_params, GammaABLambdaExponentialParams
+        ), "prior_params must be an instance of GammaABLambdaExponentialParams after possible conversion from dict."
+        super().__init__(prior_params, params)
         self.alpha_lambda = prior_params.alpha_lambda
         self.beta_lambda = prior_params.beta_lambda
 
@@ -336,8 +344,13 @@ class GammaMVLambdaExponential(ExponentialBase):
     is again an Exponential distribution at the posterior mean of lambda.
     """
 
-    def __init__(self, prior_params: GammaMVLambdaExponentialParams):
-        super().__init__(prior_params)
+    def __init__(self, prior_params: dict | GammaMVLambdaExponentialParams, params: tuple | None = None):
+        if isinstance(prior_params, dict):
+            prior_params = GammaMVLambdaExponentialParams.model_validate(prior_params)  # type: ignore
+        assert isinstance(
+            prior_params, GammaMVLambdaExponentialParams
+        ), "prior_params must be an instance of GammaMVLambdaExponentialParams after possible conversion from dict."
+        super().__init__(prior_params, params)
         self.mean_lambda = prior_params.mean_lambda
         self.var_lambda = prior_params.var_lambda
 
@@ -359,6 +372,68 @@ class GammaMVLambdaExponential(ExponentialBase):
             return alpha_post / beta_post
 
 
+class PseudoLambdaExponentialParams(BDFDistributionParams):
+    """Parameters for the Pseudo prior on mean lambda with mean and strength/number m."""
+
+    mean_lambda: float = Field(gt=0.0, description="Mean of the Pseudo prior for parameter lambda.")
+    m_lambda: float = Field(gt=0.0, description="Strength or number of samples in the Pseudo prior.")
+
+    class Config:
+        """Pydantic configuration to allow extra fields and use aliases."""
+
+        extra = "forbid"
+        validate_by_name = True
+
+    def __init__(self, **data):
+        # Check for missing fields before initialization
+        missing_fields = {}
+        if "mean_lambda" not in data:
+            missing_fields["mean_lambda"] = self.__class__.model_fields["mean_lambda"].default
+        if "m_lambda" not in data:
+            missing_fields["m_lambda"] = self.__class__.model_fields["m_lambda"].default
+
+        super().__init__(**data)
+
+        # Issue warnings for missing fields
+        for field, default_value in missing_fields.items():
+            warnings.warn(
+                f"No value provided for '{field}', using default: {default_value}",
+                UserWarning,
+                stacklevel=2,
+            )
+
+
+class PseudoLambdaExponential(ExponentialBase):
+    """Exponential distribution with a Pseudo prior on mean lambda.
+
+    This class implements the Exponential distribution with a Pseudo prior on the mean lambda.
+    The posterior is also an Exponential distribution, and the sampling distribution is again an Exponential distribution.
+    """
+
+    def __init__(self, prior_params: PseudoLambdaExponentialParams, params: tuple | None = None):
+        if isinstance(prior_params, dict):
+            prior_params = PseudoLambdaExponentialParams.model_validate(prior_params)  # type: ignore
+        assert isinstance(
+            prior_params, PseudoLambdaExponentialParams
+        ), "prior_params must be an instance of PseudoLambdaExponentialParams after possible conversion from dict."
+        super().__init__(prior_params, params)
+        super().__init__(prior_params)
+        self.mean_lambda = prior_params.mean_lambda
+        self.m_lambda = prior_params.m_lambda
+
+    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | dict:
+        """Calculate the posterior parameters based on the data."""
+        n = len(data)
+        sum_data = np.sum(data)
+
+        posterior_lambda = (self.mean_lambda * self.m_lambda + sum_data) / (self.m_lambda + n)
+
+        if return_dict:
+            return {"posterior_lambda": posterior_lambda}
+        else:
+            return posterior_lambda
+
+
 class ExponentialPPBase(ExponentialBase):
     """Base class for Exponential likelihood - Lomax posterior predictive distributions.
 
@@ -372,7 +447,7 @@ class ExponentialPPBase(ExponentialBase):
 
     # Child classes MUST implement this method
     def calc_posterior_params(self, data, return_dict=False):
-        raise NotImplementedError("Subclasses must implement calc_posterior_params")
+        raise NotImplementedError("Subclasses must implement 'calc_posterior_params'")
 
     def log_likelihood(self, data: np.ndarray) -> np.ndarray:
         """Compute the log-likelihood of the data given the distribution.
@@ -387,8 +462,8 @@ class ExponentialPPBase(ExponentialBase):
         np.ndarray
             A numpy array containing the log-likelihood values for each data point.
         """
-        posterior_lambda = self.calc_posterior_params(data)
-        return expon.logpdf(data, scale=1 / posterior_lambda)
+        posterior_alpha, posterior_lambda = self.calc_posterior_params(data)
+        return lomax.logpdf(data, c=posterior_alpha, scale=posterior_lambda)
 
     def likelihood(self, data: np.ndarray) -> np.ndarray:
         """Compute the likelihood of the data given the distribution.
@@ -403,8 +478,8 @@ class ExponentialPPBase(ExponentialBase):
         np.ndarray
             A numpy array containing the likelihood values for each data point.
         """
-        posterior_lambda = self.calc_posterior_params(data)
-        return expon.pdf(data, scale=1 / posterior_lambda)
+        posterior_alpha, posterior_lambda = self.calc_posterior_params(data)
+        return expon.pdf(data, c=posterior_alpha, scale=posterior_lambda)
 
     def nll(self, data: np.ndarray) -> float:
         """Compute the negative log-likelihood of the data given the distribution.
@@ -490,11 +565,13 @@ class ExponentialPPBase(ExponentialBase):
         np.ndarray
             Samples drawn from the posterior distribution.
         """
+        posterior_alpha = params.get("posterior_alpha")
         posterior_lambda = params.get("posterior_lambda")
-        if posterior_lambda is None:
-            raise ValueError("params must contain 'posterior_lambda' key")
-        assert posterior_lambda > 0, "'posterior_lambda' parameter must be positive"
-        return expon.rvs(scale=1 / posterior_lambda, size=size, random_state=random_state)  # type: ignore
+        if posterior_lambda is None or posterior_alpha is None:
+            raise ValueError("params must contain 'posterior_alpha' and 'posterior_lambda' keys")
+        if posterior_alpha <= 0 or posterior_lambda <= 0:
+            raise ValueError(f"{posterior_alpha = } and {posterior_lambda = } parameters must be positive")
+        return lomax.rvs(c=posterior_alpha, scale=posterior_lambda, size=size, random_state=random_state)  # type: ignore
 
     def sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution using the data.
@@ -511,8 +588,8 @@ class ExponentialPPBase(ExponentialBase):
         np.ndarray
             Samples drawn from the posterior distribution based on the data.
         """
-        posterior_lambda = self.calc_posterior_params(data)
-        return lomax.rvs(scale=1 / posterior_lambda, size=size, random_state=random_state)  # type: ignore
+        posterior_alpha, posterior_lambda = self.calc_posterior_params(data)
+        return lomax.rvs(c=posterior_alpha, scale=posterior_lambda, size=size, random_state=random_state)  # type: ignore
 
     def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
         """Get the posterior mean of the distribution.
@@ -530,12 +607,20 @@ class ExponentialPPBase(ExponentialBase):
             The posterior mean of the distribution.
         """
         if params is not None:
-            return 1 / params.get("lambda", params.get("posterior_lambda"))  # type: ignore
+            posterior_alpha = params.get("posterior_alpha")  # type: ignore
+            posterior_lambda = params.get("posterior_lambda")  # type: ignore
         elif data is not None:
-            posterior_lambda = self.calc_posterior_params(data)
-            return 1 / posterior_lambda  # type: ignore
+            posterior_alpha, posterior_lambda = self.calc_posterior_params(data)
         else:
             raise ValueError("Either 'data' or 'params' must be provided to calculate the posterior mean.")
+        if posterior_alpha <= 1:  # type: ignore
+            warnings.warn(
+                "Posterior alpha is less than or equal to 1, for which the mean is undefined. Returning NaN.",
+                UserWarning,
+                stacklevel=2,
+            )
+            return float("nan")
+        return posterior_lambda / (posterior_alpha - 1)  # type: ignore
 
     def get_posterior_variance(
         self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
@@ -555,12 +640,27 @@ class ExponentialPPBase(ExponentialBase):
             The posterior variance of the distribution.
         """
         if params is not None:
-            return 1 / params.get("posterior_lambda") ** 2  # type: ignore
+            posterior_alpha = params.get("posterior_alpha")  # type: ignore
+            posterior_lambda = params.get("posterior_lambda")  # type: ignore
         elif data is not None:
-            posterior_lambda = self.calc_posterior_params(data)
-            return 1 / posterior_lambda**2  # type: ignore
+            posterior_alpha, posterior_lambda = self.calc_posterior_params(data)
         else:
             raise ValueError("Either 'data' or 'params' must be provided to calculate the posterior variance.")
+        if posterior_alpha <= 1:  # type: ignore
+            warnings.warn(
+                "Posterior alpha is less than or equal to 1, for which the variance is undefined. Returning NaN.",
+                UserWarning,
+                stacklevel=2,
+            )
+            return float("nan")
+        elif posterior_alpha <= 2:  # type: ignore
+            warnings.warn(
+                "Posterior alpha is less than or equal to 2, for which the variance is infinite. Returning inf.",
+                UserWarning,
+                stacklevel=2,
+            )
+            return float("inf")
+        return posterior_lambda**2 * posterior_alpha / ((posterior_alpha - 1) ** 2 * (posterior_alpha - 2))  # type: ignore
 
     def get_posterior_params(self, data: np.ndarray) -> dict:
         """Get the posterior parameters of the distribution.
@@ -581,8 +681,8 @@ class ExponentialPPBase(ExponentialBase):
 class GammaABLambdaExponentialPPParams(BDFDistributionParams):
     """Parameters for the Gamma prior on mean lambda with parameters alpha and beta for posterior predictive Lomax."""
 
-    alpha: float = Field(gt=0.0, description="Shape parameter of the Gamma prior.")
-    beta: float = Field(gt=0.0, description="Scale parameter of the Gamma prior.")
+    alpha_lambda: float = Field(gt=0.0, description="Shape parameter of the Gamma prior for parameter lambda.")
+    beta_lambda: float = Field(gt=0.0, description="Scale parameter of the Gamma prior for parameter lambda.")
 
     class Config:
         """Pydantic configuration to allow extra fields and use aliases."""
@@ -593,10 +693,10 @@ class GammaABLambdaExponentialPPParams(BDFDistributionParams):
     def __init__(self, **data):
         # Check for missing fields before initialization
         missing_fields = {}
-        if "alpha" not in data:
-            missing_fields["alpha"] = self.__class__.model_fields["alpha"].default
-        if "beta" not in data:
-            missing_fields["beta"] = self.__class__.model_fields["beta"].default
+        if "alpha_lambda" not in data:
+            missing_fields["alpha_lambda"] = self.__class__.model_fields["alpha_lambda"].default
+        if "beta_lambda" not in data:
+            missing_fields["beta_lambda"] = self.__class__.model_fields["beta_lambda"].default
 
         super().__init__(**data)
 
@@ -618,17 +718,77 @@ class GammaABLambdaExponentialPP(ExponentialPPBase):
 
     def __init__(self, prior_params: GammaABLambdaExponentialPPParams):
         super().__init__(prior_params)
-        self.prior_alpha = prior_params.alpha
-        self.prior_beta = prior_params.beta
+        self.alpha_lambda = prior_params.alpha_lambda
+        self.beta_lambda = prior_params.beta_lambda
 
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | dict:
+    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> tuple[float, float] | dict:
         """Calculate the posterior parameters based on the data."""
         n = len(data)
         sum_data = np.sum(data)
-        alpha_post = self.prior_alpha + n
-        beta_post = self.prior_beta + sum_data
+        alpha_post = self.alpha_lambda + n
+        beta_post = self.beta_lambda + sum_data
 
         if return_dict:
-            return {"lambda": alpha_post / beta_post}
+            return {"posterior_alpha": alpha_post, "posterior_lambda": beta_post}
         else:
-            return alpha_post / beta_post
+            return alpha_post, beta_post
+
+
+class GammaMVLambdaExponentialPPParams(BDFDistributionParams):
+    """Parameters for the Gamma prior on mean lambda with parameters alpha and beta for posterior predictive Lomax."""
+
+    mean_lambda: float = Field(gt=0.0, description="Mean of the Gamma prior for parameter lambda.")
+    var_lambda: float = Field(gt=0.0, description="Variance of the Gamma prior for parameter lambda.")
+
+    class Config:
+        """Pydantic configuration to allow extra fields and use aliases."""
+
+        extra = "forbid"
+        validate_by_name = True
+
+    def __init__(self, **data):
+        # Check for missing fields before initialization
+        missing_fields = {}
+        if "mean_lambda" not in data:
+            missing_fields["mean_lambda"] = self.__class__.model_fields["mean_lambda"].default
+        if "var_lambda" not in data:
+            missing_fields["var_lambda"] = self.__class__.model_fields["var_lambda"].default
+
+        super().__init__(**data)
+
+        # Issue warnings for missing fields
+        for field, default_value in missing_fields.items():
+            warnings.warn(
+                f"No value provided for '{field}', using default: {default_value}",
+                UserWarning,
+                stacklevel=2,
+            )
+
+
+class GammaMVLambdaExponentialPP(ExponentialPPBase):
+    """Exponential distribution with a Gamma prior on mean lambda for posterior predictive Lomax.
+
+    This class implements the Exponential distribution with a Gamma prior on the mean lambda.
+    The posterior of lambda is also a Gamma distribution, and the posterior predictive distribution is a Lomax distribution.
+    """
+
+    def __init__(self, prior_params: GammaMVLambdaExponentialPPParams):
+        super().__init__(prior_params)
+        self.mean_lambda = prior_params.mean_lambda
+        self.var_lambda = prior_params.var_lambda
+
+    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> tuple[float, float] | dict:
+        """Calculate the posterior parameters based on the data."""
+        n = len(data)
+        sum_data = np.sum(data)
+
+        prior_alpha = self.mean_lambda**2 / self.var_lambda
+        prior_beta = self.mean_lambda / self.var_lambda
+
+        alpha_post = prior_alpha + n
+        beta_post = prior_beta + sum_data
+
+        if return_dict:
+            return {"posterior_alpha": alpha_post, "posterior_lambda": beta_post}
+        else:
+            return alpha_post, beta_post
