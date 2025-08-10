@@ -132,7 +132,11 @@ class TestGammaABLambdaExponential:
         # use closed form calculations to compare with scipy
         assert False
 
-    def test_sample_posterior_shape(self, get_alpha_beta):
+    def test_nll_overflow(self):
+        # Check whether NLL does not overflow for large values
+        assert False
+
+    def test_sample_posterior_shape_dtype(self, get_alpha_beta):
         assert False
 
     def test_sample_posterior_params_vs_data(self, get_alpha_beta, get_small_data):
@@ -144,8 +148,25 @@ class TestGammaABLambdaExponential:
     def test_sample_posterior_ks_test(self, get_alpha_beta, get_small_data):
         assert False
 
-    def test_posterior_mean_variance(self):
+    def test_get_posterior_mean_variance(self):
         assert False
 
     def test_prior_strength(self, get_alpha_beta, get_large_data):
         assert False
+
+    def test_posterior_params(self):
+        assert False
+
+    def test_invalid_data_dtype(self, get_bdf_params):
+        # Only float accepted, test against int, str, bool
+        data = np.array([1, 2, 3])
+        with pytest.raises(ValueError):
+            GammaABLambdaExponential(prior_params=get_bdf_params).calc_posterior_params(data)
+
+        data = np.array(["a", "b", "c"])
+        with pytest.raises(ValueError):
+            GammaABLambdaExponential(prior_params=get_bdf_params).calc_posterior_params(data)
+
+        data = np.array([True, False, True])
+        with pytest.raises(ValueError):
+            GammaABLambdaExponential(prior_params=get_bdf_params).calc_posterior_params(data)
