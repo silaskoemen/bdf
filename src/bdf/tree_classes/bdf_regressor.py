@@ -169,7 +169,9 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         """
         Predicts the mean for each observation in X.
 
-        This is an alias for `predict_mean`.
+        NOTE: This should be a wrapper for all methods, taking keyword `method` to
+        choose prediction. Also, mean should be possible from pooled samples with
+        `mean-samples` method.
         """
         return self.predict_mean(X)
 

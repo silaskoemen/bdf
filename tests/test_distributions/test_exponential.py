@@ -85,7 +85,7 @@ def get_none_values():
 
 class TestGammaABLambdaExponential:
     @pytest.fixture
-    def get_bdf_params(self, get_alpha_beta):
+    def get_bdf_dist_params(self, get_alpha_beta):
         """Fixture to return BDF parameters for testing."""
         alpha, beta = get_alpha_beta
         return GammaABLambdaExponentialParams(alpha_lambda=alpha, beta_lambda=beta)
@@ -109,7 +109,7 @@ class TestGammaABLambdaExponential:
         posterior_alpha = alpha_lambda + len(data)
         posterior_beta = beta_lambda + np.sum(data)
         expected_posterior_lambda = posterior_alpha / posterior_beta
-        assert posterior_params["posterior_lambda"] == expected_posterior_lambda
+        assert posterior_params["posterior_lambda"] == expected_posterior_lambda  # type: ignore
 
     @pytest.mark.parametrize(
         "data",
@@ -157,16 +157,16 @@ class TestGammaABLambdaExponential:
     def test_posterior_params(self):
         assert False
 
-    def test_invalid_data_dtype(self, get_bdf_params):
+    def test_invalid_data_dtype(self, get_bdf_dist_params):
         # Only float accepted, test against int, str, bool
         data = np.array([1, 2, 3])
         with pytest.raises(ValueError):
-            GammaABLambdaExponential(prior_params=get_bdf_params).calc_posterior_params(data)
+            GammaABLambdaExponential(prior_params=get_bdf_dist_params).calc_posterior_params(data)
 
         data = np.array(["a", "b", "c"])
         with pytest.raises(ValueError):
-            GammaABLambdaExponential(prior_params=get_bdf_params).calc_posterior_params(data)
+            GammaABLambdaExponential(prior_params=get_bdf_dist_params).calc_posterior_params(data)
 
         data = np.array([True, False, True])
         with pytest.raises(ValueError):
-            GammaABLambdaExponential(prior_params=get_bdf_params).calc_posterior_params(data)
+            GammaABLambdaExponential(prior_params=get_bdf_dist_params).calc_posterior_params(data)

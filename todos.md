@@ -4,6 +4,8 @@
 ## BDFRegressor Enhancements
 - [x] Reorganize `predict` method in `bdf_regressor.py` to offer separate models for all use cases, separate them logically and offer interface to children.
 - [x] Reorganize `predict_posterior_params` methods in all distributions to use prefix `posterior_` and the actual distributional names (i.e. `posterior_mu`, `posterior_sigma` for Normal distribution).
+- [ ] Write tests for all distributions, expose nll from Rust & check parity
+- [ ] Parallelize fit (and possibly predict) methods with `joblib`, compare for small to large data
 - [ ] Implement exponential with Lomax PP
 - [ ] Implement Poisson-Gamma
 - [ ] Implement Gamma-Gamma
@@ -18,3 +20,6 @@
 - [ ] Implement basic Beta prior, Binomial likelihood
 - [ ] Implement Gaussian prior on mean, Gaussian likelihood either clip or trunc or in log space
 - [ ] Build eval metrics for uncertainty about uncertainty (Brier score (Bias^2 + Var), calibration in certain bands?, Visualize uncertainty in predictions)
+
+## Future Enhancements
+- [ ] Implement feature importance in-sample with `count` and `gain`, out of sample with `gain` (crps/nll) and permutation based feature importance (pfi, shuffle feature see how loss changes)
