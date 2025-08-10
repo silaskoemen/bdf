@@ -18,7 +18,7 @@ class BDFDistribution(ABC):
         self.params = params
 
     @abstractmethod
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = True) -> dict | tuple:
+    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> dict | tuple:
         """Get the posterior parameters of the distribution given the data."""
         raise NotImplementedError("Subclasses must implement this method.")
 

@@ -153,17 +153,31 @@ class BDFTree:
             print(f"Tree built with {self.n_leaves} leaves and total loss: {self.tree_loss:.4f}")
         return self
 
-    def predict(self, X: np.ndarray, method: str = "mean", values: dict = {}) -> np.ndarray:
-        """Predict using the BDFTree.
+    def _find_leaf_node(self, x: np.ndarray) -> BDFNode:
+        """Traverse the tree to find the leaf node for a single observation."""
+        node = self.root
+        while not node._is_leaf():
+            if node.left_node is None or node.right_node is None:
+                # This should not happen in a fitted tree, but as a safeguard:
+                break
+            if x[node.best_feature] <= node.best_threshold:
+                node = node.left_node
+            else:
+                node = node.right_node
+        return node
 
-        Args
-        ----
-        `X` : np.ndarray
-            Input data to predict.
+    def predict_mean(self, X: np.ndarray) -> np.ndarray:
+        """Predict the mean for each observation in X."""
+        return np.array([self._find_leaf_node(x).predict_mean() for x in X])
 
-        Returns
-        -------
-        np.ndarray
-            Predicted values.
-        """
-        return self.root.predict(X, method=method, values=values)  # type: ignore[return-value]
+    def predict_variance(self, X: np.ndarray) -> np.ndarray:
+        """Predict the variance for each observation in X."""
+        return np.array([self._find_leaf_node(x).predict_variance() for x in X])
+
+    def predict_params(self, X: np.ndarray) -> np.ndarray:
+        """Predict the parameters for each observation in X."""
+        return np.array([self._find_leaf_node(x).predict_params() for x in X], dtype=object)
+
+    def predict_samples(self, X: np.ndarray, size: int = 1) -> np.ndarray:
+        """Draw samples for each observation in X."""
+        return np.array([self._find_leaf_node(x).predict_samples(size=size) for x in X])

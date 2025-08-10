@@ -20,7 +20,7 @@ class SkewNormalBase(BDFDistribution):
         super().__init__(prior_params, params)
 
     # Child classes MUST implement this method
-    def calc_posterior_params(self, data, return_dict=True):
+    def calc_posterior_params(self, data, return_dict=False):
         raise NotImplementedError("Subclasses must implement calc_posterior_params")
 
     def log_likelihood(self, data: np.ndarray) -> np.ndarray:
@@ -52,8 +52,8 @@ class SkewNormalBase(BDFDistribution):
         np.ndarray
             A numpy array containing the likelihood values for each data point.
         """
-        posterior_alpha, posterior_xi, omega = self.calc_posterior_params(data, return_dict=False)
-        return skewnorm.pdf(data, a=posterior_alpha, loc=posterior_xi, scale=omega)
+        posterior_alpha, posterior_xi, posterior_omega = self.calc_posterior_params(data, return_dict=False)
+        return skewnorm.pdf(data, a=posterior_alpha, loc=posterior_xi, scale=posterior_omega)
 
     def nll(self, data: np.ndarray) -> float:
         """Compute the negative log-likelihood of the data given the distribution.
@@ -141,12 +141,12 @@ class SkewNormalBase(BDFDistribution):
             Samples drawn from the posterior distribution.
         """
         alpha, xi, omega = (
-            params.get("alpha", params.get("posterior_alpha")),
-            params.get("xi", params.get("posterior_xi")),
-            params.get("omega", params.get("posterior_omega")),
+            params.get("posterior_alpha"),
+            params.get("posterior_xi"),
+            params.get("posterior_omega"),
         )
         if alpha is None or xi is None or omega is None:
-            raise ValueError("params must contain 'alpha', 'xi', and 'omega' keys")
+            raise ValueError("params must contain 'posterior_alpha', 'posterior_xi', and 'posterior_omega' keys")
         assert omega > 0, "Omega parameter must be positive"
         return skewnorm.rvs(alpha, loc=xi, scale=omega, size=size, random_state=random_state)  # type: ignore
 
@@ -165,9 +165,9 @@ class SkewNormalBase(BDFDistribution):
         np.ndarray
             Samples drawn from the posterior distribution based on the data.
         """
-        posterior_alpha, posterior_xi, omega = self.calc_posterior_params(data, return_dict=False)
+        posterior_alpha, posterior_xi, posterior_omega = self.calc_posterior_params(data, return_dict=False)
         return skewnorm.rvs(  # type: ignore
-            a=posterior_alpha, loc=posterior_xi, scale=omega, size=size, random_state=random_state
+            a=posterior_alpha, loc=posterior_xi, scale=posterior_omega, size=size, random_state=random_state
         )
 
     def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
@@ -188,8 +188,8 @@ class SkewNormalBase(BDFDistribution):
         if params is not None:
             return params.get("posterior_xi") + params.get("posterior_omega") * params.get("posterior_alpha") / np.sqrt(1 + params.get("posterior_alpha") ** 2) * np.sqrt(2 / np.pi)  # type: ignore
         elif data is not None:
-            posterior_alpha, posterior_xi, omega = self.calc_posterior_params(data, return_dict=False)
-            return posterior_xi + omega * posterior_alpha / np.sqrt(1 + posterior_alpha**2) * np.sqrt(2 / np.pi)  # type: ignore
+            posterior_alpha, posterior_xi, posterior_omega = self.calc_posterior_params(data, return_dict=False)
+            return posterior_xi + posterior_omega * posterior_alpha / np.sqrt(1 + posterior_alpha**2) * np.sqrt(2 / np.pi)  # type: ignore
         else:
             raise ValueError("Either 'data' or 'params' must be provided to calculate the posterior mean.")
 
@@ -212,8 +212,8 @@ class SkewNormalBase(BDFDistribution):
         """
         if params is not None:
             alpha, omega = (
-                params.get("posterior_alpha", params.get("alpha")),
-                params.get("posterior_omega", params.get("omega")),
+                params.get("posterior_alpha"),
+                params.get("posterior_omega"),
             )
             if alpha is None or omega is None:
                 raise ValueError("params must contain 'posterior_alpha' and 'posterior_omega' keys")
@@ -241,8 +241,7 @@ class SkewNormalBase(BDFDistribution):
         dict
             A dictionary containing the posterior parameters 'alpha', 'xi', and 'omega'.
         """
-        posterior_alpha, posterior_xi, omega = self.calc_posterior_params(data)
-        return {"alpha": posterior_alpha, "xi": posterior_xi, "omega": omega}
+        return self.calc_posterior_params(data, return_dict=True)  # type: ignore
 
 
 class NormalMeanPseudoAlphaSkewNormalParams(BDFDistributionParams):
@@ -316,7 +315,7 @@ class NormalMeanPseudoAlphaSkewNormal(SkewNormalBase):
         self.m_alpha = prior_params.m_alpha
 
     def calc_posterior_params(
-        self, data: np.ndarray, return_dict: bool = True
+        self, data: np.ndarray, return_dict: bool = False
     ) -> dict[str, float] | tuple[float, float, float]:
         """Calculate posterior parameters based on the data.
 
@@ -442,7 +441,7 @@ class NormalMeanNormalGammaSkewNormal(SkewNormalBase):
         self.sigma_gamma = prior_params.sigma_gamma
 
     def calc_posterior_params(
-        self, data: np.ndarray, return_dict: bool = True
+        self, data: np.ndarray, return_dict: bool = False
     ) -> dict[str, float] | tuple[float, float, float]:
         """Calculate posterior parameters based on the data.
 
@@ -579,7 +578,7 @@ class NormalXiNormalAlphaSkewNormalMAP(SkewNormalBase):
         self.sigma_xi = prior_params.sigma_xi
 
     def calc_posterior_params(
-        self, data: np.ndarray, return_dict: bool = True
+        self, data: np.ndarray, return_dict: bool = False
     ) -> dict[str, float] | tuple[float, float, float]:
         """Calculate posterior parameters using Laplace approximation."""
         from scipy.optimize import minimize

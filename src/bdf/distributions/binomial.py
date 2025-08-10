@@ -1,9 +1,52 @@
 import math
+import warnings
 from typing import Any, Dict
 
 import numpy as np
+from pydantic import Field
 
-from bdf.distributions.bdf_distribution import BDFDistribution
+from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
+from bdf.utils.constants import RANDOM_SEED
+
+
+class BetaBinomialParams(BDFDistributionParams):
+    """Parameters for the Beta-Binomial distribution
+
+    Args
+    ----
+    `alpha` : float
+        The prior alpha parameter of the Beta distribution.
+    `beta` : float
+        The prior beta parameter of the Beta distribution.
+    """
+
+    alpha: float = Field(default=1.0, gt=0, description="Prior alpha parameter of the Beta distribution")
+    beta: float = Field(default=1.0, gt=0, description="Prior beta parameter of the Beta distribution")
+
+    class Config:
+        """Pydantic configuration to allow extra fields and use aliases."""
+
+        extra = "forbid"
+        validate_by_name = True
+
+    def __init__(self, **data: dict) -> None:
+        # Check for missing fields before initialization
+        missing_fields = {}
+        if "alpha" not in data:
+            missing_fields["alpha"] = self.__class__.model_fields["alpha"].default
+        if "beta" not in data:
+            missing_fields["beta"] = self.__class__.model_fields["beta"].default
+
+        # Initialize the model
+        super().__init__(**data)
+
+        # Issue warnings for missing fields
+        for field, default_value in missing_fields.items():
+            warnings.warn(
+                f"No value provided for '{field}', using default: {default_value}",
+                UserWarning,
+                stacklevel=2,
+            )
 
 
 class BetaBinomial(BDFDistribution):
@@ -21,6 +64,11 @@ class BetaBinomial(BDFDistribution):
         `params` : tuple, optional
             Additional parameters for the distribution, default is None.
         """
+        if isinstance(prior_params, dict):
+            prior_params = BetaBinomialParams.model_validate(prior_params)  # type: ignore
+        assert isinstance(
+            prior_params, BetaBinomialParams
+        ), "prior_params must be an instance of BetaBinomialParams after possible conversion from dict."
         super().__init__(prior_params, params)
         self.prior_alpha = prior_params.get("alpha", 1.0)
         self.prior_beta = prior_params.get("beta", 1.0)
@@ -119,7 +167,12 @@ class BetaBinomial(BDFDistribution):
         return np.random.beta(self.prior_alpha, self.prior_beta, size=size)
 
     def sample_posterior(
-        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None, size: int = 1
+        self,
+        *,
+        data: np.ndarray | None = None,
+        params: dict[str, float] | None = None,
+        size: int = 1,
+        random_state: int = RANDOM_SEED,
     ) -> np.ndarray:
         """Sample from the posterior distribution.
 
@@ -131,6 +184,7 @@ class BetaBinomial(BDFDistribution):
             The posterior parameters to sample from, if available.
         `size` : int
             The number of samples to generate.
+        `
 
         Returns
         -------
@@ -149,3 +203,43 @@ class BetaBinomial(BDFDistribution):
             raise ValueError(
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
+
+    def sample_posterior_params(
+        self, params: dict[str, float], *, size: int = 1, random_state: int = RANDOM_SEED
+    ) -> np.ndarray:
+        """Sample from the posterior parameters of the distribution.
+
+        Args
+        ----
+        `params` : dict[str, float]
+            The posterior parameters to sample from.
+        `size` : int
+            The number of samples to generate.
+        `random_state` : int
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        np.ndarray
+            Samples drawn from the posterior distribution based on the parameters.
+        """
+        assert (
+            "posterior_alpha" in params and "posterior_beta" in params
+        ), "params must contain 'posterior_alpha' and 'posterior_beta' keys"
+        return np.random.beta(params["posterior_alpha"], params["posterior_beta"], size=size)
+
+    def get_posterior_mean(self, params: dict[str, float]) -> float:
+        """Get the posterior mean of the distribution.
+
+        Args
+        ----
+        `params` : dict[str, float]
+            The posterior parameters of the distribution.
+
+        Returns
+        -------
+        float
+            The posterior mean.
+        """
+        assert "alpha" in params and "beta" in params, "params must contain 'alpha' and 'beta' keys"
+        return params["alpha"] / (params["alpha"] + params["beta"])

@@ -51,6 +51,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         `min_child_weight` : int | float, optional
             Minimum sum of instance weight (hessian) needed in a child, default is 1.
         """
+        self.is_fitted_ = False
         self.distribution = DM.create_distribution(dist=dist, prior_params=prior_params)
         self.dist, self.prior_params = dist, prior_params
         self._validate_init_params(
@@ -79,6 +80,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         # Seed for reproducibility of subsample and colsample
         np.random.seed(self.random_state)
         X, y = self._validate_fit_input(X, y)
+        self.n_features_in_ = X.shape[1]
         if standardize_y:
             y = self._standardize_y(y.copy())
 
@@ -138,116 +140,133 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         self.y_mean, self.y_std = mean_y, std_y
         return standardized_y
 
-    def predict_mean(self, X: np.ndarray) -> np.ndarray:
-        return np.zeros_like(X.shape[0], dtype=float)  # Placeholder for mean prediction
-
-    def predict(self, X: np.ndarray | pd.DataFrame, method: str = "mean", values: dict = {}) -> np.ndarray:  # type: ignore
-        """
-        Overall prediction method for the BDFRegressor.
-
-        Predictions can be broadly categorized into:
-
-        median, mean, samples, params, samples
-
-        ### Single value
-        Predicts a single value for each observation. Can be either mean or median, where
-        both are supported for concatenation which can be based on the mean parameters of the
-        individual tree distributions, mean of the averaged distribution (from parameters), or mean from
-
-        ### Parameters
-
-        ### Samples
-
-        ### Quantiles
-
-        ### Confidence Intervals
-        """
-        # Seed for reproducibility of sampling
-        np.random.seed(self.random_state)
-        X: np.ndarray = self._validate_prediction_input(X, method=method, values=values)
-        preds = np.empty((X.shape[0],), dtype=float)
-        match method:
-            case "mean":
-                preds = np.mean(
-                    np.concat([np.expand_dims(tree.predict(X, method="mean"), -1) for tree in self.trees], axis=-1),
-                    axis=1,
-                )
-            case "weighted_mean":
-                weight = values.get("weight", "variance")
-                if weight == "variance" or weight == "var" or weight == "std" or weight == "stddev":
-                    # Each tree predicts mean and variance, meaning shape [n_samples, 2], concat around new 3rd axis
-                    preds = np.concat(
-                        [
-                            np.expand_dims(tree.predict(X, method="weighted_mean", values=values), -1)
-                            for tree in self.trees
-                        ],
-                        axis=-1,
-                    )
-                    # Form preds by adding up mean/variance, then divide by sum of variances
-                    preds = np.sum(preds[:, 0, :] / preds[:, 1, :], axis=-1) / np.sum(1 / preds[:, 1, :], axis=-1)
-                else:
-                    raise ValueError(f"Weight '{weight}' is not supported for weighted mean prediction.")
-            case "median":
-                if "total_size" in values:
-                    values = {"size": np.ceil(values["total_size"] / self.n_trees).astype(int)}
-                else:
-                    size = values.get("size", 100)
-                    values = {"size": size}
-                preds = np.median(
-                    np.concat([tree.predict(X, method="sample", values=values) for tree in self.trees], axis=1), axis=1
-                )
-            case "params":
-                # Initialize an empty dictionary to store aggregated parameters
-                preds = np.empty((X.shape[0],), dtype=object)
-
-                # Predict parameters using each tree
-                tree_params = [tree.predict(X, method="params", values=values) for tree in self.trees]
-
-                # For each sample index
-                for sample_idx in range(X.shape[0]):
-                    # Get all parameter dictionaries for this sample from each tree
-                    sample_params_list = [tree_param[sample_idx] for tree_param in tree_params]
-
-                    # Get all parameter names from the first tree
-                    param_names = sample_params_list[0].keys()
-
-                    # Calculate the mean for each parameter across trees
-                    preds[sample_idx] = {
-                        param_name: np.mean([params[param_name] for params in sample_params_list])
-                        for param_name in param_names
-                    }
-            case "samples-ind":
-                preds = np.concatenate([tree.predict(X, method="sample", values=values) for tree in self.trees])
-            case _:
-                raise ValueError(f"Method '{method}' is not supported for prediction with BDFRegressor.")
-            # case 'samples-avg':
-            #     preds = -1#np.mean([tree.predict(X, method='sample') for tree in self.trees], axis=0)
-            # case 'quantiles-ind':
-            #     preds = -1#np.concatenate([tree.predict(X, method='quantile', values=values) for tree in self.trees])
-            # case 'quantiles-avg':
-            #     preds = -1#np.mean([tree.predict(X, method='quantile', values=values) for tree in self.trees], axis=0)
-            # case 'confint-ind':
-            #     preds = -1#np.concatenate([tree.predict(X, method='confint', values=values) for tree in self.trees])
-            # case 'confint-avg':
-            #     preds = -1#np.mean([tree.predict(X, method='confint', values=values) for tree in self.trees], axis=0)
+    def _unstandardize_y(self, y: np.ndarray) -> np.ndarray:
+        """Unstandardize the target variable y."""
         if hasattr(self, "y_mean") and hasattr(self, "y_std"):
-            if method in [
-                "mean",  # mean of all trees
-                "weighted_mean",  # weighted mean of all trees
-                "median",  # median of all trees
-                "samples-ind",  # concat samples from trees
-                "samples-avg",  # sample from avg params
-                "quantiles-ind",  # quantiles from concat samples from trees
-                "quantiles-avg",  # quantiles from sampling avg params
-                "confint-ind",  # confints from concat samples from trees
-                "confint-avg",  # confints from sampling avg params
-            ]:
-                preds: np.ndarray = preds * self.y_std + self.y_mean
-            elif method == "params":  # params
-                warnings.warn("Returning parameters fitted on standardized data.")
-            else:
-                raise ValueError(f"Method '{method}' is not supported for prediction with standardized y.")
-        return preds
+            return y * self.y_std + self.y_mean
+        return y
+
+    def _get_pooled_samples(self, X: np.ndarray, sample_size: int) -> np.ndarray:
+        """
+        Internal helper to draw and pool samples from all trees.
+
+        Returns an array of shape (n_obs, sample_size).
+        """
+        # To get a total of `sample_size` samples, we need to draw `ceil(sample_size / n_trees)` from each.
+        per_tree_size = int(np.ceil(sample_size / self.n_trees))
+
+        # Shape: (n_trees, n_obs, per_tree_size)
+        tree_samples = np.array([tree.predict_samples(X, size=per_tree_size) for tree in self.trees])
+
+        # Transpose and reshape to pool samples across trees
+        # Shape: (n_obs, n_trees * per_tree_size)
+        pooled_samples = tree_samples.transpose(1, 0, 2).reshape(X.shape[0], -1)
+
+        # Return exactly sample_size samples
+        return pooled_samples[:, :sample_size]
+
+    def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
+        """
+        Predicts the mean for each observation in X.
+
+        This is an alias for `predict_mean`.
+        """
+        return self.predict_mean(X)
+
+    def predict_mean(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
+        """
+        Predicts the mean for each observation in X.
+
+        The forest's mean prediction is the average of the means from each tree.
+        """
+        X_validated = self._validate_prediction_input(X)
+        # Shape: (n_trees, n_obs) -> (n_obs,)
+        tree_means = np.array([tree.predict_mean(X_validated) for tree in self.trees])
+        forest_mean = np.mean(tree_means, axis=0)
+        return self._unstandardize_y(forest_mean)
+
+    def predict_weighted_mean(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
+        """
+        Predicts the inverse-variance weighted mean for each observation in X.
+        """
+        X_validated = self._validate_prediction_input(X)
+        tree_means = np.array([tree.predict_mean(X_validated) for tree in self.trees])
+        tree_vars = np.array([tree.predict_variance(X_validated) for tree in self.trees])
+
+        # Inverse variance weighting
+        weights = 1.0 / tree_vars
+        weighted_mean = np.sum(tree_means * weights, axis=0) / np.sum(weights, axis=0)
+
+        return self._unstandardize_y(weighted_mean)
+
+    def predict_median(self, X: np.ndarray | pd.DataFrame, sample_size: int = 1000) -> np.ndarray:
+        """
+        Predicts the median for each observation in X by pooling samples from all trees.
+        """
+        X_validated = self._validate_prediction_input(X)
+        pooled_samples = self._get_pooled_samples(X_validated, sample_size)
+        median = np.median(pooled_samples, axis=1)
+        return self._unstandardize_y(median)
+
+    def predict_quantiles(
+        self, X: np.ndarray | pd.DataFrame, q: float | list[float], sample_size: int = 1000
+    ) -> np.ndarray:
+        """
+        Predicts quantiles for each observation in X by pooling samples from all trees.
+        """
+        X_validated = self._validate_prediction_input(X)
+        pooled_samples = self._get_pooled_samples(X_validated, sample_size)
+        quantiles = np.quantile(pooled_samples, q=q, axis=1)
+        # If multiple quantiles are requested, the result has shape (n_quantiles, n_obs)
+        # We want (n_obs, n_quantiles) to be consistent with other predictors
+        if isinstance(q, (list, tuple, np.ndarray)) and len(q) > 1:
+            quantiles = quantiles.T
+        return self._unstandardize_y(quantiles)
+
+    def predict_variance(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
+        """
+        Predicts the variance for each observation in X.
+
+        Uses the Law of Total Variance over the trees:
+        Var(Y) = E[Var(Y|Tree)] + Var(E[Y|Tree])
+        """
+        X_validated = self._validate_prediction_input(X)
+        # Each has shape (n_trees, n_obs)
+        tree_means = np.array([tree.predict_mean(X_validated) for tree in self.trees])
+        tree_vars = np.array([tree.predict_variance(X_validated) for tree in self.trees])
+
+        # E[Var(Y|T)]: Mean of variances from each tree. Shape: (n_obs,)
+        expected_variance = np.mean(tree_vars, axis=0)
+        # Var(E[Y|T]): Variance of means from each tree. Shape: (n_obs,)
+        variance_of_expectation = np.var(tree_means, axis=0)
+
+        total_variance = expected_variance + variance_of_expectation
+
+        # Variance is scaled by std^2
+        if hasattr(self, "y_std"):
+            return total_variance * self.y_std**2
+        return total_variance
+
+    def predict_samples(self, X: np.ndarray | pd.DataFrame, sample_size: int = 1) -> np.ndarray:
+        """
+        Draws samples from the predictive distribution for each observation in X.
+        """
+        X_validated = self._validate_prediction_input(X)
+        pooled_samples = self._get_pooled_samples(X_validated, sample_size)
+        return self._unstandardize_y(pooled_samples)
+
+    def predict_params(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
+        """
+        Returns the predictive distribution parameters from each tree for each observation.
+
+        Returns:
+            np.ndarray: An array of shape (n_obs, n_trees), where each element is a
+                        dictionary of parameters.
+        """
+        X_validated = self._validate_prediction_input(X)
+        # Shape: (n_trees, n_obs) -> (n_obs, n_trees)
+        params_per_tree = np.array([tree.predict_params(X_validated) for tree in self.trees]).T
+        return params_per_tree
 
     def plot_tree(self, tree_index: int = 0, figsize: tuple[int, int] = (20, 16), dpi: int = 300):
         import io
@@ -410,50 +429,40 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         self.subsample = subsample
         self.colsample = colsample
 
-    def _validate_prediction_input(
-        self, X: np.ndarray | pd.DataFrame, method: str = "mean", values: dict = {}
-    ) -> np.ndarray:
-        """Validate the input for prediction.
+    def _validate_prediction_input(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
+        """Validate the input for prediction."""
+        if not self.is_fitted_:
+            raise RuntimeError(
+                "This BDFRegressor instance is not fitted yet. Call 'fit' with appropriate arguments before using this estimator."
+            )
 
-        should allow:
-          mean, taking avg mean of all trees
-          params (take avg params of all trees)
-          samples-ind and samples-avg, returning concat samples from trees vs sampling from params
-          quantiles-ind and quantiles-avg, returning avg quantiles from trees vs quantiles from sampling avg params
-          confint-ind and confint-avg, returning avg confints from trees vs confints sampled from avg params
-        """
         if isinstance(X, pd.DataFrame):
             if hasattr(self, "feature_names"):
-                assert all(
-                    col in X.columns for col in self.feature_names  # type: ignore
-                ), "X must contain all feature names used during fitting"
+                if not all(col in X.columns for col in self.feature_names):  # type: ignore
+                    raise ValueError("X must contain all feature names used during fitting")
+                if not all(col in self.feature_names for col in X.columns):
+                    warnings.warn(
+                        "X contains additional columns not seen during fitting. "
+                        "Prediction continues only with columns seen during fitting."
+                    )
                 X = X[self.feature_names].values  # type: ignore
             else:
                 raise ValueError(
-                    "X is a DataFrame but no feature names were stored during fitting. Ensure to fit with a DataFrame to predict on DataFrame or fit on np.ndarray"
+                    "X is a DataFrame but no feature names were stored during fitting. "
+                    "Ensure to fit with a DataFrame to predict on DataFrame or fit on np.ndarray"
                 )
-        assert isinstance(X, np.ndarray), f"X must be a numpy array, got {type(X)}"
+        if not isinstance(X, np.ndarray):
+            raise TypeError(f"X must be a numpy array or pandas DataFrame, got {type(X)}")
 
-        assert isinstance(method, str) and method in [
-            "mean",
-            "median",
-            "params",
-            "samples-ind",
-            "samples-avg",
-            "quantiles-ind",
-            "quantiles-avg",
-            "confint-ind",
-            "confint-avg",
-            "weighted_mean",
-        ], f"Invalid method '{method}' for prediction. Must be one of ['mean', 'median', 'params', 'samples-ind', 'samples-avg', 'quantiles-ind', 'quantiles-avg', 'confint-ind', 'confint-avg', 'weighted_mean']"
+        if X.ndim != 2:
+            raise ValueError(f"X must be a 2D array or DataFrame, got {X.ndim}D array")
+        if X.shape[0] == 0:
+            raise ValueError("X must contain at least one sample")
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(
+                f"X has {X.shape[1]} features, but BDFRegressor was fitted with {self.n_features_in_} features."
+            )
 
-        if method in ["quantiles-ind", "quantiles-avg", "confint-ind", "confint-avg"]:
-            assert values is not None, "values must be provided for quantile/confidence interval predictions"
-            assert isinstance(values, dict) and all(
-                isinstance(v, (int, float)) for v in values.values()
-            ), "values must be a dict of numeric quantiles or confidence levels"
-        assert X.ndim == 2, f"X must be a 2D array, got {X.ndim}D array"
-        assert X.shape[0] > 0, "X must contain at least one sample"
         return X
 
     def _validate_fit_input(
@@ -463,6 +472,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         if isinstance(X, pd.DataFrame):
             self.feature_names = X.columns  # type: ignore
             X = X.values  # type: ignore
+            self.n_features_in_ = X.shape[1]
         if isinstance(y, pd.Series):
             y = y.to_numpy()  # type: ignore
         assert X.ndim == 2, f"X must be a 2D array, got {X.ndim}D array"

@@ -94,14 +94,14 @@ class NormalMuNormal(BDFDistribution):
         n = data.shape[0]
         sample_mean = np.mean(data)
         sample_std = np.std(data, ddof=self.var_ddof)
-        posterior_mean = (
+        posterior_mu = (
             (n / (sample_std**2 + eps)) * sample_mean + (1 / (self.sigma_zero**2 + eps)) * self.mu_zero
         ) / ((n / (sample_std**2 + eps)) + (1 / (self.sigma_zero**2 + eps)))
-        posterior_std = np.sqrt(1 / ((n / (sample_std**2 + eps)) + (1 / (self.sigma_zero**2 + eps))))
+        posterior_sigma = np.sqrt(1 / ((n / (sample_std**2 + eps)) + (1 / (self.sigma_zero**2 + eps))))
         if return_dict:
-            return {"posterior_mean": posterior_mean, "posterior_std": posterior_std}
+            return {"posterior_mu": posterior_mu, "posterior_sigma": posterior_sigma}
         else:
-            return posterior_mean, posterior_std
+            return posterior_mu, posterior_sigma
 
     def nll(self, data: np.ndarray) -> float:
         """Compute the negative log-likelihood of the data given the distribution."""
@@ -109,15 +109,15 @@ class NormalMuNormal(BDFDistribution):
 
     def likelihood(self, data: np.ndarray) -> np.ndarray:
         """Compute the likelihood of the data given the distribution."""
-        posterior_mean, posterior_std = self.calc_posterior_params(data, return_dict=False)
-        return (1 / (posterior_std * np.sqrt(2 * np.pi))) * np.exp(
-            -0.5 * ((data - posterior_mean) / posterior_std) ** 2  # type: ignore
+        posterior_mu, posterior_sigma = self.calc_posterior_params(data, return_dict=False)
+        return (1 / (posterior_sigma * np.sqrt(2 * np.pi))) * np.exp(
+            -0.5 * ((data - posterior_mu) / posterior_sigma) ** 2  # type: ignore
         )
 
     def log_likelihood(self, data: np.ndarray) -> np.ndarray:
         """Compute the log-likelihood of the data given the distribution."""
-        posterior_mean, posterior_std = self.calc_posterior_params(data, return_dict=False)
-        return -0.5 * np.log(2 * np.pi) - np.log(posterior_std) - 0.5 * ((data - posterior_mean) / posterior_std) ** 2  # type: ignore
+        posterior_mu, posterior_sigma = self.calc_posterior_params(data, return_dict=False)
+        return -0.5 * np.log(2 * np.pi) - np.log(posterior_sigma) - 0.5 * ((data - posterior_mu) / posterior_sigma) ** 2  # type: ignore
 
     def sample_prior(self, size: int) -> np.ndarray:
         """Sample from the distribution."""
@@ -132,10 +132,6 @@ class NormalMuNormal(BDFDistribution):
         random_state: int = RANDOM_SEED,
     ) -> np.ndarray:
         """Sample from the distribution."""
-        if data is None and params is None:
-            raise ValueError(
-                "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
-            )
         if params is not None:
             return self.sample_posterior_params(params, size=size, random_state=random_state)
         elif data is not None:
@@ -160,9 +156,9 @@ class NormalMuNormal(BDFDistribution):
         np.ndarray
             Samples drawn from the posterior distribution.
         """
-        assert "posterior_mean" in params and "posterior_std" in params, "params must contain 'mean' and 'std' keys"
-        assert params["posterior_std"] > 0, "Standard deviation must be positive"
-        return norm.rvs(loc=params["posterior_mean"], scale=params["posterior_std"], size=size, random_state=random_state)  # type: ignore
+        assert "posterior_mu" in params and "posterior_sigma" in params, "params must contain 'mean' and 'std' keys"
+        assert params["posterior_sigma"] > 0, "Standard deviation must be positive"
+        return norm.rvs(loc=params["posterior_mu"], scale=params["posterior_sigma"], size=size, random_state=random_state)  # type: ignore
 
     def sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution using the data.
@@ -179,8 +175,8 @@ class NormalMuNormal(BDFDistribution):
         np.ndarray
             Samples drawn from the posterior distribution based on the data.
         """
-        posterior_mean, posterior_std = self.calc_posterior_params(data, return_dict=False)
-        return norm.rvs(loc=posterior_mean, scale=posterior_std, size=size, random_state=random_state)  # type: ignore
+        posterior_mu, posterior_sigma = self.calc_posterior_params(data, return_dict=False)
+        return norm.rvs(loc=posterior_mu, scale=posterior_sigma, size=size, random_state=random_state)  # type: ignore
 
     def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
         """Get the posterior mean of the distribution.
@@ -198,17 +194,17 @@ class NormalMuNormal(BDFDistribution):
             The posterior mean of the distribution.
         """
         if params is not None:
-            return params["posterior_mean"]
+            return params["posterior_mu"]
         elif data is not None:
-            posterior_mean, _ = self.calc_posterior_params(data, return_dict=False)
-            return posterior_mean  # type: ignore
+            posterior_mu, _ = self.calc_posterior_params(data, return_dict=False)
+            return posterior_mu  # type: ignore
         else:
             raise ValueError("Either 'data' or 'params' must be provided to get the posterior mean.")
 
     def get_posterior_variance(
         self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
     ) -> float:
-        """Get the posterior standard deviation of the distribution.
+        """Get the posterior variance of the distribution.
 
         Args
         ----
@@ -220,20 +216,19 @@ class NormalMuNormal(BDFDistribution):
         Returns
         -------
         float
-            The posterior standard deviation of the distribution.
+            The posterior variance of the distribution.
         """
         if params is not None:
-            return params["posterior_std"] ** 2
+            return params["posterior_sigma"] ** 2
         elif data is not None:
-            _, posterior_std = self.calc_posterior_params(data, return_dict=False)
-            return posterior_std**2  # type: ignore
+            _, posterior_sigma = self.calc_posterior_params(data, return_dict=False)
+            return posterior_sigma**2  # type: ignore
         else:
             raise ValueError("Either 'data' or 'params' must be provided to get the posterior standard deviation.")
 
     def get_posterior_params(self, data: np.ndarray) -> dict:
         """Get the posterior parameters of the distribution."""
-        posterior_mean, posterior_std = self.calc_posterior_params(data)
-        return {"mean": posterior_mean, "std": posterior_std}
+        return self.calc_posterior_params(data, return_dict=True)  # type: ignore
 
     def __repr__(self):
         return f"Normal(prior_params={{'mean': {self.mu_zero}, 'std': {self.sigma_zero}}})"
@@ -339,8 +334,8 @@ class NormGammaNormal(BDFDistribution):
         n = data.shape[0]
         sample_mean = np.mean(data)
         sample_var = np.var(data, ddof=1)
-        posterior_mean = (self.prior_n * self.mu_zero + n * sample_mean) / (self.prior_n + n)
-        posterior_std = (
+        posterior_mu = (self.prior_n * self.mu_zero + n * sample_mean) / (self.prior_n + n)
+        posterior_sigma = (
             1
             / (self.prior_nu + n)
             * (
@@ -349,7 +344,7 @@ class NormGammaNormal(BDFDistribution):
                 + (n * self.prior_n) / (self.prior_n + n) * (sample_mean - self.mu_zero) ** 2
             )
         )
-        return posterior_mean, posterior_std
+        return posterior_mu, posterior_sigma
 
 
 class InverseGammaNormal(BDFDistribution):
