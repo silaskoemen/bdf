@@ -56,6 +56,15 @@ class ExponentialBase(BDFDistribution):
         posterior_lambda = self.calc_posterior_params(data)
         return expon.logpdf(data, scale=1 / posterior_lambda)
 
+    def _verify_data(self, data: np.ndarray) -> None:
+        """Verify that the data is a valid numpy array of floats."""
+        if not isinstance(data, np.ndarray):
+            raise ValueError("Data must be a numpy array.")
+        if not np.issubdtype(data.dtype, np.floating):
+            raise ValueError("Data must be of float type.")
+        if np.any(data < 0):
+            raise ValueError("Data must contain non-negative values.")
+
     def likelihood(self, data: np.ndarray) -> np.ndarray:
         """Compute the likelihood of the data given the distribution.
 
@@ -294,6 +303,7 @@ class GammaABLambdaExponential(ExponentialBase):
 
     def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | dict:
         """Calculate the posterior parameters based on the data."""
+        self._verify_data(data)
         n = len(data)
         sum_data = np.sum(data)
         alpha_post = self.alpha_lambda + n
@@ -792,3 +802,83 @@ class GammaMVLambdaExponentialPP(ExponentialPPBase):
             return {"posterior_alpha": alpha_post, "posterior_lambda": beta_post}
         else:
             return alpha_post, beta_post
+
+
+class NormalMeanExponentialParams(BDFDistributionParams):
+    """Parameters for the Normal prior on mean lambda with parameters mu and sigma."""
+
+    mu_mean: float = Field(gt=0.0, description="Mean of the Normal prior for mean.")
+    sigma_mean: float = Field(gt=0.0, description="Standard deviation of the Normal prior for mean.")
+
+    class Config:
+        """Pydantic configuration to allow extra fields and use aliases."""
+
+        extra = "forbid"
+        validate_by_name = True
+
+    def __init__(self, **data):
+        # Check for missing fields before initialization
+        missing_fields = {}
+        if "mu_mean" not in data:
+            missing_fields["mu_mean"] = self.__class__.model_fields["mu_mean"].default
+        if "sigma_mean" not in data:
+            missing_fields["sigma_mean"] = self.__class__.model_fields["sigma_mean"].default
+
+        super().__init__(**data)
+
+        # Issue warnings for missing fields
+        for field, default_value in missing_fields.items():
+            warnings.warn(
+                f"No value provided for '{field}', using default: {default_value}",
+                UserWarning,
+                stacklevel=2,
+            )
+
+
+class NormalMeanExponential(ExponentialBase):
+    """Exponential distribution with a Normal prior on mean lambda.
+
+    This class implements the Exponential distribution with a Normal prior on the mean lambda.
+    The posterior is also an Exponential distribution, and the sampling distribution is again an Exponential distribution.
+    """
+
+    def __init__(self, prior_params: NormalMeanExponentialParams, params: tuple | None = None):
+        if isinstance(prior_params, dict):
+            prior_params = NormalMeanExponentialParams.model_validate(prior_params)  # type: ignore
+        assert isinstance(
+            prior_params, NormalMeanExponentialParams
+        ), "prior_params must be an instance of NormalMeanExponentialParams after possible conversion from dict."
+        super().__init__(prior_params, params)
+        self.mu_mean = prior_params.mu_mean
+        self.sigma_mean = prior_params.sigma_mean
+
+    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | dict:
+        """Calculate the posterior parameters based on the data. Uses the Normal distribution
+        of the sample mean under the CLT, calculates a standard Normal-Normal posterior.
+
+        Args
+        ----
+        `data` : np.ndarray
+            The data to calculate the posterior parameters from.
+        `return_dict` : bool, optional
+            If True, returns a dictionary with the posterior parameter 'posterior_lambda'.
+            If False, returns the posterior parameter directly. Default is False.
+
+        Returns
+        -------
+        float | dict
+            The posterior parameter 'posterior_lambda' as a float if `return_dict` is False,
+            or as a dictionary if `return_dict` is True.
+        """
+        n = len(data)
+        eps = 1e-10
+        sample_mean = data.mean()
+        sample_var = np.var(data, ddof=1)
+        posterior_mean = (
+            (n / (sample_var + eps)) * sample_mean + (1 / (self.sigma_mean**2 + eps)) * self.mu_mean
+        ) / ((n / (sample_var + eps)) + (1 / (self.sigma_mean**2 + eps)))
+
+        if return_dict:
+            return {"posterior_lambda": 1 / posterior_mean}  # type: ignore
+        else:
+            return 1 / posterior_mean  # type: ignore

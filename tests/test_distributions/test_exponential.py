@@ -31,6 +31,12 @@ def get_alpha_beta():
 
 
 @pytest.fixture
+def data(request):
+    """Retrieve params from fixture name."""
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
 def get_large_data(get_lambda):
     return expon.rvs(scale=1 / get_lambda, size=1000)
 
@@ -114,18 +120,22 @@ class TestGammaABLambdaExponential:
     @pytest.mark.parametrize(
         "data",
         [
-            get_zeros_data,
-            get_single_value_data,
-            get_none_values,
-            get_none_data,
-            get_invalid_bounds_data,
-            get_empty_data,
-            get_inf_data,
+            # Note that empty data is allowed (pure prior), same as zeros or single value
+            # as no variance is calculated for this distribution
+            "get_none_values",
+            "get_none_data",
+            "get_invalid_bounds_data",
         ],
-        ids=["zeros", "single_value", "none_values", "none_data", "invalid_bounds", "empty", "inf_data"],
+        ids=[
+            "none_values",
+            "none_data",
+            "invalid_bounds",
+        ],
+        indirect=["data"],
     )
-    def test_calc_posterior_params_edge_cases(self, get_alpha_beta):
-        assert False
+    def test_calc_posterior_params_edge_cases(self, get_bdf_dist_params, data):
+        with pytest.raises(ValueError):
+            GammaABLambdaExponential(prior_params=get_bdf_dist_params).calc_posterior_params(data)
 
     def test_correct_likelihoods(self, get_small_data, get_alpha_beta):
         # Check whether (log-)likelihoods are correct for certain values,

@@ -45,11 +45,11 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         `max_depth` : int, optional
             Maximum depth of the regression tree, default is 10.
         `min_samples_leaf` : int, optional
-            Minimum number of samples required to be at a leaf node, default is 1.
+            Minimum number of samples required to be at a leaf node, default is 10.
         `min_samples_split` : int, optional
-            Minimum number of samples required to split an internal node, default is 2.
+            Minimum number of samples required to split an internal node, default is 20.
         `min_child_weight` : int | float, optional
-            Minimum sum of instance weight (hessian) needed in a child, default is 1.
+            Minimum sum of instance weight (hessian) needed in a child, default is 10.
         """
         self.is_fitted_ = False
         self.distribution = DM.create_distribution(dist=dist, prior_params=prior_params)
@@ -402,8 +402,8 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             isinstance(min_samples_leaf, int) and min_samples_leaf > 0
         ), f"min_samples_leaf must be a positive integer, got {min_samples_leaf} of type {type(min_samples_leaf)}"
         assert (
-            isinstance(min_samples_split, int) and min_samples_split > 0
-        ), f"min_samples_split must be a positive integer, got {min_samples_split} of type {type(min_samples_split)}"
+            isinstance(min_samples_split, int) and min_samples_split >= 2
+        ), f"min_samples_split must be an integer >= 2, got {min_samples_split} of type {type(min_samples_split)}"
         assert (
             isinstance(min_child_weight, (int, float)) and min_child_weight >= 0
         ), f"min_child_weight must be a non-negative integer or float, got {min_child_weight} of type {type(min_child_weight)}"

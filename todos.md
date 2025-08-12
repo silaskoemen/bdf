@@ -3,7 +3,9 @@
 
 ## BDFRegressor Enhancements
 - [x] Reorganize `predict` method in `bdf_regressor.py` to offer separate models for all use cases, separate them logically and offer interface to children.
-- [x] Reorganize `predict_posterior_params` methods in all distributions to use prefix `posterior_` and the actual distributional names (i.e. `posterior_mu`, `posterior_sigma` for Normal distribution).
+- [x] Reorganize `predict_posterior_params` methods in all distributions to use prefix `posterior_` and the actual distributional names (i.e. `posterior_mu`, `posterior_sigma` for Normal distribution)
+- [ ] Redo normal distribution with `mu_mu` and `sigma_mu` as priors, indicate uncertainty update of sigma with suffix `PP` (Posterior Predictive) and create `NormalBase` class for unedited Normal posterior update.
+- [ ] Implement `_validate_data` for all distributions to check for valid data (None, invalid bounds etc.)
 - [ ] Write tests for all distributions, expose nll from Rust & check parity
 - [ ] Parallelize fit (and possibly predict) methods with `joblib`, compare for small to large data
 - [ ] Implement exponential with Lomax PP
@@ -12,7 +14,7 @@
 - [ ] Implement KDE density (only Gaussian?) with x-fold cv and nll/crps for split finding
 - [ ] Implement DistKDL with KDE in terminal leaf
 - [ ] Implement Multinomial distribution
-- [ ] Implement relevant other distributions for certain use cases (e.g. Weibull, Gompertz, Uniform, Negative Binomial, ... and appeal to CLT for mean prior if no conjugate prior is available)
+- [ ] Implement relevant other distributions for certain use cases (e.g. Weibull, Gompertz, Uniform, Negative Binomial, ... and use CLT mean/pseudo prior if no conjugate prior is available)
 - [ ] Build eval metrics for probabilistic outputs
 - [ ] Implement pipeline for fitting and predicting with all comparison models on same data, output final best scores to report in paper.
 
