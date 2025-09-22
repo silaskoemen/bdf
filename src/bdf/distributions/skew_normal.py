@@ -243,6 +243,12 @@ class SkewNormalBase(BDFDistribution):
         """
         return self.calc_posterior_params(data, return_dict=True)  # type: ignore
 
+    def validate_targets(self, data: np.ndarray):
+        """Validate data for normal distribution.
+        Currently only checks for NaN, easily add on more.
+        """
+        assert not any(np.isnan(data)), "Inputs for normal distribution may not be NaN."
+
 
 class NormalMeanPseudoAlphaSkewNormalParams(BDFDistributionParams):
     """Pydantic model for Skew-Normal distribution parameters."""

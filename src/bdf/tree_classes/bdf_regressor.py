@@ -483,3 +483,14 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             X.shape[0] == y.shape[0]
         ), f"Number of samples in X ({X.shape[0]}) must match number of samples in y ({y.shape[0]})"
         return X, y
+
+    def _validate_targets(self, y: np.ndarray):
+        """Validation function to check whether targets are allowed under the
+        given distribution
+
+        Args
+        ----
+        `y` : np.ndarray
+            targets used for fit input
+        """
+        self.distribution.validate_targets(y)

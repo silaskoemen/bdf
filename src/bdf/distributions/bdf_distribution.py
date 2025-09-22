@@ -71,6 +71,11 @@ class BDFDistribution(ABC):
         """Get the posterior parameters of the distribution."""
         raise NotImplementedError("Subclasses must implement this method.")
 
+    @abstractmethod
+    def validate_targets(self, data: np.ndarray):
+        """Validate whether data (target labels) are valid under distribution."""
+        raise NotImplementedError("Subclasses must implement this method.")
+
     def __repr__(self):
         return f"{self.__class__.__name__}(prior_params={self.prior_params}, params={self.params})"
 

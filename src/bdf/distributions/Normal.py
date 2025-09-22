@@ -19,8 +19,8 @@ class NormalMuNormalParams(BDFDistributionParams):
         The prior standard deviation of the Normal distribution.
     """
 
-    mu_zero: float = Field(default=0.0, alias="mean", description="Prior mean of the Normal distribution")
-    sigma_zero: float = Field(
+    mu_mu: float = Field(default=0.0, alias="mean", description="Prior mean of the Normal distribution")
+    sigma_mu: float = Field(
         default=1.0, alias="std", gt=0, description="Prior standard deviation of the Normal distribution"
     )
 
@@ -33,10 +33,10 @@ class NormalMuNormalParams(BDFDistributionParams):
     def __init__(self, **data: dict) -> None:
         # Check for missing fields before initialization
         missing_fields = {}
-        if "mu_zero" not in data and "mean" not in data:
-            missing_fields["mu_zero"] = self.__class__.model_fields["mu_zero"].default
-        if "sigma_zero" not in data and "std" not in data:
-            missing_fields["sigma_zero"] = self.__class__.model_fields["sigma_zero"].default
+        if "mu_mu" not in data and "mean" not in data:
+            missing_fields["mu_mu"] = self.__class__.model_fields["mu_mu"].default
+        if "sigma_mu" not in data and "std" not in data:
+            missing_fields["sigma_mu"] = self.__class__.model_fields["sigma_mu"].default
 
         # Initialize the model
         super().__init__(**data)
@@ -50,59 +50,7 @@ class NormalMuNormalParams(BDFDistributionParams):
             )
 
 
-class NormalMuNormal(BDFDistribution):
-    """Normal distribution class for Bayesian Distributional Forests."""
-
-    def __init__(self, prior_params: dict | NormalMuNormalParams, params: tuple | None = None, var_ddof: int = 1):
-        """Initialize the Normal distribution with prior parameters.
-        Args
-        ----
-        `prior_params` : dict
-            Dictionary containing prior parameters, must include 'mean' and 'std'.
-        `params` : tuple, optional
-            Additional parameters for the distribution, default is None.
-        `var_ddof` : int, optional
-            Degrees of freedom for variance calculation, default is 1 (sample standard deviation).
-        """
-        if isinstance(prior_params, dict):
-            prior_params = NormalMuNormalParams.model_validate(prior_params)  # type: ignore
-        assert isinstance(
-            prior_params, NormalMuNormalParams
-        ), "prior_params must be an instance of NormalNormalParams after possible conversion from dict."
-        super().__init__(prior_params, params)
-        self.mu_zero = prior_params.mu_zero
-        self.sigma_zero = prior_params.sigma_zero
-        self.var_ddof = var_ddof  # Degrees of freedom for sample variance calculation
-
-    def calc_posterior_params(
-        self, data: np.ndarray, return_dict: bool = True, eps: float = 1e-5
-    ) -> dict[str, float] | tuple[float, float]:
-        """Calculate posterior parameters based on the data.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to calculate the posterior parameters from.
-        `eps` : float, optional
-            A small value to avoid division by zero, default is 1e-5.
-
-        Returns
-        -------
-        tuple[float, float]
-            A tuple containing the posterior mean and posterior standard deviation.
-        """
-        n = data.shape[0]
-        sample_mean = np.mean(data)
-        sample_std = np.std(data, ddof=self.var_ddof)
-        posterior_mu = (
-            (n / (sample_std**2 + eps)) * sample_mean + (1 / (self.sigma_zero**2 + eps)) * self.mu_zero
-        ) / ((n / (sample_std**2 + eps)) + (1 / (self.sigma_zero**2 + eps)))
-        posterior_sigma = np.sqrt(1 / ((n / (sample_std**2 + eps)) + (1 / (self.sigma_zero**2 + eps))))
-        if return_dict:
-            return {"posterior_mu": posterior_mu, "posterior_sigma": posterior_sigma}
-        else:
-            return posterior_mu, posterior_sigma
-
+class NormalBase(BDFDistribution):
     def nll(self, data: np.ndarray) -> float:
         """Compute the negative log-likelihood of the data given the distribution."""
         return -np.sum(self.log_likelihood(data))
@@ -121,7 +69,8 @@ class NormalMuNormal(BDFDistribution):
 
     def sample_prior(self, size: int) -> np.ndarray:
         """Sample from the distribution."""
-        return np.random.normal(loc=self.mu_zero, scale=self.sigma_zero, size=size)
+        raise NotImplementedError("Prior sampling currently not implemented.")
+        return np.random.normal(loc=self.mu_mu, scale=self.sigma_mu, size=size)
 
     def sample_posterior(
         self,
@@ -230,16 +179,116 @@ class NormalMuNormal(BDFDistribution):
         """Get the posterior parameters of the distribution."""
         return self.calc_posterior_params(data, return_dict=True)  # type: ignore
 
-    def __repr__(self):
-        return f"Normal(prior_params={{'mean': {self.mu_zero}, 'std': {self.sigma_zero}}})"
+    def validate_targets(self, data: np.ndarray):
+        """Validate data for normal distribution.
+        Currently only checks for NaN, easily add on more.
+        """
+        assert not any(np.isnan(data)), "Inputs for normal distribution may not be NaN."
 
-    def __str__(self):
-        return f"Normal(prior_params={{'mean': {self.mu_zero}, 'std': {self.sigma_zero}}})"
 
-    def __eq__(self, other):
-        if not isinstance(other, NormalMuNormal):
-            return False
-        return self.mu_zero == other.mu_zero and self.sigma_zero == other.sigma_zero
+class NormalMuNormalPP(NormalBase):
+    """Normal distribution class for Bayesian Distributional Forests."""
+
+    def __init__(self, prior_params: dict | NormalMuNormalParams, params: tuple | None = None, var_ddof: int = 1):
+        """Initialize the Normal distribution with prior parameters.
+        Args
+        ----
+        `prior_params` : dict
+            Dictionary containing prior parameters, must include 'mean' and 'std'.
+        `params` : tuple, optional
+            Additional parameters for the distribution, default is None.
+        `var_ddof` : int, optional
+            Degrees of freedom for variance calculation, default is 1 (sample standard deviation).
+        """
+        if isinstance(prior_params, dict):
+            prior_params = NormalMuNormalParams.model_validate(prior_params)  # type: ignore
+        assert isinstance(
+            prior_params, NormalMuNormalParams
+        ), "prior_params must be an instance of NormalNormalParams after possible conversion from dict."
+        super().__init__(prior_params, params)
+        self.mu_mu = prior_params.mu_mu
+        self.sigma_mu = prior_params.sigma_mu
+        self.var_ddof = var_ddof  # Degrees of freedom for sample variance calculation
+
+    def calc_posterior_params(
+        self, data: np.ndarray, return_dict: bool = True, eps: float = 1e-5
+    ) -> dict[str, float] | tuple[float, float]:
+        """Calculate posterior parameters based on the data.
+
+        Args
+        ----
+        `data` : np.ndarray
+            The data to calculate the posterior parameters from.
+        `eps` : float, optional
+            A small value to avoid division by zero, default is 1e-5.
+
+        Returns
+        -------
+        tuple[float, float]
+            A tuple containing the posterior mean and posterior standard deviation.
+        """
+        n = data.shape[0]
+        sample_mean = np.mean(data)
+        sample_std = np.std(data, ddof=self.var_ddof)
+        posterior_mu = ((n / (sample_std**2 + eps)) * sample_mean + (1 / (self.sigma_mu**2 + eps)) * self.mu_mu) / (
+            (n / (sample_std**2 + eps)) + (1 / (self.sigma_mu**2 + eps))
+        )
+        posterior_sigma = np.sqrt(1 / ((n / (sample_std**2 + eps)) + (1 / (self.sigma_mu**2 + eps))))
+        if return_dict:
+            return {"posterior_mu": posterior_mu, "posterior_sigma": posterior_sigma}
+        else:
+            return posterior_mu, posterior_sigma
+
+
+class NormalMuNormal(NormalBase):
+    def __init__(self, prior_params: dict | NormalMuNormalParams, params: tuple | None = None, var_ddof: int = 1):
+        """Initialize the Normal distribution with prior parameters.
+        Args
+        ----
+        `prior_params` : dict
+            Dictionary containing prior parameters, must include 'mean' and 'std'.
+        `params` : tuple, optional
+            Additional parameters for the distribution, default is None.
+        `var_ddof` : int, optional
+            Degrees of freedom for variance calculation, default is 1 (sample standard deviation).
+        """
+        if isinstance(prior_params, dict):
+            prior_params = NormalMuNormalParams.model_validate(prior_params)  # type: ignore
+        assert isinstance(
+            prior_params, NormalMuNormalParams
+        ), "prior_params must be an instance of NormalNormalParams after possible conversion from dict."
+        super().__init__(prior_params, params)
+        self.mu_mu = prior_params.mu_mu
+        self.sigma_mu = prior_params.sigma_mu
+        self.var_ddof = var_ddof  # Degrees of freedom for sample variance calculation
+
+    def calc_posterior_params(
+        self, data: np.ndarray, return_dict: bool = True, eps: float = 1e-5
+    ) -> dict[str, float] | tuple[float, float]:
+        """Calculate posterior parameters based on the data.
+
+        Args
+        ----
+        `data` : np.ndarray
+            The data to calculate the posterior parameters from.
+        `eps` : float, optional
+            A small value to avoid division by zero, default is 1e-5.
+
+        Returns
+        -------
+        tuple[float, float]
+            A tuple containing the posterior mean and posterior standard deviation.
+        """
+        n = data.shape[0]
+        sample_mean = np.mean(data)
+        sample_std = np.std(data, ddof=self.var_ddof)
+        posterior_mu = ((n / (sample_std**2 + eps)) * sample_mean + (1 / (self.sigma_mu**2 + eps)) * self.mu_mu) / (
+            (n / (sample_std**2 + eps)) + (1 / (self.sigma_mu**2 + eps))
+        )
+        if return_dict:
+            return {"posterior_mu": posterior_mu, "posterior_sigma": sample_std}  # type: ignore
+        else:
+            return posterior_mu, sample_std  # type: ignore
 
 
 class NormGammaNormalParams(BDFDistributionParams):
