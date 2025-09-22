@@ -5,7 +5,8 @@
 - [x] Reorganize `predict` method in `bdf_regressor.py` to offer separate models for all use cases, separate them logically and offer interface to children.
 - [x] Reorganize `predict_posterior_params` methods in all distributions to use prefix `posterior_` and the actual distributional names (i.e. `posterior_mu`, `posterior_sigma` for Normal distribution)
 - [x] Redo normal distribution with `mu_mu` and `sigma_mu` as priors, indicate uncertainty update of sigma with suffix `PP` (Posterior Predictive) and create `NormalBase` class.
-- [ ] Implement `_validate_data` for all distributions to check for valid data (None, invalid bounds etc.) at start of `fit` method (and possibly `predict` method)
+- [x] Implement `_validate_targets` for all distributions to check for valid data (None, invalid bounds etc.) at start of `fit` method
+- [ ] Add None/numeric/NaN checks to `validate_data` before `fit` and `predict`
 - [ ] Parallelize fit (and possibly predict) methods with `joblib`, compare for small to large data
 - [ ] Implement exponential with Lomax PP
 - [ ] Implement Poisson-Gamma

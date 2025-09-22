@@ -453,18 +453,14 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
                     "X is a DataFrame but no feature names were stored during fitting. "
                     "Ensure to fit with a DataFrame to predict on DataFrame or fit on np.ndarray"
                 )
-        if not isinstance(X, np.ndarray):
-            raise TypeError(f"X must be a numpy array or pandas DataFrame, got {type(X)}")
-
-        if X.ndim != 2:
-            raise ValueError(f"X must be a 2D array or DataFrame, got {X.ndim}D array")
-        if X.shape[0] == 0:
-            raise ValueError("X must contain at least one sample")
         if X.shape[1] != self.n_features_in_:
             raise ValueError(
                 f"X has {X.shape[1]} features, but BDFRegressor was fitted with {self.n_features_in_} features."
             )
+        if not isinstance(X, np.ndarray):
+            raise ValueError(f"After casting from pandas, X has to be a np.ndarray, got type {type(X)}")
 
+        self._validate_features(X)
         return X
 
     def _validate_fit_input(
@@ -477,20 +473,35 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             self.n_features_in_ = X.shape[1]
         if isinstance(y, pd.Series):
             y = y.to_numpy()  # type: ignore
-        assert X.ndim == 2, f"X must be a 2D array, got {X.ndim}D array"
-        assert y.ndim == 1, f"y must be a 1D array, got {y.ndim}D array"
         assert (
             X.shape[0] == y.shape[0]
         ), f"Number of samples in X ({X.shape[0]}) must match number of samples in y ({y.shape[0]})"
+        self._validate_features(X)
+        self._validate_targets(y)  # Passes or raises Assertion-/ValueError
         return X, y
+
+    def _validate_features(self, X: np.ndarray):
+        """Validate that input features are all not NaN/None/numerical etc."""
+        assert X.ndim == 2, f"X must be a 2D array, got {X.ndim}D array"
+        if X.shape[0] == 0:
+            raise ValueError("X must contain at least one sample")
+        assert not any(np.isnan(X)), "Input data cannot be NaN."
+        assert np.issubdtype(
+            X, float
+        ), "Input data has to be subtype of float. If it fails although all features are numeric, consider casting to float/int for all columns."
 
     def _validate_targets(self, y: np.ndarray):
         """Validation function to check whether targets are allowed under the
-        given distribution
+        given distribution.
 
         Args
         ----
         `y` : np.ndarray
             targets used for fit input
         """
+        assert y.ndim == 1, f"y must be a 1D array, got {y.ndim}D array"
+        assert not any(np.isnan(y)), "Targets cannot be NaN."
+        assert np.issubdtype(
+            y, float
+        ), "Targets have to be subtype of float. If it fails although all features are numeric, consider casting to float/int for all columns."
         self.distribution.validate_targets(y)
