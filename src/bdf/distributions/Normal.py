@@ -8,48 +8,6 @@ from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionP
 from bdf.utils.constants import RANDOM_SEED
 
 
-class NormalMuNormalParams(BDFDistributionParams):
-    """Parameters for the Normal distribution in Bayesian Distributional Forests.
-
-    Attributes
-    ----------
-    mean : float
-        The prior mean of the Normal distribution.
-    std : float
-        The prior standard deviation of the Normal distribution.
-    """
-
-    mu_mu: float = Field(default=0.0, alias="mean", description="Prior mean of the Normal distribution")
-    sigma_mu: float = Field(
-        default=1.0, alias="std", gt=0, description="Prior standard deviation of the Normal distribution"
-    )
-
-    class Config:
-        """Pydantic configuration to allow extra fields and use aliases."""
-
-        extra = "forbid"
-        validate_by_name = True
-
-    def __init__(self, **data: dict) -> None:
-        # Check for missing fields before initialization
-        missing_fields = {}
-        if "mu_mu" not in data and "mean" not in data:
-            missing_fields["mu_mu"] = self.__class__.model_fields["mu_mu"].default
-        if "sigma_mu" not in data and "std" not in data:
-            missing_fields["sigma_mu"] = self.__class__.model_fields["sigma_mu"].default
-
-        # Initialize the model
-        super().__init__(**data)
-
-        # Issue warnings for missing fields
-        for field, default_value in missing_fields.items():
-            warnings.warn(
-                f"No value provided for '{field}', using default: {default_value}",
-                UserWarning,
-                stacklevel=2,
-            )
-
-
 class NormalBase(BDFDistribution):
     def nll(self, data: np.ndarray) -> float:
         """Compute the negative log-likelihood of the data given the distribution."""
@@ -184,6 +142,53 @@ class NormalBase(BDFDistribution):
         Currently only checks for NaN, easily add on more.
         """
         assert not any(np.isnan(data)), "Inputs for normal distribution may not be NaN."
+        assert all(np.isfinite(data)), "Targets must be finite for exponential distribution."
+        std = np.std(data)
+        assert (
+            np.isfinite(std) and std is not None and std >= 0.0
+        ), f"Standard deviation has to be finite, not None and >=0, got {std}"
+
+
+class NormalMuNormalParams(BDFDistributionParams):
+    """Parameters for the Normal distribution in Bayesian Distributional Forests.
+
+    Attributes
+    ----------
+    mean : float
+        The prior mean of the Normal distribution.
+    std : float
+        The prior standard deviation of the Normal distribution.
+    """
+
+    mu_mu: float = Field(default=0.0, alias="mean", description="Prior mean of the Normal distribution")
+    sigma_mu: float = Field(
+        default=1.0, alias="std", gt=0, description="Prior standard deviation of the Normal distribution"
+    )
+
+    class Config:
+        """Pydantic configuration to allow extra fields and use aliases."""
+
+        extra = "forbid"
+        validate_by_name = True
+
+    def __init__(self, **data: dict) -> None:
+        # Check for missing fields before initialization
+        missing_fields = {}
+        if "mu_mu" not in data and "mean" not in data:
+            missing_fields["mu_mu"] = self.__class__.model_fields["mu_mu"].default
+        if "sigma_mu" not in data and "std" not in data:
+            missing_fields["sigma_mu"] = self.__class__.model_fields["sigma_mu"].default
+
+        # Initialize the model
+        super().__init__(**data)
+
+        # Issue warnings for missing fields
+        for field, default_value in missing_fields.items():
+            warnings.warn(
+                f"No value provided for '{field}', using default: {default_value}",
+                UserWarning,
+                stacklevel=2,
+            )
 
 
 class NormalMuNormalPP(NormalBase):

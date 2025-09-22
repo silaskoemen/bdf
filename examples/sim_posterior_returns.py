@@ -294,7 +294,7 @@ for raw_strategy in [trade_mean, trade_median]:
         if threshold == 0.0:
             total_return = evaluate_trading_strategy(raw_strategy, posteriors, means, threshold=threshold, plot=True)
         total_return = evaluate_trading_strategy(raw_strategy, posteriors, means, threshold=threshold)
-        print(f"Total return using {raw_strategy.__name__} with {threshold = }: {100*total_return:.2f}%")
+        print(f"Total return using {raw_strategy.__name__} with {threshold =}: {100*total_return:.2f}%")
 
 for agg_strategy in [trade_sharpe, trade_sortino, trade_mean_prob_negative, trade_mean_prob_positive]:
     print("\n", "#" * 20, f"Evaluating strategy: {agg_strategy.__name__}", "#" * 20)

@@ -252,6 +252,14 @@ class ExponentialBase(BDFDistribution):
         """
         return self.calc_posterior_params(data, return_dict=True)
 
+    def validate_targets(self, data: np.ndarray):
+        assert np.all(data > 0), "Targets have to be positive for exponential distribution."
+        assert all(np.isfinite(data)), "Targets must be finite for exponential distribution."
+        std = np.std(data)
+        assert (
+            np.isfinite(std) and std is not None and std >= 0.0
+        ), f"Standard deviation has to be finite, not None and >=0, got {std}"
+
 
 class GammaABLambdaExponentialParams(BDFDistributionParams):
     """Parameters for the Gamma prior on mean lambda with parameters alpha and theta ('AB' notation)."""
@@ -451,14 +459,6 @@ class ExponentialPPBase(ExponentialBase):
     all likelihoods and sampling functions are based on these parameters.
     """
 
-    # This is just a placeholder - child classes will have their own init
-    def __init__(self, prior_params, params=None):
-        super().__init__(prior_params, params)
-
-    # Child classes MUST implement this method
-    def calc_posterior_params(self, data, return_dict=False):
-        raise NotImplementedError("Subclasses must implement 'calc_posterior_params'")
-
     def log_likelihood(self, data: np.ndarray) -> np.ndarray:
         """Compute the log-likelihood of the data given the distribution.
 
@@ -580,7 +580,7 @@ class ExponentialPPBase(ExponentialBase):
         if posterior_lambda is None or posterior_alpha is None:
             raise ValueError("params must contain 'posterior_alpha' and 'posterior_lambda' keys")
         if posterior_alpha <= 0 or posterior_lambda <= 0:
-            raise ValueError(f"{posterior_alpha = } and {posterior_lambda = } parameters must be positive")
+            raise ValueError(f"{posterior_alpha =} and {posterior_lambda =} parameters must be positive")
         return lomax.rvs(c=posterior_alpha, scale=posterior_lambda, size=size, random_state=random_state)  # type: ignore
 
     def sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:

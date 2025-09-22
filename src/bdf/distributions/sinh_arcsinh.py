@@ -221,7 +221,7 @@ class SHASHBase(BDFDistribution):
         if mu is None or sigma is None or epsilon is None or delta is None:
             raise ValueError("params must contain 'mu', 'sigma', 'epsilon', and 'delta' keys.")
 
-        assert sigma > 0 and delta > 0, f"sigma and delta must be positive, got {sigma = }, {delta = }"
+        assert sigma > 0 and delta > 0, f"sigma and delta must be positive, got {sigma =}, {delta =}"
 
         # Generate samples from the SHASH distribution
         z = norm.rvs(size=size, random_state=random_state)

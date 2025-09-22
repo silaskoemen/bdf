@@ -248,6 +248,10 @@ class SkewNormalBase(BDFDistribution):
         Currently only checks for NaN, easily add on more.
         """
         assert not any(np.isnan(data)), "Inputs for normal distribution may not be NaN."
+        std = np.std(data)
+        assert (
+            np.isfinite(std) and std is not None and std >= 0.0
+        ), f"Standard deviation has to be finite, not None and >=0, got {std}"
 
 
 class NormalMeanPseudoAlphaSkewNormalParams(BDFDistributionParams):
