@@ -1,7 +1,6 @@
 # %% Imports
 import numpy as np
 
-# %% Hyperparameters
 # Data params
 n_samples = 600
 n_features = 1  # 1 or 2 supported in toy generator below
@@ -18,7 +17,7 @@ stds_2d = np.array([0.6, 0.8])  # isotropic per component
 
 # KDE params
 kernel = "gaussian"  # currently only 'gaussian' is implemented
-bandwidth = 0.4  # > 0, isotropic
+bandwidth = "scott"  # > 0, isotropic
 min_bandwidth = 1e-6  # clamp to avoid too small values
 # Cross-validation: 'loo' for leave-one-out, 1 for in-sample, or int >= 2 for K-fold
 cv = 2  # 'loo', 1, or int (e.g. 2, 5, 10)
@@ -97,6 +96,38 @@ def _logsumexp(a, axis=None):
     return out
 
 
+def _compute_rule_of_thumb_bandwidth(X, method):
+    X = np.asarray(X, dtype=float)
+    n, d = X.shape
+    if n < 2:
+        raise ValueError("At least two samples are required to estimate the bandwidth.")
+    method = method.lower()
+    if method == "scott":
+        scale = float(np.sqrt(np.mean(np.var(X, axis=0, ddof=1))))
+        return scale * n ** (-1.0 / (d + 4))
+    if method == "silverman":
+        if d == 1:
+            X_1d = X[:, 0]
+            std = float(np.std(X_1d, ddof=1))
+            iqr = float(np.subtract(*np.percentile(X_1d, [75, 25])))
+            scale = min(std, iqr / 1.349) if iqr > 0 else std
+            if scale <= 0:
+                scale = std
+            return 0.9 * scale * n ** (-1.0 / 5)
+        scale = float(np.sqrt(np.mean(np.var(X, axis=0, ddof=1))))
+        factor = (4.0 / (d + 2)) ** (1.0 / (d + 4))
+        return factor * scale * n ** (-1.0 / (d + 4))
+    raise ValueError("bandwidth method must be 'scott' or 'silverman'.")
+
+
+def _resolve_bandwidth(bandwidth, X, min_h=None):
+    if isinstance(bandwidth, str):
+        h = _compute_rule_of_thumb_bandwidth(X, bandwidth)
+    else:
+        h = bandwidth
+    return _check_bandwidth(h, min_h=min_h)
+
+
 # %% KDE log-density (Gaussian kernel, isotropic bandwidth)
 def gaussian_kde_logpdf(X_eval, X_train, bandwidth):
     """
@@ -109,7 +140,7 @@ def gaussian_kde_logpdf(X_eval, X_train, bandwidth):
     if X_eval.shape[0] == 0:
         return np.empty((0,), dtype=float)
 
-    h = _check_bandwidth(bandwidth)
+    h = _resolve_bandwidth(bandwidth, X_train)
     n_train, d = X_train.shape
     if n_train < 1:
         raise ValueError("Training set must contain at least one sample.")
@@ -128,7 +159,7 @@ def kde_insample_nll(X, bandwidth, kernel="gaussian"):
     n, d = X.shape
     if n < 1:
         raise ValueError("At least one sample is required.")
-    h = _check_bandwidth(bandwidth)
+    h = _resolve_bandwidth(bandwidth, X)
     D2 = _pairwise_sq_dists(X, X)  # (n, n)
     log_c = -0.5 * d * np.log(2.0 * np.pi) - d * np.log(h)
     log_weights = log_c - 0.5 * D2 / (h * h)
@@ -145,7 +176,7 @@ def kde_insample_nll(X, bandwidth, kernel="gaussian"):
 def kde_loo_nll(X, bandwidth, kernel="gaussian"):
     if kernel != "gaussian":
         raise NotImplementedError("Only Gaussian kernel is implemented.")
-    h = _check_bandwidth(bandwidth)
+    h = _resolve_bandwidth(bandwidth, X)
     n, d = X.shape
     if n < 2:
         raise ValueError("LOO requires at least 2 samples.")
@@ -216,7 +247,7 @@ def kde_kfold_nll(X, bandwidth, k=2, kernel="gaussian", shuffle=True, seed=None)
 
 
 # %% Unified scorer
-def kde_cv_nll(X, bandwidth, cv="loo", kernel="gaussian", shuffle=True, seed=None):
+def kde_cv_nll(X, bandwidth, cv: str | int = "loo", kernel="gaussian", shuffle=True, seed=None):
     if cv == "loo":
         return kde_loo_nll(X, bandwidth, kernel=kernel)
     if isinstance(cv, int):
@@ -238,7 +269,8 @@ nll_total, nll_mean = kde_cv_nll(
     seed=random_state,
 )
 
-print(f"Settings: kernel={kernel}, bandwidth={_check_bandwidth(bandwidth)}, cv={cv}")
+bandwidth_value = _resolve_bandwidth(bandwidth, X)
+print(f"Settings: kernel={kernel}, bandwidth_spec={bandwidth}, resolved_bandwidth={bandwidth_value:.6f}, cv={cv}")
 print(f"Total NLL: {nll_total:.6f}")
 print(f"Mean NLL per sample: {nll_mean:.6f}")
 # %%
