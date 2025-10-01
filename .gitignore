@@ -11,6 +11,8 @@ __pycache__/
 
 compiled/rust/target/
 
+/papers/
+
 debug/
 target/
 **/*.rs.bk

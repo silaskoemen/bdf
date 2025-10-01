@@ -257,8 +257,8 @@ class SkewNormalBase(BDFDistribution):
 class NormalMeanPseudoAlphaSkewNormalParams(BDFDistributionParams):
     """Pydantic model for Skew-Normal distribution parameters."""
 
-    mu_zero: float = Field(default=0.0, description="Prior mean for mean mu of data")
-    sigma_zero: float = Field(default=1.0, gt=0, description="Prior standard deviation for mu of data")
+    mu_mu: float = Field(default=0.0, description="Prior mean for mean mu of data")
+    sigma_mu: float = Field(default=1.0, gt=0, description="Prior standard deviation for mu of data")
     alpha_zero: float = Field(default=0.0, alias="mean_alpha", description="Prior mean for alpha")
     m_alpha: float = Field(default=10.0, gt=0, alias="belief_alpha", description="Prior strength of belief for alpha")
 
@@ -271,10 +271,10 @@ class NormalMeanPseudoAlphaSkewNormalParams(BDFDistributionParams):
     def __init__(self, **data: dict) -> None:
         # Check for missing fields before initialization
         missing_fields = {}
-        if "mu_zero" not in data:
-            missing_fields["mu_zero"] = self.__class__.model_fields["mu_zero"].default
-        if "sigma_zero" not in data:
-            missing_fields["sigma_zero"] = self.__class__.model_fields["sigma_zero"].default
+        if "mu_mu" not in data:
+            missing_fields["mu_mu"] = self.__class__.model_fields["mu_mu"].default
+        if "sigma_mu" not in data:
+            missing_fields["sigma_mu"] = self.__class__.model_fields["sigma_mu"].default
         if "alpha_zero" not in data and "mu_alpha" not in data:
             missing_fields["alpha_zero"] = self.__class__.model_fields["alpha_zero"].default
         if "m_alpha" not in data and "belief_alpha" not in data:
@@ -319,8 +319,8 @@ class NormalMeanPseudoAlphaSkewNormal(SkewNormalBase):
             prior_params, NormalMeanPseudoAlphaSkewNormalParams
         ), "prior_params must be an instance of NormalMeanPseudoAlphaSkewNormalParams after possible conversion from dict."
         super().__init__(prior_params, params)
-        self.mu_zero = prior_params.mu_zero
-        self.sigma_zero = prior_params.sigma_zero
+        self.mu_mu = prior_params.mu_mu
+        self.sigma_mu = prior_params.sigma_mu
         self.alpha_zero = prior_params.alpha_zero
         self.m_alpha = prior_params.m_alpha
 
@@ -345,8 +345,8 @@ class NormalMeanPseudoAlphaSkewNormal(SkewNormalBase):
         sample_skewness = np.clip(np.mean(((data - sample_mean) / np.sqrt(sample_var + 1e-5)) ** 3), -0.99, 0.99)
 
         # Posterior mean for xi (Normal prior)
-        posterior_mean = (self.mu_zero / self.sigma_zero**2 + n * sample_mean / (sample_var + 1e-5)) / (  # type: ignore
-            1 / self.sigma_zero**2 + n / (sample_var + 1e-5)  # type: ignore
+        posterior_mean = (self.mu_mu / self.sigma_mu**2 + n * sample_mean / (sample_var + 1e-5)) / (  # type: ignore
+            1 / self.sigma_mu**2 + n / (sample_var + 1e-5)  # type: ignore
         )
 
         delta = np.sign(sample_skewness) * np.sqrt(
@@ -384,8 +384,8 @@ class NormalMeanNormalGammaSkewNormalParams(BDFDistributionParams):
     """Pydantic model for Skew-Normal distribution with Normal prior on the mean and
     Normal prior on the skewness gamma"""
 
-    mu_zero: float = Field(default=0.0, description="Prior mean for mean of data")
-    sigma_zero: float = Field(default=1.0, gt=0, description="Prior standard deviation for mean of data")
+    mu_mu: float = Field(default=0.0, description="Prior mean for mean of data")
+    sigma_mu: float = Field(default=1.0, gt=0, description="Prior standard deviation for mean of data")
     mu_gamma: float = Field(default=0.0, alias="mean_gamma", description="Prior mean of skewness parameter gamma")
     sigma_gamma: float = Field(
         default=0.5, gt=0, alias="std_gamma", description="Prior std fof skewness parameter gamma"
@@ -400,10 +400,10 @@ class NormalMeanNormalGammaSkewNormalParams(BDFDistributionParams):
     def __init__(self, **data: dict) -> None:
         # Check for missing fields before initialization
         missing_fields = {}
-        if "mu_zero" not in data:
-            missing_fields["mu_zero"] = self.__class__.model_fields["mu_zero"].default
-        if "sigma_zero" not in data:
-            missing_fields["sigma_zero"] = self.__class__.model_fields["sigma_zero"].default
+        if "mu_mu" not in data:
+            missing_fields["mu_mu"] = self.__class__.model_fields["mu_mu"].default
+        if "sigma_mu" not in data:
+            missing_fields["sigma_mu"] = self.__class__.model_fields["sigma_mu"].default
         if "mu_gamma" not in data and "mean_gamma" not in data:
             missing_fields["mu_gamma"] = self.__class__.model_fields["mu_gamma"].default
         if "sigma_gamma" not in data and "std_gamma" not in data:
@@ -445,8 +445,8 @@ class NormalMeanNormalGammaSkewNormal(SkewNormalBase):
             prior_params, NormalMeanNormalGammaSkewNormalParams
         ), "prior_params must be an instance of NormalEBSkewNormalParams after possible conversion from dict."
         super().__init__(prior_params, params)
-        self.mu_zero = prior_params.mu_zero
-        self.sigma_zero = prior_params.sigma_zero
+        self.mu_mu = prior_params.mu_mu
+        self.sigma_mu = prior_params.sigma_mu
         self.mu_gamma = prior_params.mu_gamma
         self.sigma_gamma = prior_params.sigma_gamma
 
@@ -476,8 +476,8 @@ class NormalMeanNormalGammaSkewNormal(SkewNormalBase):
         sample_skewness = np.clip(posterior_skewness, -0.995, 0.995)
 
         # Posterior mean for xi (Normal prior)
-        posterior_mean = (self.mu_zero / self.sigma_zero**2 + n * sample_mean / (sample_var + 1e-7)) / (  # type: ignore
-            1 / self.sigma_zero**2 + n / (sample_var + 1e-7)  # type: ignore
+        posterior_mean = (self.mu_mu / self.sigma_mu**2 + n * sample_mean / (sample_var + 1e-7)) / (  # type: ignore
+            1 / self.sigma_mu**2 + n / (sample_var + 1e-7)  # type: ignore
         )
 
         delta = np.sign(sample_skewness) * np.sqrt(

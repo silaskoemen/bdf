@@ -463,6 +463,67 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         self._validate_features(X)
         return X
 
+    def validate_array(
+        self, data: np.ndarray, allow_nan: bool = False, allow_inf: bool = False, allow_none: bool = False
+    ):
+        """
+        Validates a NumPy array to ensure it is numeric and does not contain unwanted values.
+
+        This function is optimized for performance and can optionally allow None values
+        for future sparsity-aware implementations.
+
+        Args:
+            data (np.ndarray): The input array to validate.
+            allow_nan (bool): If False, raises an error if NaN is found.
+            allow_inf (bool): If False, raises an error if Inf or -Inf is found.
+            allow_none (bool): If True, allows the array to contain None values.
+
+        Raises:
+            ValueError: If the data is not numeric or contains forbidden values.
+        """
+        # Fast path for purely numeric arrays (cannot contain None)
+        if np.issubdtype(data.dtype, np.number):
+            if not allow_nan and np.isnan(data).any():
+                raise ValueError("Input data contains NaN values.")
+            if not allow_inf and np.isinf(data).any():
+                raise ValueError("Input data contains infinite values.")
+            return
+
+        # Slower path for object arrays, which might contain None or other types
+        if data.dtype == "object":
+            if not allow_none:
+                # If None is not allowed, try a direct conversion which will fail on None.
+                try:
+                    data.astype(np.float64)
+                except (ValueError, TypeError):
+                    raise ValueError(
+                        "Input data contains non-numeric values or None, and could not be converted to float."
+                    )
+
+            # If None is allowed, we must check the non-None elements
+            else:
+                # Create a mask to isolate non-None elements
+                non_none_mask = data is not None
+                numeric_subset = data[non_none_mask]
+
+                # If there are any non-None elements, validate them
+                if numeric_subset.size > 0:
+                    try:
+                        # Check if the non-None elements are actually numeric
+                        numeric_subset = numeric_subset.astype(np.float64)
+                    except (ValueError, TypeError):
+                        raise ValueError("Input data contains non-numeric string values alongside None.")
+
+                    # Perform checks on the validated numeric subset
+                    if not allow_nan and np.isnan(numeric_subset).any():
+                        raise ValueError("Input data's numeric subset contains NaN values.")
+                    if not allow_inf and np.isinf(numeric_subset).any():
+                        raise ValueError("Input data's numeric subset contains infinite values.")
+            return
+
+        # If it's some other non-numeric, non-object dtype, it's invalid.
+        raise ValueError(f"Unsupported data type '{data.dtype}'. Data must be numeric or object type.")
+
     def _validate_fit_input(
         self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series
     ) -> tuple[np.ndarray, np.ndarray]:
