@@ -13,12 +13,12 @@ class BDFDistributionParams(BaseModel, ABC):
 class BDFDistribution(ABC):
     """Abstract base class for all BDF distributions."""
 
-    def __init__(self, prior_params: BDFDistributionParams, params: tuple | None = None):
+    def __init__(self, prior_params: BDFDistributionParams, params: dict | BDFDistributionParams | None = None):
         self.prior_params = prior_params
         self.params = params
 
     @abstractmethod
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> dict | tuple:
+    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> dict | tuple | float:
         """Get the posterior parameters of the distribution given the data."""
         raise NotImplementedError("Subclasses must implement this method.")
 

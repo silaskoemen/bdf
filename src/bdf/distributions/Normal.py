@@ -9,20 +9,26 @@ from bdf.utils.constants import RANDOM_SEED
 
 
 class NormalBase(BDFDistribution):
+    """Base class for Normal distributions in Bayesian Distributional Forests."""
+
+    # Child classes MUST implement this method
+    def calc_posterior_params(self, data, return_dict=False):
+        raise NotImplementedError("Subclasses must implement calc_posterior_params")
+
     def nll(self, data: np.ndarray) -> float:
         """Compute the negative log-likelihood of the data given the distribution."""
         return -np.sum(self.log_likelihood(data))
 
     def likelihood(self, data: np.ndarray) -> np.ndarray:
         """Compute the likelihood of the data given the distribution."""
-        posterior_mu, posterior_sigma = self.calc_posterior_params(data, return_dict=False)
+        posterior_mu, posterior_sigma = self.calc_posterior_params(data)
         return (1 / (posterior_sigma * np.sqrt(2 * np.pi))) * np.exp(
             -0.5 * ((data - posterior_mu) / posterior_sigma) ** 2  # type: ignore
         )
 
     def log_likelihood(self, data: np.ndarray) -> np.ndarray:
         """Compute the log-likelihood of the data given the distribution."""
-        posterior_mu, posterior_sigma = self.calc_posterior_params(data, return_dict=False)
+        posterior_mu, posterior_sigma = self.calc_posterior_params(data)
         return -0.5 * np.log(2 * np.pi) - np.log(posterior_sigma) - 0.5 * ((data - posterior_mu) / posterior_sigma) ** 2  # type: ignore
 
     def sample_prior(self, size: int) -> np.ndarray:
@@ -40,15 +46,15 @@ class NormalBase(BDFDistribution):
     ) -> np.ndarray:
         """Sample from the distribution."""
         if params is not None:
-            return self.sample_posterior_params(params, size=size, random_state=random_state)
+            return self._sample_posterior_params(params, size=size, random_state=random_state)
         elif data is not None:
-            return self.sample_posterior_data(data, size=size, random_state=random_state)  # type: ignore
+            return self._sample_posterior_data(data, size=size, random_state=random_state)  # type: ignore
         else:  # This case should not happen due to the initial check but is required for type safety
             raise ValueError(
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
 
-    def sample_posterior_params(self, params: dict[str, float], *, size: int = 1, random_state: int) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], *, size: int = 1, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution using provided parameters.
 
         Args
@@ -67,7 +73,7 @@ class NormalBase(BDFDistribution):
         assert params["posterior_sigma"] > 0, "Standard deviation must be positive"
         return norm.rvs(loc=params["posterior_mu"], scale=params["posterior_sigma"], size=size, random_state=random_state)  # type: ignore
 
-    def sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
+    def _sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution using the data.
 
         Args
@@ -194,7 +200,7 @@ class NormalMuNormalParams(BDFDistributionParams):
 class NormalMuNormalPP(NormalBase):
     """Normal distribution class for Bayesian Distributional Forests."""
 
-    def __init__(self, prior_params: dict | NormalMuNormalParams, params: tuple | None = None, var_ddof: int = 1):
+    def __init__(self, prior_params: dict | NormalMuNormalParams, params: dict | None = None, var_ddof: int = 1):
         """Initialize the Normal distribution with prior parameters.
         Args
         ----
@@ -246,7 +252,7 @@ class NormalMuNormalPP(NormalBase):
 
 
 class NormalMuNormal(NormalBase):
-    def __init__(self, prior_params: dict | NormalMuNormalParams, params: tuple | None = None, var_ddof: int = 1):
+    def __init__(self, prior_params: dict | NormalMuNormalParams, params: dict | None = None, var_ddof: int = 1):
         """Initialize the Normal distribution with prior parameters.
         Args
         ----
@@ -354,7 +360,7 @@ class NormGammaNormal(BDFDistribution):
     This class models a Normal distribution with a Gamma prior on the variance.
     """
 
-    def __init__(self, prior_params: dict | BDFDistributionParams, params: tuple | None = None):
+    def __init__(self, prior_params: dict | BDFDistributionParams, params: dict | None = None):
         """Initialize the Normal-Gamma distribution with prior parameters.
 
         Args

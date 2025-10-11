@@ -2,18 +2,14 @@
 
 
 ## BDFRegressor
-- [x] Reorganize `predict` method in `bdf_regressor.py` to offer separate models for all use cases, separate them logically and offer interface to children.
-- [x] Reorganize `predict_posterior_params` methods in all distributions to use prefix `posterior_` and the actual distributional names (i.e. `posterior_mu`, `posterior_sigma` for Normal distribution)
-- [x] Redo normal distribution with `mu_mu` and `sigma_mu` as priors, indicate uncertainty update of sigma with suffix `PP` (Posterior Predictive) and create `NormalBase` class.
-- [x] Implement `_validate_targets` for all distributions to check for valid data (None, invalid bounds etc.) at start of `fit` method
 - [ ] Add None/numeric/NaN checks to `validate_data` before `fit` and `predict`
 - [ ] Parallelize fit (and possibly predict) methods with `joblib`, compare for small to large data
-- [ ] Implement exponential with Lomax PP
-- [ ] Implement Poisson-Gamma
+- [x] Implement exponential with Lomax PP
+- [ ] Implement Poisson-Gamma, think about whether to use `n` and `p` for PP case as params bc only those needed, evaluate and possibly change
 - [ ] Implement Gamma-Gamma
 - [ ] Implement KDE density (only Gaussian?) with x-fold cv and nll/crps for split finding
 - [ ] Implement DistKDL with KDE in terminal leaf, both with `PseudoHKDE` and `PenalizedHKDE` to include (e.g. all-data `h` and strength `m` vs `log(h)` penalty as prior regularizer)
-- [ ] Implement Multinomial distribution
+- [ ] Implement Multinomial (dirichlet prior) distribution
 - [ ] Implement relevant other distributions for certain use cases (e.g. Weibull, Gompertz, Uniform, Negative Binomial, ...) and use CLT mean/pseudo prior if no conjugate prior is available
 - [ ] Build eval metrics for probabilistic outputs
 - [ ] Write tests for all distributions, expose nll from Rust & check parity
@@ -26,4 +22,11 @@
 - [ ] Build eval metrics for uncertainty about uncertainty (Brier score (Bias^2 + Var), calibration in certain bands?, Visualize uncertainty in predictions)
 
 ## Future Improvements
+- [ ] Implement multivariate targets (e.g. MVN or independent univariate distributions, copula?)
+- [ ] Implement truly Gaussian prior on bandwidth `h` in KDE; know is function of `sigma`, find normal distribution of stddev
+- [ ] Implement Improved Sheather Jones (ISJ) bandwidth selector for KDE (robust to multimodality)
 - [ ] Implement feature importance in-sample with `count` and `gain`, out of sample with `gain` (crps/nll) and permutation based feature importance (pfi, shuffle feature see how loss changes)
+- [ ] Implement sample weights (either just magnitude of NLL contribution or weighted version of MLE/MoM estimates)
+- [ ] Implement Ranking task
+- [ ] Implement pre-computed histograms for splits (like in xgboost, lightgbm, catboost, massive speedup)
+- [ ] Implement missing value handling/sparsity aware split finding (e.g. learn optimal direction to send missing values at each split, like in xgboost)
