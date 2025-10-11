@@ -97,32 +97,33 @@ class KDEBase(BDFDistribution):
 
     def _calc_data_bandwidth(self, data: np.ndarray) -> float:
         """Calculate bandwidth from data using specified method or value."""
-        bandwidth = self.params.bandwidth  # type: ignore[attr-defined] | doesn't see pydantic field
+        arr = np.asarray(data, dtype=float).ravel()
+        bandwidth = self.params.bandwidth  # type: ignore[attr-defined]
         if isinstance(bandwidth, str):
             match bandwidth:
                 case "scott":
-                    return self._compute_bandwidth_scott(data)
+                    return self._compute_bandwidth_scott(arr)
                 case "silverman":
-                    return self._compute_bandwidth_silverman(data)
+                    return self._compute_bandwidth_silverman(arr)
                 case _:
                     raise ValueError("bandwidth string must be 'scott' or 'silverman'.")
-        elif isinstance(bandwidth, (float, int)):
+        if isinstance(bandwidth, (float, int)):
             if bandwidth <= 0:
                 raise ValueError("bandwidth must be a positive float.")
             return float(bandwidth)
-        else:
-            raise TypeError("bandwidth must be a positive float or 'scott' or 'silverman'.")
+        raise TypeError("bandwidth must be a positive float or 'scott' or 'silverman'.")
 
     def log_likelihood(self, data: np.ndarray) -> np.ndarray:
         """Compute the log-likelihood of the data given the KDE."""
-        _, h = self.calc_posterior_params(data, return_dict=False)
-        match self.params.cv:  # type: ignore[arg-defined]
+        flat = np.asarray(data, dtype=float).ravel()
+        _, h = self.calc_posterior_params(flat, return_dict=False)
+        match self.params.cv:  # type: ignore[attr-defined]
             case "loo":
-                return self._compute_loo_loglik(data, h)
+                return self._compute_loo_loglik(flat, h)
             case 1:
-                return self._compute_insample_loglik(data, h)
-            case int() if self.params.cv >= 2:  # type: ignore[arg-defined]
-                return self._compute_kfold_loglik(data, h, self.params.cv, False, None)  # type: ignore[arg-defined]
+                return self._compute_insample_loglik(flat, h)
+            case int() if self.params.cv >= 2:  # type: ignore[attr-defined]
+                return self._compute_kfold_loglik(flat, h, self.params.cv)  # type: ignore[attr-defined]
             case _:
                 raise ValueError("cv must be 'loo', 1 (insample), or an integer >= 2.")
 
@@ -141,24 +142,16 @@ class KDEBase(BDFDistribution):
         np.ndarray
             Log-likelihood values for each data point.
         """
-        data = np.asarray(data, dtype=float)
-        if data.ndim == 1:
-            data = data[:, None]
-
-        n = data.shape[0]
+        data = np.asarray(data, dtype=float).ravel()
+        n = data.size
         if n < 2:
             return np.full(n, -np.inf, dtype=float)
 
-        # Evaluate each point against all samples (including self)
         all_loglik = self._compute_kernel_loglik(data, data, h)
-
-        # all_loglik is shape (n, n); mask diagonal to drop self-contribution
         np.fill_diagonal(all_loglik, -np.inf)
 
-        # Aggregate per row (log-mean over n-1 refs)
-        log_counts = np.log(n - 1)
         row_logsum = np.logaddexp.reduce(all_loglik, axis=1)
-        return row_logsum - log_counts
+        return row_logsum - np.log(n - 1)
 
     def _compute_kfold_loglik(
         self,
@@ -168,18 +161,15 @@ class KDEBase(BDFDistribution):
         seed: int = RANDOM_SEED,
     ) -> np.ndarray:
         """K-fold log-likelihood using posterior bandwidth `h` (or per-fold updates)."""
-        data = np.asarray(data, dtype=float)
-        if data.ndim == 1:
-            data = data[:, None]
-
-        n = data.shape[0]
+        data = np.asarray(data, dtype=float).ravel()
+        n = data.size
         if n < 2:
             return np.full(n, -np.inf, dtype=float)
 
         if k <= 1:
             raise ValueError("k-fold cross-validation requires k >= 2.")
         if k > n:
-            k = n  # fallback to LOO
+            k = n
 
         rng = np.random.default_rng(seed)
         indices = np.arange(n)
@@ -206,14 +196,12 @@ class KDEBase(BDFDistribution):
                 continue
 
             if self.params.recompute_bandwidth_splits:  # type: ignore[attr-defined]
-                fold_params = self.calc_posterior_params(ref_data, return_dict=False)
-                h_fold = float(fold_params[-1])  # expects (..., posterior_h)
+                _, h_fold = self.calc_posterior_params(ref_data, return_dict=False)
             else:
                 h_fold = h
 
             fold_log_weights = self._compute_kernel_loglik(eval_data, ref_data, h_fold)
-            log_norm = np.log(ref_data.shape[0])
-            loglik[val_idx] = np.logaddexp.reduce(fold_log_weights, axis=1) - log_norm
+            loglik[val_idx] = np.logaddexp.reduce(fold_log_weights, axis=1) - np.log(ref_data.size)
 
         return loglik
 
@@ -232,104 +220,110 @@ class KDEBase(BDFDistribution):
         np.ndarray
             Log-likelihood values for each data point.
         """
-        data = np.asarray(data, dtype=float)
-        if data.ndim == 1:
-            data = data[:, None]
-
-        n = data.shape[0]
+        data = np.asarray(data, dtype=float).ravel()
+        n = data.size
         if n < 1:
             return np.full(n, -np.inf, dtype=float)
 
         all_loglik = self._compute_kernel_loglik(data, data, h)
-
-        # all_loglik is shape (n, n); aggregate per row (log-mean over n refs)
-        log_counts = np.log(n)
         row_logsum = np.logaddexp.reduce(all_loglik, axis=1)
-        return row_logsum - log_counts
+        return row_logsum - np.log(n)
 
     def _compute_kernel_loglik(self, ref_data: np.ndarray, eval_data: np.ndarray, h: float) -> np.ndarray:
-        """Compute log-likelihood using scipy's KDE implementation."""
-        if self.params.kernel == "gaussian":  # type: ignore
-            return self._compute_gaussian_loglik(ref_data, eval_data, h)
-        elif self.params.kernel == "epanechnikov":  # type: ignore[arg-defined]
-            return self._compute_epanechnikov_loglik(ref_data, eval_data, h)
-        else:
-            raise ValueError("Unsupported kernel type. Use 'gaussian' or 'epanechnikov'.")
+        """Return the per-pair log kernel contributions (shape: n_eval × n_ref)."""
+        if self.params.kernel == "gaussian":  # type: ignore[attr-defined]
+            return self._compute_gaussian_loglik(eval_data, ref_data, h)
+        if self.params.kernel == "epanechnikov":  # type: ignore[attr-defined]
+            return self._compute_epanechnikov_loglik(eval_data, ref_data, h)
+        raise ValueError("Unsupported kernel type. Use 'gaussian' or 'epanechnikov'.")
 
-    def _compute_gaussian_loglik(self, ref_data: np.ndarray, eval_data: np.ndarray, h: float) -> np.ndarray:
-        """Compute log-likelihood using Gaussian kernel."""
-        ref = np.asarray(ref_data, dtype=float)
-        eva = np.asarray(eval_data, dtype=float)
-        if ref.ndim == 1:
-            ref = ref[:, None]
-        if eva.ndim == 1:
-            eva = eva[:, None]
+    def _compute_gaussian_loglik(self, eval_data: np.ndarray, ref_data: np.ndarray, h: float) -> np.ndarray:
+        """Gaussian kernel contributions before averaging over references."""
+        ref = np.asarray(ref_data, dtype=float).ravel()
+        eva = np.asarray(eval_data, dtype=float).ravel()
 
-        n_ref, dim = ref.shape
+        n_ref = ref.size
         if n_ref == 0:
-            return np.full(eva.shape[0], -np.inf, dtype=float)
+            return np.full((eva.size, 0), -np.inf, dtype=float)
+        if h <= 0:
+            raise ValueError("Bandwidth must be strictly positive for Gaussian kernel.")
 
-        diffs = (eva[:, None, :] - ref[None, :, :]) / h
-        quad = np.sum(diffs**2, axis=2)  # shape (n_eval, n_ref)
-        log_kernel = -0.5 * quad  # Gaussian exponent
-        log_norm = dim * np.log(h) + 0.5 * dim * np.log(2 * np.pi) + np.log(n_ref)
-        return np.logaddexp.reduce(log_kernel, axis=1) - log_norm
+        diffs = (eva[:, None] - ref[None, :]) / h
+        log_kernel = -0.5 * diffs**2
+        log_kernel -= 0.5 * np.log(2.0 * np.pi)
+        log_kernel -= np.log(h)
+        return log_kernel
 
-    def _compute_epanechnikov_loglik(self, ref_data: np.ndarray, eval_data: np.ndarray, h: float) -> np.ndarray:
-        """Compute log-likelihood using the Epanechnikov kernel (currently 1D only)."""
-        ref = np.asarray(ref_data, dtype=float)
-        eva = np.asarray(eval_data, dtype=float)
+    def _compute_epanechnikov_loglik(self, eval_data: np.ndarray, ref_data: np.ndarray, h: float) -> np.ndarray:
+        """Epanechnikov kernel contributions (currently 1D only)."""
+        ref = np.asarray(ref_data, dtype=float).ravel()
+        eva = np.asarray(eval_data, dtype=float).ravel()
 
-        if ref.ndim == 2 and ref.shape[1] != 1 or eva.ndim == 2 and eva.shape[1] != 1:
-            raise NotImplementedError("Epanechnikov kernel currently supports only 1D data.")
-
-        ref = ref.reshape(-1, 1)
-        eva = eva.reshape(-1, 1)
-
-        n_ref = ref.shape[0]
+        n_ref = ref.size
         if n_ref == 0:
-            return np.full(eva.shape[0], -np.inf, dtype=float)
+            return np.full((eva.size, 0), -np.inf, dtype=float)
         if h <= 0:
             raise ValueError("Bandwidth must be strictly positive for Epanechnikov kernel.")
 
-        u = (eva - ref.T) / h  # shape (n_eval, n_ref)
-        mask = np.abs(u) <= 1.0
-
-        # Kernel contributions: K(u) = 0.75 * (1 - u^2) for |u| <= 1, else 0
+        u = (eva[:, None] - ref[None, :]) / h
         log_kernel = np.full_like(u, -np.inf, dtype=float)
-        safe_vals = 1.0 - u[mask] ** 2
-        safe_vals = np.clip(safe_vals, 0.0, None)
-        log_kernel[mask] = np.log(0.75) + np.log(safe_vals, out=safe_vals)
-
-        log_norm = np.log(n_ref) + np.log(h)
-        return np.logaddexp.reduce(log_kernel, axis=1) - log_norm
+        mask = np.abs(u) <= 1.0
+        inside = np.clip(1.0 - u[mask] ** 2, 0.0, None)
+        log_kernel[mask] = np.log(0.75) + np.log(inside) - np.log(h)
+        return log_kernel
 
     def _compute_bandwidth_silverman(self, X: np.ndarray) -> float:
         """X is currently only supported for 1D, else X_1d = X[:, 0]"""
-        std = float(np.std(X, ddof=1))
-        iqr = float(np.subtract(*np.percentile(X, [75, 25])))
+        arr = np.asarray(X, dtype=float).ravel()
+        n = arr.size
+        if n < 2:
+            raise ValueError("At least two samples are required to estimate bandwidth.")
+        std = float(np.std(arr, ddof=1))
+        iqr = float(np.subtract(*np.percentile(arr, [75, 25])))
         scale = min(std, iqr / 1.349) if iqr > 0 else std
         if scale <= 0:
             scale = std
-        return max(self.params.min_bandwidth, 0.9 * scale * X.shape[0] ** (-1.0 / 5))  # type: ignore
+        return max(self.params.min_bandwidth, 0.9 * scale * n ** (-1.0 / 5))  # type: ignore
 
     def _compute_bandwidth_scott(self, X: np.ndarray) -> float:
         """Compute bandwidth using Scott's or Silverman's rule of thumb."""
-        X = np.asarray(X, dtype=float)
-        n, d = X.shape
+        arr = np.asarray(X, dtype=float).ravel()
+        n = arr.size
         if n < 2:
             raise ValueError("At least two samples are required to estimate bandwidth.")
+        scale = float(np.std(arr, ddof=1))
+        return max(self.params.min_bandwidth, scale * n ** (-1.0 / 5))  # type: ignore
 
-        scale = float(np.sqrt(np.mean(np.var(X, axis=0, ddof=1))))
-        return max(self.params.min_bandwidth, scale * n ** (-1.0 / (d + 4)))  # type: ignore
+    def get_posterior_params(self, data: np.ndarray) -> dict:
+        """Return posterior data copy and bandwidth."""
+        return self.calc_posterior_params(data, return_dict=True)  # type: ignore
 
-    def _pairwise_sq_dists(self, A, B):
-        """Compute squared Euclidean distances between rows of A and B."""
-        A2 = np.sum(A * A, axis=1, keepdims=True)
-        B2 = np.sum(B * B, axis=1, keepdims=True).T
-        D2 = A2 + B2 - 2.0 * (A @ B.T)
-        np.maximum(D2, 0.0, out=D2)
-        return D2
+    def get_posterior_mean(self, data: np.ndarray) -> float:
+        arr = np.asarray(data, dtype=float)
+        return np.mean(arr, axis=0)
+
+    def get_posterior_variance(self, data: np.ndarray) -> float:
+        arr = np.asarray(data, dtype=float)
+        if arr.ndim == 1:
+            arr = arr[:, None]
+        posterior = self.calc_posterior_params(arr, return_dict=False)
+        posterior_h = float(posterior[-1])
+        sample_var = np.var(arr, axis=0, ddof=1)
+        if self.params.kernel == "gaussian":  # type: ignore[attr-defined]
+            return sample_var + posterior_h**2
+        # Epanechnikov second moment coefficient (beta2 = 0.2)
+        return sample_var + 0.2 * posterior_h**2
+
+    def validate_targets(self, data: np.ndarray) -> np.ndarray:
+        """Ensure numeric, finite data and sufficient sample size."""
+        arr = np.asarray(data, dtype=float)  # ravel?
+        if arr.ndim == 0:
+            raise ValueError("Data must contain at least one observation.")
+        if not np.isfinite(arr).all():
+            raise ValueError("Data for KDE must be finite real numbers.")
+        if arr.shape[0] < 2:
+            raise ValueError("KDE requires at least two observations.")
+        return arr
 
 
 class PseudoHKDEParams(BDFDistributionParams):
@@ -409,9 +403,9 @@ class PseudoHKDE(KDEBase):
         m_h = self.prior_params.m_h  # type: ignore[attr-defined]
         posterior_h = (m_h * prior_h + n * data_h) / (m_h + n)
         if return_dict:
-            return {"data": data, "posterior_h": posterior_h}
+            return {"data": data.copy(), "posterior_h": posterior_h}
         else:
-            return data, posterior_h
+            return data.copy(), posterior_h
 
 
 # NOTE/TODO: Investigate whether this even makes sense, would need to reimplement (log-)likelihood calculations
