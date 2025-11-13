@@ -195,15 +195,15 @@ class NormalMuBeta(BDFDistribution):
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
         if params is not None:
-            return self.sample_posterior_params(params, size=size, random_state=random_state)
+            return self._sample_posterior_params(params, size=size, random_state=random_state)
         elif data is not None:
-            return self.sample_posterior_data(data, size=size, random_state=random_state)  # type: ignore
+            return self._sample_posterior_data(data, size=size, random_state=random_state)  # type: ignore
         else:  # This case should not happen due to the initial check but is required for type safety
             raise ValueError(
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
 
-    def sample_posterior_params(self, params: dict[str, float], *, size: int = 1, random_state: int) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], *, size: int = 1, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution using provided parameters.
 
         Args
@@ -224,7 +224,7 @@ class NormalMuBeta(BDFDistribution):
         # Sample from the beta distribution using the calculated alpha and beta
         return beta_dist.rvs(a=alpha, b=beta, size=size, random_state=random_state)  # type: ignore
 
-    def sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
+    def _sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution using the data.
 
         Args

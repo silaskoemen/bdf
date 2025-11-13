@@ -1,771 +1,426 @@
-import warnings
+"""Poisson distribution implementations for BDF.
+
+Provides conjugate Poisson-Gamma models:
+- GammaABLambdaPoisson: Gamma(α, β) prior on rate λ (shape-rate parameterization)
+- GammaMVLambdaPoisson: Gamma prior via mean/variance (more interpretable)
+
+Both support:
+- Closed-form Bayesian evidence (NLE)
+- Negative Binomial posterior predictive
+- Efficient inference (conjugate updates)
+"""
+from typing import ClassVar, Literal
 
 import numpy as np
 from pydantic import Field
+from scipy.stats import gamma as gamma_dist
 from scipy.stats import nbinom, poisson
 
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
 from bdf.utils.constants import RANDOM_SEED
 
-
-class PoissonBase(BDFDistribution):
-    """Base class for all Poisson distribution implementations (where posterior sampling distribution remains Poisson).
-
-    All implementations use parameter lambda (rate), so sampling,
-    (log)likelihoods and return functions are all identical.
-    """
-
-    # This is just a placeholder - child classes will have their own init
-    def __init__(self, prior_params, params=None):
-        super().__init__(prior_params, params)
-
-    # Child classes MUST implement this method
-    def calc_posterior_params(self, data, return_dict=False):
-        raise NotImplementedError("Subclasses must implement calc_posterior_params")
-
-    def log_likelihood(self, data: np.ndarray) -> np.ndarray:
-        """Compute the log-likelihood of the data given the distribution.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to compute the log-likelihood for.
-
-        Returns
-        -------
-        np.ndarray
-            A numpy array containing the log-likelihood values for each data point.
-        """
-        posterior_lambda = self.calc_posterior_params(data)
-        return poisson.logpmf(data, mu=1 / posterior_lambda)
-
-    def likelihood(self, data: np.ndarray) -> np.ndarray:
-        """Compute the likelihood of the data given the distribution.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to compute the likelihood for.
-
-        Returns
-        -------
-        np.ndarray
-            A numpy array containing the likelihood values for each data point.
-        """
-        posterior_lambda = self.calc_posterior_params(data)
-        return poisson.pmf(data, mu=1 / posterior_lambda)
-
-    def nll(self, data: np.ndarray) -> float:
-        """Compute the negative log-likelihood of the data given the distribution.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to compute the negative log-likelihood for.
-
-        Returns
-        -------
-        float
-            The negative log-likelihood value.
-        """
-        return -np.sum(self.log_likelihood(data))
-
-    def sample_prior(self, size: int, random_state: int) -> np.ndarray:
-        """Sample from the prior distribution.
-
-        Prior is always defined over parameter lambda, which is the mean of the Exponential distribution.
-        To sample from this, we need to sample from the prior distribution of lambda.
-
-        Args
-        ----
-        `size` : int
-            The number of samples to draw from the prior distribution.
-
-        Returns
-        -------
-        np.ndarray
-            A numpy array containing samples drawn from the prior distribution.
-        """
-        raise NotImplementedError(
-            "Subclasses must implement sample_prior method for ExponentialBase distribution, due to",
-            "different prior distributions for each subclass.",
-        )
-
-    def sample_posterior(
-        self,
-        *,
-        data: np.ndarray | None = None,
-        params: dict[str, float] | None = None,
-        size: int = 1,
-        random_state: int = RANDOM_SEED,
-    ) -> np.ndarray:
-        """Sample from the posterior distribution.
-
-        Args
-        ----
-        `data` : np.ndarray | None, optional
-            The data to use for sampling, if available.
-        `params` : dict[str, float] | None, optional
-            Additional parameters for sampling, if available.
-        `size` : int, optional
-            The number of samples to draw from the posterior distribution, default is 1.
-
-        Returns
-        -------
-        np.ndarray
-            A numpy array containing samples drawn from the posterior distribution.
-        """
-        if params is not None:
-            return self._sample_posterior_params(params, size=size, random_state=random_state)
-        elif data is not None:
-            return self._sample_posterior_data(data, size=size, random_state=random_state)
-        else:
-            raise ValueError(
-                "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
-            )
-
-    def _sample_posterior_params(self, params: dict[str, float], *, size: int = 1, random_state: int) -> np.ndarray:
-        """Sample from the posterior distribution using provided parameters.
-
-        Args
-        ----
-        `params` : dict[str, float]
-            The posterior parameters to sample from, must include 'alpha', 'xi', and 'omega'.
-        `size` : int, optional
-            The number of samples to generate, default is 1.
-
-        Returns
-        -------
-        np.ndarray
-            Samples drawn from the posterior distribution.
-        """
-        posterior_lambda = params.get("posterior_lambda")
-        if posterior_lambda is None:
-            raise ValueError("params must contain 'posterior_lambda' key")
-        assert posterior_lambda > 0, "'posterior_lambda' parameter must be positive"
-        return poisson.rvs(mu=1 / posterior_lambda, size=size, random_state=random_state)  # type: ignore
-
-    def _sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
-        """Sample from the posterior distribution using the data.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to calculate the posterior parameters from.
-        `size` : int, optional
-            The number of samples to generate, default is 1.
-
-        Returns
-        -------
-        np.ndarray
-            Samples drawn from the posterior distribution based on the data.
-        """
-        posterior_lambda = self.calc_posterior_params(data)
-        return poisson.rvs(mu=1 / posterior_lambda, size=size, random_state=random_state)  # type: ignore
-
-    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
-        """Get the posterior mean of the distribution.
-
-        Args
-        ----
-        `data` : np.ndarray | None, optional
-            The data to calculate the posterior mean from, if available.
-        `params` : dict[str, float] | None, optional
-            The posterior parameters to use for calculating the mean, if available.
-
-        Returns
-        -------
-        float
-            The posterior mean of the distribution.
-        """
-        if params is not None:
-            return 1 / params.get("posterior_lambda")  # type: ignore
-        elif data is not None:
-            posterior_lambda = self.calc_posterior_params(data)
-            return 1 / posterior_lambda  # type: ignore
-        else:
-            raise ValueError("Either 'data' or 'params' must be provided to calculate the posterior mean.")
-
-    def get_posterior_variance(
-        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
-    ) -> float:
-        """Get the posterior variance of the distribution.
-
-        Args
-        ----
-        `data` : np.ndarray | None, optional
-            The data to calculate the posterior variance from, if available.
-        `params` : dict[str, float] | None, optional
-            The posterior parameters to use for calculating the variance, if available.
-
-        Returns
-        -------
-        float
-            The posterior variance of the distribution.
-        """
-        if params is not None:
-            return 1 / params.get("posterior_lambda")  # type: ignore
-        elif data is not None:
-            posterior_lambda = self.calc_posterior_params(data)
-            return 1 / posterior_lambda  # type: ignore
-        else:
-            raise ValueError("Either 'data' or 'params' must be provided to calculate the posterior variance.")
-
-    def get_posterior_params(self, data: np.ndarray) -> dict:
-        """Get the posterior parameters of the distribution.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to calculate the posterior parameters from.
-
-        Returns
-        -------
-        dict
-            A dictionary containing the posterior parameter 'posterior_lambda'.
-        """
-        return self.calc_posterior_params(data, return_dict=True)
-
-    def validate_targets(self, data: np.ndarray):
-        assert np.all(data > 0), "Targets have to be positive for exponential distribution."
-        assert all(np.isfinite(data)), "Targets must be finite for exponential distribution."
-        std = np.std(data)
-        assert (
-            np.isfinite(std) and std is not None and std >= 0.0
-        ), f"Standard deviation has to be finite, not None and >=0, got {std}"
+# ============================================================================
+# PARAMS CLASSES
+# ============================================================================
 
 
 class GammaABLambdaPoissonParams(BDFDistributionParams):
-    """Parameters for the Gamma prior on mean lambda with parameters alpha and theta ('AB' notation)."""
+    """Parameters for Poisson with Gamma(α, β) prior on rate λ.
 
-    alpha_lambda: float = Field(gt=0.0, description="Shape parameter of the Gamma prior for parameter lambda")
-    beta_lambda: float = Field(gt=0.0, description="Scale parameter of the Gamma prior for parameter lambda")
+    Prior: λ ~ Gamma(α, β)  [shape-rate parameterization]
+    Likelihood: y | λ ~ Poisson(λ)
+    Posterior: λ | y ~ Gamma(α + Σy, β + n)
+    Posterior predictive: y_new | y ~ NegativeBinomial(α_post, β_post/(1+β_post))
 
-    class Config:
-        """Pydantic configuration to allow extra fields and use aliases."""
-
-        extra = "forbid"
-        validate_by_name = True
-
-    def __init__(self, **data):
-        # Check for missing fields before initialization
-        missing_fields = {}
-        if "alpha_lambda" not in data:
-            missing_fields["alpha_lambda"] = self.__class__.model_fields["alpha_lambda"].default
-        if "beta_lambda" not in data:
-            missing_fields["beta_lambda"] = self.__class__.model_fields["beta_lambda"].default
-
-        super().__init__(**data)
-
-        # Issue warnings for missing fields
-        for field, default_value in missing_fields.items():
-            warnings.warn(
-                f"No value provided for '{field}', using default: {default_value}",
-                UserWarning,
-                stacklevel=2,
-            )
-
-
-class GammaABLambdaPoisson(BDFDistribution):
-    """Gamma-Poisson distribution class for Bayesian Distributional Forests.
-    This class models a Poisson distribution with a Gamma prior on the rate parameter.
+    Notes:
+    - α (alpha_lambda): shape parameter (α > 0)
+    - β (beta_lambda): rate parameter (β > 0)
+    - E[λ] = α/β, Var[λ] = α/β²
+    - NB parameterization: n=α_post, p=β_post/(1+β_post)
     """
 
-    def __init__(self, prior_params: GammaABLambdaPoissonParams | dict, params: dict | None = None):
-        """Initialize the Gamma-Poisson distribution with prior parameters.
+    # Prior hyperparameters
+    alpha_lambda: float = Field(default=1.0, gt=0, description="Shape parameter α of Gamma prior for rate λ")
+    beta_lambda: float = Field(default=1.0, gt=0, description="Rate parameter β of Gamma prior for rate λ")
 
-        Args
-        ----
-        `prior_params` : dict
-            Dictionary containing prior parameters, must include 'alpha' and 'beta'.
-        `params` : tuple, optional
-            Additional parameters for the distribution, default is None.
-        """
-        if isinstance(prior_params, dict):
-            prior_params = GammaABLambdaPoissonParams.model_validate(prior_params)  # type: ignore
-        assert isinstance(
-            prior_params, GammaABLambdaPoissonParams
-        ), "prior_params must be an instance of GammaABLambdaExponentialParams after possible conversion from dict."
-        super().__init__(prior_params, params)
-        self.alpha_lambda = prior_params.alpha_lambda
-        self.beta_lambda = prior_params.beta_lambda
-
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | dict:
-        """Calculate posterior parameters based on the data.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to calculate the posterior parameters from.
-
-        Returns
-        -------
-        tuple[float, float]
-            A tuple containing the posterior alpha and posterior beta.
-        """
-        n_events = np.sum(data)
-        n = data.shape[0]
-
-        alpha_post = self.alpha_lambda + n_events
-        beta_post = self.beta_lambda + n
-
-        if return_dict:
-            return {"posterior_lambda": alpha_post / beta_post}
-        else:
-            return alpha_post / beta_post
+    # Scoring defaults for conjugate model
+    score_method: Literal["nle", "nll"] = Field(
+        default="nle", description="Conjugate model defaults to nle (Bayesian evidence)."
+    )
+    use_posterior_predictive: bool = Field(
+        default=True, description="Use Negative Binomial posterior predictive (marginalizes λ uncertainty)."
+    )
 
 
 class GammaMVLambdaPoissonParams(BDFDistributionParams):
-    """Parameters for the Gamma prior on mean lambda with parameters mean and variance."""
+    """Parameters for Poisson with Gamma prior specified via mean/variance.
 
-    mean_lambda: float = Field(gt=0.0, description="Mean of the Gamma prior for parameter lambda.")
-    var_lambda: float = Field(gt=0.0, description="Variance of the Gamma prior for parameter lambda.")
+    Prior: λ ~ Gamma(α, β) where α = mean²/var, β = mean/var
+    Likelihood: y | λ ~ Poisson(λ)
+    Posterior: λ | y ~ Gamma(α + Σy, β + n)
+    Posterior predictive: y_new | y ~ NegativeBinomial(α_post, β_post/(1+β_post))
 
-    class Config:
-        """Pydantic configuration to allow extra fields and use aliases."""
-
-        extra = "forbid"
-        validate_by_name = True
-
-    def __init__(self, **data):
-        # Check for missing fields before initialization
-        missing_fields = {}
-        if "mean_lambda" not in data:
-            missing_fields["mean_lambda"] = self.__class__.model_fields["mean_lambda"].default
-        if "var_lambda" not in data:
-            missing_fields["var_lambda"] = self.__class__.model_fields["var_lambda"].default
-
-        super().__init__(**data)
-
-        # Issue warnings for missing fields
-        for field, default_value in missing_fields.items():
-            warnings.warn(
-                f"No value provided for '{field}', using default: {default_value}",
-                UserWarning,
-                stacklevel=2,
-            )
-
-
-class GammaMVLambdaPoisson(BDFDistribution):
-    """Gamma-Poisson distribution class for Bayesian Distributional Forests.
-    This class models a Poisson distribution with a Gamma prior on the rate parameter.
+    This parameterization is more interpretable:
+    - mean_lambda: prior expectation of rate λ
+    - var_lambda: prior uncertainty about λ
     """
 
-    def __init__(self, prior_params: GammaMVLambdaPoissonParams | dict, params: dict | None = None):
-        """Initialize the Gamma-Poisson distribution with prior parameters.
+    # Prior hyperparameters (mean-variance parameterization)
+    mean_lambda: float = Field(default=1.0, gt=0, description="Prior mean E[λ] for rate parameter")
+    var_lambda: float = Field(default=1.0, gt=0, description="Prior variance Var[λ] for rate parameter")
 
-        Args
-        ----
-        `prior_params` : dict
-            Dictionary containing prior parameters, must include 'alpha' and 'beta'.
-        `params` : tuple, optional
-            Additional parameters for the distribution, default is None.
+    # Scoring defaults
+    score_method: Literal["nle", "nll"] = Field(default="nle")
+    use_posterior_predictive: bool = Field(default=True, description="Use Negative Binomial posterior predictive.")
+
+
+# ============================================================================
+# DISTRIBUTION IMPLEMENTATIONS
+# ============================================================================
+
+
+class GammaABLambdaPoisson(BDFDistribution):
+    """Poisson-Gamma conjugate model with shape-rate (α, β) parameterization.
+
+    Supports:
+    - Closed-form Bayesian evidence (NLE)
+    - Negative Binomial posterior predictive (integrates out λ uncertainty)
+    - Efficient conjugate updates
+    """
+
+    params_cls: ClassVar[type[BDFDistributionParams]] = GammaABLambdaPoissonParams
+
+    # Capabilities
+    _supports_nle = True
+    _has_fast_loo_cv = False
+    _has_fast_kfold_cv = False
+    _supports_posterior_predictive = True
+
+    def __init__(self, params: GammaABLambdaPoissonParams):
+        super().__init__(params)
+        self.alpha_lambda = params.alpha_lambda
+        self.beta_lambda = params.beta_lambda
+
+    # ========================================================================
+    # REQUIRED METHODS
+    # ========================================================================
+
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, float]:
+        """Calculate Gamma posterior parameters for λ.
+
+        Returns dict with:
+        - posterior_alpha: Posterior shape α_post = α + Σy
+        - posterior_beta: Posterior rate β_post = β + n
+        - posterior_lambda: Posterior mean E[λ | y] = α_post/β_post
         """
-        if isinstance(prior_params, dict):
-            prior_params = GammaMVLambdaPoissonParams.model_validate(prior_params)  # type: ignore
-        assert isinstance(
-            prior_params, GammaMVLambdaPoissonParams
-        ), "prior_params must be an instance of GammaABLambdaExponentialParams after possible conversion from dict."
-        super().__init__(prior_params, params)
-        self.mean_lambda = prior_params.mean_lambda
-        self.var_lambda = prior_params.var_lambda
-
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | dict:
-        """Calculate posterior parameters based on the data.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to calculate the posterior parameters from.
-
-        Returns
-        -------
-        tuple[float, float]
-            A tuple containing the posterior alpha and posterior beta.
-        """
-        n_events = np.sum(data)
         n = data.shape[0]
+        sum_counts = np.sum(data)
 
-        alpha_lambda = self.mean_lambda**2 / self.var_lambda
-        beta_lambda = self.mean_lambda / self.var_lambda
+        # Conjugate update: Gamma(α, β) → Gamma(α + Σy, β + n)
+        alpha_post = self.alpha_lambda + sum_counts
+        beta_post = self.beta_lambda + n
 
-        alpha_post = alpha_lambda + n_events
-        beta_post = beta_lambda + n
+        # Posterior mean of λ
+        lambda_post = alpha_post / beta_post
 
-        if return_dict:
-            return {"posterior_lambda": alpha_post / beta_post}
+        return {
+            "posterior_alpha": float(alpha_post),
+            "posterior_beta": float(beta_post),
+            "posterior_lambda": float(lambda_post),
+        }
+
+    def _plugin_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
+        """Plug-in Poisson likelihood: Poisson(k | λ_post).
+
+        Uses posterior mean λ = α_post/β_post as point estimate.
+        """
+        lambda_post = params["posterior_lambda"]
+        # Poisson PMF: λ^k exp(-λ) / k!
+        return poisson.logpmf(data, mu=lambda_post)
+
+    def _num_parameters(self) -> int:
+        """Only λ is estimated."""
+        return 1
+
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
+        """Sample from posterior predictive (Negative Binomial distribution).
+
+        If use_posterior_predictive=True:
+            Sample from NegativeBinomial(n=α_post, p=β_post/(1+β_post))
+        Else:
+            Sample from Poisson(λ_post)
+        """
+        if self.params.use_posterior_predictive:
+            # Posterior predictive: Negative Binomial
+            alpha_post = params["posterior_alpha"]
+            beta_post = params["posterior_beta"]
+
+            # scipy.stats.nbinom: n (number of successes), p (success probability)
+            # Conversion: n = α_post, p = β_post/(1+β_post)
+            n_nb = alpha_post
+            p_nb = beta_post / (1 + beta_post)
+
+            return np.array(nbinom.rvs(n=n_nb, p=p_nb, size=size, random_state=random_state))
         else:
-            return alpha_post / beta_post
+            # Plug-in: Poisson(λ_post)
+            lambda_post = params["posterior_lambda"]
+            return np.array(poisson.rvs(mu=lambda_post, size=size, random_state=random_state))
 
-
-class NormalMeanPoissonParams(BDFDistributionParams):
-    """Parameters for the Normal prior on mean lambda with parameters mu and sigma."""
-
-    mu_mean: float = Field(gt=0.0, description="Mean of the Normal prior for mean.")
-    sigma_mean: float = Field(gt=0.0, description="Standard deviation of the Normal prior for mean.")
-
-    class Config:
-        """Pydantic configuration to allow extra fields and use aliases."""
-
-        extra = "forbid"
-        validate_by_name = True
-
-    def __init__(self, **data):
-        # Check for missing fields before initialization
-        missing_fields = {}
-        if "mu_mean" not in data:
-            missing_fields["mu_mean"] = self.__class__.model_fields["mu_mean"].default
-        if "sigma_mean" not in data:
-            missing_fields["sigma_mean"] = self.__class__.model_fields["sigma_mean"].default
-
-        super().__init__(**data)
-
-        # Issue warnings for missing fields
-        for field, default_value in missing_fields.items():
-            warnings.warn(
-                f"No value provided for '{field}', using default: {default_value}",
-                UserWarning,
-                stacklevel=2,
-            )
-
-
-class NormalMeanPoisson(PoissonBase):
-    """Exponential distribution with a Normal prior on mean lambda.
-
-    This class implements the Exponential distribution with a Normal prior on the mean lambda.
-    The posterior is also an Exponential distribution, and the sampling distribution is again an Exponential distribution.
-    """
-
-    def __init__(self, prior_params: NormalMeanPoissonParams, params: dict | None = None):
-        if isinstance(prior_params, dict):
-            prior_params = NormalMeanPoissonParams.model_validate(prior_params)  # type: ignore
-        assert isinstance(
-            prior_params, NormalMeanPoissonParams
-        ), "prior_params must be an instance of NormalMeanPoissonParams after possible conversion from dict."
-        super().__init__(prior_params, params)
-        self.mu_mean = prior_params.mu_mean
-        self.sigma_mean = prior_params.sigma_mean
-
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | dict:
-        """Calculate the posterior parameters based on the data. Uses the Normal distribution
-        of the sample mean under the CLT, calculates a standard Normal-Normal posterior.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to calculate the posterior parameters from.
-        `return_dict` : bool, optional
-            If True, returns a dictionary with the posterior parameter 'posterior_lambda'.
-            If False, returns the posterior parameter directly. Default is False.
-
-        Returns
-        -------
-        float | dict
-            The posterior parameter 'posterior_lambda' as a float if `return_dict` is False,
-            or as a dictionary if `return_dict` is True.
-        """
-        n = len(data)
-        eps = 1e-10
-        sample_mean = data.mean()
-        sample_var = np.var(data, ddof=1)
-        posterior_mean = (
-            (n / (sample_var + eps)) * sample_mean + (1 / (self.sigma_mean**2 + eps)) * self.mu_mean
-        ) / ((n / (sample_var + eps)) + (1 / (self.sigma_mean**2 + eps)))
-
-        if return_dict:
-            return {"posterior_lambda": 1 / posterior_mean}  # type: ignore
-        else:
-            return 1 / posterior_mean  # type: ignore
-
-
-class PseudoLambdaPoissonParams(BDFDistributionParams):
-    """Parameters for the Pseudo prior on mean lambda with mean and strength/number m."""
-
-    mean_lambda: float = Field(gt=0.0, description="Mean of the Pseudo prior for parameter lambda.")
-    m_lambda: float = Field(gt=0.0, description="Strength or number of samples in the Pseudo prior.")
-
-    class Config:
-        """Pydantic configuration to allow extra fields and use aliases."""
-
-        extra = "forbid"
-        validate_by_name = True
-
-    def __init__(self, **data):
-        # Check for missing fields before initialization
-        missing_fields = {}
-        if "mean_lambda" not in data:
-            missing_fields["mean_lambda"] = self.__class__.model_fields["mean_lambda"].default
-        if "m_lambda" not in data:
-            missing_fields["m_lambda"] = self.__class__.model_fields["m_lambda"].default
-
-        super().__init__(**data)
-
-        # Issue warnings for missing fields
-        for field, default_value in missing_fields.items():
-            warnings.warn(
-                f"No value provided for '{field}', using default: {default_value}",
-                UserWarning,
-                stacklevel=2,
-            )
-
-
-class PseudoLambdaPoisson(PoissonBase):
-    """Exponential distribution with a Pseudo prior on mean lambda.
-
-    This class implements the Exponential distribution with a Pseudo prior on the mean lambda.
-    The posterior is also an Exponential distribution, and the sampling distribution is again an Exponential distribution.
-    """
-
-    def __init__(self, prior_params: PseudoLambdaPoissonParams, params: dict | None = None):
-        if isinstance(prior_params, dict):
-            prior_params = PseudoLambdaPoissonParams.model_validate(prior_params)  # type: ignore
-        assert isinstance(
-            prior_params, PseudoLambdaPoissonParams
-        ), "prior_params must be an instance of PseudoLambdaPoissonParams after possible conversion from dict."
-        super().__init__(prior_params, params)
-        self.mean_lambda = prior_params.mean_lambda
-        self.m_lambda = prior_params.m_lambda
-
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | dict:
-        """Calculate the posterior parameters based on the data."""
-        n = len(data)
-        sum_data = np.sum(data)
-
-        posterior_lambda = (self.mean_lambda * self.m_lambda + sum_data) / (self.m_lambda + n)
-
-        if return_dict:
-            return {"posterior_lambda": posterior_lambda}
-        else:
-            return posterior_lambda
-
-
-class PoissonPPBase(BDFDistribution):
-    """Base class for all Poisson data implementations that use the NB posterior predictive
-    distribution. Because the NB parameters are the same for all sampling and likelihood calculations,
-    can be unified once and subclasses by specific parameterizations.
-    """
-
-    # This is just a placeholder - child classes will have their own init
-    def __init__(self, prior_params, params=None):
-        super().__init__(prior_params, params)
-
-    # Child classes MUST implement this method
-    def calc_posterior_params(self, data, return_dict=False):
-        raise NotImplementedError("Subclasses must implement calc_posterior_params")
-
-    def log_likelihood(self, data: np.ndarray) -> np.ndarray:
-        """Compute the log-likelihood of the data given the distribution.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to compute the log-likelihood for.
-
-        Returns
-        -------
-        np.ndarray
-            A numpy array containing the log-likelihood values for each data point.
-        """
-        posterior_alpha, posterior_beta = self.calc_posterior_params(data)
-        return nbinom.logpmf(data, n=posterior_alpha, p=posterior_beta / (1 + posterior_beta))
-
-    def likelihood(self, data: np.ndarray) -> np.ndarray:
-        """Compute the likelihood of the data given the distribution.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to compute the likelihood for.
-
-        Returns
-        -------
-        np.ndarray
-            A numpy array containing the likelihood values for each data point.
-        """
-        posterior_alpha, posterior_beta = self.calc_posterior_params(data)
-        return nbinom.pmf(data, n=posterior_alpha, p=posterior_beta / (1 + posterior_beta))
-
-    def nll(self, data: np.ndarray) -> float:
-        """Compute the negative log-likelihood of the data given the distribution.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to compute the negative log-likelihood for.
-
-        Returns
-        -------
-        float
-            The negative log-likelihood value.
-        """
-        return -np.sum(self.log_likelihood(data))
-
-    def sample_prior(self, size: int, random_state: int) -> np.ndarray:
-        """Sample from the prior distribution.
-
-        Prior is always defined over parameter lambda, which is the mean of the Exponential distribution.
-        To sample from this, we need to sample from the prior distribution of lambda.
-
-        Args
-        ----
-        `size` : int
-            The number of samples to draw from the prior distribution.
-
-        Returns
-        -------
-        np.ndarray
-            A numpy array containing samples drawn from the prior distribution.
-        """
-        raise NotImplementedError(
-            "Subclasses must implement sample_prior method for ExponentialBase distribution, due to",
-            "different prior distributions for each subclass.",
-        )
-
-    def sample_posterior(
-        self,
-        *,
-        data: np.ndarray | None = None,
-        params: dict[str, float] | None = None,
-        size: int = 1,
-        random_state: int = RANDOM_SEED,
-    ) -> np.ndarray:
-        """Sample from the posterior distribution.
-
-        Args
-        ----
-        `data` : np.ndarray | None, optional
-            The data to use for sampling, if available.
-        `params` : dict[str, float] | None, optional
-            Additional parameters for sampling, if available.
-        `size` : int, optional
-            The number of samples to draw from the posterior distribution, default is 1.
-
-        Returns
-        -------
-        np.ndarray
-            A numpy array containing samples drawn from the posterior distribution.
-        """
-        if params is not None:
-            return self._sample_posterior_params(params, size=size, random_state=random_state)
-        elif data is not None:
-            return self._sample_posterior_data(data, size=size, random_state=random_state)
-        else:
-            raise ValueError(
-                "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
-            )
-
-    def _sample_posterior_params(self, params: dict[str, float], *, size: int = 1, random_state: int) -> np.ndarray:
-        """Sample from the posterior distribution using provided parameters.
-
-        Args
-        ----
-        `params` : dict[str, float]
-            The posterior parameters to sample from, must include 'alpha', 'xi', and 'omega'.
-        `size` : int, optional
-            The number of samples to generate, default is 1.
-
-        Returns
-        -------
-        np.ndarray
-            Samples drawn from the posterior distribution.
-        """
-        posterior_alpha = params.get("posterior_alpha")
-        posterior_beta = params.get("posterior_beta")
-        if posterior_alpha is None or posterior_beta is None:
-            raise ValueError("params must contain 'posterior_alpha' and 'posterior_beta' keys")
-        assert posterior_alpha > 0, "'posterior_alpha' parameter must be positive"
-        assert posterior_beta > 0, "'posterior_beta' parameter must be positive"
-        return nbinom.rvs(n=posterior_alpha, p=posterior_beta / (1 + posterior_beta), size=size, random_state=random_state)  # type: ignore
-
-    def _sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
-        """Sample from the posterior distribution using the data.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to calculate the posterior parameters from.
-        `size` : int, optional
-            The number of samples to generate, default is 1.
-
-        Returns
-        -------
-        np.ndarray
-            Samples drawn from the posterior distribution based on the data.
-        """
-        posterior_alpha, posterior_beta = self.calc_posterior_params(data)
-        return nbinom.rvs(n=posterior_alpha, p=posterior_beta / (1 + posterior_beta), size=size, random_state=random_state)  # type: ignore
+    def validate_targets(self, data: np.ndarray):
+        """Validate data for Poisson distribution."""
+        if data.ndim != 1:
+            raise ValueError(f"Data must be 1-dimensional, got shape {data.shape}")
+        if len(data) == 0:
+            raise ValueError("Data cannot be empty")
+        if not np.all(data >= 0):
+            raise ValueError("Poisson data must be non-negative integers (k ≥ 0)")
+        if not np.all(data == np.floor(data)):
+            raise ValueError("Poisson data must be integers")
+        if not np.all(np.isfinite(data)):
+            raise ValueError("Data contains non-finite values")
 
     def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
-        """Get the posterior mean of the distribution.
+        """Get posterior mean of the distribution.
 
-        Args
-        ----
-        `data` : np.ndarray | None, optional
-            The data to calculate the posterior mean from, if available.
-        `params` : dict[str, float] | None, optional
-            The posterior parameters to use for calculating the mean, if available.
-
-        Returns
-        -------
-        float
-            The posterior mean of the distribution.
+        For Poisson(λ), the mean is λ.
+        For posterior predictive NB(α, β), mean = α(1-p)/p = α/β.
         """
-        if params is not None:
-            posterior_alpha, posterior_beta = params.get("posterior_alpha"), params.get("posterior_beta")  # type: ignore
-        elif data is not None:
-            posterior_alpha, posterior_beta = self.calc_posterior_params(data)
+        if params is None:
+            if data is None:
+                raise ValueError("Provide either 'data' or 'params'")
+            params = self.calc_posterior_params(data)
+
+        if self.params.use_posterior_predictive:
+            # Negative Binomial mean: n(1-p)/p = α/β
+            alpha_post = params["posterior_alpha"]
+            beta_post = params["posterior_beta"]
+            return alpha_post / beta_post
         else:
-            raise ValueError("Either 'data' or 'params' must be provided to calculate the posterior mean.")
-        return posterior_alpha * posterior_beta / (1 + posterior_beta)  # type: ignore
+            # Poisson mean: λ
+            return params["posterior_lambda"]
 
     def get_posterior_variance(
         self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
     ) -> float:
-        """Get the posterior variance of the distribution.
+        """Get posterior variance of the distribution.
 
-        Args
-        ----
-        `data` : np.ndarray | None, optional
-            The data to calculate the posterior variance from, if available.
-        `params` : dict[str, float] | None, optional
-            The posterior parameters to use for calculating the variance, if available.
-
-        Returns
-        -------
-        float
-            The posterior variance of the distribution.
+        For Poisson(λ), variance = λ.
+        For posterior predictive NB(α, β), variance = α(1-p)/p² = α(1+β)/β².
         """
-        if params is not None:
-            posterior_alpha, posterior_beta = params.get("posterior_alpha"), params.get("posterior_beta")  # type: ignore
-        elif data is not None:
-            posterior_alpha, posterior_beta = self.calc_posterior_params(data)
+        if params is None:
+            if data is None:
+                raise ValueError("Provide either 'data' or 'params'")
+            params = self.calc_posterior_params(data)
+
+        if self.params.use_posterior_predictive:
+            # Negative Binomial variance: n(1-p)/p² = α(1+β)/β²
+            alpha_post = params["posterior_alpha"]
+            beta_post = params["posterior_beta"]
+            return alpha_post * (1 + beta_post) / (beta_post**2)
         else:
-            raise ValueError("Either 'data' or 'params' must be provided to calculate the posterior variance.")
-        raise NotImplementedError("Variance from alpha and beta of Gamma distribution not implemented yet")
+            # Poisson variance: λ
+            return params["posterior_lambda"]
 
-    def get_posterior_params(self, data: np.ndarray) -> dict:
-        """Get the posterior parameters of the distribution.
+    # ========================================================================
+    # OPTIONAL METHODS (OVERRIDE FOR EFFICIENCY)
+    # ========================================================================
 
-        NOTE: Calculation of params estiates posterior alpha and beta from the Gamma distribution,
-        from which n and p of the negative binomial distribution can be calculated.
-        At the moment, 'n' and 'p' are also valid keys to return all parameter versions
+    def log_evidence(self, data: np.ndarray) -> float:
+        """Exact Bayesian evidence for Poisson-Gamma conjugate.
 
-        Args
-        ----
-        `data` : np.ndarray
-            The data to calculate the posterior parameters from.
+        p(y | prior) = ∫ p(y | λ) p(λ) dλ
 
-        Returns
-        -------
-        dict
-            A dictionary containing the posterior parameter 'posterior_alpha'.
+        Closed form for Gamma-Poisson:
+        log p(y) = log Γ(α + Σy) - log Γ(α) + α log β - (α + Σy) log(β + n) - Σ log(y!)
         """
-        return self.calc_posterior_params(data, return_dict=True)
+        from scipy.special import gammaln
+
+        n = data.shape[0]
+        sum_counts = np.sum(data)
+
+        alpha_post = self.alpha_lambda + sum_counts
+        beta_post = self.beta_lambda + n
+
+        # Log evidence = log marginal likelihood
+        log_ev = gammaln(alpha_post) - gammaln(self.alpha_lambda)
+        log_ev += self.alpha_lambda * np.log(self.beta_lambda)
+        log_ev -= alpha_post * np.log(beta_post)
+
+        # Subtract log factorials (Poisson normalization)
+        log_ev -= np.sum(gammaln(data + 1))
+
+        return float(log_ev)
+
+    def _posterior_predictive_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
+        """Posterior predictive: Negative Binomial(α_post, β_post/(1+β_post)).
+
+        Integrates out uncertainty in λ over the Gamma posterior.
+
+        NB PMF: f(k | n, p) = C(k+n-1, k) p^n (1-p)^k
+        where n = α_post, p = β_post/(1+β_post)
+        """
+        alpha_post = params["posterior_alpha"]
+        beta_post = params["posterior_beta"]
+
+        # scipy.stats.nbinom: n (number of successes), p (success probability)
+        n_nb = alpha_post
+        p_nb = beta_post / (1 + beta_post)
+
+        return nbinom.logpmf(data, n=n_nb, p=p_nb)
+
+    def sample_prior(self, size: int, random_state: int = RANDOM_SEED) -> np.ndarray:
+        """Sample λ from prior Gamma(α, β).
+
+        Returns rate parameters λ (not Poisson samples).
+        To get prior predictive samples, draw λ ~ Gamma(α, β) then k ~ Poisson(λ).
+        """
+        rng = np.random.default_rng(random_state)
+        # scipy.stats.gamma: a=α (shape), scale=1/β (rate→scale conversion)
+        return np.array(gamma_dist.rvs(a=self.alpha_lambda, scale=1.0 / self.beta_lambda, size=size, random_state=rng))
+
+
+class GammaMVLambdaPoisson(BDFDistribution):
+    """Poisson-Gamma conjugate model with mean-variance parameterization.
+
+    Same as GammaABLambdaPoisson, but prior specified via:
+    - mean_lambda = E[λ]
+    - var_lambda = Var[λ]
+
+    Internally converts to α = mean²/var, β = mean/var.
+    """
+
+    params_cls: ClassVar[type[BDFDistributionParams]] = GammaMVLambdaPoissonParams
+
+    _supports_nle = True
+    _has_fast_loo_cv = False
+    _has_fast_kfold_cv = False
+    _supports_posterior_predictive = True
+
+    def __init__(self, params: GammaMVLambdaPoissonParams):
+        super().__init__(params)
+        self.mean_lambda = params.mean_lambda
+        self.var_lambda = params.var_lambda
+
+        # Convert mean-variance to shape-rate
+        self.alpha_lambda = self.mean_lambda**2 / self.var_lambda
+        self.beta_lambda = self.mean_lambda / self.var_lambda
+
+    # ========================================================================
+    # REQUIRED METHODS (identical to GammaABLambdaPoisson after conversion)
+    # ========================================================================
+
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, float]:
+        """Calculate Gamma posterior parameters."""
+        n = data.shape[0]
+        sum_counts = np.sum(data)
+
+        alpha_post = self.alpha_lambda + sum_counts
+        beta_post = self.beta_lambda + n
+        lambda_post = alpha_post / beta_post
+
+        return {
+            "posterior_alpha": float(alpha_post),
+            "posterior_beta": float(beta_post),
+            "posterior_lambda": float(lambda_post),
+        }
+
+    def _plugin_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
+        """Plug-in Poisson likelihood."""
+        lambda_post = params["posterior_lambda"]
+        return poisson.logpmf(data, mu=lambda_post)
+
+    def _num_parameters(self) -> int:
+        return 1
+
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
+        """Sample from posterior predictive or plug-in."""
+        if self.params.use_posterior_predictive:
+            alpha_post = params["posterior_alpha"]
+            beta_post = params["posterior_beta"]
+
+            n_nb = alpha_post
+            p_nb = beta_post / (1 + beta_post)
+
+            return np.array(nbinom.rvs(n=n_nb, p=p_nb, size=size, random_state=random_state))
+        else:
+            lambda_post = params["posterior_lambda"]
+            return np.array(poisson.rvs(mu=lambda_post, size=size, random_state=random_state))
 
     def validate_targets(self, data: np.ndarray):
-        assert np.all(data > 0), "Targets have to be positive for exponential distribution."
-        assert all(np.isfinite(data)), "Targets must be finite for exponential distribution."
-        std = np.std(data)
-        assert (
-            np.isfinite(std) and std is not None and std >= 0.0
-        ), f"Standard deviation has to be finite, not None and >=0, got {std}"
+        """Validate data."""
+        if data.ndim != 1:
+            raise ValueError(f"Data must be 1-dimensional, got shape {data.shape}")
+        if len(data) == 0:
+            raise ValueError("Data cannot be empty")
+        if not np.all(data >= 0):
+            raise ValueError("Poisson data must be non-negative integers (k ≥ 0)")
+        if not np.all(data == np.floor(data)):
+            raise ValueError("Poisson data must be integers")
+        if not np.all(np.isfinite(data)):
+            raise ValueError("Data contains non-finite values")
+
+    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
+        """Get posterior mean."""
+        if params is None:
+            if data is None:
+                raise ValueError("Provide either 'data' or 'params'")
+            params = self.calc_posterior_params(data)
+
+        if self.params.use_posterior_predictive:
+            alpha_post = params["posterior_alpha"]
+            beta_post = params["posterior_beta"]
+            return alpha_post / beta_post
+        else:
+            return params["posterior_lambda"]
+
+    def get_posterior_variance(
+        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
+    ) -> float:
+        """Get posterior variance."""
+        if params is None:
+            if data is None:
+                raise ValueError("Provide either 'data' or 'params'")
+            params = self.calc_posterior_params(data)
+
+        if self.params.use_posterior_predictive:
+            alpha_post = params["posterior_alpha"]
+            beta_post = params["posterior_beta"]
+            return alpha_post * (1 + beta_post) / (beta_post**2)
+        else:
+            return params["posterior_lambda"]
+
+    # ========================================================================
+    # OPTIONAL METHODS
+    # ========================================================================
+
+    def log_evidence(self, data: np.ndarray) -> float:
+        """Exact Bayesian evidence."""
+        from scipy.special import gammaln
+
+        n = data.shape[0]
+        sum_counts = np.sum(data)
+
+        alpha_post = self.alpha_lambda + sum_counts
+        beta_post = self.beta_lambda + n
+
+        log_ev = gammaln(alpha_post) - gammaln(self.alpha_lambda)
+        log_ev += self.alpha_lambda * np.log(self.beta_lambda)
+        log_ev -= alpha_post * np.log(beta_post)
+        log_ev -= np.sum(gammaln(data + 1))
+
+        return float(log_ev)
+
+    def _posterior_predictive_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
+        """Posterior predictive: Negative Binomial."""
+        alpha_post = params["posterior_alpha"]
+        beta_post = params["posterior_beta"]
+
+        n_nb = alpha_post
+        p_nb = beta_post / (1 + beta_post)
+
+        return nbinom.logpmf(data, n=n_nb, p=p_nb)
+
+    def sample_prior(self, size: int, random_state: int = RANDOM_SEED) -> np.ndarray:
+        """Sample λ from prior Gamma(α, β)."""
+        rng = np.random.default_rng(random_state)
+        return np.array(gamma_dist.rvs(a=self.alpha_lambda, scale=1.0 / self.beta_lambda, size=size, random_state=rng))

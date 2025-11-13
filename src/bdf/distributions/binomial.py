@@ -204,7 +204,7 @@ class BetaBinomial(BDFDistribution):
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
 
-    def sample_posterior_params(
+    def _sample_posterior_params(
         self, params: dict[str, float], *, size: int = 1, random_state: int = RANDOM_SEED
     ) -> np.ndarray:
         """Sample from the posterior parameters of the distribution.

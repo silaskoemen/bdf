@@ -1,4 +1,5 @@
 import warnings
+from typing import Any
 
 import numpy as np
 from pydantic import Field
@@ -8,7 +9,7 @@ from bdf.utils.constants import RANDOM_SEED
 from .bdf_distribution import BDFDistribution, BDFDistributionParams
 
 
-class KDEParams(BDFDistributionParams):
+class KDEBaseParams(BDFDistributionParams):
     """Parameters for the KDE distribution.
 
     Attributes
@@ -82,7 +83,7 @@ class KDEBase(BDFDistribution):
     (log-)likelihood and sampling methods are implemented here.
     """
 
-    def __init__(self, prior_params: BDFDistributionParams, params: KDEParams):
+    def __init__(self, prior_params: BDFDistributionParams, params: KDEBaseParams):
         super().__init__(prior_params=prior_params, params=params)
 
     def nll(self, data: np.ndarray) -> float:
@@ -294,6 +295,54 @@ class KDEBase(BDFDistribution):
         scale = float(np.std(arr, ddof=1))
         return max(self.params.min_bandwidth, scale * n ** (-1.0 / 5))  # type: ignore
 
+    def _sample_posterior_params(self, params: dict[str, Any], size: int, random_state: int) -> np.ndarray:
+        data, h = params["data"], params.get("posterior_h", params["h"])
+        return self._sample_posterior_kernel(data, h, size, random_state)
+
+    def _sample_posterior_data(self, data: np.ndarray, size: int, random_state: int) -> np.ndarray:
+        """Sample from the posterior KDE using given data and computed bandwidth."""
+        params = self.calc_posterior_params(data, return_dict=True)
+        return self._sample_posterior_params(params, size, random_state)  # type: ignore
+
+    def _sample_posterior_kernel(self, data: np.ndarray, h: float, size: int, random_state: int) -> np.ndarray:
+        data = np.asarray(data, dtype=float)
+        if data.size == 0:
+            raise ValueError("No reference data available for KDE sampling.")
+        if h <= 0:
+            raise ValueError("Bandwidth must be strictly positive.")
+
+        rng = np.random.default_rng(random_state)
+        picked = rng.integers(0, data.size, size=size)
+        centers = data[picked]
+
+        match self.params.kernel:  # type: ignore[attr-defined]
+            case "gaussian":
+                noise = rng.normal(loc=0.0, scale=h, size=size)
+                return centers + noise
+            case "epanechnikov":
+                noise = h * self._draw_epanechnikov(size=size, rng=rng)
+                return centers + noise
+            case _:
+                raise ValueError("Unsupported kernel type for posterior sampling.")
+
+    @staticmethod
+    def _draw_epanechnikov(*, size: int, rng: np.random.Generator) -> np.ndarray:
+        samples = np.empty(size, dtype=float)
+        filled = 0
+        while filled < size:
+            remaining = size - filled
+            candidate = rng.uniform(-1.0, 1.0, size=remaining)
+            accept = rng.uniform(0.0, 1.0, size=remaining) <= (1.0 - candidate**2)
+            num_accept = int(np.sum(accept))
+            if num_accept:
+                samples[filled : filled + num_accept] = candidate[accept]
+                filled += num_accept
+        return samples
+
+    def sample_prior(self, size: int) -> np.ndarray:
+        """Sample from the prior KDE using prior parameters."""
+        raise NotImplementedError("Sampling from prior not possible as likelihood inherently requires data.")
+
     def get_posterior_params(self, data: np.ndarray) -> dict:
         """Return posterior data copy and bandwidth."""
         return self.calc_posterior_params(data, return_dict=True)  # type: ignore
@@ -370,16 +419,16 @@ class PseudoHKDE(KDEBase):
     Uses Gaussian kernel with isotropic bandwidth for non-parametric density estimation.
     """
 
-    def __init__(self, prior_params: dict | PseudoHKDEParams, params: dict | KDEParams | None = None):
+    def __init__(self, prior_params: dict | PseudoHKDEParams, params: dict | KDEBaseParams | None = None):
         if isinstance(prior_params, dict):
             prior_params = PseudoHKDEParams.model_validate(prior_params)  # type: ignore
         assert isinstance(
             prior_params, PseudoHKDEParams
         ), "prior_params must be an instance of NormalNormalParams after possible conversion from dict."
         if params is None:  # keep consistent with other distributions, but needed here
-            params = KDEParams.model_validate({})  # type: ignore
+            params = KDEBaseParams.model_validate({})  # type: ignore
         else:
-            params = KDEParams.model_validate(params)  # type: ignore
+            params = KDEBaseParams.model_validate(params)  # type: ignore
         super().__init__(prior_params=prior_params, params=params)
 
     def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> dict | tuple:
@@ -450,16 +499,16 @@ class PenalizedHKDE(KDEBase):
     The bandwidth is estimated by minimizing the penalized negative log-likelihood.
     """
 
-    def __init__(self, prior_params: dict | PenalizedHKDEParams, params: dict | KDEParams | None = None):
+    def __init__(self, prior_params: dict | PenalizedHKDEParams, params: dict | KDEBaseParams | None = None):
         if isinstance(prior_params, dict):
             prior_params = PenalizedHKDEParams.model_validate(prior_params)  # type: ignore
         assert isinstance(
             prior_params, PenalizedHKDEParams
         ), "prior_params must be an instance of PenalizedHKDEParams after possible conversion from dict."
         if params is None:  # keep consistent with other distributions, but needed here
-            params = KDEParams.model_validate({})  # type: ignore
+            params = KDEBaseParams.model_validate({})  # type: ignore
         else:
-            params = KDEParams.model_validate(params)  # type: ignore
+            params = KDEBaseParams.model_validate(params)  # type: ignore
         super().__init__(prior_params=prior_params, params=params)
 
     def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> dict | tuple:
@@ -484,3 +533,43 @@ class PenalizedHKDE(KDEBase):
             return {"data": data, "posterior_h": posterior_h}
         else:
             return data, posterior_h
+
+
+class KDE(KDEBase):
+    """
+    Kernel Density Estimation distribution. Non-Bayesian version with `prior_params` None.
+    """
+
+    def __init__(self, prior_params: dict | BDFDistributionParams, params: dict | KDEBaseParams | None = None):
+        if isinstance(prior_params, dict):
+            prior_params = BDFDistributionParams.model_validate(prior_params)  # type: ignore
+        assert isinstance(
+            prior_params, BDFDistributionParams
+        ), "prior_params must be an instance of BDFDistributionParams after possible conversion from dict."
+        if params is None:  # keep consistent with other distributions, but needed here
+            params = KDEBaseParams.model_validate({})  # type: ignore
+        else:
+            params = KDEBaseParams.model_validate(params)  # type: ignore
+        super().__init__(prior_params=prior_params, params=params)
+
+    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> dict | tuple:
+        """Calculate the posterior bandwidth using a pseudo-Bayesian approach.
+
+        The posterior bandwidth is a weighted average of the prior bandwidth and the
+        bandwidth estimated from the data using Silverman's rule of thumb.
+
+        Args:
+            data (np.ndarray): The input data for bandwidth estimation.
+            return_dict (bool): If True, return the parameters as a dictionary.
+
+        Returns:
+            dict or tuple: The posterior parameters as a dictionary or tuple.
+        """
+        n = len(data)
+        if n < 2:
+            raise ValueError("At least two data points are required to estimate bandwidth.")
+        data_h = self._calc_data_bandwidth(data)
+        if return_dict:
+            return {"data": data.copy(), "h": data_h}
+        else:
+            return data.copy(), data_h

@@ -184,15 +184,15 @@ class SHASHBase(BDFDistribution):
             Samples from the posterior distribution.
         """
         if params is not None:
-            return self.sample_posterior_params(params, size=size, random_state=random_state)
+            return self._sample_posterior_params(params, size=size, random_state=random_state)
         elif data is not None:
-            return self.sample_posterior_data(data, size=size, random_state=random_state)
+            return self._sample_posterior_data(data, size=size, random_state=random_state)
         else:
             raise ValueError(
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
 
-    def sample_posterior_params(
+    def _sample_posterior_params(
         self, params: dict[str, float], *, size: int = 1, random_state: int = RANDOM_SEED
     ) -> np.ndarray:
         """Sample from the posterior distribution given parameters.
@@ -228,7 +228,7 @@ class SHASHBase(BDFDistribution):
         # NOTE: Summary article uses + epsilon, could change
         return mu + sigma * np.sinh((np.arcsinh(z) - epsilon) / delta)
 
-    def sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int = RANDOM_SEED) -> np.ndarray:
+    def _sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int = RANDOM_SEED) -> np.ndarray:
         """Sample from the posterior distribution given data.
 
         Args
@@ -246,4 +246,4 @@ class SHASHBase(BDFDistribution):
             Samples from the posterior distribution.
         """
         posterior_params = self.calc_posterior_params(data, return_dict=True)
-        return self.sample_posterior_params(posterior_params, size=size, random_state=random_state)
+        return self._sample_posterior_params(posterior_params, size=size, random_state=random_state)

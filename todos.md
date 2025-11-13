@@ -4,17 +4,16 @@
 ## BDFRegressor
 - [ ] Add None/numeric/NaN checks to `validate_data` before `fit` and `predict`
 - [ ] Parallelize fit (and possibly predict) methods with `joblib`, compare for small to large data
-- [x] Implement exponential with Lomax PP
 - [ ] Implement Poisson-Gamma, think about whether to use `n` and `p` for PP case as params bc only those needed, evaluate and possibly change
 - [ ] Implement Gamma-Gamma
-- [ ] Implement KDE density (only Gaussian?) with x-fold cv and nll/crps for split finding
-- [ ] Implement DistKDL with KDE in terminal leaf, both with `PseudoHKDE` and `PenalizedHKDE` to include (e.g. all-data `h` and strength `m` vs `log(h)` penalty as prior regularizer)
+- [ ] KDL should use params dict that has `dist_params`, `kde_params` and `kdl_params` keys to separate concerns
 - [ ] Implement Multinomial (dirichlet prior) distribution
 - [ ] Implement relevant other distributions for certain use cases (e.g. Weibull, Gompertz, Uniform, Negative Binomial, ...) and use CLT mean/pseudo prior if no conjugate prior is available
 - [ ] Build eval metrics for probabilistic outputs
 - [ ] Write tests for all distributions, expose nll from Rust & check parity
 - [ ] Experiment with creation of candidate thresholds, currently `closest_observation`
 - [ ] Implement pipeline for fitting and predicting with all comparison models on same data, output final best scores to report in paper.
+- [ ] Could implement lambdas as function of log(n)/n (or /2n) with factor to enable theoretical bounds
 
 ## BDFClassifier
 - [ ] Implement basic Beta prior, Binomial likelihood

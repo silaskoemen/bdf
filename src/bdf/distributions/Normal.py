@@ -1,425 +1,404 @@
-import warnings
+from typing import ClassVar, Literal
 
 import numpy as np
 from pydantic import Field
 from scipy.stats import norm
+from scipy.stats import t as student_t
 
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
 from bdf.utils.constants import RANDOM_SEED
 
+# ============================================================================
+# PARAMS CLASSES
+# ============================================================================
 
-class NormalBase(BDFDistribution):
-    """Base class for Normal distributions in Bayesian Distributional Forests."""
 
-    # Child classes MUST implement this method
-    def calc_posterior_params(self, data, return_dict=False):
-        raise NotImplementedError("Subclasses must implement calc_posterior_params")
+class NormalMuNormalParams(BDFDistributionParams):
+    """Parameters for Normal-Normal conjugate model (known variance).
 
-    def nll(self, data: np.ndarray) -> float:
-        """Compute the negative log-likelihood of the data given the distribution."""
-        return -np.sum(self.log_likelihood(data))
+    Prior: μ ~ N(μ₀, σ_μ²)
+    Likelihood: y | μ ~ N(μ, σ²) where σ estimated from data
+    Posterior: μ | y ~ N(μₙ, σₙ²)
+    """
 
-    def likelihood(self, data: np.ndarray) -> np.ndarray:
-        """Compute the likelihood of the data given the distribution."""
-        posterior_mu, posterior_sigma = self.calc_posterior_params(data)
-        return (1 / (posterior_sigma * np.sqrt(2 * np.pi))) * np.exp(
-            -0.5 * ((data - posterior_mu) / posterior_sigma) ** 2  # type: ignore
+    # Prior hyperparameters
+    mu_mu: float = Field(default=0.0, description="Prior mean for μ")
+    sigma_mu: float = Field(default=1.0, gt=0, description="Prior std for μ")
+
+    # Scoring defaults for conjugate model
+    score_method: Literal["nle", "nll"] = Field(
+        default="nle", description="Conjugate model defaults to nle (Bayesian evidence)."
+    )
+    use_posterior_predictive: bool = Field(
+        default=True, description="Use Student's t posterior predictive (marginalizes μ uncertainty)."
+    )
+
+
+class NormGammaNormalParams(BDFDistributionParams):
+    """Parameters for Normal-Gamma conjugate model (unknown mean and variance).
+
+    Prior: μ | σ² ~ N(μ₀, σ²/n₀), σ² ~ InvGamma(ν₀/2, ν₀φ₀/2)
+    Posterior: μ | σ², y ~ N(μₙ, σ²/nₙ), σ² | y ~ InvGamma(νₙ/2, νₙφₙ/2)
+    Posterior predictive: y_new | y ~ StudentT(νₙ, μₙ, φₙ/nₙ(1 + 1/nₙ))
+    """
+
+    # Prior hyperparameters
+    mu_zero: float = Field(default=0.0, description="Prior mean μ₀")
+    prior_n: float = Field(default=1.0, gt=0, description="Prior precision parameter n₀")
+    prior_nu: float = Field(default=3.0, gt=0, description="Prior degrees of freedom ν₀")
+    prior_phi: float = Field(default=1.0, gt=0, description="Prior scale parameter φ₀")
+
+    # Scoring defaults
+    score_method: Literal["nle", "nll"] = Field(default="nle")
+    use_posterior_predictive: bool = Field(default=True, description="Use Student's t posterior predictive.")
+
+
+# ============================================================================
+# DISTRIBUTION IMPLEMENTATIONS
+# ============================================================================
+
+
+class NormalMuNormal(BDFDistribution):
+    """Normal-Normal conjugate model (μ unknown, σ² estimated from data).
+
+    Supports:
+    - Closed-form Bayesian evidence (NLE)
+    - Posterior predictive (integrates out μ uncertainty)
+    - Efficient analytical LOO-CV
+    """
+
+    params_cls: ClassVar[type[BDFDistributionParams]] = NormalMuNormalParams
+
+    # Capabilities
+    _supports_nle = True
+    _has_fast_loo_cv = True
+    _has_fast_kfold_cv = False
+    _supports_posterior_predictive = True
+
+    def __init__(self, params: NormalMuNormalParams):
+        super().__init__(params)
+        self.mu_mu = params.mu_mu
+        self.sigma_mu = params.sigma_mu
+
+    # ========================================================================
+    # REQUIRED METHODS
+    # ========================================================================
+
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, float]:
+        """Calculate Normal-Normal posterior parameters.
+
+        Returns dict with:
+        - posterior_mu: Posterior mean of μ
+        - posterior_sigma: Posterior std of μ (for PP) or sample std (for plug-in)
+        - sample_std: Always store sample std for likelihood evaluation
+        """
+        n = data.shape[0]
+        sample_mean = np.mean(data)
+        sample_std = np.std(data, ddof=1)
+
+        # Avoid division by zero
+        sample_var = max(sample_std**2, 1e-10)
+
+        # Posterior mean (weighted average of prior and data)
+        precision_prior = 1 / (self.sigma_mu**2)
+        precision_data = n / sample_var
+
+        posterior_mu = (precision_data * sample_mean + precision_prior * self.mu_mu) / (
+            precision_data + precision_prior
         )
 
-    def log_likelihood(self, data: np.ndarray) -> np.ndarray:
-        """Compute the log-likelihood of the data given the distribution."""
-        posterior_mu, posterior_sigma = self.calc_posterior_params(data)
-        return -0.5 * np.log(2 * np.pi) - np.log(posterior_sigma) - 0.5 * ((data - posterior_mu) / posterior_sigma) ** 2  # type: ignore
+        # Posterior std of μ (parameter uncertainty)
+        posterior_sigma_mu = np.sqrt(1 / (precision_data + precision_prior))
 
-    def sample_prior(self, size: int) -> np.ndarray:
-        """Sample from the distribution."""
-        raise NotImplementedError("Prior sampling currently not implemented.")
-        return np.random.normal(loc=self.mu_mu, scale=self.sigma_mu, size=size)
+        return {
+            "posterior_mu": float(posterior_mu),
+            "posterior_sigma": float(posterior_sigma_mu),  # Used for PP
+            "sample_std": float(sample_std),  # Used for plug-in
+        }
 
-    def sample_posterior(
-        self,
-        *,
-        data: np.ndarray | None = None,
-        params: dict[str, float] | None = None,
-        size: int = 1,
-        random_state: int = RANDOM_SEED,
-    ) -> np.ndarray:
-        """Sample from the distribution."""
-        if params is not None:
-            return self._sample_posterior_params(params, size=size, random_state=random_state)
-        elif data is not None:
-            return self._sample_posterior_data(data, size=size, random_state=random_state)  # type: ignore
-        else:  # This case should not happen due to the initial check but is required for type safety
-            raise ValueError(
-                "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
-            )
+    def _plugin_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
+        """Plug-in: N(x | μ_posterior, σ_sample)."""
+        mu = params["posterior_mu"]
+        sigma = params["sample_std"]
+        return norm.logpdf(data, loc=mu, scale=sigma)
 
-    def _sample_posterior_params(self, params: dict[str, float], *, size: int = 1, random_state: int) -> np.ndarray:
-        """Sample from the posterior distribution using provided parameters.
+    def _num_parameters(self) -> int:
+        """Only μ is estimated (σ known from data)."""
+        return 1
 
-        Args
-        ----
-        `params` : dict[str, float]
-            Dictionary containing the posterior parameters 'mean' and 'std'.
-        `size` : int
-            Number of samples to generate.
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
+        """Sample from posterior predictive N(μ_post, σ_μ² + σ_data²)."""
+        mu = params["posterior_mu"]
+        sigma_mu = params["posterior_sigma"]
+        sample_std = params["sample_std"]
 
-        Returns
-        -------
-        np.ndarray
-            Samples drawn from the posterior distribution.
-        """
-        assert "posterior_mu" in params and "posterior_sigma" in params, "params must contain 'mean' and 'std' keys"
-        assert params["posterior_sigma"] > 0, "Standard deviation must be positive"
-        return norm.rvs(loc=params["posterior_mu"], scale=params["posterior_sigma"], size=size, random_state=random_state)  # type: ignore
+        # Posterior predictive variance = parameter uncertainty + data noise
+        pred_std = np.sqrt(sigma_mu**2 + sample_std**2)
 
-    def _sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
-        """Sample from the posterior distribution using the data.
+        return np.array(norm.rvs(loc=mu, scale=pred_std, size=size, random_state=random_state))
 
-        Args
-        ----
-        `data` : np.ndarray
-            The data to calculate the posterior parameters from.
-        `size` : int
-            Number of samples to generate.
+    def validate_targets(self, data: np.ndarray):
+        """Validate data for Normal distribution."""
+        if np.any(np.isnan(data)):
+            raise ValueError("Data contains NaN values")
+        if not np.all(np.isfinite(data)):
+            raise ValueError("Data contains infinite values")
 
-        Returns
-        -------
-        np.ndarray
-            Samples drawn from the posterior distribution based on the data.
-        """
-        posterior_mu, posterior_sigma = self.calc_posterior_params(data, return_dict=False)
-        return norm.rvs(loc=posterior_mu, scale=posterior_sigma, size=size, random_state=random_state)  # type: ignore
+        std = np.std(data)
+        if not (np.isfinite(std) and std >= 0.0):
+            raise ValueError(f"Standard deviation must be finite and non-negative, got {std}")
 
     def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
-        """Get the posterior mean of the distribution.
+        """Get posterior mean of μ."""
+        if params is None:
+            if data is None:
+                raise ValueError("Provide either 'data' or 'params'")
+            params = self.calc_posterior_params(data)
 
-        Args
-        ----
-        `data` : np.ndarray, optional
-            The data to calculate the posterior parameters from, default is None.
-        `params` : dict[str, float], optional
-            Dictionary containing the posterior parameters 'mean' and 'std', default is None.
-
-        Returns
-        -------
-        float
-            The posterior mean of the distribution.
-        """
-        if params is not None:
-            return params["posterior_mu"]
-        elif data is not None:
-            posterior_mu, _ = self.calc_posterior_params(data, return_dict=False)
-            return posterior_mu  # type: ignore
-        else:
-            raise ValueError("Either 'data' or 'params' must be provided to get the posterior mean.")
+        return params["posterior_mu"]
 
     def get_posterior_variance(
         self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
     ) -> float:
-        """Get the posterior variance of the distribution.
+        """Get posterior variance of μ."""
+        if params is None:
+            if data is None:
+                raise ValueError("Provide either 'data' or 'params'")
+            params = self.calc_posterior_params(data)
 
-        Args
-        ----
-        `data` : np.ndarray, optional
-            The data to calculate the posterior parameters from, default is None.
-        `params` : dict[str, float], optional
-            Dictionary containing the posterior parameters 'mean' and 'std', default is None.
+        return params["posterior_sigma"] ** 2
 
-        Returns
-        -------
-        float
-            The posterior variance of the distribution.
-        """
-        if params is not None:
-            return params["posterior_sigma"] ** 2
-        elif data is not None:
-            _, posterior_sigma = self.calc_posterior_params(data, return_dict=False)
-            return posterior_sigma**2  # type: ignore
-        else:
-            raise ValueError("Either 'data' or 'params' must be provided to get the posterior standard deviation.")
+    # ========================================================================
+    # OPTIONAL METHODS (OVERRIDE FOR EFFICIENCY)
+    # ========================================================================
 
-    def get_posterior_params(self, data: np.ndarray) -> dict:
-        """Get the posterior parameters of the distribution."""
-        return self.calc_posterior_params(data, return_dict=True)  # type: ignore
+    def log_evidence(self, data: np.ndarray) -> float:
+        """Exact Bayesian evidence for Normal-Normal conjugate.
 
-    def validate_targets(self, data: np.ndarray):
-        """Validate data for normal distribution.
-        Currently only checks for NaN, easily add on more.
-        """
-        assert not any(np.isnan(data)), "Inputs for normal distribution may not be NaN."
-        assert all(np.isfinite(data)), "Targets must be finite for exponential distribution."
-        std = np.std(data)
-        assert (
-            np.isfinite(std) and std is not None and std >= 0.0
-        ), f"Standard deviation has to be finite, not None and >=0, got {std}"
+        p(y | prior) = ∫ p(y | μ) p(μ) dμ
 
-
-class NormalMuNormalParams(BDFDistributionParams):
-    """Parameters for the Normal distribution in Bayesian Distributional Forests.
-
-    Attributes
-    ----------
-    mean : float
-        The prior mean of the Normal distribution.
-    std : float
-        The prior standard deviation of the Normal distribution.
-    """
-
-    mu_mu: float = Field(default=0.0, alias="mean", description="Prior mean of the Normal distribution")
-    sigma_mu: float = Field(
-        default=1.0, alias="std", gt=0, description="Prior standard deviation of the Normal distribution"
-    )
-
-    class Config:
-        """Pydantic configuration to allow extra fields and use aliases."""
-
-        extra = "forbid"
-        validate_by_name = True
-
-    def __init__(self, **data: dict) -> None:
-        # Check for missing fields before initialization
-        missing_fields = {}
-        if "mu_mu" not in data and "mean" not in data:
-            missing_fields["mu_mu"] = self.__class__.model_fields["mu_mu"].default
-        if "sigma_mu" not in data and "std" not in data:
-            missing_fields["sigma_mu"] = self.__class__.model_fields["sigma_mu"].default
-
-        # Initialize the model
-        super().__init__(**data)
-
-        # Issue warnings for missing fields
-        for field, default_value in missing_fields.items():
-            warnings.warn(
-                f"No value provided for '{field}', using default: {default_value}",
-                UserWarning,
-                stacklevel=2,
-            )
-
-
-class NormalMuNormalPP(NormalBase):
-    """Normal distribution class for Bayesian Distributional Forests."""
-
-    def __init__(self, prior_params: dict | NormalMuNormalParams, params: dict | None = None, var_ddof: int = 1):
-        """Initialize the Normal distribution with prior parameters.
-        Args
-        ----
-        `prior_params` : dict
-            Dictionary containing prior parameters, must include 'mean' and 'std'.
-        `params` : tuple, optional
-            Additional parameters for the distribution, default is None.
-        `var_ddof` : int, optional
-            Degrees of freedom for variance calculation, default is 1 (sample standard deviation).
-        """
-        if isinstance(prior_params, dict):
-            prior_params = NormalMuNormalParams.model_validate(prior_params)  # type: ignore
-        assert isinstance(
-            prior_params, NormalMuNormalParams
-        ), "prior_params must be an instance of NormalNormalParams after possible conversion from dict."
-        super().__init__(prior_params, params)
-        self.mu_mu = prior_params.mu_mu
-        self.sigma_mu = prior_params.sigma_mu
-        self.var_ddof = var_ddof  # Degrees of freedom for sample variance calculation
-
-    def calc_posterior_params(
-        self, data: np.ndarray, return_dict: bool = True, eps: float = 1e-5
-    ) -> dict[str, float] | tuple[float, float]:
-        """Calculate posterior parameters based on the data.
-
-        Args
-        ----
-        `data` : np.ndarray
-            The data to calculate the posterior parameters from.
-        `eps` : float, optional
-            A small value to avoid division by zero, default is 1e-5.
-
-        Returns
-        -------
-        tuple[float, float]
-            A tuple containing the posterior mean and posterior standard deviation.
+        Marginal distribution of sample mean: N(μ₀, σ²/n + σ_μ²)
+        Plus term for deviations from mean.
         """
         n = data.shape[0]
         sample_mean = np.mean(data)
-        sample_std = np.std(data, ddof=self.var_ddof)
-        posterior_mu = ((n / (sample_std**2 + eps)) * sample_mean + (1 / (self.sigma_mu**2 + eps)) * self.mu_mu) / (
-            (n / (sample_std**2 + eps)) + (1 / (self.sigma_mu**2 + eps))
-        )
-        posterior_sigma = np.sqrt(1 / ((n / (sample_std**2 + eps)) + (1 / (self.sigma_mu**2 + eps))))
-        if return_dict:
-            return {"posterior_mu": posterior_mu, "posterior_sigma": posterior_sigma}
-        else:
-            return posterior_mu, posterior_sigma
+        sample_std = np.std(data, ddof=1)
 
+        # Marginal variance of sample mean
+        marginal_var = (sample_std**2 / n) + self.sigma_mu**2
 
-class NormalMuNormal(NormalBase):
-    def __init__(self, prior_params: dict | NormalMuNormalParams, params: dict | None = None, var_ddof: int = 1):
-        """Initialize the Normal distribution with prior parameters.
-        Args
-        ----
-        `prior_params` : dict
-            Dictionary containing prior parameters, must include 'mean' and 'std'.
-        `params` : tuple, optional
-            Additional parameters for the distribution, default is None.
-        `var_ddof` : int, optional
-            Degrees of freedom for variance calculation, default is 1 (sample standard deviation).
+        # Log evidence for sample mean
+        log_ev = -0.5 * np.log(2 * np.pi * marginal_var)
+        log_ev -= 0.5 * (sample_mean - self.mu_mu) ** 2 / marginal_var
+
+        # Log evidence for deviations from mean (independent of prior)
+        if n > 1:
+            log_ev -= 0.5 * (n - 1) * (1 + np.log(2 * np.pi * sample_std**2))
+
+        return float(log_ev)
+
+    def _posterior_predictive_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
+        """Posterior predictive: N(x | μ_post, σ_μ² + σ_data²).
+
+        Integrates out uncertainty in μ.
         """
-        if isinstance(prior_params, dict):
-            prior_params = NormalMuNormalParams.model_validate(prior_params)  # type: ignore
-        assert isinstance(
-            prior_params, NormalMuNormalParams
-        ), "prior_params must be an instance of NormalNormalParams after possible conversion from dict."
-        super().__init__(prior_params, params)
-        self.mu_mu = prior_params.mu_mu
-        self.sigma_mu = prior_params.sigma_mu
-        self.var_ddof = var_ddof  # Degrees of freedom for sample variance calculation
+        mu = params["posterior_mu"]
+        sigma_mu = params["posterior_sigma"]
+        sample_std = params["sample_std"]
 
-    def calc_posterior_params(
-        self, data: np.ndarray, return_dict: bool = True, eps: float = 1e-5
-    ) -> dict[str, float] | tuple[float, float]:
-        """Calculate posterior parameters based on the data.
+        # Posterior predictive variance
+        pred_var = sigma_mu**2 + sample_std**2
 
-        Args
-        ----
-        `data` : np.ndarray
-            The data to calculate the posterior parameters from.
-        `eps` : float, optional
-            A small value to avoid division by zero, default is 1e-5.
+        return norm.logpdf(data, loc=mu, scale=np.sqrt(pred_var))
 
-        Returns
-        -------
-        tuple[float, float]
-            A tuple containing the posterior mean and posterior standard deviation.
+    def _loo_cv_log_likelihood(self, data: np.ndarray) -> np.ndarray:
+        """Efficient analytical LOO for Normal (override default).
+
+        For plug-in: analytical LOO means and stds
+        For PP: recompute posterior for each fold
         """
         n = data.shape[0]
-        sample_mean = np.mean(data)
-        sample_std = np.std(data, ddof=self.var_ddof)
-        posterior_mu = ((n / (sample_std**2 + eps)) * sample_mean + (1 / (self.sigma_mu**2 + eps)) * self.mu_mu) / (
-            (n / (sample_std**2 + eps)) + (1 / (self.sigma_mu**2 + eps))
-        )
-        if return_dict:
-            return {"posterior_mu": posterior_mu, "posterior_sigma": sample_std}  # type: ignore
+        full_mean = np.mean(data)
+        full_std = np.std(data, ddof=1)
+
+        # Analytical LOO means
+        loo_means = (n * full_mean - data) / (n - 1)
+
+        if self.params.use_posterior_predictive:
+            # Full Bayesian: recompute posterior for each LOO fold
+            loo_ll = np.empty(n)
+            for i in range(n):
+                train_data = np.delete(data, i)
+                loo_params = self.calc_posterior_params(train_data)
+                loo_ll[i] = self._posterior_predictive_log_likelihood(data[i : i + 1], loo_params)[0]
+            return loo_ll
         else:
-            return posterior_mu, sample_std  # type: ignore
+            # Plug-in: analytical LOO std
+            if n > 2:
+                loo_vars = ((n - 1) * full_std**2 - (data - full_mean) ** 2) / (n - 2)
+                loo_stds = np.sqrt(np.maximum(loo_vars, 1e-10))
+            else:
+                loo_stds = np.full(n, full_std)
+
+            return norm.logpdf(data, loc=loo_means, scale=loo_stds)
+
+    def sample_prior(self, size: int, random_state: int = RANDOM_SEED) -> np.ndarray:
+        """Sample μ from prior N(μ₀, σ_μ²)."""
+        rng = np.random.default_rng(random_state)
+        return rng.normal(self.mu_mu, self.sigma_mu, size=size)
 
 
-class NormGammaNormalParams(BDFDistributionParams):
-    """Parameters for the Normal-EBSkewNormal distribution in Bayesian Distributional Forests.
-
-    Attributes
-    ----------
-    mean : float
-        The prior mean of the Normal distribution.
-    std : float
-        The prior standard deviation of the Normal distribution.
-    alpha : float
-        The prior shape parameter for the skewness.
-    beta : float
-        The prior scale parameter for the skewness.
-    """
-
-    mean: float = Field(default=0.0, alias="mu", description="Prior mean of the Normal distribution")
-    n: float = Field(
-        default=1.0, alias="sigma", gt=0, description="Prior standard deviation of the Normal distribution"
-    )
-    nu: float = Field(default=0.0, alias="alpha", description="Prior shape parameter for skewness")
-    phi: float = Field(default=1.0, alias="beta", gt=0, description="Prior scale parameter for skewness")
-
-    class Config:
-        """Pydantic configuration to allow extra fields and use aliases."""
-
-        extra = "forbid"
-        validate_by_name = True
-
-    def __init__(self, **data: dict) -> None:
-        # Check for missing fields before initialization
-        missing_fields = {}
-        if "mu" not in data and "mean" not in data:
-            missing_fields["mean"] = self.__class__.model_fields["mean"].default
-        if "sigma" not in data and "std" not in data:
-            missing_fields["std"] = self.__class__.model_fields["std"].default
-        if "alpha" not in data:
-            missing_fields["alpha"] = self.__class__.model_fields["alpha"].default
-        if "beta" not in data:
-            missing_fields["beta"] = self.__class__.model_fields["beta"].default
-
-        # Initialize the model
-        super().__init__(**data)
-
-        # Issue warnings for missing fields
-        for field, default_value in missing_fields.items():
-            warnings.warn(
-                f"No value provided for '{field}', using default: {default_value}",
-                UserWarning,
-                stacklevel=2,
-            )
-
-
-# If consider both mu and sigma as unknowns, can use this definition as priors on both
 class NormGammaNormal(BDFDistribution):
-    """Normal-Gamma distribution class for Bayesian Distributional Forests.
-    This class models a Normal distribution with a Gamma prior on the variance.
+    """Normal-Gamma conjugate model (μ and σ² both unknown).
+
+    Supports:
+    - Closed-form Bayesian evidence
+    - Student's t posterior predictive
     """
 
-    def __init__(self, prior_params: dict | BDFDistributionParams, params: dict | None = None):
-        """Initialize the Normal-Gamma distribution with prior parameters.
+    params_cls: ClassVar[type[BDFDistributionParams]] = NormGammaNormalParams
 
-        Args
-        ----
-        `prior_params` : dict
-            Dictionary containing prior parameters, must include 'mean', 'std', 'alpha', and 'beta'.
-        `params` : tuple, optional
-            Additional parameters for the distribution, default is None.
-        """
-        if not isinstance(prior_params, NormGammaNormalParams):
-            prior_params = NormGammaNormalParams.model_validate(prior_params)
-        super().__init__(prior_params, params)
-        self.mu_zero = prior_params.mean
-        self.prior_n = prior_params.n
-        self.prior_nu = prior_params.nu
-        self.prior_phi = prior_params.phi
+    _supports_nle = True
+    _has_fast_loo_cv = False
+    _has_fast_kfold_cv = False
+    _supports_posterior_predictive = True
 
-    def calc_posterior_params(self, data: np.ndarray) -> tuple[float, float]:
-        """Calculate posterior parameters based on the data.
+    def __init__(self, params: NormGammaNormalParams):
+        super().__init__(params)
+        self.mu_zero = params.mu_zero
+        self.prior_n = params.prior_n
+        self.prior_nu = params.prior_nu
+        self.prior_phi = params.prior_phi
 
-        Args
-        ----
-        `data` : np.ndarray
-            The data to calculate the posterior parameters from.
+    # ========================================================================
+    # REQUIRED METHODS
+    # ========================================================================
 
-        Returns
-        -------
-        tuple[float, float, float, float]
-            A tuple containing the posterior mean, posterior n, posterior nu, and posterior phi.
-        """
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, float]:
+        """Calculate Normal-Gamma posterior parameters."""
         n = data.shape[0]
         sample_mean = np.mean(data)
         sample_var = np.var(data, ddof=1)
-        posterior_mu = (self.prior_n * self.mu_zero + n * sample_mean) / (self.prior_n + n)
-        posterior_sigma = (
-            1
-            / (self.prior_nu + n)
-            * (
-                (n - 1) * sample_var
-                + self.prior_nu * self.prior_phi
-                + (n * self.prior_n) / (self.prior_n + n) * (sample_mean - self.mu_zero) ** 2
-            )
+
+        # Posterior hyperparameters
+        post_n = self.prior_n + n
+        post_nu = self.prior_nu + n
+        post_phi = (
+            self.prior_nu * self.prior_phi
+            + (n - 1) * sample_var
+            + (n * self.prior_n / post_n) * (sample_mean - self.mu_zero) ** 2
         )
-        return posterior_mu, posterior_sigma
 
+        # Posterior mean
+        posterior_mu = (self.prior_n * self.mu_zero + n * sample_mean) / post_n
 
-class InverseGammaNormal(BDFDistribution):
-    """Inverse-Gamma distribution class for Bayesian Distributional Forests.
-    This class models a Normal distribution with an Inverse-Gamma prior on the variance.
-    """
+        # Posterior mode of σ² (if ν > 2), else use mean
+        if post_nu > 2:
+            posterior_sigma = np.sqrt(post_phi / (post_nu - 2))
+        else:
+            posterior_sigma = np.sqrt(post_phi / post_nu)
 
-    def __init__(self, prior_params: dict, params: tuple | None = None):
-        """Initialize the Inverse-Gamma distribution with prior parameters.
+        return {
+            "posterior_mu": float(posterior_mu),
+            "posterior_sigma": float(posterior_sigma),
+            "post_n": float(post_n),
+            "post_nu": float(post_nu),
+            "post_phi": float(post_phi),
+        }
 
-        Args
-        ----
-        `prior_params` : dict
-            Dictionary containing prior parameters, must include 'mean', 'std', 'alpha', and 'beta'.
-        `params` : tuple, optional
-            Additional parameters for the distribution, default is None.
-        """
-        pass
+    def _plugin_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
+        """Plug-in Normal likelihood with posterior mode."""
+        mu = params["posterior_mu"]
+        sigma = params["posterior_sigma"]
+        return norm.logpdf(data, loc=mu, scale=sigma)
+
+    def _num_parameters(self) -> int:
+        """μ and σ² both estimated."""
+        return 2
+
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
+        """Sample from Student's t posterior predictive."""
+        mu = params["posterior_mu"]
+        post_n = params["post_n"]
+        post_nu = params["post_nu"]
+        post_phi = params["post_phi"]
+
+        df = post_nu
+        scale = np.sqrt(post_phi / post_nu * (1 + 1 / post_n))
+
+        return np.array(student_t.rvs(df=df, loc=mu, scale=scale, size=size, random_state=random_state))
+
+    def validate_targets(self, data: np.ndarray):
+        """Validate data."""
+        if np.any(np.isnan(data)):
+            raise ValueError("Data contains NaN values")
+        if not np.all(np.isfinite(data)):
+            raise ValueError("Data contains infinite values")
+
+        std = np.std(data)
+        if not (np.isfinite(std) and std >= 0.0):
+            raise ValueError(f"Standard deviation must be finite and non-negative, got {std}")
+
+    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
+        """Get posterior mean."""
+        if params is None:
+            if data is None:
+                raise ValueError("Provide either 'data' or 'params'")
+            params = self.calc_posterior_params(data)
+
+        return params["posterior_mu"]
+
+    def get_posterior_variance(
+        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
+    ) -> float:
+        """Get posterior variance."""
+        if params is None:
+            if data is None:
+                raise ValueError("Provide either 'data' or 'params'")
+            params = self.calc_posterior_params(data)
+
+        return params["posterior_sigma"] ** 2
+
+    # ========================================================================
+    # OPTIONAL METHODS
+    # ========================================================================
+
+    def log_evidence(self, data: np.ndarray) -> float:
+        """Exact Bayesian evidence for Normal-Gamma conjugate."""
+        from scipy.special import gammaln
+
+        n = data.shape[0]
+        sample_mean = np.mean(data)
+        sample_var = np.var(data, ddof=1)
+
+        post_n = self.prior_n + n
+        post_nu = self.prior_nu + n
+        post_phi = (
+            self.prior_nu * self.prior_phi
+            + (n - 1) * sample_var
+            + (n * self.prior_n / post_n) * (sample_mean - self.mu_zero) ** 2
+        )
+
+        log_ev = -0.5 * n * np.log(2 * np.pi)
+        log_ev += 0.5 * np.log(self.prior_n / post_n)
+        log_ev += gammaln(post_nu / 2) - gammaln(self.prior_nu / 2)
+        log_ev += (self.prior_nu / 2) * np.log(self.prior_phi)
+        log_ev -= (post_nu / 2) * np.log(post_phi)
+
+        return float(log_ev)
+
+    def _posterior_predictive_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
+        """Student's t posterior predictive."""
+        mu = params["posterior_mu"]
+        post_n = params["post_n"]
+        post_nu = params["post_nu"]
+        post_phi = params["post_phi"]
+
+        df = post_nu
+        scale = np.sqrt(post_phi / post_nu * (1 + 1 / post_n))
+
+        return student_t.logpdf(data, df=df, loc=mu, scale=scale)
+
+    def sample_prior(self, size: int, random_state: int = RANDOM_SEED) -> np.ndarray:
+        """Cannot easily sample from Normal-Gamma prior (hierarchical)."""
+        raise NotImplementedError("NormGammaNormal prior sampling not implemented (requires hierarchical sampling).")
