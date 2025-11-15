@@ -23,3 +23,5 @@ target/
 *.db
 
 outputs/figures/
+
+outputs/
