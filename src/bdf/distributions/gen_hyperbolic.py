@@ -3,19 +3,19 @@
 Provides:
 - FrequentistGenHyperbolic: MLE estimation using unconstrained optimization.
 
-The GH distribution is extremely flexible, nesting Normal, Student-t, Laplace, 
-Hyperbolic, NIG, and VG as special cases. It handles skewness and heavy tails 
+The GH distribution is extremely flexible, nesting Normal, Student-t, Laplace,
+Hyperbolic, NIG, and VG as special cases. It handles skewness and heavy tails
 simultaneously but requires careful 5-parameter optimization.
 
-Note: This implementation uses moment-based initialization via polynomial 
+Note: This implementation uses moment-based initialization via polynomial
 regression coefficients for fast convergence.
 """
+
 from typing import ClassVar, Literal
 
 import numpy as np
-from pydantic import Field, field_validator
+from pydantic import Field
 from scipy.optimize import minimize
-from scipy.special import expit
 from scipy.stats import genhyperbolic
 
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
@@ -29,39 +29,46 @@ from bdf.utils.constants import RANDOM_SEED
 # Features: [1, skew, kurt, skew², skew·kurt, kurt²]
 
 # Coefficients for p (shape parameter)
-_INIT_COEFFS_P = np.array([
-    0.1234,    # intercept
-    -0.0456,   # skew
-    -0.2891,   # kurt
-    0.0089,    # skew²
-    -0.0123,   # skew·kurt
-    0.0234,    # kurt²
-])
+_INIT_COEFFS_P = np.array(
+    [
+        0.1234,  # intercept
+        -0.0456,  # skew
+        -0.2891,  # kurt
+        0.0089,  # skew²
+        -0.0123,  # skew·kurt
+        0.0234,  # kurt²
+    ]
+)
 
 # Coefficients for log(a) (log concentration parameter)
-_INIT_COEFFS_LOG_A = np.array([
-    0.0567,    # intercept
-    0.0234,    # skew
-    0.1456,    # kurt
-    -0.0012,   # skew²
-    0.0045,    # skew·kurt
-    0.0089,    # kurt²
-])
+_INIT_COEFFS_LOG_A = np.array(
+    [
+        0.0567,  # intercept
+        0.0234,  # skew
+        0.1456,  # kurt
+        -0.0012,  # skew²
+        0.0045,  # skew·kurt
+        0.0089,  # kurt²
+    ]
+)
 
 # Coefficients for arctanh(b/a) (asymmetry ratio in unconstrained space)
-_INIT_COEFFS_ARCTANH_B = np.array([
-    0.0012,    # intercept
-    0.4567,    # skew
-    0.0123,    # kurt
-    -0.0234,   # skew²
-    0.0089,    # skew·kurt
-    -0.0045,   # kurt²
-])
+_INIT_COEFFS_ARCTANH_B = np.array(
+    [
+        0.0012,  # intercept
+        0.4567,  # skew
+        0.0123,  # kurt
+        -0.0234,  # skew²
+        0.0089,  # skew·kurt
+        -0.0045,  # kurt²
+    ]
+)
 
 
 # ============================================================================
 # PARAMS
 # ============================================================================
+
 
 class FrequentistGenHyperbolicParams(BDFDistributionParams):
     """Frequentist Generalized Hyperbolic distribution.
@@ -108,6 +115,7 @@ class FrequentistGenHyperbolicParams(BDFDistributionParams):
 # DISTRIBUTION IMPLEMENTATION
 # ============================================================================
 
+
 class FrequentistGenHyperbolic(BDFDistribution):
     """Generalized Hyperbolic distribution with frequentist MLE estimation.
 
@@ -147,37 +155,37 @@ class FrequentistGenHyperbolic(BDFDistribution):
         # Define negative log-likelihood in unconstrained space
         def nll(theta: np.ndarray) -> float:
             mu, delta, p, a, b = self._unpack_constrained(theta)
-            
+
             # Additional safety: ensure parameters are valid
             if delta < 1e-8 or a < 1e-8 or not np.isfinite([mu, delta, p, a, b]).all():
                 return 1e12
-            
+
             ll = genhyperbolic.logpdf(data, p, a, b, loc=mu, scale=delta)
-            
+
             if not np.all(np.isfinite(ll)):
                 return 1e12
-            
+
             return float(-np.sum(ll))
 
         # Optimize
         try:
             options = {"maxiter": self.max_iter} if self.max_iter is not None else {}
             res = minimize(nll, theta0, method=self.estimation_method, options=options)
-            
+
             if res.success:
                 mu, delta, p, a, b = self._unpack_constrained(res.x)
             else:
                 # Optimizer failed, use initial guess
                 mu, delta, p, a, b = self._unpack_constrained(theta0)
-        
+
         except Exception:
             # Fallback to Student-t, then Normal if needed
             try:
-                from scipy.stats import t as student_t
+
                 df_guess = 5.0
                 loc_guess = float(np.mean(data))
                 scale_guess = float(np.std(data, ddof=1)) if data.size > 1 else 1.0
-                
+
                 # Student-t is GH with p=-df/2, specific a,b
                 mu = loc_guess
                 delta = scale_guess
@@ -212,7 +220,7 @@ class FrequentistGenHyperbolic(BDFDistribution):
         b = params["b"]
         mu = params["mu"]
         delta = params["delta"]
-        
+
         return genhyperbolic.logpdf(data, p, a, b, loc=mu, scale=delta)
 
     def _num_parameters(self) -> int:
@@ -231,10 +239,8 @@ class FrequentistGenHyperbolic(BDFDistribution):
         b = params["b"]
         mu = params["mu"]
         delta = params["delta"]
-        
-        return np.asarray(
-            genhyperbolic.rvs(p, a, b, loc=mu, scale=delta, size=size, random_state=random_state)
-        )
+
+        return np.asarray(genhyperbolic.rvs(p, a, b, loc=mu, scale=delta, size=size, random_state=random_state))
 
     def validate_targets(self, data: np.ndarray):
         """GenHyperbolic supports all finite real values."""
@@ -256,15 +262,16 @@ class FrequentistGenHyperbolic(BDFDistribution):
             if data is None:
                 raise ValueError("Provide either 'data' or 'params'.")
             params = self.calc_posterior_params(data)
-        
+
         p = params["p"]
         if p <= 1.0:
             # Mean does not exist, return location parameter as proxy
             return float(params["mu"])
-        
+
         # Use scipy's builtin moment calculation
-        return float(genhyperbolic.mean(params["p"], params["a"], params["b"], 
-                                       loc=params["mu"], scale=params["delta"])) # pyright: ignore[reportArgumentType]
+        return float(
+            genhyperbolic.mean(params["p"], params["a"], params["b"], loc=params["mu"], scale=params["delta"])
+        )  # pyright: ignore[reportArgumentType]
 
     def get_posterior_variance(
         self,
@@ -277,13 +284,14 @@ class FrequentistGenHyperbolic(BDFDistribution):
             if data is None:
                 raise ValueError("Provide either 'data' or 'params'.")
             params = self.calc_posterior_params(data)
-        
+
         p = params["p"]
         if p <= 2.0:
             return float(np.inf)
-        
-        return float(genhyperbolic.var(params["p"], params["a"], params["b"], 
-                                      loc=params["mu"], scale=params["delta"])) # pyright: ignore[reportArgumentType]
+
+        return float(
+            genhyperbolic.var(params["p"], params["a"], params["b"], loc=params["mu"], scale=params["delta"])
+        )  # pyright: ignore[reportArgumentType]
 
     # ========================================================================
     # INTERNAL HELPERS
@@ -305,32 +313,34 @@ class FrequentistGenHyperbolic(BDFDistribution):
 
         # Compute moments
         try:
-            from scipy.stats import skew, kurtosis
-            
+            from scipy.stats import kurtosis, skew
+
             # Clip to reasonable ranges for robustness
             skew_val = float(np.clip(skew(data, bias=False), -5.0, 5.0))
             kurt_val = float(np.clip(kurtosis(data, fisher=False, bias=False), 1.0, 10.0))
-            
+
             # Build polynomial features [1, skew, kurt, skew², skew·kurt, kurt²]
-            features = np.array([
-                1.0,
-                skew_val,
-                kurt_val,
-                skew_val**2,
-                skew_val * kurt_val,
-                kurt_val**2,
-            ])
-            
+            features = np.array(
+                [
+                    1.0,
+                    skew_val,
+                    kurt_val,
+                    skew_val**2,
+                    skew_val * kurt_val,
+                    kurt_val**2,
+                ]
+            )
+
             # Apply polynomial regression
             p0 = float(np.dot(_INIT_COEFFS_P, features))
             log_a0 = float(np.dot(_INIT_COEFFS_LOG_A, features))
             arctanh_b0 = float(np.dot(_INIT_COEFFS_ARCTANH_B, features))
-            
+
             # Clip to reasonable ranges
             p0 = np.clip(p0, -10.0, 10.0)
             log_a0 = np.clip(log_a0, np.log(1e-2), np.log(10.0))
             arctanh_b0 = np.clip(arctanh_b0, -2.0, 2.0)  # tanh(2) ≈ 0.96
-            
+
         except Exception:
             # Fallback to defaults if moment computation fails
             p0 = 0.0
@@ -353,12 +363,12 @@ class FrequentistGenHyperbolic(BDFDistribution):
         """
         log_delta = np.log(max(delta, 1e-10))
         log_a = np.log(max(a, 1e-10))
-        
+
         # Clip b/a ratio to valid range before arctanh
         ratio = b / a
         ratio = np.clip(ratio, -0.999, 0.999)
         arctanh_ratio = np.arctanh(ratio)
-        
+
         return np.array([mu, log_delta, p, log_a, arctanh_ratio])
 
     def _unpack_constrained(self, theta: np.ndarray) -> tuple[float, float, float, float, float]:
@@ -374,9 +384,9 @@ class FrequentistGenHyperbolic(BDFDistribution):
         delta = float(np.exp(theta[1]))
         p = float(theta[2])
         a = float(np.exp(theta[3]))
-        
+
         # arctanh(x) maps R → (-1, 1), so tanh maps back
         ratio = float(np.tanh(theta[4]))
         b = a * ratio  # Automatically satisfies |b| < a
-        
+
         return mu, delta, p, a, b

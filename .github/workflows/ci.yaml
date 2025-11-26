@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: v0.39.0
+          cache: true
+          environments: lint
+      - name: Run Lint
+        run: pixi run -e lint lint
+
+  test:
+    needs: lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: v0.39.0
+          cache: true
+          run-install: true
+          environments: test
+
+      # --- ADDITION 1: Cache Rust Build Artifacts ---
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "compiled/rust" # Point to where Cargo.toml lives
+
+      - name: Build Rust Extension
+        run: pixi run build-rust
+
+      - name: Run Tests
+        run: pixi run -e test test
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: v0.39.0
+          cache: true
+          environments: docs
+
+      - name: Build Docs
+        run: pixi run -e docs docs-build
+
+      # --- ADDITION 2: Upload Docs for Viewing ---
+      - name: Upload Docs Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-html
+          path: docs/build/html/
+          retention-days: 5

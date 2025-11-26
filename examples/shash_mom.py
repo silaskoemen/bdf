@@ -2,6 +2,7 @@
 of the sinh-arcsinh (SAS/SHASH) distribution based on moment estimates
 or other relations.
 """
+
 # %%
 import matplotlib.pyplot as plt
 import numpy as np

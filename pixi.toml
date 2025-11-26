@@ -80,7 +80,7 @@ build-rust = "maturin develop --release --manifest-path compiled/rust/Cargo.toml
 # ==========================================
 
 [environments]
-# DEFAULT: Core + Test + Lint + DevTools. 
+# DEFAULT: Core + Test + Lint + DevTools.
 # Light enough to be fast, complete enough to build/test.
 default = { features = ["test", "lint", "dev-tools"], solve-group = "prod" }
 

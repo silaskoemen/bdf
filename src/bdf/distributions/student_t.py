@@ -1,5 +1,4 @@
 import warnings
-
 from typing import ClassVar, Literal
 
 import numpy as np
@@ -9,10 +8,10 @@ from scipy.stats import t as student_t
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
 from bdf.utils.constants import RANDOM_SEED
 
-
 # ============================================================================
 # PARAMS
 # ============================================================================
+
 
 class FrequentistStudentTParams(BDFDistributionParams):
     """Frequentist Student-t distribution (robust, non-conjugate).
@@ -52,6 +51,7 @@ class FrequentistStudentTParams(BDFDistributionParams):
 # DISTRIBUTION IMPLEMENTATION
 # ============================================================================
 
+
 class FrequentistStudentT(BDFDistribution):
     params_cls: ClassVar[type[BDFDistributionParams]] = FrequentistStudentTParams
 
@@ -82,7 +82,7 @@ class FrequentistStudentT(BDFDistribution):
             mu = float(np.mean(data))
             sigma = float(np.std(data, ddof=1)) if data.size > 1 else 1.0
             df = float(self.df) if self.df is not None else 5.0
-        
+
         # Safety guards (preserve user df when fixed)
         sigma = max(sigma, 1e-8)
         if self.df is not None:
@@ -111,9 +111,7 @@ class FrequentistStudentT(BDFDistribution):
         mu = params["mu"]
         sigma = params["sigma"]
         df = params["df"]
-        return np.array(
-            student_t.rvs(df=df, loc=mu, scale=sigma, size=size, random_state=random_state)
-        )
+        return np.array(student_t.rvs(df=df, loc=mu, scale=sigma, size=size, random_state=random_state))
 
     def validate_targets(self, data: np.ndarray):
         if data.ndim != 1:
@@ -123,9 +121,7 @@ class FrequentistStudentT(BDFDistribution):
         if not np.all(np.isfinite(data)):
             raise ValueError("Data contains NaN or infinite values.")
 
-    def get_posterior_mean(
-        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
-    ) -> float:
+    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
         if params is None:
             if data is None:
                 raise ValueError("Provide either 'data' or 'params'.")
@@ -152,53 +148,53 @@ class FrequentistStudentT(BDFDistribution):
     def _fit_em(self, data: np.ndarray) -> tuple[float, float, float]:
         y = data.astype(float)
         n = y.size
-        
+
         mu = float(np.mean(y))
         sigma2 = float(np.var(y, ddof=1)) if n > 1 else 1.0
         sigma2 = max(sigma2, 1e-16)
-        
+
         df = float(self.df) if self.df is not None else 5.0
-        
+
         # EM loop: ONLY update (μ, σ) if df is fixed
         for _ in range(10):
             r2 = ((y - mu) ** 2) / sigma2
             w = (df + 1.0) / (df + r2)
-            
+
             w_sum = np.sum(w)
             if w_sum <= 0:
                 break
-            
+
             mu = float(np.sum(w * y) / w_sum)
             sigma2 = float(np.sum(w * (y - mu) ** 2) / n)
             sigma2 = max(sigma2, 1e-16)
-        
+
         # If df is free, update ONCE after EM convergence (not inside loop)
         if self.df is None:
             df = self._update_df_newton(df, y, mu, sigma2)
-        
+
         return mu, np.sqrt(sigma2), df
-    
+
     def _update_df_newton(self, df_init: float, y: np.ndarray, mu: float, sigma2: float) -> float:
         """Single Newton iteration for df after EM converges."""
         from scipy.optimize import brentq
-        
+
         r2 = ((y - mu) ** 2) / sigma2
         w = (df_init + 1.0) / (df_init + r2)
-        
+
         mean_log_w = np.mean(np.log(np.maximum(w, 1e-12)))
         mean_w = np.mean(w)
-        
+
         # Solve: ψ((ν+1)/2) - log((ν+1)/2) - ψ(ν/2) + log(ν/2) + mean_log_w - mean_w = 0
         # Use root finding instead of Newton (more stable for small nodes)
         from scipy.special import digamma
-        
+
         def objective(nu):
             if nu <= 1.0:
                 return 1e9
             lhs = digamma((nu + 1) / 2) - np.log((nu + 1) / 2)
             rhs = digamma(nu / 2) - np.log(nu / 2) - mean_log_w + mean_w
             return lhs - rhs
-        
+
         try:
             df_new = brentq(objective, 2.05, 100.0)
             return float(df_new)  # pyright: ignore[reportArgumentType]
@@ -207,31 +203,31 @@ class FrequentistStudentT(BDFDistribution):
 
     def _fit_mle(self, data: np.ndarray) -> tuple[float, float, float]:
         from scipy.optimize import minimize
-        
+
         y = data.astype(float)
         mu0 = float(np.mean(y))
         sigma0 = max(float(np.std(y, ddof=1)), 1e-8) if y.size > 1 else 1.0
-        
+
         if self.df is None:
             from scipy.special import expit
-            
+
             # Parameterize df via sigmoid: df = 2.05 + 97.95 * sigmoid(x)
             # This enforces df ∈ [2.05, 100] smoothly
             df0 = 5.0
             logit_df0 = np.log((df0 - 2.05) / (100 - df0))
-            
+
             x0 = np.array([mu0, np.log(sigma0), logit_df0])
-            
+
             def optim_nll(theta):
                 mu, log_sigma, logit_df = theta
                 sigma = np.exp(log_sigma)
                 df = 2.05 + 97.95 * expit(logit_df)  # Maps R → [2.05, 100]
-                
+
                 ll = student_t.logpdf(y, df=df, loc=mu, scale=sigma)
                 if not np.all(np.isfinite(ll)):
                     return 1e12
                 return -np.sum(ll)
-            
+
             res = minimize(optim_nll, x0=x0, method="L-BFGS-B")
             mu_hat, log_sigma_hat, logit_df_hat = res.x
             sigma_hat = np.exp(log_sigma_hat)

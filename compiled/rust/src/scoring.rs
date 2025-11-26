@@ -14,31 +14,31 @@ pub fn score_split(
             -dist.log_evidence(data)
                 .expect("BUG: NLE requested but not supported (should be caught in Python)")
         }
-        
+
         "nll" => {
             let base_nll = compute_nll(data, dist, spec.use_posterior_predictive);
-            
+
             // Apply correction (if any)
             match spec.score_correction.as_deref() {
                 None => base_nll,
-                
+
                 Some("aic") => {
                     // AIC correction (Python pre-computed num_parameters!)
                     base_nll + (spec.num_parameters as f64)
                 }
-                
+
                 Some("bic") => {
                     // BIC correction
                     let n = data.len() as f64;
                     base_nll + 0.5 * (spec.num_parameters as f64) * n.ln()
                 }
-                
+
                 Some("loo_cv") => {
                     // LOO-CV: compute leave-one-out log-likelihood
                     let loo_ll = loo_cv_log_likelihood(data, dist, spec.use_posterior_predictive);
                     -loo_ll.mean().unwrap()
                 }
-                
+
                 Some("kfold_cv") => {
                     // K-fold CV
                     let cv_ll = kfold_cv_log_likelihood(
@@ -47,11 +47,11 @@ pub fn score_split(
                     );
                     -cv_ll.mean().unwrap()
                 }
-                
+
                 _ => unreachable!("Unknown correction (should be validated in Python)"),
             }
         }
-        
+
         _ => unreachable!("Unknown score_method (should be validated in Python)"),
     }
 }
@@ -63,14 +63,14 @@ fn compute_nll(
     use_posterior_predictive: bool,
 ) -> f64 {
     let params = dist.calc_posterior_params(data);
-    
+
     let ll = if use_posterior_predictive {
         dist.posterior_predictive_log_likelihood(data, &params)
             .unwrap_or_else(|| dist.plugin_log_likelihood(data, &params))
     } else {
         dist.plugin_log_likelihood(data, &params)
     };
-    
+
     -ll.sum()
 }
 
@@ -82,7 +82,7 @@ fn loo_cv_log_likelihood(
 ) -> Array1<f64> {
     let n = data.len();
     let mut loo_ll = Array1::zeros(n);
-    
+
     for i in 0..n {
         // Create train set (delete i-th point)
         let train: Array1<f64> = data.iter()
@@ -90,10 +90,10 @@ fn loo_cv_log_likelihood(
             .filter(|(idx, _)| *idx != i)
             .map(|(_, &val)| val)
             .collect();
-        
+
         // Fit on train
         let params = dist.calc_posterior_params(&train.view());
-        
+
         // Predict on test
         let test_point = data.slice(s![i..i+1]);
         let test_ll = if use_posterior_predictive {
@@ -102,10 +102,10 @@ fn loo_cv_log_likelihood(
         } else {
             dist.plugin_log_likelihood(&test_point, &params)
         };
-        
+
         loo_ll[i] = test_ll[0];
     }
-    
+
     loo_ll
 }
 
@@ -120,35 +120,35 @@ fn kfold_cv_log_likelihood(
 ) -> Array1<f64> {
     use rand::prelude::*;
     use rand_chacha::ChaCha8Rng;
-    
+
     let n = data.len();
     let mut indices: Vec<usize> = (0..n).collect();
-    
+
     if shuffle {
         let mut rng = ChaCha8Rng::seed_from_u64(seed);
         indices.shuffle(&mut rng);
     }
-    
+
     let fold_size = n / k;
     let mut cv_ll = Array1::zeros(n);
-    
+
     for fold in 0..k {
         let test_start = fold * fold_size;
         let test_end = if fold == k - 1 { n } else { (fold + 1) * fold_size };
-        
+
         let test_indices = &indices[test_start..test_end];
         let train_indices: Vec<usize> = indices.iter()
             .filter(|&&idx| idx < test_start || idx >= test_end)
             .copied()
             .collect();
-        
+
         // Extract train data
         let train_data: Array1<f64> = train_indices.iter()
             .map(|&idx| data[idx])
             .collect();
-        
+
         let params = dist.calc_posterior_params(&train_data.view());
-        
+
         // Evaluate on test fold
         for &test_idx in test_indices {
             let test_point = data.slice(s![test_idx..test_idx+1]);
@@ -161,6 +161,6 @@ fn kfold_cv_log_likelihood(
             cv_ll[test_idx] = test_ll[0];
         }
     }
-    
+
     cv_ll
 }
