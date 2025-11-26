@@ -13,6 +13,21 @@ class BDFDistributionParams(BaseModel, ABC):
     """Base parameters for all BDF distributions.
 
     Subclasses add distribution-specific priors AND their valid scoring configurations.
+
+    Parameters
+    ----------
+    score_method : Literal["nle", "nll"]
+        Scoring for splits: 'nle' (Bayesian marginal likelihood, negative log evidence) or 'nll' (plug-in negative log likelihood).
+    score_correction : Literal["aic", "bic", "loo_cv", "kfold_cv"] | None
+        Correction for NLL: None, 'aic', 'bic', 'loo_cv', or 'kfold_cv' (only used for `nll`).
+    score_cv_folds : int
+        K-fold CV folds (only used for kfold_cv).
+    score_cv_shuffle : bool
+        Shuffle data before CV splits (only for kfold_cv).
+    score_cv_seed : int
+        Random seed for CV (only for kfold_cv).
+    use_posterior_predictive : bool
+        Use posterior predictive (True) or plug-in MAP (False) for NLL/inference.
     """
 
     # Scoring configuration (common to all distributions)
@@ -131,12 +146,19 @@ class BDFDistribution(ABC):
             )
             self.params = self.params.model_copy(update={"use_posterior_predictive": False})
 
-    def to_spec(self) -> dict[str, Any]:
-        """Convert distribution to serializable specification."""
-        return {
+    def to_rust_spec(self) -> dict[str, Any]:
+        """Create fully-validated Rust spec with all scoring metadata."""
+        spec = {
+            # Distribution identity
             "dist_type": self.__class__.__name__,
-            "params": self.params.model_dump() if hasattr(self.params, "model_dump") else dict(self.params),
+            # ALL parameters (hyperparameters + scoring config) - already validated
+            **self.params.model_dump(),
+            # Add computed metadata
+            "num_parameters": self._num_parameters(),
+            # Fallback
+            "_python_object": self,
         }
+        return spec
 
     @classmethod
     def from_spec(cls, spec: dict[str, Any]) -> "BDFDistribution":

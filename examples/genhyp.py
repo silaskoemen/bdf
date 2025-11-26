@@ -1,16 +1,16 @@
-""" Generalized hyperbolic distribution (4th parameterization) example.
+"""Generalized hyperbolic distribution (4th parameterization) example.
 Tries to examine whether skewness/shape/tailness can be estimated from
 3rd and 4th moments.
 """
-import matplotlib.pyplot as plt
 
 # %%
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.special import kv
 
 
-def loglik_genhyp(params: tuple | list | np.ndarray, x) -> float:
+def loglik_genhyp(params: tuple | list | np.ndarray, x) -> np.ndarray:
     mu, delta, p, a, b = params
     if delta <= 0 or a <= 0 or np.abs(b) >= a:
         return -np.inf
@@ -33,9 +33,13 @@ def nll_genhyp(params, x):
     return -np.mean(loglik_genhyp(params, x))
 
 
-def lik_genhyp(params, x):
+def lik_genhyp(params, x, mean=False) -> np.ndarray | float:
     """Likelihood for the generalized hyperbolic distribution."""
-    return np.exp(loglik_genhyp(params, x))
+    lik = np.exp(loglik_genhyp(params, x))
+    if mean:
+        return np.mean(lik)
+    else:
+        return lik
 
 
 # %%
@@ -45,19 +49,21 @@ from scipy.stats import genhyperbolic, norm, skewnorm
 from tqdm import tqdm
 
 
-def simulate_data(n_simulations=1000, samples_per_sim=100, seed=42):
+def simulate_data(n_mixtures=10, probs=[0.1, 0.5, 0.2, 0.2], samples_per_sim=100, seed=42):
     np.random.seed(seed)
-    results = []
-    for _ in tqdm(range(n_simulations)):
-        dist = np.random.choice(["normal", "skewnormal", "genhyp"])
+    out_data = np.zeros((n_mixtures * samples_per_sim,))
+    probs = np.array(probs) / sum(probs)
+    rng = np.random.default_rng(seed)
+    for i in tqdm(range(n_mixtures), "Simulating data"):
+        dist = rng.choice(["normal", "skewnormal", "genhyp", "uniform"], p=probs)
 
         match dist:
             case "normal":
-                mu = np.random.uniform(-100, 100)
+                mu = np.random.uniform(-10, 10)
                 sigma = np.random.uniform(0.1, 50)
                 data = norm.rvs(loc=mu, scale=sigma, size=samples_per_sim)
             case "skewnormal":
-                mu = np.random.uniform(-100, 100)
+                mu = np.random.uniform(-10, 10)
                 sigma = np.random.uniform(0.1, 50)
                 skew = np.random.uniform(-10, 10)
                 data = skewnorm.rvs(a=skew, loc=mu, scale=sigma, size=samples_per_sim)
@@ -72,145 +78,59 @@ def simulate_data(n_simulations=1000, samples_per_sim=100, seed=42):
                 low = np.random.uniform(-10, 0)
                 high = np.random.uniform(0, 10)
                 data = np.random.uniform(low, high)
+            case _:
+                raise ValueError(f"Distribution '{dist}' not supported.")
 
-        # --- 2. Calculate Moments and Fit SHASH via MLE ---
-        mean = np.mean(data)
-        std = np.std(data, ddof=1)
-        if std < 1e-6:
-            continue
+        out_data[(i * samples_per_sim) : ((i + 1) * samples_per_sim)] = data
 
-        skew = np.mean(((data - mean) / std) ** 3)
-        kurt = np.mean(((data - mean) / std) ** 4) - 3
+    return out_data
 
-        # Fit MLE, mu, delta, p, a, b
-        res = minimize(
-            nll_genhyp,
-            np.array([mean, std, 1, 1.0, 0]),
-            args=(data,),
-            method="L-BFGS-B",
-            bounds=[(-np.inf, np.inf), (1e-6, np.inf), (-10, 10), (1e-6, 1000), (-1000, 1000)],
-        )
 
-        if res.success:
-            mu_mle, sigma_mle, p_mle, a_mle, b_mle = res.x
-            results.append(
-                {
-                    "skew": skew,
-                    "kurt": kurt,
-                    "p_mle": p_mle,
-                    "a_mle": a_mle,
-                    "b_mle": b_mle,
-                }
-            )
-
-    return pd.DataFrame(results)
+def calc_posterior_params(data: np.ndarray) -> tuple[float, float, float, float, float]:
+    """Calculate the posterior params using scipy's minimize of the log likelihood given the data"""
+    # Fit MLE, mu, delta, p, a, b
+    mean, std = np.mean(data), np.std(data)
+    res = minimize(
+        nll_genhyp,
+        np.array([mean, std, 1, 1.0, 0]),
+        args=(data,),
+        method="L-BFGS-B",
+        bounds=[(-np.inf, np.inf), (1e-6, np.inf), (-10, 10), (1e-6, 1000), (-1000, 1000)],
+    )
+    return res.x
 
 
 # %%
-empirical_df = simulate_data()
-# %%
-plt.scatter(
-    empirical_df["kurt"], empirical_df["p_mle"], c=empirical_df["skew"], cmap="viridis", alpha=0.5, label="Empirical p"
-)
-kurt_space = np.linspace(empirical_df["kurt"].min(), empirical_df["kurt"].max(), 1000)
-plt.xlabel("Sample Excess Kurtosis")
-plt.xlim(-3, 5)
-plt.ylabel("Fitted p (MLE)")
-plt.title("Sample Kurtosis vs. Fitted Delta")
-plt.legend()
-plt.grid(alpha=0.2)
-plt.tight_layout()
-plt.colorbar(label="Skew")
+data = simulate_data(n_mixtures=10, samples_per_sim=50, probs=[0.4, 2, 0.3, 0.8])
+param_tuple = calc_posterior_params(data)
+x_vals = np.arange(data.min(), data.max(), (data.max() - data.min()) / 1000)
+plt.hist(data, density=True, color="dodgerblue", bins=35)
+liks = lik_genhyp(param_tuple, x_vals)
+plt.plot(x_vals, liks, color="crimson")
 plt.show()
-plt.scatter(
-    empirical_df["kurt"], empirical_df["a_mle"], c=empirical_df["skew"], cmap="viridis", alpha=0.5, label="Empirical a"
-)
-kurt_space = np.linspace(empirical_df["kurt"].min(), empirical_df["kurt"].max(), 1000)
-plt.xlabel("Sample Excess Kurtosis")
-plt.xlim(-3, 5)
-plt.ylabel("Fitted a (MLE)")
-plt.title("Sample Kurtosis vs. Fitted Delta")
-plt.legend()
-plt.colorbar(label="Skew")
-plt.grid(alpha=0.2)
-plt.tight_layout()
-plt.show()
-plt.scatter(
-    empirical_df["kurt"], empirical_df["b_mle"], c=empirical_df["skew"], cmap="viridis", alpha=0.5, label="Empirical b"
-)
-kurt_space = np.linspace(empirical_df["kurt"].min(), empirical_df["kurt"].max(), 1000)
-plt.xlabel("Sample Excess Kurtosis")
-plt.xlim(-3, 5)
-plt.ylabel("Fitted b (MLE)")
-plt.title("Sample Kurtosis vs. Fitted Delta")
-plt.legend()
-plt.colorbar(label="Skew")
-plt.grid(alpha=0.2)
-plt.tight_layout()
-plt.show()
-# %%
-plt.scatter(
-    empirical_df["skew"], empirical_df["p_mle"], c=empirical_df["kurt"], cmap="viridis", alpha=0.5, label="Empirical p"
-)
-skew_space = np.linspace(empirical_df["skew"].min(), empirical_df["skew"].max(), 1000)
-plt.xlabel("Sample Skew")
-plt.xlim(-3, 5)
-plt.ylabel("Fitted p (MLE)")
-plt.title("Sample Skew vs. Fitted Delta")
-plt.legend()
-plt.grid(alpha=0.2)
-plt.tight_layout()
-plt.colorbar(label="Kurtosis")
-plt.show()
-plt.scatter(
-    empirical_df["skew"], empirical_df["a_mle"], c=empirical_df["kurt"], cmap="viridis", alpha=0.5, label="Empirical a"
-)
-skew_space = np.linspace(empirical_df["skew"].min(), empirical_df["skew"].max(), 1000)
-plt.xlabel("Sample Skew")
-plt.xlim(-3, 5)
-plt.ylabel("Fitted a (MLE)")
-plt.title("Sample Skew vs. Fitted Delta")
-plt.legend()
-plt.colorbar(label="Kurtosis")
-plt.grid(alpha=0.2)
-plt.tight_layout()
-plt.show()
-plt.scatter(
-    empirical_df["skew"], empirical_df["b_mle"], c=empirical_df["kurt"], cmap="viridis", alpha=0.5, label="Empirical b"
-)
-skew_space = np.linspace(empirical_df["skew"].min(), empirical_df["skew"].max(), 1000)
-plt.xlabel("Sample Skew")
-plt.xlim(-3, 5)
-plt.ylabel("Fitted b (MLE)")
-plt.title("Sample Skew vs. Fitted Delta")
-plt.legend()
-plt.colorbar(label="Kurtosis")
-plt.grid(alpha=0.2)
-plt.tight_layout()
-plt.show()
-
 
 # %%
-def skewness_kurtosis_to_b(skewness, kurtosis):
-    """Convert skewness and kurtosis to b parameter."""
-    return 1 / kurtosis * (skewness) ** 3
+from time import time
 
+# Compare minimize of loglik to `fit` directly
+start_time = time()
+params_min = calc_posterior_params(data)
+end_time = time()
+print(f"Scipy's `minimize` took {end_time - start_time:.2f}s")
+start_time = time()
+params_fit = genhyperbolic.fit(data)
+params_fit = params_fit[2:] + (params_fit[0], params_fit[1])
+end_time = time()
+print(f"Scipy's `fit` took {end_time - start_time:.2f}s")
+for n, m, f in zip(["mu", "sigma", "p", "a", "b"], params_min, params_fit):
+    print(f"{n.capitalize()} | min: {m} | fit: {f}")
 
-# Plot function over scatter plot
-plt.scatter(
-    empirical_df["skew"], empirical_df["b_mle"], c=empirical_df["kurt"], cmap="viridis", alpha=0.5, label="Empirical b"
-)
-skew_space = np.linspace(empirical_df["skew"].min(), empirical_df["skew"].max(), 1000)
-for k in np.arange(0, 25, 5):
-    plt.plot(skew_space, skewness_kurtosis_to_b(skew_space, k), label=f"Kurtosis = {k}", linestyle="--")
-plt.xlabel("Sample Skew")
-plt.xlim(-3, 5)
-plt.ylim(empirical_df["b_mle"].min(), empirical_df["b_mle"].max())
-plt.ylabel("Fitted b (MLE)")
-plt.title("Sample Skew vs. Fitted Delta")
-plt.legend()
-plt.colorbar(label="Kurtosis")
-plt.grid(alpha=0.2)
-plt.tight_layout()
+# %%
+x_vals = np.arange(data.min(), data.max(), (data.max() - data.min()) / 1000)
+plt.hist(data, density=True, color="dodgerblue", bins=35)
+min_liks = lik_genhyp(params_min, x_vals)
+plt.plot(x_vals, min_liks, color="crimson")
+fit_liks = genhyperbolic(params_fit).pdf(x_vals)
+plt.plot(x_vals, fit_liks, color="black")
 plt.show()
 # %%

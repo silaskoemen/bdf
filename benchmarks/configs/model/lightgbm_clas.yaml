@@ -5,6 +5,8 @@ target_type: classification
 class_name: LGBMClassifier
 probabilistic: false
 
+compatible_target_domains: [binary]
+
 fixed_init_kwargs:
   metric: log_loss  # or gini
   boosting_type: gbdt

@@ -1,7 +1,8 @@
-""" Generalized hyperbolic distribution (4th parameterization) example.
+"""Generalized hyperbolic distribution (4th parameterization) example.
 Tries to examine whether skewness/shape/tailness can be estimated from
 3rd and 4th moments.
 """
+
 import matplotlib.pyplot as plt
 
 # %%

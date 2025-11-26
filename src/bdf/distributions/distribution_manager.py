@@ -16,9 +16,7 @@ class DistributionManager:
         return BDFDistribution._registry
 
     @classmethod
-    def create_distribution(
-        cls, dist: str, prior_params: dict[str, Any], params: dict[str, Any] | None
-    ) -> BDFDistribution:
+    def create_distribution(cls, dist: str, params: dict[str, Any]) -> BDFDistribution:
         registry = cls._registry()
 
         if "+" in dist:
@@ -28,19 +26,18 @@ class DistributionManager:
                 leaf_cls = registry[leaf_name]
             except KeyError as exc:
                 raise ValueError(f"Unknown component '{exc.args[0]}' for {dist}") from None
-            base = base_cls(prior_params=prior_params.get("dist_prior_params", {}))
+            base = base_cls(params=params.get("dist_params", {}) if params else {})  # type: ignore | params is dict, will be converted in class
             leaf = leaf_cls(
-                prior_params=prior_params.get("kde_prior_params", {}),
-                params=params.get("kde_params", {}) if params else {},
+                params=params.get("kde_params", {}) if params else {},  # type: ignore
             )
-            return KDL(dist=base, kde=leaf, params=params or {})
+            return KDL(dist=base, kde=leaf, params=params or {})  # type: ignore
 
         try:
             DistClass = registry[dist]
         except KeyError:
             raise ValueError(f"Unknown distribution: {dist}") from None
-        return DistClass(prior_params=prior_params, params=params)
+        return DistClass(params=params)  # type: ignore
 
     @classmethod
     def to_rust_spec(cls, distribution: BDFDistribution) -> dict[str, Any]:
-        return distribution.to_spec()
+        return distribution.to_rust_spec()

@@ -1,9 +1,10 @@
-""" Beta distribution of data, reparametrized with mean mu and shape nu
+"""Beta distribution of data, reparametrized with mean mu and shape nu
 
 Related to original parameters via alpha = mu * nu, beta = (1 - mu) * nu.
 
 nu in terms of observed quantities is mu * (1 - mu) / var - 1.
 """
+
 import warnings
 
 import numpy as np

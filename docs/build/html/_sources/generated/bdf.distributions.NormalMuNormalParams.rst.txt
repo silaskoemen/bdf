@@ -1,0 +1,6 @@
+﻿bdf.distributions.NormalMuNormalParams
+======================================
+
+.. currentmodule:: bdf.distributions
+
+.. autoclass:: NormalMuNormalParams

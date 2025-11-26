@@ -1,0 +1,566 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>bdf.distributions.normal &mdash; bdf 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            bdf
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">bdf</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">bdf.distributions.normal</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for bdf.distributions.normal</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">Literal</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">norm</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">t</span> <span class="k">as</span> <span class="n">student_t</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">bdf.distributions.bdf_distribution</span><span class="w"> </span><span class="kn">import</span> <span class="n">BDFDistribution</span><span class="p">,</span> <span class="n">BDFDistributionParams</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">bdf.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">RANDOM_SEED</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># PARAMS CLASSES</span>
+<span class="c1"># ============================================================================</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">NormalMuNormalParams</span><span class="p">(</span><span class="n">BDFDistributionParams</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Parameters for Normal-Normal conjugate model (known variance).</span>
+
+<span class="sd">    **Model Specification:**</span>
+
+<span class="sd">    *   **Prior:** :math:`\mu \sim \mathcal{N}(\mu_0, \sigma_\mu^2)`</span>
+<span class="sd">    *   **Likelihood:** :math:`y \mid \mu \sim \mathcal{N}(\mu, \sigma^2)` (where :math:`\sigma` is estimated from data)</span>
+<span class="sd">    *   **Posterior:** :math:`\mu \mid y \sim \mathcal{N}(\mu_n, \sigma_n^2)`</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mu_mu : float</span>
+<span class="sd">        Prior mean for :math:`\mu`.</span>
+<span class="sd">    sigma_mu : float</span>
+<span class="sd">        Prior standard deviation for :math:`\mu`.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    :class:`.NormalMuNormal` : The implementation class using these parameters.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Prior hyperparameters</span>
+    <span class="n">mu_mu</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Prior mean for μ&quot;</span><span class="p">)</span>
+    <span class="n">sigma_mu</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Prior std for μ&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Scoring defaults for conjugate model</span>
+    <span class="n">score_method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;nle&quot;</span><span class="p">,</span> <span class="s2">&quot;nll&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="s2">&quot;nle&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Conjugate model defaults to nle (Bayesian evidence).&quot;</span>
+    <span class="p">)</span>
+    <span class="n">use_posterior_predictive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Use Student&#39;s t posterior predictive (marginalizes μ uncertainty).&quot;</span>
+    <span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">NormGammaNormalParams</span><span class="p">(</span><span class="n">BDFDistributionParams</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parameters for Normal-Gamma conjugate model (unknown mean and variance).</span>
+
+<span class="sd">    Prior: μ | σ² ~ N(μ₀, σ²/n₀), σ² ~ InvGamma(ν₀/2, ν₀φ₀/2)</span>
+<span class="sd">    Posterior: μ | σ², y ~ N(μₙ, σ²/nₙ), σ² | y ~ InvGamma(νₙ/2, νₙφₙ/2)</span>
+<span class="sd">    Posterior predictive: y_new | y ~ StudentT(νₙ, μₙ, φₙ/nₙ(1 + 1/nₙ))</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Prior hyperparameters</span>
+    <span class="n">mu_zero</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Prior mean μ₀&quot;</span><span class="p">)</span>
+    <span class="n">prior_n</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Prior precision parameter n₀&quot;</span><span class="p">)</span>
+    <span class="n">prior_nu</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Prior degrees of freedom ν₀&quot;</span><span class="p">)</span>
+    <span class="n">prior_phi</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Prior scale parameter φ₀&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Scoring defaults</span>
+    <span class="n">score_method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;nle&quot;</span><span class="p">,</span> <span class="s2">&quot;nll&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s2">&quot;nle&quot;</span><span class="p">)</span>
+    <span class="n">use_posterior_predictive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Use Student&#39;s t posterior predictive.&quot;</span><span class="p">)</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># DISTRIBUTION IMPLEMENTATIONS</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="NormalMuNormal">
+<a class="viewcode-back" href="../../../generated/bdf.distributions.NormalMuNormal.html#bdf.distributions.NormalMuNormal">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NormalMuNormal</span><span class="p">(</span><span class="n">BDFDistribution</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Normal-Normal conjugate model (μ unknown, σ² estimated from data).</span>
+
+<span class="sd">    **String Alias:** ``&#39;normal_normal&#39;``</span>
+
+<span class="sd">    **Model Specification:**</span>
+
+<span class="sd">    *   **Prior:** :math:`\mu \sim \mathcal{N}(\mu_0, \sigma_\mu^2)`</span>
+<span class="sd">    *   **Likelihood:** :math:`y \mid \mu \sim \mathcal{N}(\mu, \sigma^2)`</span>
+<span class="sd">    *   **Posterior:** :math:`\mu \mid y \sim \mathcal{N}(\mu_n, \sigma_n^2)`</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mu_mu : float, default=0.0</span>
+<span class="sd">        Prior mean for :math:`\mu` (:math:`\mu_0`).</span>
+<span class="sd">        </span>
+<span class="sd">    sigma_mu : float, default=1.0</span>
+<span class="sd">        Prior standard deviation for :math:`\mu` (:math:`\sigma_\mu`).</span>
+
+<span class="sd">    score_method : {&#39;nle&#39;, &#39;nll&#39;}, default=&#39;nle&#39;</span>
+<span class="sd">        Scoring method. </span>
+<span class="sd">        *   ``&#39;nle&#39;``: Uses exact Bayesian evidence (Negative Log Evidence).</span>
+<span class="sd">        *   ``&#39;nll&#39;``: Uses plug-in Negative Log Likelihood.</span>
+<span class="sd">        </span>
+<span class="sd">        .. note:: This overrides the base default of &#39;nll&#39; because this is a conjugate model.</span>
+
+<span class="sd">    use_posterior_predictive : bool, default=True</span>
+<span class="sd">        If True, uses the Student&#39;s t posterior predictive distribution for inference.</span>
+<span class="sd">        If False, uses the plug-in Normal distribution with MAP estimates.</span>
+
+<span class="sd">    score_correction : {&#39;aic&#39;, &#39;bic&#39;, &#39;loo_cv&#39;, &#39;kfold_cv&#39;} or None, default=None</span>
+<span class="sd">        Correction term for NLL scoring. Ignored if ``score_method=&#39;nle&#39;``.</span>
+
+<span class="sd">    score_cv_folds : int, default=3</span>
+<span class="sd">        Number of folds if ``score_correction=&#39;kfold_cv&#39;``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">params_cls</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">type</span><span class="p">[</span><span class="n">BDFDistributionParams</span><span class="p">]]</span> <span class="o">=</span> <span class="n">NormalMuNormalParams</span>
+
+    <span class="c1"># Capabilities</span>
+    <span class="n">_supports_nle</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">_has_fast_loo_cv</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">_has_fast_kfold_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_supports_posterior_predictive</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">NormalMuNormalParams</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mu_mu</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mu_mu</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma_mu</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">sigma_mu</span>
+
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># REQUIRED METHODS</span>
+    <span class="c1"># ========================================================================</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calc_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate Normal-Normal posterior parameters.</span>
+
+<span class="sd">        Returns dict with:</span>
+<span class="sd">        - posterior_mu: Posterior mean of μ</span>
+<span class="sd">        - posterior_sigma: Posterior std of μ (for PP) or sample std (for plug-in)</span>
+<span class="sd">        - sample_std: Always store sample std for likelihood evaluation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data must contain at least one observation to compute posterior parameters.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># With one data point, sample std is undefined; use small value to avoid division by zero</span>
+            <span class="n">sample_mean</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">sample_std</span> <span class="o">=</span> <span class="mf">1e-10</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sample_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">sample_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Avoid division by zero</span>
+        <span class="n">sample_var</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">sample_std</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="mf">1e-10</span><span class="p">)</span>
+
+        <span class="c1"># Posterior mean (weighted average of prior and data)</span>
+        <span class="n">precision_prior</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_mu</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">precision_data</span> <span class="o">=</span> <span class="n">n</span> <span class="o">/</span> <span class="n">sample_var</span>
+
+        <span class="n">posterior_mu</span> <span class="o">=</span> <span class="p">(</span><span class="n">precision_data</span> <span class="o">*</span> <span class="n">sample_mean</span> <span class="o">+</span> <span class="n">precision_prior</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_mu</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span>
+            <span class="n">precision_data</span> <span class="o">+</span> <span class="n">precision_prior</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Posterior std of μ (parameter uncertainty)</span>
+        <span class="n">posterior_sigma_mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="n">precision_data</span> <span class="o">+</span> <span class="n">precision_prior</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;posterior_mu&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">posterior_mu</span><span class="p">),</span>
+            <span class="s2">&quot;posterior_sigma&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">posterior_sigma_mu</span><span class="p">),</span>  <span class="c1"># Used for PP</span>
+            <span class="s2">&quot;sample_std&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">sample_std</span><span class="p">),</span>  <span class="c1"># Used for plug-in</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_plugin_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Plug-in: N(x | μ_posterior, σ_sample).&quot;&quot;&quot;</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_mu&quot;</span><span class="p">]</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;sample_std&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">norm</span><span class="o">.</span><span class="n">logpdf</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="n">mu</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">sigma</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Only μ is estimated (σ known from data).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sample_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample from posterior predictive N(μ_post, σ_μ² + σ_data²).&quot;&quot;&quot;</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_mu&quot;</span><span class="p">]</span>
+        <span class="n">sigma_mu</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_sigma&quot;</span><span class="p">]</span>
+        <span class="n">sample_std</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;sample_std&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Posterior predictive variance = parameter uncertainty + data noise</span>
+        <span class="n">pred_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">sigma_mu</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">sample_std</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="n">mu</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">pred_std</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_targets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate data for Normal distribution.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data contains NaN values&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data contains infinite values&quot;</span><span class="p">)</span>
+
+        <span class="n">std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">std</span><span class="p">)</span> <span class="ow">and</span> <span class="n">std</span> <span class="o">&gt;=</span> <span class="mf">0.0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Standard deviation must be finite and non-negative, got </span><span class="si">{</span><span class="n">std</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get posterior mean of μ.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_mu&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_variance</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get posterior variance of μ.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_sigma&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span>
+
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># OPTIONAL METHODS (OVERRIDE FOR EFFICIENCY)</span>
+    <span class="c1"># ========================================================================</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_evidence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Exact Bayesian evidence for Normal-Normal conjugate.</span>
+
+<span class="sd">        p(y | prior) = ∫ p(y | μ) p(μ) dμ</span>
+
+<span class="sd">        Marginal distribution of sample mean: N(μ₀, σ²/n + σ_μ²)</span>
+<span class="sd">        Plus term for deviations from mean.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">sample_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">sample_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Marginal variance of sample mean</span>
+        <span class="n">marginal_var</span> <span class="o">=</span> <span class="p">(</span><span class="n">sample_std</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_mu</span><span class="o">**</span><span class="mi">2</span>
+
+        <span class="c1"># Log evidence for sample mean</span>
+        <span class="n">log_ev</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">marginal_var</span><span class="p">)</span>
+        <span class="n">log_ev</span> <span class="o">-=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">sample_mean</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_mu</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">marginal_var</span>
+
+        <span class="c1"># Log evidence for deviations from mean (independent of prior)</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">log_ev</span> <span class="o">-=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">sample_std</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">log_ev</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_posterior_predictive_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Posterior predictive: N(x | μ_post, σ_μ² + σ_data²).</span>
+
+<span class="sd">        Integrates out uncertainty in μ.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_mu&quot;</span><span class="p">]</span>
+        <span class="n">sigma_mu</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_sigma&quot;</span><span class="p">]</span>
+        <span class="n">sample_std</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;sample_std&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Posterior predictive variance</span>
+        <span class="n">pred_var</span> <span class="o">=</span> <span class="n">sigma_mu</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">sample_std</span><span class="o">**</span><span class="mi">2</span>
+
+        <span class="k">return</span> <span class="n">norm</span><span class="o">.</span><span class="n">logpdf</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="n">mu</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">pred_var</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_loo_cv_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Efficient analytical LOO for Normal (override default).</span>
+
+<span class="sd">        For plug-in: analytical LOO means and stds</span>
+<span class="sd">        For PP: recompute posterior for each fold</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">full_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">full_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Analytical LOO means</span>
+        <span class="n">loo_means</span> <span class="o">=</span> <span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">full_mean</span> <span class="o">-</span> <span class="n">data</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">use_posterior_predictive</span><span class="p">:</span>
+            <span class="c1"># Full Bayesian: recompute posterior for each LOO fold</span>
+            <span class="n">loo_ll</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                <span class="n">train_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+                <span class="n">loo_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">train_data</span><span class="p">)</span>
+                <span class="n">loo_ll</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_posterior_predictive_log_likelihood</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="n">loo_params</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">loo_ll</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Plug-in: analytical LOO std</span>
+            <span class="k">if</span> <span class="n">n</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">loo_vars</span> <span class="o">=</span> <span class="p">((</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">full_std</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="p">(</span><span class="n">data</span> <span class="o">-</span> <span class="n">full_mean</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="n">loo_stds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">loo_vars</span><span class="p">,</span> <span class="mf">1e-10</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">loo_stds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">full_std</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">norm</span><span class="o">.</span><span class="n">logpdf</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="n">loo_means</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">loo_stds</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">sample_prior</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">RANDOM_SEED</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample μ from prior N(μ₀, σ_μ²).&quot;&quot;&quot;</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_mu</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_mu</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="NormGammaNormal">
+<a class="viewcode-back" href="../../../generated/bdf.distributions.NormGammaNormal.html#bdf.distributions.NormGammaNormal">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NormGammaNormal</span><span class="p">(</span><span class="n">BDFDistribution</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normal-Gamma conjugate model (μ and σ² both unknown).</span>
+
+<span class="sd">    Supports:</span>
+<span class="sd">    - Closed-form Bayesian evidence</span>
+<span class="sd">    - Student&#39;s t posterior predictive</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">params_cls</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">type</span><span class="p">[</span><span class="n">BDFDistributionParams</span><span class="p">]]</span> <span class="o">=</span> <span class="n">NormGammaNormalParams</span>
+
+    <span class="n">_supports_nle</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">_has_fast_loo_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_has_fast_kfold_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_supports_posterior_predictive</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">NormGammaNormalParams</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mu_zero</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mu_zero</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prior_n</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">prior_n</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prior_nu</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">prior_nu</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prior_phi</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">prior_phi</span>
+
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># REQUIRED METHODS</span>
+    <span class="c1"># ========================================================================</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calc_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate Normal-Gamma posterior parameters.&quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data must contain at least one observation to compute posterior parameters.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># With one data point, sample std is undefined; use small value to avoid division by zero</span>
+            <span class="n">sample_mean</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">sample_var</span> <span class="o">=</span> <span class="mf">1e-10</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sample_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">sample_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Posterior hyperparameters</span>
+        <span class="n">post_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_n</span> <span class="o">+</span> <span class="n">n</span>
+        <span class="n">post_nu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_nu</span> <span class="o">+</span> <span class="n">n</span>
+        <span class="n">post_phi</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prior_nu</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_phi</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample_var</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_n</span> <span class="o">/</span> <span class="n">post_n</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">sample_mean</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_zero</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Posterior mean</span>
+        <span class="n">posterior_mu</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prior_n</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_zero</span> <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="n">sample_mean</span><span class="p">)</span> <span class="o">/</span> <span class="n">post_n</span>
+
+        <span class="c1"># Posterior mode of σ² (if ν &gt; 2), else use mean</span>
+        <span class="k">if</span> <span class="n">post_nu</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">posterior_sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">post_phi</span> <span class="o">/</span> <span class="p">(</span><span class="n">post_nu</span> <span class="o">-</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">posterior_sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">post_phi</span> <span class="o">/</span> <span class="n">post_nu</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;posterior_mu&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">posterior_mu</span><span class="p">),</span>
+            <span class="s2">&quot;posterior_sigma&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">posterior_sigma</span><span class="p">),</span>
+            <span class="s2">&quot;post_n&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">post_n</span><span class="p">),</span>
+            <span class="s2">&quot;post_nu&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">post_nu</span><span class="p">),</span>
+            <span class="s2">&quot;post_phi&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">post_phi</span><span class="p">),</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_plugin_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Plug-in Normal likelihood with posterior mode.&quot;&quot;&quot;</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_mu&quot;</span><span class="p">]</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_sigma&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">norm</span><span class="o">.</span><span class="n">logpdf</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="n">mu</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">sigma</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;μ and σ² both estimated.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mi">2</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sample_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample from Student&#39;s t posterior predictive.&quot;&quot;&quot;</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_mu&quot;</span><span class="p">]</span>
+        <span class="n">post_n</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;post_n&quot;</span><span class="p">]</span>
+        <span class="n">post_nu</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;post_nu&quot;</span><span class="p">]</span>
+        <span class="n">post_phi</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;post_phi&quot;</span><span class="p">]</span>
+
+        <span class="n">df</span> <span class="o">=</span> <span class="n">post_nu</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">post_phi</span> <span class="o">/</span> <span class="n">post_nu</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">post_n</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">student_t</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">df</span><span class="o">=</span><span class="n">df</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="n">mu</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_targets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate data.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data contains NaN values&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data contains infinite values&quot;</span><span class="p">)</span>
+
+        <span class="n">std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">std</span><span class="p">)</span> <span class="ow">and</span> <span class="n">std</span> <span class="o">&gt;=</span> <span class="mf">0.0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Standard deviation must be finite and non-negative, got </span><span class="si">{</span><span class="n">std</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get posterior mean.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_mu&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_variance</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get posterior variance.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_sigma&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span>
+
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># OPTIONAL METHODS</span>
+    <span class="c1"># ========================================================================</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_evidence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Exact Bayesian evidence for Normal-Gamma conjugate.&quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.special</span><span class="w"> </span><span class="kn">import</span> <span class="n">gammaln</span>
+
+        <span class="n">n</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">sample_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">sample_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">post_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_n</span> <span class="o">+</span> <span class="n">n</span>
+        <span class="n">post_nu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_nu</span> <span class="o">+</span> <span class="n">n</span>
+        <span class="n">post_phi</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prior_nu</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_phi</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample_var</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_n</span> <span class="o">/</span> <span class="n">post_n</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">sample_mean</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_zero</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="p">)</span>
+
+        <span class="n">log_ev</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">n</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+        <span class="n">log_ev</span> <span class="o">+=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prior_n</span> <span class="o">/</span> <span class="n">post_n</span><span class="p">)</span>
+        <span class="n">log_ev</span> <span class="o">+=</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">post_nu</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prior_nu</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">log_ev</span> <span class="o">+=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prior_nu</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prior_phi</span><span class="p">)</span>
+        <span class="n">log_ev</span> <span class="o">-=</span> <span class="p">(</span><span class="n">post_nu</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">post_phi</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">log_ev</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_posterior_predictive_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Student&#39;s t posterior predictive.&quot;&quot;&quot;</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_mu&quot;</span><span class="p">]</span>
+        <span class="n">post_n</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;post_n&quot;</span><span class="p">]</span>
+        <span class="n">post_nu</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;post_nu&quot;</span><span class="p">]</span>
+        <span class="n">post_phi</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;post_phi&quot;</span><span class="p">]</span>
+
+        <span class="n">df</span> <span class="o">=</span> <span class="n">post_nu</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">post_phi</span> <span class="o">/</span> <span class="n">post_nu</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">post_n</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">student_t</span><span class="o">.</span><span class="n">logpdf</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="n">df</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="n">mu</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">sample_prior</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">RANDOM_SEED</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Cannot easily sample from Normal-Gamma prior (hierarchical).&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;NormGammaNormal prior sampling not implemented (requires hierarchical sampling).&quot;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Silas Koemen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -4,7 +4,9 @@ name: lightgbm_reg
 target_type: regression
 class_name: LGBMRegressor
 probabilistic: false
-supports: [R, R+, R-, Z, N]  # Supports all regression-style targets
+
+compatible_target_domains: [R, R+, Z, Z+]  # Supports all regression-style targets
+standardize_target: both  # Possibly standardize outcome (standard scaling), supports 'no', 'only', 'both'
 
 fixed_init_kwargs:
   objective: regression

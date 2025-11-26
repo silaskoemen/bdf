@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: check-toml
       - id: check-yaml
@@ -9,28 +9,28 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 25.11.0
     hooks:
       - id: black
         args: [--line-length=120]
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+    rev: 7.0.0
     hooks:
       - id: isort
         args: [--profile, black, --filter-files]
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: 'v0.0.262'
+    rev: 'v0.14.6'
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
         files: ^(src|compiled)/.*\.py$
 
-  - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.401
+  - repo: local
     hooks:
       - id: pyright
-        files: ^src/.*\.py$  # Only check src and compiled directories
-        exclude: ^examples/.*\.py$  # Explicitly exclude examples
-        additional_dependencies: ["numpy", "matplotlib", "scipy", "pydantic", ".", "pandas", "scikit-learn", "tqdm"]
+        name: pyright
+        entry: pyright
+        language: system
+        types: [python]

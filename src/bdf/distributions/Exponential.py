@@ -9,6 +9,7 @@ Both support:
 - Posterior predictive (Lomax distribution)
 - Efficient inference (conjugate updates)
 """
+
 import warnings
 from typing import ClassVar, Literal
 

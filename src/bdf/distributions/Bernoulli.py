@@ -11,6 +11,7 @@ Both support:
 
 Data format: Binary labels {0, 1}
 """
+
 from typing import ClassVar, Literal
 
 import numpy as np

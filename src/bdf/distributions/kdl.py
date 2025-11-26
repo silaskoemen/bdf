@@ -4,7 +4,6 @@ in the final leaves - Kernel Density Leaves (KDL).
 Leverages already implemented BDFDistribution classes, routes for split finding and prediction.
 """
 
-
 """Thoughts on how to do this:
 - `nll` should use _dist distribution for float return for split finding
 - `predict` of Node uses saved params, so {'data': y, 'bandwidth': bw} for kde should be returned

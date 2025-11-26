@@ -1,0 +1,705 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>bdf.tree_classes.bdf_regressor &mdash; bdf 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            bdf
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">bdf</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">bdf.tree_classes.bdf_regressor</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for bdf.tree_classes.bdf_regressor</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">RegressorMixin</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">bdf.distributions.distribution_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">DistributionManager</span> <span class="k">as</span> <span class="n">DM</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">bdf.tree_classes.bdf_tree</span><span class="w"> </span><span class="kn">import</span> <span class="n">BDFTree</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">bdf.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">RANDOM_SEED</span>
+
+
+<div class="viewcode-block" id="BDFRegressor">
+<a class="viewcode-back" href="../../../regressor.html#bdf.tree_classes.bdf_regressor.BDFRegressor">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BDFRegressor</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">RegressorMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;BDFRegressor class for Bayesian Distributional Forests.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dist</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;normal_normal&quot;</span><span class="p">,</span>
+        <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">n_trees</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="n">reg_beta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">reg_lambda</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">max_depth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">min_samples_leaf</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">min_samples_split</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">min_child_weight</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">subsample</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span><span class="p">,</span>
+        <span class="n">colsample</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">eta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.025</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">RANDOM_SEED</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the BDFRegressor with prior parameters.</span>
+<span class="sd">        Args</span>
+<span class="sd">        ----</span>
+<span class="sd">        `data_dist` : str | BDFDistribution.BDFDistribution, optional</span>
+<span class="sd">            Data distribution type or instance, default is &#39;normal&#39;.</span>
+<span class="sd">        `prior_params` : str | BDFDistribution.BDFDistribution | dict, optional</span>
+<span class="sd">            Prior parameters for the distribution, can be string name or &#39;auto&#39;, a BDFDistribution instance, or a dictionary parameters as keys. Default is &#39;auto&#39;.</span>
+<span class="sd">        `n_trees` : int, optional</span>
+<span class="sd">            Number of trees in the forest, default is 100.</span>
+<span class="sd">        `reg_beta` : float, optional</span>
+<span class="sd">            Regularization parameter for the beta term, default is 0.</span>
+<span class="sd">        `reg_lambda` : float, optional</span>
+<span class="sd">            Regularization parameter for the lambda term, default is 0.</span>
+<span class="sd">        `max_depth` : int, optional</span>
+<span class="sd">            Maximum depth of the regression tree, default is 10.</span>
+<span class="sd">        `min_samples_leaf` : int, optional</span>
+<span class="sd">            Minimum number of samples required to be at a leaf node, default is 10.</span>
+<span class="sd">        `min_samples_split` : int, optional</span>
+<span class="sd">            Minimum number of samples required to split an internal node, default is 20.</span>
+<span class="sd">        `min_child_weight` : int | float, optional</span>
+<span class="sd">            Minimum sum of instance weight (hessian) needed in a child, default is 10.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_fitted_</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distribution</span> <span class="o">=</span> <span class="n">DM</span><span class="o">.</span><span class="n">create_distribution</span><span class="p">(</span><span class="n">dist</span><span class="o">=</span><span class="n">dist</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">dist</span><span class="p">,</span> <span class="n">params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_init_params</span><span class="p">(</span>
+            <span class="n">n_trees</span><span class="o">=</span><span class="n">n_trees</span><span class="p">,</span>
+            <span class="n">reg_beta</span><span class="o">=</span><span class="n">reg_beta</span><span class="p">,</span>
+            <span class="n">reg_lambda</span><span class="o">=</span><span class="n">reg_lambda</span><span class="p">,</span>
+            <span class="n">max_depth</span><span class="o">=</span><span class="n">max_depth</span><span class="p">,</span>
+            <span class="n">min_samples_leaf</span><span class="o">=</span><span class="n">min_samples_leaf</span><span class="p">,</span>
+            <span class="n">min_samples_split</span><span class="o">=</span><span class="n">min_samples_split</span><span class="p">,</span>
+            <span class="n">min_child_weight</span><span class="o">=</span><span class="n">min_child_weight</span><span class="p">,</span>
+            <span class="n">subsample</span><span class="o">=</span><span class="n">subsample</span><span class="p">,</span>
+            <span class="n">colsample</span><span class="o">=</span><span class="n">colsample</span><span class="p">,</span>
+            <span class="n">eta</span><span class="o">=</span><span class="n">eta</span><span class="p">,</span>
+            <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="BDFRegressor.fit">
+<a class="viewcode-back" href="../../../regressor.html#bdf.tree_classes.bdf_regressor.BDFRegressor.fit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">standardize_y</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;BDFRegressor&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit the BDFRegressor to the training data.</span>
+<span class="sd">        Args</span>
+<span class="sd">        ----</span>
+<span class="sd">        `X` : np.ndarray | pd.DataFrame</span>
+<span class="sd">            Training data features.</span>
+<span class="sd">        `y` : np.ndarray | pd.Series</span>
+<span class="sd">            Training data target values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Seed for reproducibility of subsample and colsample</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">)</span>
+        <span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_fit_input</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_features_in_</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">standardize_y</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standardize_y</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+
+        <span class="c1"># Otherwise regularization depends on size of the dataset (NLL as sum)</span>
+        <span class="n">n_features_iter</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">colsample</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">BDFTree</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># Create a progress bar for tree creation and fitting</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_trees</span><span class="p">)):</span>
+            <span class="c1"># Create and fit a tree</span>
+            <span class="n">iter_tree</span> <span class="o">=</span> <span class="n">BDFTree</span><span class="p">(</span>
+                <span class="n">distribution</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">distribution</span><span class="p">,</span>
+                <span class="n">reg_beta</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reg_beta</span><span class="p">,</span>
+                <span class="n">reg_lambda</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reg_lambda</span><span class="p">,</span>
+                <span class="n">max_depth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_depth</span><span class="p">,</span>
+                <span class="n">min_samples_leaf</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_samples_leaf</span><span class="p">,</span>
+                <span class="n">min_samples_split</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_samples_split</span><span class="p">,</span>
+                <span class="n">min_child_weight</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_child_weight</span><span class="p">,</span>
+                <span class="n">random_state</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="c1"># Subsample rows and columns if specified</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">subsample</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">:</span>
+                <span class="n">n_samples</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">subsample</span><span class="p">)</span>
+                <span class="c1"># Could allow kw bootstrap to allow replacement, do replacement below too</span>
+                <span class="n">row_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span>
+                    <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">n_samples</span><span class="p">,</span>
+                    <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">X_iter</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">row_indices</span><span class="p">]</span>
+                <span class="n">y_iter</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">row_indices</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">X_iter</span> <span class="o">=</span> <span class="n">X</span>
+                <span class="n">y_iter</span> <span class="o">=</span> <span class="n">y</span>
+            <span class="n">col_idcs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">n_features_iter</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">colsample</span> <span class="o">&lt;</span> <span class="mf">1.0</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">iter_tree</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_iter</span><span class="p">,</span> <span class="n">y_iter</span><span class="p">,</span> <span class="n">col_idcs</span><span class="o">=</span><span class="n">col_idcs</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span> <span class="n">eta</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">eta</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">iter_tree</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_fitted_</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_standardize_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Standardize the target variable y.</span>
+
+<span class="sd">        Args</span>
+<span class="sd">        ----</span>
+<span class="sd">        `y` : np.ndarray</span>
+<span class="sd">            The target variable to standardize.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        np.ndarray</span>
+<span class="sd">            Standardized target variable.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mean_y</span><span class="p">,</span> <span class="n">std_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">std_y</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Standard deviation of y is zero, cannot standardize.&quot;</span><span class="p">)</span>
+        <span class="n">standardized_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">mean_y</span><span class="p">)</span> <span class="o">/</span> <span class="n">std_y</span>  <span class="c1"># type: ignore</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y_mean</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_std</span> <span class="o">=</span> <span class="n">mean_y</span><span class="p">,</span> <span class="n">std_y</span>
+        <span class="k">return</span> <span class="n">standardized_y</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_unstandardize_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Unstandardize the target variable y.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;y_mean&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;y_std&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">y</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_std</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_mean</span>
+        <span class="k">return</span> <span class="n">y</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_pooled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Internal helper to draw and pool samples from all trees.</span>
+
+<span class="sd">        Returns an array of shape (n_obs, sample_size).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># To get a total of `sample_size` samples, we need to draw `ceil(sample_size / n_trees)` from each.</span>
+        <span class="n">per_tree_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">sample_size</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_trees</span><span class="p">))</span>
+
+        <span class="c1"># Shape: (n_trees, n_obs, per_tree_size)</span>
+        <span class="n">tree_samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tree</span><span class="o">.</span><span class="n">predict_samples</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">per_tree_size</span><span class="p">)</span> <span class="k">for</span> <span class="n">tree</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">])</span>
+
+        <span class="c1"># Transpose and reshape to pool samples across trees</span>
+        <span class="c1"># Shape: (n_obs, n_trees * per_tree_size)</span>
+        <span class="n">pooled_samples</span> <span class="o">=</span> <span class="n">tree_samples</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Return exactly sample_size samples</span>
+        <span class="k">return</span> <span class="n">pooled_samples</span><span class="p">[:,</span> <span class="p">:</span><span class="n">sample_size</span><span class="p">]</span>
+
+<div class="viewcode-block" id="BDFRegressor.predict">
+<a class="viewcode-back" href="../../../regressor.html#bdf.tree_classes.bdf_regressor.BDFRegressor.predict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Predicts the mean for each observation in X.</span>
+
+<span class="sd">        NOTE: This should be a wrapper for all methods, taking keyword `method` to</span>
+<span class="sd">        choose prediction. Also, mean should be possible from pooled samples with</span>
+<span class="sd">        `mean-samples` method.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">predict_mean</span><span class="p">(</span><span class="n">X</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BDFRegressor.predict_mean">
+<a class="viewcode-back" href="../../../regressor.html#bdf.tree_classes.bdf_regressor.BDFRegressor.predict_mean">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Predicts the mean for each observation in X.</span>
+
+<span class="sd">        The forest&#39;s mean prediction is the average of the means from each tree.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">X_validated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_prediction_input</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="c1"># Shape: (n_trees, n_obs) -&gt; (n_obs,)</span>
+        <span class="n">tree_means</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tree</span><span class="o">.</span><span class="n">predict_mean</span><span class="p">(</span><span class="n">X_validated</span><span class="p">)</span> <span class="k">for</span> <span class="n">tree</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">])</span>
+        <span class="n">forest_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">tree_means</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unstandardize_y</span><span class="p">(</span><span class="n">forest_mean</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BDFRegressor.predict_weighted_mean">
+<a class="viewcode-back" href="../../../regressor.html#bdf.tree_classes.bdf_regressor.BDFRegressor.predict_weighted_mean">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_weighted_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Predicts the inverse-variance weighted mean for each observation in X.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">X_validated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_prediction_input</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">tree_means</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tree</span><span class="o">.</span><span class="n">predict_mean</span><span class="p">(</span><span class="n">X_validated</span><span class="p">)</span> <span class="k">for</span> <span class="n">tree</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">])</span>
+        <span class="n">tree_vars</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tree</span><span class="o">.</span><span class="n">predict_variance</span><span class="p">(</span><span class="n">X_validated</span><span class="p">)</span> <span class="k">for</span> <span class="n">tree</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">])</span>
+
+        <span class="c1"># Inverse variance weighting</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">tree_vars</span>
+        <span class="n">weighted_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">tree_means</span> <span class="o">*</span> <span class="n">weights</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unstandardize_y</span><span class="p">(</span><span class="n">weighted_mean</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BDFRegressor.predict_median">
+<a class="viewcode-back" href="../../../regressor.html#bdf.tree_classes.bdf_regressor.BDFRegressor.predict_median">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_median</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Predicts the median for each observation in X by pooling samples from all trees.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">X_validated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_prediction_input</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">pooled_samples</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_pooled_samples</span><span class="p">(</span><span class="n">X_validated</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">)</span>
+        <span class="n">median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">pooled_samples</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unstandardize_y</span><span class="p">(</span><span class="n">median</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BDFRegressor.predict_quantiles">
+<a class="viewcode-back" href="../../../regressor.html#bdf.tree_classes.bdf_regressor.BDFRegressor.predict_quantiles">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_quantiles</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">sample_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Predicts quantiles for each observation in X by pooling samples from all trees.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">X_validated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_prediction_input</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">pooled_samples</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_pooled_samples</span><span class="p">(</span><span class="n">X_validated</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">)</span>
+        <span class="n">quantiles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">pooled_samples</span><span class="p">,</span> <span class="n">q</span><span class="o">=</span><span class="n">q</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># If multiple quantiles are requested, the result has shape (n_quantiles, n_obs)</span>
+        <span class="c1"># We want (n_obs, n_quantiles) to be consistent with other predictors</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">))</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">q</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">quantiles</span> <span class="o">=</span> <span class="n">quantiles</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unstandardize_y</span><span class="p">(</span><span class="n">quantiles</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BDFRegressor.predict_variance">
+<a class="viewcode-back" href="../../../regressor.html#bdf.tree_classes.bdf_regressor.BDFRegressor.predict_variance">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_variance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Predicts the variance for each observation in X.</span>
+
+<span class="sd">        Uses the Law of Total Variance over the trees:</span>
+<span class="sd">        Var(Y) = E[Var(Y|Tree)] + Var(E[Y|Tree])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">X_validated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_prediction_input</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="c1"># Each has shape (n_trees, n_obs)</span>
+        <span class="n">tree_means</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tree</span><span class="o">.</span><span class="n">predict_mean</span><span class="p">(</span><span class="n">X_validated</span><span class="p">)</span> <span class="k">for</span> <span class="n">tree</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">])</span>
+        <span class="n">tree_vars</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tree</span><span class="o">.</span><span class="n">predict_variance</span><span class="p">(</span><span class="n">X_validated</span><span class="p">)</span> <span class="k">for</span> <span class="n">tree</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">])</span>
+
+        <span class="c1"># E[Var(Y|T)]: Mean of variances from each tree. Shape: (n_obs,)</span>
+        <span class="n">expected_variance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">tree_vars</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># Var(E[Y|T]): Variance of means from each tree. Shape: (n_obs,)</span>
+        <span class="n">variance_of_expectation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">tree_means</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">total_variance</span> <span class="o">=</span> <span class="n">expected_variance</span> <span class="o">+</span> <span class="n">variance_of_expectation</span>
+
+        <span class="c1"># Variance is scaled by std^2</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;y_std&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">total_variance</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_std</span><span class="o">**</span><span class="mi">2</span>
+        <span class="k">return</span> <span class="n">total_variance</span></div>
+
+
+<div class="viewcode-block" id="BDFRegressor.predict_samples">
+<a class="viewcode-back" href="../../../regressor.html#bdf.tree_classes.bdf_regressor.BDFRegressor.predict_samples">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Draws samples from the predictive distribution for each observation in X.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">X_validated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_prediction_input</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">pooled_samples</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_pooled_samples</span><span class="p">(</span><span class="n">X_validated</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unstandardize_y</span><span class="p">(</span><span class="n">pooled_samples</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BDFRegressor.predict_params">
+<a class="viewcode-back" href="../../../regressor.html#bdf.tree_classes.bdf_regressor.BDFRegressor.predict_params">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the predictive distribution parameters from each tree for each observation.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.ndarray: An array of shape (n_obs, n_trees), where each element is a</span>
+<span class="sd">                        dictionary of parameters.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">X_validated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_prediction_input</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="c1"># Shape: (n_trees, n_obs) -&gt; (n_obs, n_trees)</span>
+        <span class="n">params_per_tree</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tree</span><span class="o">.</span><span class="n">predict_params</span><span class="p">(</span><span class="n">X_validated</span><span class="p">)</span> <span class="k">for</span> <span class="n">tree</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">return</span> <span class="n">params_per_tree</span></div>
+
+
+<div class="viewcode-block" id="BDFRegressor.plot_tree">
+<a class="viewcode-back" href="../../../regressor.html#bdf.tree_classes.bdf_regressor.BDFRegressor.plot_tree">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">plot_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tree_index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">figsize</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span> <span class="n">dpi</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">):</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+
+        <span class="kn">import</span><span class="w"> </span><span class="nn">graphviz</span>  <span class="c1"># type: ignore</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.image</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">mpimg</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+
+        <span class="k">if</span> <span class="n">tree_index</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Tree index </span><span class="si">{</span><span class="n">tree_index</span><span class="si">}</span><span class="s2"> out of range. Only </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">)</span><span class="si">}</span><span class="s2"> trees available.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Create digraph with hierarchical layout</span>
+        <span class="n">dot</span> <span class="o">=</span> <span class="n">graphviz</span><span class="o">.</span><span class="n">Digraph</span><span class="p">()</span>
+        <span class="n">dot</span><span class="o">.</span><span class="n">attr</span><span class="p">(</span><span class="n">rankdir</span><span class="o">=</span><span class="s2">&quot;TB&quot;</span><span class="p">)</span>  <span class="c1"># Top to bottom layout</span>
+        <span class="n">dot</span><span class="o">.</span><span class="n">attr</span><span class="p">(</span><span class="s2">&quot;node&quot;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="s2">&quot;ellipse&quot;</span><span class="p">)</span>  <span class="c1"># Default shape for all nodes</span>
+        <span class="n">dot</span><span class="o">.</span><span class="n">attr</span><span class="p">(</span><span class="n">ranksep</span><span class="o">=</span><span class="s2">&quot;0.6&quot;</span><span class="p">)</span>  <span class="c1"># Increase spacing between ranks</span>
+        <span class="n">dot</span><span class="o">.</span><span class="n">attr</span><span class="p">(</span><span class="n">nodesep</span><span class="o">=</span><span class="s2">&quot;2&quot;</span><span class="p">)</span>  <span class="c1"># Increase spacing between nodes</span>
+        <span class="n">dot</span><span class="o">.</span><span class="n">attr</span><span class="p">(</span><span class="n">ratio</span><span class="o">=</span><span class="s2">&quot;fill&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Make nodes larger with custom fonts</span>
+        <span class="n">dot</span><span class="o">.</span><span class="n">attr</span><span class="p">(</span><span class="s2">&quot;node&quot;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="s2">&quot;ellipse&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;filled&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="s2">&quot;20&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="s2">&quot;1.7&quot;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="s2">&quot;1.4&quot;</span><span class="p">,</span> <span class="n">margin</span><span class="o">=</span><span class="s2">&quot;0.2,0.1&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Make edges thicker and more visible</span>
+        <span class="n">dot</span><span class="o">.</span><span class="n">attr</span><span class="p">(</span><span class="s2">&quot;edge&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="s2">&quot;16&quot;</span><span class="p">,</span> <span class="n">penwidth</span><span class="o">=</span><span class="s2">&quot;2&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Use the root of the specified tree</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">[</span><span class="n">tree_index</span><span class="p">]</span><span class="o">.</span><span class="n">root</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">traverse_tree</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">node_id</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">node_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">node_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">node</span><span class="p">))</span>
+
+            <span class="c1"># Check if it&#39;s a leaf node (no children)</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">left_node</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">right_node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Format posterior parameters more readably</span>
+                <span class="n">params_list</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">posterior_params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+                        <span class="n">params_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">v</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">params_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">leaf_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distribution</span><span class="o">.</span><span class="n">get_posterior_mean</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">node</span><span class="o">.</span><span class="n">posterior_params</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;y_mean&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;y_std&quot;</span><span class="p">):</span>
+                    <span class="n">leaf_mean</span> <span class="o">=</span> <span class="n">leaf_mean</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_std</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_mean</span>
+                <span class="c1"># Join parameters with newlines for better readability</span>
+                <span class="n">params_str</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">params_list</span><span class="p">)</span>
+
+                <span class="n">dot</span><span class="o">.</span><span class="n">node</span><span class="p">(</span><span class="n">node_id</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;LEAF | </span><span class="si">{</span><span class="n">leaf_mean</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">params_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;filled&quot;</span><span class="p">,</span> <span class="n">fillcolor</span><span class="o">=</span><span class="s2">&quot;lightgreen&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># It&#39;s a split node</span>
+                <span class="n">dot</span><span class="o">.</span><span class="n">node</span><span class="p">(</span>
+                    <span class="n">node_id</span><span class="p">,</span>
+                    <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Feature: </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">best_feature</span><span class="si">}</span><span class="se">\n</span><span class="s2">Threshold: </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">best_threshold</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">style</span><span class="o">=</span><span class="s2">&quot;filled&quot;</span><span class="p">,</span>
+                    <span class="n">fillcolor</span><span class="o">=</span><span class="s2">&quot;lightgrey&quot;</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="c1"># Create unique IDs for children</span>
+                <span class="n">left_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">node_id</span><span class="si">}</span><span class="s2">_left&quot;</span>
+                <span class="n">right_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">node_id</span><span class="si">}</span><span class="s2">_right&quot;</span>
+
+                <span class="c1"># Connect to children</span>
+                <span class="n">dot</span><span class="o">.</span><span class="n">edge</span><span class="p">(</span><span class="n">node_id</span><span class="p">,</span> <span class="n">left_id</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;≤&quot;</span><span class="p">)</span>
+                <span class="n">dot</span><span class="o">.</span><span class="n">edge</span><span class="p">(</span><span class="n">node_id</span><span class="p">,</span> <span class="n">right_id</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;&gt;&quot;</span><span class="p">)</span>
+
+                <span class="c1"># Traverse children</span>
+                <span class="n">traverse_tree</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">left_node</span><span class="p">,</span> <span class="n">left_id</span><span class="p">)</span>
+                <span class="n">traverse_tree</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">right_node</span><span class="p">,</span> <span class="n">right_id</span><span class="p">)</span>
+
+        <span class="c1"># Start traversal</span>
+        <span class="n">traverse_tree</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
+
+        <span class="c1"># Set graph rendering options</span>
+        <span class="n">dot</span><span class="o">.</span><span class="n">attr</span><span class="p">(</span><span class="n">dpi</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">dpi</span><span class="p">))</span>  <span class="c1"># Higher resolution</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Create a PNG image</span>
+            <span class="n">png_str</span> <span class="o">=</span> <span class="n">dot</span><span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="nb">format</span><span class="o">=</span><span class="s2">&quot;png&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Use BytesIO to read the PNG image</span>
+            <span class="n">sio</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">png_str</span><span class="p">)</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">mpimg</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">sio</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;png&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Plot the image using Matplotlib</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="n">dpi</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">&quot;off&quot;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Tree </span><span class="si">{</span><span class="n">tree_index</span><span class="si">}</span><span class="s2"> (of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error rendering tree: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Trying alternate rendering approach...&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># Try saving to file and opening directly</span>
+                <span class="n">dot</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;tree_</span><span class="si">{</span><span class="n">tree_index</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;png&quot;</span><span class="p">,</span> <span class="n">cleanup</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Tree rendered to tree_</span><span class="si">{</span><span class="n">tree_index</span><span class="si">}</span><span class="s2">.png&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e2</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error with alternative rendering: </span><span class="si">{</span><span class="n">e2</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Displaying DOT source instead:&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">dot</span><span class="o">.</span><span class="n">source</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_init_params</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">n_trees</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">reg_beta</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">reg_lambda</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">max_depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">min_samples_leaf</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">min_samples_split</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">min_child_weight</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">subsample</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">colsample</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">eta</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate the initialization parameters.&quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">reg_beta</span><span class="p">,</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">))</span> <span class="ow">and</span> <span class="n">reg_beta</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;reg_beta must be float and non-negative, got </span><span class="si">{</span><span class="n">reg_beta</span><span class="si">}</span><span class="s2"> of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">reg_beta</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span>
+            <span class="n">reg_lambda</span><span class="p">,</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;reg_lambda must be a float, got </span><span class="si">{</span><span class="n">reg_lambda</span><span class="si">}</span><span class="s2"> of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">reg_lambda</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_trees</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="n">n_trees</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;n_trees must be a positive integer, got </span><span class="si">{</span><span class="n">n_trees</span><span class="si">}</span><span class="s2"> of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">n_trees</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">max_depth</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="n">max_depth</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;max_depth must be a positive integer, got </span><span class="si">{</span><span class="n">max_depth</span><span class="si">}</span><span class="s2"> of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">max_depth</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">min_samples_leaf</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="n">min_samples_leaf</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;min_samples_leaf must be a positive integer, got </span><span class="si">{</span><span class="n">min_samples_leaf</span><span class="si">}</span><span class="s2"> of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">min_samples_leaf</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">min_samples_split</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="n">min_samples_split</span> <span class="o">&gt;=</span> <span class="mi">2</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;min_samples_split must be an integer &gt;= 2, got </span><span class="si">{</span><span class="n">min_samples_split</span><span class="si">}</span><span class="s2"> of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">min_samples_split</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">min_child_weight</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span> <span class="ow">and</span> <span class="n">min_child_weight</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;min_child_weight must be a non-negative integer or float, got </span><span class="si">{</span><span class="n">min_child_weight</span><span class="si">}</span><span class="s2"> of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">min_child_weight</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">subsample</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">subsample</span> <span class="o">&lt;=</span> <span class="mi">1</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;subsample must be a float between 0 and 1, got </span><span class="si">{</span><span class="n">subsample</span><span class="si">}</span><span class="s2"> of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">subsample</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">colsample</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">colsample</span> <span class="o">&lt;=</span> <span class="mi">1</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;colsample must be a float between 0 and 1, got </span><span class="si">{</span><span class="n">colsample</span><span class="si">}</span><span class="s2"> of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">colsample</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">eta</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">eta</span> <span class="o">&lt;=</span> <span class="mi">1</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;eta must be a float between 0 and 1, got </span><span class="si">{</span><span class="n">eta</span><span class="si">}</span><span class="s2"> of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">eta</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">random_state</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="n">random_state</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;random_state must be a non-negative integer, got </span><span class="si">{</span><span class="n">random_state</span><span class="si">}</span><span class="s2"> of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span> <span class="o">=</span> <span class="n">random_state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eta</span> <span class="o">=</span> <span class="n">eta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reg_beta</span> <span class="o">=</span> <span class="n">reg_beta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reg_lambda</span> <span class="o">=</span> <span class="n">reg_lambda</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_trees</span> <span class="o">=</span> <span class="n">n_trees</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_depth</span> <span class="o">=</span> <span class="n">max_depth</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_samples_leaf</span> <span class="o">=</span> <span class="n">min_samples_leaf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_samples_split</span> <span class="o">=</span> <span class="n">min_samples_split</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_child_weight</span> <span class="o">=</span> <span class="n">min_child_weight</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subsample</span> <span class="o">=</span> <span class="n">subsample</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">colsample</span> <span class="o">=</span> <span class="n">colsample</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_prediction_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate the input for prediction.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_fitted_</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;This BDFRegressor instance is not fitted yet. Call &#39;fit&#39; with appropriate arguments before using this estimator.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;feature_names&quot;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">col</span> <span class="ow">in</span> <span class="n">X</span><span class="o">.</span><span class="n">columns</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">feature_names</span><span class="p">):</span>  <span class="c1"># type: ignore</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;X must contain all feature names used during fitting&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">feature_names</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">X</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+                    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                        <span class="s2">&quot;X contains additional columns not seen during fitting. &quot;</span>
+                        <span class="s2">&quot;Prediction continues only with columns seen during fitting.&quot;</span>
+                    <span class="p">)</span>
+                <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">feature_names</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>  <span class="c1"># type: ignore</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;X is a DataFrame but no feature names were stored during fitting. &quot;</span>
+                    <span class="s2">&quot;Ensure to fit with a DataFrame to predict on DataFrame or fit on np.ndarray&quot;</span>
+                <span class="p">)</span>
+        <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features_in_</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;X has </span><span class="si">{</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2"> features, but BDFRegressor was fitted with </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_features_in_</span><span class="si">}</span><span class="s2"> features.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;After casting from pandas, X has to be a np.ndarray, got type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_features</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">X</span>
+
+<div class="viewcode-block" id="BDFRegressor.validate_array">
+<a class="viewcode-back" href="../../../regressor.html#bdf.tree_classes.bdf_regressor.BDFRegressor.validate_array">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_array</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">allow_nan</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">allow_inf</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">allow_none</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Validates a NumPy array to ensure it is numeric and does not contain unwanted values.</span>
+
+<span class="sd">        This function is optimized for performance and can optionally allow None values</span>
+<span class="sd">        for future sparsity-aware implementations.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data (np.ndarray): The input array to validate.</span>
+<span class="sd">            allow_nan (bool): If False, raises an error if NaN is found.</span>
+<span class="sd">            allow_inf (bool): If False, raises an error if Inf or -Inf is found.</span>
+<span class="sd">            allow_none (bool): If True, allows the array to contain None values.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If the data is not numeric or contains forbidden values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Fast path for purely numeric arrays (cannot contain None)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_nan</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Input data contains NaN values.&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_inf</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Input data contains infinite values.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Slower path for object arrays, which might contain None or other types</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="s2">&quot;object&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_none</span><span class="p">:</span>
+                <span class="c1"># If None is not allowed, try a direct conversion which will fail on None.</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+                <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;Input data contains non-numeric values or None, and could not be converted to float.&quot;</span>
+                    <span class="p">)</span>
+
+            <span class="c1"># If None is allowed, we must check the non-None elements</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Create a mask to isolate non-None elements</span>
+                <span class="n">non_none_mask</span> <span class="o">=</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="n">numeric_subset</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">non_none_mask</span><span class="p">]</span>
+
+                <span class="c1"># If there are any non-None elements, validate them</span>
+                <span class="k">if</span> <span class="n">numeric_subset</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="c1"># Check if the non-None elements are actually numeric</span>
+                        <span class="n">numeric_subset</span> <span class="o">=</span> <span class="n">numeric_subset</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Input data contains non-numeric string values alongside None.&quot;</span><span class="p">)</span>
+
+                    <span class="c1"># Perform checks on the validated numeric subset</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_nan</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">numeric_subset</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Input data&#39;s numeric subset contains NaN values.&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_inf</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">numeric_subset</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Input data&#39;s numeric subset contains infinite values.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># If it&#39;s some other non-numeric, non-object dtype, it&#39;s invalid.</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported data type &#39;</span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&#39;. Data must be numeric or object type.&quot;</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_fit_input</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate the input for fitting.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">feature_names</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">columns</span>  <span class="c1"># type: ignore</span>
+            <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">values</span>  <span class="c1"># type: ignore</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_features_in_</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">):</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>  <span class="c1"># type: ignore</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Number of samples in X (</span><span class="si">{</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">) must match number of samples in y (</span><span class="si">{</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_features</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_targets</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>  <span class="c1"># Passes or raises Assertion-/ValueError</span>
+        <span class="k">return</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate that input features are all not NaN/None/numerical etc.&quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="n">X</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;X must be a 2D array, got </span><span class="si">{</span><span class="n">X</span><span class="o">.</span><span class="n">ndim</span><span class="si">}</span><span class="s2">D array&quot;</span>
+        <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;X must contain at least one sample&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">X</span><span class="p">)),</span> <span class="s2">&quot;Input data cannot be NaN.&quot;</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span>
+            <span class="n">X</span><span class="p">,</span> <span class="nb">float</span>
+        <span class="p">),</span> <span class="s2">&quot;Input data has to be subtype of float. If it fails although all features are numeric, consider casting to float/int for all columns.&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_targets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validation function to check whether targets are allowed under the</span>
+<span class="sd">        given distribution.</span>
+
+<span class="sd">        Args</span>
+<span class="sd">        ----</span>
+<span class="sd">        `y` : np.ndarray</span>
+<span class="sd">            targets used for fit input</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="n">y</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;y must be a 1D array, got </span><span class="si">{</span><span class="n">y</span><span class="o">.</span><span class="n">ndim</span><span class="si">}</span><span class="s2">D array&quot;</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">y</span><span class="p">)),</span> <span class="s2">&quot;Targets cannot be NaN.&quot;</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span>
+            <span class="n">y</span><span class="p">,</span> <span class="nb">float</span>
+        <span class="p">),</span> <span class="s2">&quot;Targets have to be subtype of float. If it fails although all features are numeric, consider casting to float/int for all columns.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distribution</span><span class="o">.</span><span class="n">validate_targets</span><span class="p">(</span><span class="n">y</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Silas Koemen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

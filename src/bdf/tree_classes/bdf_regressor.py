@@ -16,7 +16,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
     def __init__(
         self,
         dist: str = "normal_normal",
-        prior_params: dict = {},
+        params: dict = {},
         n_trees: int = 100,
         reg_beta: float = 0,
         reg_lambda: float = 0,
@@ -52,8 +52,8 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             Minimum sum of instance weight (hessian) needed in a child, default is 10.
         """
         self.is_fitted_ = False
-        self.distribution = DM.create_distribution(dist=dist, prior_params=prior_params)
-        self.dist, self.prior_params = dist, prior_params
+        self.distribution = DM.create_distribution(dist=dist, params=params)
+        self.dist, self.params = dist, params
         self._validate_init_params(
             n_trees=n_trees,
             reg_beta=reg_beta,

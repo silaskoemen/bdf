@@ -14,11 +14,24 @@ from bdf.utils.constants import RANDOM_SEED
 
 
 class NormalMuNormalParams(BDFDistributionParams):
-    """Parameters for Normal-Normal conjugate model (known variance).
+    r"""Parameters for Normal-Normal conjugate model (known variance).
 
-    Prior: μ ~ N(μ₀, σ_μ²)
-    Likelihood: y | μ ~ N(μ, σ²) where σ estimated from data
-    Posterior: μ | y ~ N(μₙ, σₙ²)
+    **Model Specification:**
+
+    *   **Prior:** :math:`\mu \sim \mathcal{N}(\mu_0, \sigma_\mu^2)`
+    *   **Likelihood:** :math:`y \mid \mu \sim \mathcal{N}(\mu, \sigma^2)` (where :math:`\sigma` is estimated from data)
+    *   **Posterior:** :math:`\mu \mid y \sim \mathcal{N}(\mu_n, \sigma_n^2)`
+
+    Parameters
+    ----------
+    mu_mu : float
+        Prior mean for :math:`\mu`.
+    sigma_mu : float
+        Prior standard deviation for :math:`\mu`.
+
+    See Also
+    --------
+    :class:`.NormalMuNormal` : The implementation class using these parameters.
     """
 
     # Prior hyperparameters
@@ -59,12 +72,40 @@ class NormGammaNormalParams(BDFDistributionParams):
 
 
 class NormalMuNormal(BDFDistribution):
-    """Normal-Normal conjugate model (μ unknown, σ² estimated from data).
+    r"""Normal-Normal conjugate model (μ unknown, σ² estimated from data).
 
-    Supports:
-    - Closed-form Bayesian evidence (NLE)
-    - Posterior predictive (integrates out μ uncertainty)
-    - Efficient analytical LOO-CV
+    **String Alias:** ``'normal_normal'``
+
+    **Model Specification:**
+
+    *   **Prior:** :math:`\mu \sim \mathcal{N}(\mu_0, \sigma_\mu^2)`
+    *   **Likelihood:** :math:`y \mid \mu \sim \mathcal{N}(\mu, \sigma^2)`
+    *   **Posterior:** :math:`\mu \mid y \sim \mathcal{N}(\mu_n, \sigma_n^2)`
+
+    Parameters
+    ----------
+    mu_mu : float, default=0.0
+        Prior mean for :math:`\mu` (:math:`\mu_0`).
+
+    sigma_mu : float, default=1.0
+        Prior standard deviation for :math:`\mu` (:math:`\sigma_\mu`).
+
+    score_method : {'nle', 'nll'}, default='nle'
+        Scoring method.
+        *   ``'nle'``: Uses exact Bayesian evidence (Negative Log Evidence).
+        *   ``'nll'``: Uses plug-in Negative Log Likelihood.
+
+        .. note:: This overrides the base default of 'nll' because this is a conjugate model.
+
+    use_posterior_predictive : bool, default=True
+        If True, uses the Student's t posterior predictive distribution for inference.
+        If False, uses the plug-in Normal distribution with MAP estimates.
+
+    score_correction : {'aic', 'bic', 'loo_cv', 'kfold_cv'} or None, default=None
+        Correction term for NLL scoring. Ignored if ``score_method='nle'``.
+
+    score_cv_folds : int, default=3
+        Number of folds if ``score_correction='kfold_cv'``.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = NormalMuNormalParams
@@ -93,8 +134,15 @@ class NormalMuNormal(BDFDistribution):
         - sample_std: Always store sample std for likelihood evaluation
         """
         n = data.shape[0]
-        sample_mean = np.mean(data)
-        sample_std = np.std(data, ddof=1)
+        if n == 0:
+            raise ValueError("Data must contain at least one observation to compute posterior parameters.")
+        elif n == 1:
+            # With one data point, sample std is undefined; use small value to avoid division by zero
+            sample_mean = data[0]
+            sample_std = 1e-10
+        else:
+            sample_mean = np.mean(data)
+            sample_std = np.std(data, ddof=1)
 
         # Avoid division by zero
         sample_var = max(sample_std**2, 1e-10)
@@ -277,8 +325,15 @@ class NormGammaNormal(BDFDistribution):
     def calc_posterior_params(self, data: np.ndarray) -> dict[str, float]:
         """Calculate Normal-Gamma posterior parameters."""
         n = data.shape[0]
-        sample_mean = np.mean(data)
-        sample_var = np.var(data, ddof=1)
+        if n == 0:
+            raise ValueError("Data must contain at least one observation to compute posterior parameters.")
+        elif n == 1:
+            # With one data point, sample std is undefined; use small value to avoid division by zero
+            sample_mean = data[0]
+            sample_var = 1e-10
+        else:
+            sample_mean = np.mean(data)
+            sample_var = np.var(data, ddof=1)
 
         # Posterior hyperparameters
         post_n = self.prior_n + n

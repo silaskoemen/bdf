@@ -9,6 +9,7 @@ Both support:
 - Negative Binomial posterior predictive
 - Efficient inference (conjugate updates)
 """
+
 from typing import ClassVar, Literal
 
 import numpy as np

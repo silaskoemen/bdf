@@ -1,5 +1,6 @@
 use ndarray::{ArrayView1, ArrayView2, Array1, s};
-use crate::distributions::Distribution;
+use crate::distributions::{DistributionPrimitives, ScoringSpec};
+use crate::scoring::score_split;
 use rayon::prelude::*;
 use std::sync::Mutex;
 
@@ -9,7 +10,8 @@ pub fn find_best_split(
     y: &ArrayView1<f64>,
     min_samples_leaf: usize,
     min_child_weight: f64,
-    distribution: &dyn Distribution,
+    distribution: &dyn DistributionPrimitives,
+    scoring_spec: &ScoringSpec,
     eta: f64,
     col_idcs: Option<Array1<usize>>,
 ) -> (Option<usize>, Option<f64>, f64, Option<Array1<bool>>, Option<Array1<bool>>) {
@@ -26,8 +28,8 @@ pub fn find_best_split(
 
     let n_thresholds = (1.0 / eta).ceil() as usize;
 
-    // Current node NLL (calculated once)
-    let current_nll = distribution.nll(y);
+    // Current node score (calculated once)
+    let current_score = score_split(y, distribution, scoring_spec);
     // Determine which features to iterate through
     let feature_idcs: Vec<usize> = match col_idcs {
         Some(ref indices) => indices.to_vec(),
@@ -90,14 +92,14 @@ pub fn find_best_split(
                 .map(|(&val, _)| val)
             );
 
-            let left_nll = distribution.nll(&left_y.view());
-            let right_nll = distribution.nll(&right_y.view());
+            let left_score = score_split(&left_y.view(), distribution, scoring_spec);
+            let right_score = score_split(&right_y.view(), distribution, scoring_spec);
 
-            let loss_reduction = current_nll - (left_nll + right_nll);
+            let improvement = current_score - (left_score + right_score);
 
             // Update local best (no mutex needed yet)
-            if loss_reduction > local_best_loss {
-                local_best_loss = loss_reduction;
+            if improvement > local_best_loss {
+                local_best_loss = improvement;
                 local_best_threshold = Some(threshold);
                 local_best_left = Some(left_indices);
                 local_best_right = Some(right_indices);

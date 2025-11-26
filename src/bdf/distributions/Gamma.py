@@ -10,6 +10,7 @@ Implemented versions:
 
 All implementations share the same likelihood/sampling logic through GammaBase.
 """
+
 import warnings
 
 import numpy as np

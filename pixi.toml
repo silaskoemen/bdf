@@ -1,0 +1,100 @@
+[project]
+name = "bdf"
+version = "0.0.1"
+description = "Bayesian Distributional Forest"
+authors = ["Silas Koemen <silaskoemen@icloud.com>"]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64", "win-64"]
+
+[tasks]
+# SOTA: Setup should build the extension immediately so 'import bdf' works instantly
+setup = "pip install --no-deps -e . && pre-commit install && pixi run build-rust"
+clean = "rm -rf build/ dist/ *.egg-info"
+
+# ==========================================
+# 1. CORE DEPENDENCIES
+# ==========================================
+[dependencies]
+python = ">=3.11"
+numpy = ">=1.24"
+pandas = ">=2.0"
+scikit-learn = ">=1.3"
+scipy = ">=1.10"
+pydantic = ">=2.0"
+tqdm = "*"
+graphviz = "*"
+python-graphviz = "*"
+
+# ==========================================
+# 2. FEATURES
+# ==========================================
+
+[feature.test.dependencies]
+pytest = ">=7.0"
+pytest-cov = "*"
+
+[feature.test.tasks]
+test = "pytest"
+
+[feature.lint.dependencies]
+pre-commit = "*"
+ruff = "*"
+black = "*"
+isort = "*"
+pyright = "*"
+
+[feature.lint.tasks]
+lint = "pre-commit run --all-files"
+
+[feature.benchmark.dependencies]
+matplotlib = "*"
+seaborn = "*"
+rich = "*"
+
+[feature.benchmark.tasks]
+bench = "python examples/run_experiment.py"
+
+# --- DOCS FEATURE (Sphinx) ---
+[feature.docs.dependencies]
+sphinx = "*"
+sphinx-rtd-theme = "*"  # Or pydata-sphinx-theme (used by pandas/numpy)
+sphinx-autodoc-typehints = "*"
+numpydoc = "*"  # Essential for scientific docstrings
+
+[feature.docs.tasks]
+docs-start = "sphinx-quickstart docs"
+docs-build = "sphinx-build -b html docs/source docs/build/html"
+docs-clean = "rm -rf docs/build"
+
+[feature.dev-tools.dependencies]
+jupyter = "*"
+ipykernel = "*"
+pip = "*"
+maturin = "*"
+
+[feature.dev-tools.tasks]
+build-rust = "maturin develop --release --manifest-path compiled/rust/Cargo.toml"
+
+# ==========================================
+# 3. ENVIRONMENTS
+# ==========================================
+
+[environments]
+# DEFAULT: Core + Test + Lint + DevTools. 
+# Light enough to be fast, complete enough to build/test.
+default = { features = ["test", "lint", "dev-tools"], solve-group = "prod" }
+
+# PROD: Minimal runtime check
+prod = { features = [], solve-group = "prod" }
+
+# TEST: CI/CD
+test = { features = ["test"], solve-group = "prod" }
+
+# LINT: Isolated fast check
+lint = { features = ["lint"], no-default-feature = true }
+
+# BENCHMARK: Heavy plotting deps
+benchmark = { features = ["benchmark"], solve-group = "prod" }
+
+# DOCS: Isolated documentation build
+docs = { features = ["docs"], solve-group = "prod" }

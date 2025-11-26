@@ -23,6 +23,7 @@ sym.init_printing(use_unicode=True)
 res = sym.solve([e1, e2], [d, v])
 print(res)
 """
+
 import math
 
 # %%

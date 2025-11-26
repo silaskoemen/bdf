@@ -11,6 +11,7 @@ Both support:
 
 Note: Data format is categorical (integer labels 0, 1, ..., K-1), not one-hot.
 """
+
 from typing import ClassVar, Literal
 
 import numpy as np

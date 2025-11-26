@@ -1,5 +1,6 @@
-""" Implement probabilistic metrics for evaluating distributional/probabilistic
+"""Implement probabilistic metrics for evaluating distributional/probabilistic
 predictions"""
+
 import numpy as np
 
 
