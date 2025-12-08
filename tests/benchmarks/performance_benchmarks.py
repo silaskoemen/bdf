@@ -1,6 +1,6 @@
 import time
 
-import bdf_rust
+import bdf_rs
 import numpy as np
 from sklearn.datasets import make_regression
 from sklearn.ensemble import RandomForestRegressor
@@ -32,7 +32,7 @@ def benchmark_split_finding(n_samples=1000, n_features=10, n_runs=3):
     for _ in range(n_runs):
         start = time.time()
         # Call Rust version
-        result_rust = bdf_rust.find_best_split(X, y, 1, 0.0, rust_spec, 0.1, None)  # type: ignore
+        result_rust = bdf_rs.find_best_split(X, y, 1, 0.0, rust_spec, 0.1, None)  # type: ignore
         rust_times.append(time.time() - start)
 
     # Print results

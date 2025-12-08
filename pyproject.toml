@@ -10,7 +10,7 @@ authors = [
     {name = "Silas Koemen", email = "silaskoemen@icloud.com"},
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<=3.14"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",

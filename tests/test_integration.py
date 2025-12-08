@@ -1,4 +1,4 @@
-import bdf_rust
+import bdf_rs
 import numpy as np
 import pytest
 from sklearn.datasets import make_regression
@@ -55,7 +55,7 @@ def test_distribution_parameters():
     y = np.random.rand(20)
 
     # Call Rust function
-    result = bdf_rust.find_best_split(X, y, 1, 0.0, rust_spec, 0.1, None)  # type: ignore
+    result = bdf_rs.find_best_split(X, y, 1, 0.0, rust_spec, 0.1, None)  # type: ignore
 
     # Just check it runs without error - actual values tested elsewhere
     assert result is not None
@@ -106,7 +106,7 @@ def test_rust_python_nll_equivalence():
 
     # Calculate in Rust
     rust_spec = DistributionManager.to_rust_spec(dist)
-    rust_nll = bdf_rust.calculate_nll(data, rust_spec)  # type: ignore
+    rust_nll = bdf_rs.calculate_nll(data, rust_spec)  # type: ignore
 
     # Should be very close
     assert abs(py_nll - rust_nll) < 1e-10

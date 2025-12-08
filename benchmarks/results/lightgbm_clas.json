@@ -1,0 +1,85 @@
+{
+  "model_config": {
+    "name": "lightgbm_clas",
+    "target_type": "classification",
+    "class_name": "LGBMClassifier",
+    "probabilistic": false,
+    "compatible_target_domains": [
+      "binary"
+    ],
+    "fixed_init_kwargs": {
+      "metric": "log_loss",
+      "boosting_type": "gbdt",
+      "verbose": -1
+    },
+    "tunable_init_kwargs": {
+      "num_leaves": {
+        "type": "int",
+        "low": 5,
+        "high": 250
+      },
+      "learning_rate": {
+        "type": "float",
+        "low": 0.0001,
+        "high": 0.2,
+        "log": true
+      },
+      "max_depth": {
+        "type": "int",
+        "low": 3,
+        "high": 15
+      },
+      "n_estimators": {
+        "type": "int",
+        "low": 10,
+        "high": 500
+      }
+    },
+    "fit_kwargs": {
+      "early_stopping_rounds": 10,
+      "verbose": -1
+    }
+  },
+  "datasets": {
+    "breast_cancer": {
+      "metadata": {
+        "name": "breast_cancer",
+        "target_domain": "binary"
+      },
+      "metrics": {
+        "auroc": 0.9181818181818182,
+        "accuracy": 0.9370629370629371,
+        "f1": 0.9513513513513514,
+        "recall": 1.0,
+        "precision": 0.9072164948453608,
+        "log_loss": 2.268481681832548
+      },
+      "best_params": {
+        "num_leaves": 151,
+        "learning_rate": 0.07927846174254305,
+        "max_depth": 3,
+        "n_estimators": 436
+      }
+    },
+    "titanic": {
+      "metadata": {
+        "name": "titanic",
+        "target_domain": "binary"
+      },
+      "metrics": {
+        "auroc": 0.7972860472860471,
+        "accuracy": 0.820627802690583,
+        "f1": 0.7530864197530864,
+        "recall": 0.6703296703296703,
+        "precision": 0.8591549295774648,
+        "log_loss": 6.46522930746496
+      },
+      "best_params": {
+        "num_leaves": 50,
+        "learning_rate": 0.013947229337887687,
+        "max_depth": 7,
+        "n_estimators": 323
+      }
+    }
+  }
+}

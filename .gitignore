@@ -22,6 +22,11 @@ target/
 **/*.db
 *.db
 
+.DS_Store
+
 outputs/figures/
 
 outputs/
+
+.pixi/
+.local/

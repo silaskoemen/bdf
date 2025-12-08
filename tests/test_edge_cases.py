@@ -1,4 +1,4 @@
-import bdf_rust
+import bdf_rs
 import numpy as np
 import pytest
 

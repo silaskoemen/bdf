@@ -1,4 +1,4 @@
-import bdf_rust
+import bdf_rs
 import numpy as np
 import pytest
 
@@ -71,7 +71,7 @@ class TestDistributionManager:
         # Rust side via test function we need to expose
         rust_spec = DistributionManager.to_rust_spec(py_dist)
         # You'll need to implement this function that calls the Rust NLL
-        rust_nll = bdf_rust.calculate_nll(data, rust_spec)  # type: ignore
+        rust_nll = bdf_rs.calculate_nll(data, rust_spec)  # type: ignore
 
         assert np.abs(py_nll - rust_nll) < 1e-10
 

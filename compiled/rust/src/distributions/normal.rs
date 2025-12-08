@@ -1,4 +1,4 @@
-use super::DistributionPrimitives;
+use super::{DistributionPrimitives, SufficientStats};
 use ndarray::{ArrayView1, Array1};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -38,8 +38,12 @@ pub struct NormalMuNormal {
 impl NormalMuNormal {
     pub fn from_spec(spec: &PyDict) -> PyResult<Self> {
         Ok(Self {
-            mu_mu: spec.get_item("mu_mu")?.extract()?,
-            sigma_mu: spec.get_item("sigma_mu")?.extract()?,
+            mu_mu: spec.get_item("mu_mu").ok_or_else(|| pyo3::exceptions::PyValueError::new_err(
+                "Missing mu_mu in NormalMuNormal spec"
+            ))?.extract()?,
+            sigma_mu: spec.get_item("sigma_mu").ok_or_else(|| pyo3::exceptions::PyValueError::new_err(
+                "Missing sigma_mu in NormalMuNormal spec"
+            ))?.extract()?,
         })
     }
 }
@@ -110,7 +114,7 @@ impl DistributionPrimitives for NormalMuNormal {
         }))
     }
 
-    fn log_evidence(&self, data: &ArrayView1<f64>) -> Option<f64> {
+    fn nle(&self, data: &ArrayView1<f64>) -> Option<f64> {
         let n = data.len() as f64;
         if n == 0.0 { return Some(0.0); }
 
@@ -124,52 +128,198 @@ impl DistributionPrimitives for NormalMuNormal {
 
         let marginal_var = (sample_var / n) + self.sigma_mu * self.sigma_mu;
 
-        let mut log_ev = -0.5 * (2.0 * PI * marginal_var).ln();
-        log_ev -= 0.5 * (sample_mean - self.mu_mu).powi(2) / marginal_var;
+        let log_ev_mean = -0.5 * (2.0 * PI * marginal_var).ln()
+                          - 0.5 * (sample_mean - self.mu_mu).powi(2) / marginal_var;
 
-        if n > 1.0 {
-            log_ev -= 0.5 * (n - 1.0) * (2.0 * PI * sample_var).ln();
-            log_ev -= 0.5 * (n - 1.0);
+        // The data terms relative to the sample mean (independent of Mu)
+        // Sum log N(x_i | x_bar, sample_var)
+        let log_ev_residuals = if n > 1.0 {
+             -0.5 * (n - 1.0) * (2.0 * PI * sample_var).ln() - 0.5 * (n - 1.0)
+        } else {
+            0.0
+        };
+
+        Some(log_ev_mean + log_ev_residuals)
+    }
+
+    fn nle_suff_stats(&self, stats: &SufficientStats) -> Option<f64> {
+        let n = stats.n;
+        if n == 0.0 { return Some(0.0); }
+
+        let sample_mean = stats.sum / n;
+        let sample_var = if n > 1.0 {
+            (stats.sum_sq - n * sample_mean.powi(2)) / (n - 1.0)
+        } else {
+            0.0
+        };
+
+        let marginal_var = (sample_var / n) + self.sigma_mu * self.sigma_mu;
+
+        let log_ev_mean = -0.5 * (2.0 * PI * marginal_var).ln()
+                          - 0.5 * (sample_mean - self.mu_mu).powi(2) / marginal_var;
+
+        // The data terms relative to the sample mean (independent of Mu)
+        // Sum log N(x_i | x_bar, sample_var)
+        let log_ev_residuals = if n > 1.0 {
+             -0.5 * (n - 1.0) * (2.0 * PI * sample_var).ln() - 0.5 * (n - 1.0)
+        } else {
+            0.0
+        };
+
+        Some(log_ev_mean + log_ev_residuals)
+    }
+
+    /// Optimized stack-based NLL calculation
+    fn nll(&self, data: &ArrayView1<f64>, use_posterior_predictive: bool) -> f64 {
+        // ...existing code...
+        // (Keep existing implementation)
+        let n = data.len() as f64;
+        if n == 0.0 { return 0.0; }
+        // ... (rest of calc_nll) ...
+        let sample_mean = data.mean().unwrap();
+        let sum_sq: f64 = data.iter().map(|&x| (x - sample_mean).powi(2)).sum();
+        let sample_var = if n > 1.0 { sum_sq / (n - 1.0) } else { 1e-10 };
+        let sample_std = sample_var.sqrt();
+
+        let precision_prior = 1.0 / (self.sigma_mu * self.sigma_mu);
+        let precision_data = n / sample_var.max(1e-10);
+        let precision_posterior = precision_prior + precision_data;
+
+        let posterior_mu = (precision_prior * self.mu_mu + precision_data * sample_mean) / precision_posterior;
+        let posterior_sigma_mu = (1.0 / precision_posterior).sqrt();
+
+        let (mu, sigma) = if use_posterior_predictive {
+            let pred_var = posterior_sigma_mu.powi(2) + sample_var;
+            (posterior_mu, pred_var.sqrt())
+        } else {
+            (posterior_mu, sample_std)
+        };
+
+        let log_sigma = sigma.ln();
+        const LOG_2PI: f64 = 1.8378770664093453;
+
+        let mut nll = 0.0;
+        for &x in data {
+            let z = (x - mu) / sigma;
+            nll -= -0.5 * LOG_2PI - log_sigma - 0.5 * z * z;
         }
+        nll
+    }
 
-        Some(log_ev)
+    fn nll_train_test(&self, train: &ArrayView1<f64>, test: &ArrayView1<f64>, use_posterior_predictive: bool) -> f64 {
+        // 1. Train (calculate posterior params from train set)
+        let n = train.len() as f64;
+        if n == 0.0 { return 0.0; } // Should probably return prior NLL, but 0 for now
+
+        let sample_mean = train.mean().unwrap();
+        let sum_sq: f64 = train.iter().map(|&x| (x - sample_mean).powi(2)).sum();
+        let sample_var = if n > 1.0 { sum_sq / (n - 1.0) } else { 1e-10 };
+        let sample_std = sample_var.sqrt();
+
+        let precision_prior = 1.0 / (self.sigma_mu * self.sigma_mu);
+        let precision_data = n / sample_var.max(1e-10);
+        let precision_posterior = precision_prior + precision_data;
+
+        let posterior_mu = (precision_prior * self.mu_mu + precision_data * sample_mean) / precision_posterior;
+        let posterior_sigma_mu = (1.0 / precision_posterior).sqrt();
+
+        let (mu, sigma) = if use_posterior_predictive {
+            let pred_var = posterior_sigma_mu.powi(2) + sample_var;
+            (posterior_mu, pred_var.sqrt())
+        } else {
+            (posterior_mu, sample_std)
+        };
+
+        let log_sigma = sigma.ln();
+        const LOG_2PI: f64 = 1.8378770664093453;
+
+        // 2. Test (evaluate NLL on test set)
+        let mut nll = 0.0;
+        for &x in test {
+            let z = (x - mu) / sigma;
+            nll -= -0.5 * LOG_2PI - log_sigma - 0.5 * z * z;
+        }
+        nll
+    }
+
+    fn nll_suff_stats(&self, stats: &SufficientStats, use_posterior_predictive: bool) -> Option<f64> {
+        let n = stats.n;
+        if n == 0.0 { return Some(0.0); }
+
+        let sample_mean = stats.sum / n;
+        // variance = (sum_sq - n*mean^2) / (n-1)
+        let ss_diff = stats.sum_sq - n * sample_mean.powi(2);
+        let sample_var = if n > 1.0 { ss_diff / (n - 1.0) } else { 1e-10 };
+
+        // Bayesian update (same as calc_posterior_params but on stack)
+        let precision_prior = 1.0 / (self.sigma_mu * self.sigma_mu);
+        let precision_data = n / sample_var.max(1e-10);
+        let precision_posterior = precision_prior + precision_data;
+
+        let posterior_mu = (precision_prior * self.mu_mu + precision_data * sample_mean) / precision_posterior;
+        let posterior_sigma_mu = (1.0 / precision_posterior).sqrt();
+
+        let (mu, sigma) = if use_posterior_predictive {
+            let pred_var = posterior_sigma_mu.powi(2) + sample_var;
+            (posterior_mu, pred_var.sqrt())
+        } else {
+            (posterior_mu, sample_var.sqrt())
+        };
+
+        let log_sigma = sigma.ln();
+        const LOG_2PI: f64 = 1.8378770664093453;
+
+        // NLL Sum = 0.5 * sum((x - mu)^2) / sigma^2 + n * log_sigma + 0.5 * n * LOG_2PI
+        // Expansion: sum((x - mu)^2) = sum(x^2) - 2*mu*sum(x) + n*mu^2
+        let sum_sq_diff_mu = stats.sum_sq - 2.0 * mu * stats.sum + n * mu * mu;
+
+        let nll = 0.5 * sum_sq_diff_mu / (sigma * sigma) + n * log_sigma + 0.5 * n * LOG_2PI;
+        Some(nll)
     }
 }
 
 // ============================================================================
-// NormGammaNormal (Unknown Mean and Variance)
+// NormalMuInvGammaSigmaNormal (Unknown Mean and Variance)
 // ============================================================================
 
-pub struct NormGammaNormal {
-    mu_zero: f64,
-    prior_n: f64,
-    prior_nu: f64,
-    prior_phi: f64,
+pub struct NormalMuInvGammaSigmaNormal {
+    mu_mu: f64,
+    n_mu: f64,
+    nu_sigma: f64,
+    phi_sigma: f64,
 }
 
-impl NormGammaNormal {
+impl NormalMuInvGammaSigmaNormal {
     pub fn from_spec(spec: &PyDict) -> PyResult<Self> {
         Ok(Self {
-            mu_zero: spec.get_item("mu_zero")?.extract()?,
-            prior_n: spec.get_item("prior_n")?.extract()?,
-            prior_nu: spec.get_item("prior_nu")?.extract()?,
-            prior_phi: spec.get_item("prior_phi")?.extract()?,
+            mu_mu: spec.get_item("mu_mu")
+                .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("Missing 'mu_mu'"))?
+                .extract()?,
+            n_mu: spec.get_item("n_mu")
+                .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("Missing 'n_mu'"))?
+                .extract()?,
+            nu_sigma: spec.get_item("nu_sigma")
+                .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("Missing 'nu_sigma'"))?
+                .extract()?,
+            phi_sigma: spec.get_item("phi_sigma")
+                .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("Missing 'phi_sigma'"))?
+                .extract()?,
         })
     }
 }
 
-impl DistributionPrimitives for NormGammaNormal {
+impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
     fn calc_posterior_params(&self, data: &ArrayView1<f64>) -> HashMap<String, f64> {
         let n = data.len() as f64;
         if n == 0.0 {
             return HashMap::from([
-                ("post_mu".into(), self.mu_zero),
-                ("post_nu".into(), self.prior_nu),
-                ("post_phi".into(), self.prior_phi),
-                ("post_n".into(), self.prior_n),
-                ("map_sigma".into(), (self.prior_phi / (self.prior_nu - 2.0)).max(1e-12).sqrt()),
-                ("pred_scale".into(), (self.prior_phi * (self.prior_n + 1.0)
-                    / (self.prior_n * (self.prior_nu - 2.0))).max(1e-12).sqrt()),
+                ("post_mu".into(), self.mu_mu),
+                ("post_nu".into(), self.nu_sigma),
+                ("post_phi".into(), self.phi_sigma),
+                ("post_n".into(), self.n_mu),
+                ("map_sigma".into(), (self.phi_sigma / (self.nu_sigma - 2.0)).max(1e-12).sqrt()),
+                ("pred_scale".into(), (self.phi_sigma * (self.n_mu + 1.0)
+                    / (self.n_mu * (self.nu_sigma - 2.0))).max(1e-12).sqrt()),
             ]);
         }
         let sample_mean = data.mean().unwrap();
@@ -179,12 +329,12 @@ impl DistributionPrimitives for NormGammaNormal {
         };
 
         // Posterior parameters
-        let post_n = self.prior_n + n;
-        let post_nu = self.prior_nu + n;
-        let post_mu = (self.prior_n * self.mu_zero + n * sample_mean) / post_n;
+        let post_n = self.n_mu + n;
+        let post_nu = self.nu_sigma + n;
+        let post_mu = (self.n_mu * self.mu_mu + n * sample_mean) / post_n;
 
-        let prior_sum_sq = self.prior_nu * self.prior_phi;
-        let interaction = (self.prior_n * n / post_n) * (sample_mean - self.mu_zero).powi(2);
+        let prior_sum_sq = self.nu_sigma * self.phi_sigma;
+        let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
         let post_sum_sq = prior_sum_sq + ssd + interaction;
         let post_phi = post_sum_sq / post_nu;
 
@@ -250,36 +400,213 @@ impl DistributionPrimitives for NormGammaNormal {
         }))
     }
 
-    fn log_evidence(&self, data: &ArrayView1<f64>) -> Option<f64> {
+    fn nle(&self, data: &ArrayView1<f64>) -> Option<f64> {
         let n = data.len() as f64;
         if n == 0.0 { return Some(0.0); }
 
         let sample_mean = data.mean().unwrap();
-        let ssd = if n > 1.0 {
-            data.iter().map(|&x| (x - sample_mean).powi(2)).sum::<f64>()
-        } else {
-            0.0
-        };
+        let ssd: f64 = data.iter().map(|&x| (x - sample_mean).powi(2)).sum();
 
-        let post_n = self.prior_n + n;
-        let post_nu = self.prior_nu + n;
+        let post_n = self.n_mu + n;
+        let post_nu = self.n_mu + n;
 
-        let prior_sum_sq = self.prior_nu * self.prior_phi;
-        let interaction = (self.prior_n * n / post_n) * (sample_mean - self.mu_zero).powi(2);
-        let post_sum_sq = prior_sum_sq + ssd + interaction;
+        // Correct calculation of Beta_n (post_sum_sq / 2)
+        // Beta_0 = nu_0 * phi_0 / 2
+        let beta_0 = self.nu_sigma * self.phi_sigma / 2.0;
+        // interaction = (n * n0 / (n + n0)) * (y_bar - mu_0)^2
+        let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
+        let beta_n = beta_0 + 0.5 * ssd + 0.5 * interaction;
 
-        // Alpha/Beta parameterization for evidence formula
-        let alpha_0 = self.prior_nu / 2.0;
-        let beta_0 = self.prior_nu * self.prior_phi / 2.0;
+        let alpha_0 = self.n_mu / 2.0;
         let alpha_n = post_nu / 2.0;
-        let beta_n = post_sum_sq / 2.0;
 
-        let log_ev = -0.5 * n * (PI).ln()
-            + 0.5 * (self.prior_n.ln() - post_n.ln())
-            + lgamma(post_nu / 2.0) - lgamma(self.prior_nu / 2.0)
-            + (self.prior_nu / 2.0) * self.prior_phi.ln()
-            - (post_nu / 2.0) * post_phi.ln();
+        // Log Evidence Formula for Normal-Gamma:
+        // -0.5 * n * log(2pi) + 0.5 * log(n0 / nn) + log_gamma(alpha_n) - log_gamma(alpha_0) + alpha_0 * log(beta_0) - alpha_n * log(beta_n)
 
-        Some(log_ev)
+        let log_ev = -0.5 * n * (2.0 * PI).ln()
+            + 0.5 * (self.n_mu.ln() - post_n.ln())
+            + lgamma(alpha_n) - lgamma(alpha_0)
+            + alpha_0 * beta_0.ln()
+            - alpha_n * beta_n.ln();
+
+        Some(-log_ev)
+    }
+
+    fn nle_suff_stats(&self, stats: &SufficientStats) -> Option<f64> {
+        let n = stats.n;
+        if n == 0.0 { return Some(0.0); }
+
+        let sample_mean = stats.sum / n;
+        let ss_diff = stats.sum_sq - n * sample_mean.powi(2);
+        let ssd = ss_diff;
+
+        let post_n = self.n_mu + n;
+        let post_nu = self.n_mu + n;
+
+        let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
+
+        let beta_0 = self.n_mu * self.phi_sigma / 2.0;
+        let beta_n = beta_0 + 0.5 * ssd + 0.5 * interaction;
+
+        let alpha_0 = self.n_mu / 2.0;
+        let alpha_n = post_nu / 2.0;
+
+        let log_ev = -0.5 * n * (2.0 * PI).ln()
+            + 0.5 * (self.n_mu.ln() - post_n.ln())
+            + lgamma(alpha_n) - lgamma(alpha_0)
+            + alpha_0 * beta_0.ln()
+            - alpha_n * beta_n.ln();
+
+        Some(-log_ev)
+    }
+
+    /// Optimized stack-based NLL calculation
+    fn nll(&self, data: &ArrayView1<f64>, use_posterior_predictive: bool) -> f64 {
+        // ...existing code...
+        // (Keep existing implementation)
+        let n = data.len() as f64;
+        if n == 0.0 { return 0.0; }
+        let sample_mean = data.mean().unwrap();
+        let ssd: f64 = data.iter().map(|&x| (x - sample_mean).powi(2)).sum();
+
+        let post_n = self.n_mu + n;
+        let post_nu = self.n_mu + n;
+        let post_mu = (self.n_mu * self.mu_mu + n * sample_mean) / post_n;
+
+        let prior_sum_sq = self.n_mu * self.phi_sigma;
+        let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
+        let post_sum_sq = prior_sum_sq + ssd + interaction;
+        let post_phi = post_sum_sq / post_nu;
+
+        if use_posterior_predictive {
+            let scale_sq = post_phi * (1.0 + 1.0 / post_n);
+            let scale = scale_sq.sqrt();
+            let log_scale = scale.ln();
+
+            let log_c = lgamma((post_nu + 1.0) / 2.0)
+                      - lgamma(post_nu / 2.0)
+                      - 0.5 * (PI * post_nu).ln()
+                      - log_scale;
+
+            let half_nu_plus_1 = (post_nu + 1.0) / 2.0;
+
+            let mut nll = 0.0;
+            for &x in data {
+                let z = (x - post_mu) / scale;
+                let log_pdf = log_c - half_nu_plus_1 * (1.0 + z * z / post_nu).ln();
+                nll -= log_pdf;
+            }
+            nll
+        } else {
+            let map_sigma2 = if post_nu > 2.0 {
+                post_phi * (post_nu - 2.0) / post_nu
+            } else {
+                post_phi / post_nu
+            };
+            let sigma = map_sigma2.sqrt();
+            let log_sigma = sigma.ln();
+            const LOG_2PI: f64 = 1.8378770664093453;
+
+            let mut nll = 0.0;
+            for &x in data {
+                let z = (x - post_mu) / sigma;
+                nll -= -0.5 * LOG_2PI - log_sigma - 0.5 * z * z;
+            }
+            nll
+        }
+    }
+
+    fn nll_train_test(&self, train: &ArrayView1<f64>, test: &ArrayView1<f64>, use_posterior_predictive: bool) -> f64 {
+        // 1. Train
+        let n = train.len() as f64;
+        if n == 0.0 { return 0.0; }
+
+        let sample_mean = train.mean().unwrap();
+        let ssd: f64 = train.iter().map(|&x| (x - sample_mean).powi(2)).sum();
+
+        let post_n = self.n_mu + n;
+        let post_nu = self.n_mu + n;
+        let post_mu = (self.n_mu * self.mu_mu + n * sample_mean) / post_n;
+
+        let prior_sum_sq = self.n_mu * self.phi_sigma;
+        let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
+        let post_sum_sq = prior_sum_sq + ssd + interaction;
+        let post_phi = post_sum_sq / post_nu;
+
+        // 2. Test
+        if use_posterior_predictive {
+            let scale_sq = post_phi * (1.0 + 1.0 / post_n);
+            let scale = scale_sq.sqrt();
+            let log_scale = scale.ln();
+
+            let log_c = lgamma((post_nu + 1.0) / 2.0)
+                      - lgamma(post_nu / 2.0)
+                      - 0.5 * (PI * post_nu).ln()
+                      - log_scale;
+
+            let half_nu_plus_1 = (post_nu + 1.0) / 2.0;
+
+            let mut nll = 0.0;
+            for &x in test {
+                let z = (x - post_mu) / scale;
+                let log_pdf = log_c - half_nu_plus_1 * (1.0 + z * z / post_nu).ln();
+                nll -= log_pdf;
+            }
+            nll
+        } else {
+            let map_sigma2 = if post_nu > 2.0 {
+                post_phi * (post_nu - 2.0) / post_nu
+            } else {
+                post_phi / post_nu
+            };
+            let sigma = map_sigma2.sqrt();
+            let log_sigma = sigma.ln();
+            const LOG_2PI: f64 = 1.8378770664093453;
+
+            let mut nll = 0.0;
+            for &x in test {
+                let z = (x - post_mu) / sigma;
+                nll -= -0.5 * LOG_2PI - log_sigma - 0.5 * z * z;
+            }
+            nll
+        }
+    }
+
+    fn nll_suff_stats(&self, stats: &SufficientStats, use_posterior_predictive: bool) -> Option<f64> {
+        let n = stats.n;
+        if n == 0.0 { return Some(0.0); }
+
+        let sample_mean = stats.sum / n;
+        let ssd = stats.sum_sq - n * sample_mean.powi(2);
+
+        let post_n = self.n_mu + n;
+        let post_nu = self.n_mu + n;
+        let post_mu = (self.n_mu * self.mu_mu + n * sample_mean) / post_n;
+
+        let prior_sum_sq = self.n_mu * self.phi_sigma;
+        let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
+        let post_sum_sq = prior_sum_sq + ssd + interaction;
+        let post_phi = post_sum_sq / post_nu;
+
+        if use_posterior_predictive {
+            // Student's t NLL requires iterating data points (log(1 + z^2/nu))
+            // It does NOT have a clean sufficient statistic form for the sum of logs.
+            // Fallback to slow path.
+            return None;
+        } else {
+            // Plug-in Normal NLL IS compatible with sufficient stats
+            let map_sigma2 = if post_nu > 2.0 {
+                post_phi * (post_nu - 2.0) / post_nu
+            } else {
+                post_phi / post_nu
+            };
+            let sigma = map_sigma2.sqrt();
+            let log_sigma = sigma.ln();
+            const LOG_2PI: f64 = 1.8378770664093453;
+
+            let sum_sq_diff_mu = stats.sum_sq - 2.0 * post_mu * stats.sum + n * post_mu * post_mu;
+            let nll = 0.5 * sum_sq_diff_mu / (sigma * sigma) + n * log_sigma + 0.5 * n * LOG_2PI;
+            Some(nll)
+        }
     }
 }

@@ -1,18 +1,23 @@
 import json
 import os
-from dataclasses import asdict
 
-import classification_metrics
-import numpy as np
 import optuna
-import regression_metrics
-from factory import ModelFactory
 from omegaconf import OmegaConf
+import numpy as np
+import pandas as pd
+from loguru import logger
+
 from sklearn.metrics import log_loss, make_scorer, mean_squared_error
 from sklearn.model_selection import cross_val_score as CVS
 from sklearn.model_selection import train_test_split as TTS
 from sklearn.preprocessing import StandardScaler
-from utils import DatasetMetadata, available_classification_datasets, available_regression_datasets
+from sklearn.pipeline import Pipeline
+
+from ..metrics.classification import CLAS_POINT_METRICS, CLAS_PROB_METRICS 
+from ..metrics.regression import REG_POINT_METRICS, REG_PROB_METRICS
+from ..models.factory import ModelFactory
+from ..pipeline.utils import LogTransformTransformer
+from ..pipeline.data import DatasetMetadata, available_classification_datasets, available_regression_datasets
 
 
 class Orchestrator:
@@ -20,7 +25,8 @@ class Orchestrator:
         self.cfg = cfg
         self.model_cfg = cfg.model
         self.target_type = self.model_cfg.target_type
-        self.standardize_target = self.model_cfg.get("standardize_target", "none")
+        self.standardize_target = self.model_cfg.get("standardize_target", "no")
+        self.log_transform_target = self.model_cfg.get("log_transform_target", False)
 
     def _is_compatible(self, dataset_metadata: DatasetMetadata) -> bool:
         """Check if model can handle this dataset's target domain."""
@@ -28,15 +34,28 @@ class Orchestrator:
         compatible_domains = self.model_cfg["compatible_target_domains"]
         return dataset_metadata.target_domain.value in compatible_domains
 
-    def _maybe_apply_target_standardization(self, y_train):
+    def _maybe_apply_target_standardization(self, y_train) -> tuple[np.ndarray | pd.Series, StandardScaler | None]:
         """Apply target standardization based on config."""
-        if self.standardize_target == "no" or self.target_type != "regression":
+        steps = []
+        if self.target_type != "regression":
             return y_train, None
+        else:
+            if self.target_type in ['positive_real', 'positive_integer']:
+                if self.log_transform_target:
+                    steps.append(('log_transform', LogTransformTransformer()))
+
+        if self.standardize_target == "no":
+            if not steps:
+                return y_train, None
+            pipeline = Pipeline(steps)
+            return pipeline.fit_transform(y_train.reshape(-1, 1)).ravel(), pipeline
 
         scaler = StandardScaler()
-        y_train_scaled = scaler.fit_transform(y_train).ravel()
-
-        return y_train_scaled, scaler
+        steps.append(('scaler', scaler))
+        pipeline = Pipeline(steps)
+        y_train_scaled = pipeline.fit_transform(y_train.reshape(-1, 1)).ravel()
+        
+        return y_train_scaled, pipeline
 
     def _get_score_metric(self, metadata: DatasetMetadata):
         if self.target_type == "regression":
@@ -50,6 +69,7 @@ class Orchestrator:
 
     def run(self):
         model_cls = ModelFactory.get(self.model_cfg)
+        logger.success(f"⚙ Loaded model class {model_cls.__name__}")
         results = {"model_config": OmegaConf.to_container(self.model_cfg, resolve=True), "datasets": {}}
 
         dataset_iterator = (
@@ -57,21 +77,21 @@ class Orchestrator:
         )
 
         # Create optuna storage directory
-        os.makedirs("../../results/optuna/", exist_ok=True)
+        os.makedirs("benchmarks/results/optuna/", exist_ok=True)
 
         for metadata, X, y in dataset_iterator():
             # NEW: Compatibility check
             if not self._is_compatible(metadata):
-                print(f"⏭️ Skipping {metadata.name}: incompatible target domain {metadata.target_domain.value}")
+                logger.warning(f"⏭️ Skipping {metadata.name}: incompatible target domain {metadata.target_domain.value}")
                 continue
 
-            print(f"🔬 Processing {metadata.name}")
+            logger.info(f"🔬 Processing {metadata.name} with target domain {metadata.target_domain.value}")
             results["datasets"][metadata.name] = {"metadata": metadata.to_dict(), "metrics": {}, "best_params": {}}
 
             X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.25, random_state=self.cfg.seed, shuffle=True)
 
-            # NEW: Apply standardization
-            y_train_proc, scaler = self._maybe_apply_target_standardization(y_train)
+            # FUTURE: Apply standardization
+            # y_train_proc, scaler = self._maybe_apply_target_standardization(y_train)
 
             # Tune model
             def objective(trial):
@@ -93,12 +113,13 @@ class Orchestrator:
                 model = model_cls(**self.model_cfg.fixed_init_kwargs, **iter_init_kwargs)
                 score_metric = mean_squared_error if self.target_type == "regression" else log_loss
 
+                # Regression uses MSE (lower is better), classification uses log_loss (lower is better)
                 return np.mean(
-                    CVS(model, X_train, y_train_proc, cv=3, scoring=make_scorer(score_metric, greater_is_better=False))
+                    CVS(model, X_train, y_train, cv=3, scoring=make_scorer(score_metric, greater_is_better=False))
                 )
 
             study_name = f"{self.model_cfg.name}-{metadata.name}"
-            storage_name = f"sqlite:///../../results/optuna/{study_name}.db"
+            storage_name = f"sqlite:///benchmarks/results/optuna/{study_name}.db"
 
             # Clean up existing study - only if storage exists
             try:
@@ -106,38 +127,40 @@ class Orchestrator:
             except KeyError:
                 pass  # Study doesn't exist yet, that's fine
             except Exception as e:
-                print(f"⚠️  Warning: Could not delete existing study: {e}")
+                logger.warning(f"⚠️  Warning: Could not delete existing study: {e}")
 
             study = optuna.create_study(
                 study_name=study_name,
                 storage=storage_name,
-                direction="minimize",
-                load_if_exists=False,  # Changed to minimize since we're minimizing error
+                direction="maximize",  # `make_scorer` adds negative sign if greater_is_better=False, maximize this score
+                load_if_exists=False,
             )
             study.optimize(objective, n_trials=self.cfg.n_trials)
 
             # Evaluate on test set
             best_model = model_cls(**self.model_cfg.fixed_init_kwargs, **study.best_params)
-            best_model.fit(X_train, y_train_proc)
+            best_model.fit(X_train, y_train)
 
             # NEW: Store best params
             results["datasets"][metadata.name]["best_params"] = study.best_params
 
             # Calculate metrics (handle inverse transform if needed)
-            metrics_dict = self._calc_metrics(X_test, y_test, best_model, scaler)
+            metrics_dict = self.calc_metrics(X_test, y_test, best_model, None)
+            logger.info(f"✅ Finished {metadata.name} with metrics: {metrics_dict}")
             results["datasets"][metadata.name]["metrics"] = metrics_dict
 
             # NEW: Save intermediate results
             self._save_results(results)
-
+            logger.success(f"💾 Saved intermediate results for {metadata.name}")
+        
         return results
 
-    def _calc_metrics(self, X, y, model, scaler=None) -> dict:
+    def calc_metrics(self, X, y, model, scaler=None) -> dict:
         """Calculate metrics with optional inverse standardization."""
         do_reg = self.target_type == "regression"
-        point_metrics = regression_metrics.POINT_METRICS if do_reg else classification_metrics.POINT_METRICS
+        point_metrics = REG_POINT_METRICS if do_reg else CLAS_POINT_METRICS
         proba_metrics = (
-            regression_metrics.PROBABILISTIC_METRICS if do_reg else classification_metrics.PROBABILISTIC_METRICS
+            REG_PROB_METRICS if do_reg else CLAS_PROB_METRICS
         )
 
         metric_dict = {}
@@ -164,6 +187,6 @@ class Orchestrator:
 
     def _save_results(self, results):
         """Save intermediate results to avoid losing progress."""
-        os.makedirs("../../results/", exist_ok=True)
-        with open(f"../../results/{self.model_cfg.name}.json", "w") as f:
+        os.makedirs("benchmarks/results/", exist_ok=True)
+        with open(f"benchmarks/results/{self.model_cfg.name}.json", "w") as f:
             json.dump(results, f, indent=2)

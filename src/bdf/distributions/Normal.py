@@ -47,8 +47,8 @@ class NormalMuNormalParams(BDFDistributionParams):
     )
 
 
-class NormGammaNormalParams(BDFDistributionParams):
-    """Parameters for Normal-Gamma conjugate model (unknown mean and variance).
+class NormalMuInvGammaSigmaNormalParams(BDFDistributionParams):
+    """Parameters for Normal-Inverse-Gamma conjugate model (unknown mean and variance).
 
     Prior: μ | σ² ~ N(μ₀, σ²/n₀), σ² ~ InvGamma(ν₀/2, ν₀φ₀/2)
     Posterior: μ | σ², y ~ N(μₙ, σ²/nₙ), σ² | y ~ InvGamma(νₙ/2, νₙφₙ/2)
@@ -56,10 +56,10 @@ class NormGammaNormalParams(BDFDistributionParams):
     """
 
     # Prior hyperparameters
-    mu_zero: float = Field(default=0.0, description="Prior mean μ₀")
-    prior_n: float = Field(default=1.0, gt=0, description="Prior precision parameter n₀")
-    prior_nu: float = Field(default=3.0, gt=0, description="Prior degrees of freedom ν₀")
-    prior_phi: float = Field(default=1.0, gt=0, description="Prior scale parameter φ₀")
+    mu_mu: float = Field(default=0.0, description="Prior mean μ₀ for μ")
+    n_mu: float = Field(default=1.0, gt=0, description="Prior precision scale n₀ for μ")
+    nu_sigma: float = Field(default=3.0, gt=0, description="Prior degrees of freedom ν₀ for σ²")
+    phi_sigma: float = Field(default=1.0, gt=0, description="Prior scale parameter φ₀ for σ²")
 
     # Scoring defaults
     score_method: Literal["nle", "nll"] = Field(default="nle")
@@ -296,27 +296,27 @@ class NormalMuNormal(BDFDistribution):
         return rng.normal(self.mu_mu, self.sigma_mu, size=size)
 
 
-class NormGammaNormal(BDFDistribution):
-    """Normal-Gamma conjugate model (μ and σ² both unknown).
+class NormalMuInvGammaSigmaNormal(BDFDistribution):
+    """Normal-Inverse-Gamma conjugate model (μ and σ² both unknown).
 
     Supports:
     - Closed-form Bayesian evidence
     - Student's t posterior predictive
     """
 
-    params_cls: ClassVar[type[BDFDistributionParams]] = NormGammaNormalParams
+    params_cls: ClassVar[type[BDFDistributionParams]] = NormalMuInvGammaSigmaNormalParams
 
     _supports_nle = True
     _has_fast_loo_cv = False
     _has_fast_kfold_cv = False
     _supports_posterior_predictive = True
 
-    def __init__(self, params: NormGammaNormalParams):
+    def __init__(self, params: NormalMuInvGammaSigmaNormalParams):
         super().__init__(params)
-        self.mu_zero = params.mu_zero
-        self.prior_n = params.prior_n
-        self.prior_nu = params.prior_nu
-        self.prior_phi = params.prior_phi
+        self.mu_mu = params.mu_mu
+        self.n_mu = params.n_mu
+        self.nu_sigma = params.nu_sigma
+        self.phi_sigma = params.phi_sigma
 
     # ========================================================================
     # REQUIRED METHODS
@@ -336,16 +336,16 @@ class NormGammaNormal(BDFDistribution):
             sample_var = np.var(data, ddof=1)
 
         # Posterior hyperparameters
-        post_n = self.prior_n + n
-        post_nu = self.prior_nu + n
+        post_n = self.n_mu + n
+        post_nu = self.nu_sigma + n
         post_phi = (
-            self.prior_nu * self.prior_phi
+            self.nu_sigma * self.phi_sigma
             + (n - 1) * sample_var
-            + (n * self.prior_n / post_n) * (sample_mean - self.mu_zero) ** 2
+            + (n * self.n_mu / post_n) * (sample_mean - self.mu_mu) ** 2
         )
 
         # Posterior mean
-        posterior_mu = (self.prior_n * self.mu_zero + n * sample_mean) / post_n
+        posterior_mu = (self.n_mu * self.mu_mu + n * sample_mean) / post_n
 
         # Posterior mode of σ² (if ν > 2), else use mean
         if post_nu > 2:
@@ -426,18 +426,18 @@ class NormGammaNormal(BDFDistribution):
         sample_mean = np.mean(data)
         sample_var = np.var(data, ddof=1)
 
-        post_n = self.prior_n + n
-        post_nu = self.prior_nu + n
+        post_n = self.n_mu + n
+        post_nu = self.nu_sigma + n
         post_phi = (
-            self.prior_nu * self.prior_phi
+            self.nu_sigma * self.phi_sigma
             + (n - 1) * sample_var
-            + (n * self.prior_n / post_n) * (sample_mean - self.mu_zero) ** 2
+            + (n * self.n_mu / post_n) * (sample_mean - self.mu_mu) ** 2
         )
 
         log_ev = -0.5 * n * np.log(2 * np.pi)
-        log_ev += 0.5 * np.log(self.prior_n / post_n)
-        log_ev += gammaln(post_nu / 2) - gammaln(self.prior_nu / 2)
-        log_ev += (self.prior_nu / 2) * np.log(self.prior_phi)
+        log_ev += 0.5 * np.log(self.n_mu / post_n)
+        log_ev += gammaln(post_nu / 2) - gammaln(self.nu_sigma / 2)
+        log_ev += (self.nu_sigma / 2) * np.log(self.phi_sigma)
         log_ev -= (post_nu / 2) * np.log(post_phi)
 
         return float(log_ev)

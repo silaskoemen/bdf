@@ -1,4 +1,4 @@
-import bdf_rust
+import bdf_rs
 import numpy as np
 import pytest
 
@@ -49,7 +49,7 @@ def test_threshold_generation_rust():
     # You'll need to expose a function that accesses the Rust threshold generation
     # This is for testing purposes only
     def get_rust_thresholds(data, eta):
-        return bdf_rust.generate_thresholds(data, eta)  # type: ignore
+        return bdf_rs.generate_thresholds(data, eta)  # type: ignore
 
     # Test with different eta values
     thresholds_01 = get_rust_thresholds(data, 0.1)

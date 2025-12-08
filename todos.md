@@ -2,21 +2,15 @@
 
 
 ## BDFRegressor
-- [ ] Add None/numeric/NaN checks to `validate_data` before `fit` and `predict`
 - [ ] Parallelize fit (and possibly predict) methods with `joblib`, compare for small to large data
-- [ ] Implement Poisson-Gamma, think about whether to use `n` and `p` for PP case as params bc only those needed, evaluate and possibly change
-- [ ] Implement Gamma-Gamma
-- [ ] KDL should use params dict that has `dist_params`, `kde_params` and `kdl_params` keys to separate concerns
-- [ ] Implement Multinomial (dirichlet prior) distribution
-- [ ] Implement relevant other distributions for certain use cases (e.g. Weibull, Gompertz, Uniform, Negative Binomial, ...) and use CLT mean/pseudo prior if no conjugate prior is available
 - [ ] Build eval metrics for probabilistic outputs
 - [ ] Write tests for all distributions, expose nll from Rust & check parity
 - [ ] Experiment with creation of candidate thresholds, currently `closest_observation`
-- [ ] Implement pipeline for fitting and predicting with all comparison models on same data, output final best scores to report in paper.
-- [ ] Could implement lambdas as function of log(n)/n (or /2n) with factor to enable theoretical bounds
+- [ ] Could think about `HurdleDistribution` (like KDE) which wraps classification with positive values for zero-inflation - only use if benchmark datasets have this property
+- [ ] Could use `t`, `Weibull`, `NegBin`, `Skew-Normal`, `Gamma`, `Beta` distributions to appendix as commonly used distributions, some freq, some approx Bayesian
+- [ ] Suff stats for python splits as well?
 
 ## BDFClassifier
-- [ ] Implement basic Beta prior, Binomial likelihood
 - [ ] Implement Gaussian prior on mean, Gaussian likelihood either clip or trunc or in log space
 - [ ] Build eval metrics for uncertainty about uncertainty (Brier score (Bias^2 + Var), calibration in certain bands?, Visualize uncertainty in predictions)
 
@@ -29,3 +23,4 @@
 - [ ] Implement Ranking task
 - [ ] Implement pre-computed histograms for splits (like in xgboost, lightgbm, catboost, massive speedup)
 - [ ] Implement missing value handling/sparsity aware split finding (e.g. learn optimal direction to send missing values at each split, like in xgboost)
+- [ ] Implement categorical support (in-train target encoding, holdout target encoding, catboost style target encoding)

@@ -1,11 +1,18 @@
 [package]
-name = "bdf_rust"
+name = "bdf_rs"
 version = "0.1.0"
-edition = "2021"
+edition = "202512"
 
 [lib]
-name = "bdf_rust"
+name = "bdf_rs"
 crate-type = ["cdylib"]
+
+# Optimize runtime performance
+[profile.release]
+opt-level = 3         # Optimize for maximum execution speed
+lto = "fat"           # Enable the most aggressive Link Time Optimization
+codegen-units = 1     # Reduce the number of code generation units, increasing optimization time but improving performance
+panic = "abort"       # Use 'abort' instead of 'unwind' for panic handling
 
 [dependencies]
 numpy = "0.19"
@@ -16,3 +23,5 @@ serde_json = "1.0"
 rayon = "1.7"
 statrs = "0.18.0"
 log = "0.4.27"
+rand = "0.8"
+rand_chacha = "0.3"

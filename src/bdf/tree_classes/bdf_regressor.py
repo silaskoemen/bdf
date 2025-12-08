@@ -84,6 +84,12 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         if standardize_y:
             y = self._standardize_y(y.copy())
 
+        # Initialize FFT for KDE if needed
+        if self._is_fft_kde():
+            self._init_kde_fft(y)
+
+        self.distribution = self.resolve_distribution(y)
+
         # Otherwise regularization depends on size of the dataset (NLL as sum)
         n_features_iter = int(np.ceil(X.shape[1] * self.colsample))
         self.trees: list[BDFTree] = []
@@ -145,6 +151,20 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         if hasattr(self, "y_mean") and hasattr(self, "y_std"):
             return y * self.y_std + self.y_mean
         return y
+
+    def resolve_distribution(self, y: np.ndarray):
+        # Resolve "auto" in params
+        params_dict = self.distribution.params.model_dump()
+        for key, value in params_dict.items():
+            if value == "auto":
+                # Delegate to distribution's logic
+                if hasattr(self.distribution, "suggest_param"):
+                    params_dict[key] = self.distribution.suggest_param(key, y)
+                else:
+                    # Fallback: use data mean/empirical stats
+                    params_dict[key] = self._default_suggest_param(key, y)
+
+        self.distribution = self.distribution.__class__(self.distribution.params_cls(**params_dict))
 
     def _get_pooled_samples(self, X: np.ndarray, sample_size: int) -> np.ndarray:
         """
@@ -566,3 +586,57 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             y, float
         ), "Targets have to be subtype of float. If it fails although all features are numeric, consider casting to float/int for all columns."
         self.distribution.validate_targets(y)
+
+    def _is_fft_kde(self) -> bool:
+        """Check if distribution is FFT-based KDE."""
+        from bdf.distributions.kde import KDE, BayesianKDE
+
+        return isinstance(self.distribution, (KDE, BayesianKDE)) and self.distribution.params.use_fft
+
+    def _init_kde_fft(self, y: np.ndarray) -> None:
+        """Initialize FFT grid and kernel for KDE.
+
+        Computes global grid edges and kernel FFT that will be used
+        by all tree nodes for fast density evaluation.
+
+        Parameters
+        ----------
+        y : np.ndarray
+            Target values (after standardization if applicable).
+        """
+        from scipy.fft import rfft
+
+        n_grid = self.distribution.params.fft_grid_points
+
+        # Compute global grid edges with padding
+        y_min, y_max = y.min(), y.max()
+        y_range = y_max - y_min
+        padding = 0.2 * y_range  # 20% padding on each side
+
+        edges = np.linspace(y_min - padding, y_max + padding, n_grid + 1)
+        delta = edges[1] - edges[0]  # Grid spacing
+
+        # Precompute Gaussian kernel FFT at reference bandwidth = 1
+        # Grid centers for kernel evaluation
+        grid_centers = 0.5 * (edges[:-1] + edges[1:])
+        center_idx = n_grid // 2
+
+        # Gaussian kernel centered at middle of grid (will be circular-shifted via FFT)
+        x_kernel = grid_centers - grid_centers[center_idx]
+        kernel_ref = np.exp(-0.5 * x_kernel**2) / np.sqrt(2 * np.pi)
+
+        # FFT of kernel (reference bandwidth = 1)
+        kernel_rfft = rfft(kernel_ref)
+
+        # Update distribution params with FFT precomputation
+        # Use model_copy to create new params with FFT data
+        updated_params = self.distribution.params.model_copy(
+            update={
+                "fft_grid_edges": edges,
+                "fft_kernel_rfft": kernel_rfft,
+                "fft_grid_delta": delta,
+            }
+        )
+
+        # Replace distribution with updated params
+        self.distribution = self.distribution.__class__(params=updated_params)

@@ -4,7 +4,7 @@ This file contains utility functions to load various regression and classificati
 for benchmarking purposes. Includes loading of datasets in pandas format, as well as a registry
 and possible variable transformations to ensure compatibility with the benchmarking pipeline.
 """
-
+import os
 from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Iterator, Literal
@@ -38,35 +38,36 @@ class DatasetMetadata:
 
 
 def _load_abalone_age():
-    data = pd.read_csv("../../data/abalone_age.csv")
+    data = pd.read_csv("data/raw/abalone_age.csv")
     X = data.drop("age", axis=1)
     y = data["age"]
-    return X, y, "Z+"
+    return X, y, "positive_integer"
 
 
 def _load_parkinsons_updrs():
-    data = pd.read_csv("../../data/parkinsons_updrs.csv")
-    X = data.drop("updrs", axis=1)
-    y = data["updrs"]
-    return X, y, "R"
+    data = pd.read_csv("data/raw/parkinsons_updrs.csv")
+    # Should prob rename columns with '%' char
+    X = data.drop("total_UPDRS", axis=1)
+    y = data["total_UPDRS"]
+    return X, y, "positive_real"
 
 
 def _load_boston_housing():
-    data = pd.read_csv("../../../data/boston_housing.csv")
+    data = pd.read_csv("data/raw/boston_housing.csv")
     X = data.drop(columns=["MEDV"])
     y = data["MEDV"]
-    return X, y, "R+"
+    return X, y, "positive_real"
 
 
 def _load_realestate():
-    data = pd.read_csv("../../../data/realestate.csv")
+    data = pd.read_csv("data/raw/realestate.csv")
     X = data.drop(columns=["Y house price of unit area", "No"])
     y = data["Y house price of unit area"]
-    return X, y, "R+"
+    return X, y, "positive_real"
 
 
 def _load_wine_quality():
-    data = pd.read_csv("../../data/wine_quality.csv")
+    data = pd.read_csv("data/raw/wine_quality.csv")
     X = data.drop("quality", axis=1)
     y = data["quality"]
     return X, y, "Z+"
@@ -94,28 +95,28 @@ def available_regression_datasets() -> Iterator[tuple[DatasetMetadata, pd.DataFr
 
 
 def _load_breast_cancer():
-    data = pd.read_csv("../../../data/breast_cancer.csv")
+    data = pd.read_csv("data/raw/breast_cancer.csv")
     X = data.drop(columns=["diagnosis", "id", "Unnamed: 32"])
     y = data["diagnosis"] == "B"
     return X, y, "binary"
 
 
 def _load_iris():
-    data = pd.read_csv("../../data/iris.csv", header=0)
+    data = pd.read_csv("data/raw/iris.csv", header=0)
     X = data.drop("target", axis=1)
     y = data["target"]
     return X, y, "multi"
 
 
 def _load_wine_quality_classification():
-    data = pd.read_csv("../../data/wine_quality_classification.csv")
+    data = pd.read_csv("data/raw/wine_quality_classification.csv")
     X = data.drop("target", axis=1)
     y = data["target"]
     return X, y, "multi"
 
 
 def _load_boston_housing_classification():
-    data = pd.read_csv("../../data/boston_housing_classification.csv")
+    data = pd.read_csv("data/raw/boston_housing_classification.csv")
     X = data.drop("target", axis=1)
     y = data["target"]
     y = y[y > y.mean()]  # Convert to binary classification problem
@@ -123,7 +124,7 @@ def _load_boston_housing_classification():
 
 
 def _load_titanic():
-    data = pd.read_csv("../../../data/titanic.csv")
+    data = pd.read_csv("data/raw/titanic.csv")
     X = data.drop(columns=["Survived", "PassengerId", "Ticket", "Embarked", "Name", "Cabin"], axis=1)
     X["Sex"] = X["Sex"] == "male"
     y = data["Survived"]

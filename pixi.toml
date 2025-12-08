@@ -2,7 +2,7 @@
 name = "bdf"
 version = "0.0.1"
 description = "Bayesian Distributional Forest"
-authors = ["Silas Koemen <silaskoemen@icloud.com>"]
+authors = ["Silas Koemen <research@silaskoemen.com>"]
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64", "win-64"]
 
@@ -15,10 +15,10 @@ clean = "rm -rf build/ dist/ *.egg-info"
 # 1. CORE DEPENDENCIES
 # ==========================================
 [dependencies]
-python = ">=3.11"
-numpy = ">=1.24"
+python = ">=3.11,<=3.13"  # hydra argparse issue with 3.14
+numpy = ">=2.0.0"
 pandas = ">=2.0"
-scikit-learn = ">=1.3"
+scikit-learn = ">=1.4.4"
 scipy = ">=1.10"
 pydantic = ">=2.0"
 tqdm = "*"
@@ -45,14 +45,22 @@ pyright = "*"
 
 [feature.lint.tasks]
 lint = "pre-commit run --all-files"
+lint-rust = "cargo clippy --manifest-path compiled/rust/Cargo.toml --all-targets --all-features -- -D warnings"
 
 [feature.benchmark.dependencies]
 matplotlib = "*"
 seaborn = "*"
-rich = "*"
+loguru = "*"
+properscoring = "*"
+omegaconf = "*"
+hydra-core = "<1.4.0"
+optuna = "*"
+lightgbm = "*"
+xgboost = "*"
+ngboost = "*"
 
 [feature.benchmark.tasks]
-bench = "python examples/run_experiment.py"
+bench = "python -m benchmarks.run"
 
 # --- DOCS FEATURE (Sphinx) ---
 [feature.docs.dependencies]

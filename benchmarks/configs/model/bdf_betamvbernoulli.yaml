@@ -11,29 +11,51 @@ log_transform_target: false  # Possibly log-transform outcome, supports true/fal
 standardize_target: both  # Possibly standardize outcome (standard scaling), supports 'no', 'only', 'both'
 
 fixed_init_kwargs:
-  objective: regression
-  metric: mse
-  boosting_type: gbdt
-  verbose: -1
+  dist: BetaMVBernoulli
+  random_state: 1234
 
 tunable_init_kwargs:
-  num_leaves:
+  n_trees:
     type: int
     low: 5
-    high: 250
-  learning_rate:
+    high: 200
+  reg_beta:
     type: float
-    low: 0.0001
-    high: 0.2
+    low: 0.0
+    high: 10.0
     log: true
-  max_depth:
-   type: int
-   low: 3
-   high: 15
-  n_estimators:
+  reg_lambda:
+    type: float
+    low: 0.0
+    high: 10.0
+    log: true
+  min_samples_leaf:
+    type: int
+    low: 5
+    high: 50
+  min_samples_split:
     type: int
     low: 10
-    high: 500
+    high: 100
+  subsample:
+    type: float
+    low: 0.5
+    high: 1.0
+  colsample:
+    type: float
+    low: 0.5
+    high: 1.0
+  eta:
+    type: float
+    low: 0.01
+    high: 0.3
+    log: true
+
+tunable_params:
+  mean_p:
+    type: float
+    low: 0.0
+    high: 1.0
 
 fit_kwargs:
   early_stopping_rounds: 10

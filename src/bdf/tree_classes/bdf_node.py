@@ -71,7 +71,10 @@ class BDFNode:
         min_child_weight: float,
         col_idcs: list | np.ndarray | None = None,
         eta=0.025,
-    ) -> tuple[int, float, float, np.ndarray, np.ndarray] | tuple[None, None, float, None, None]:
+    ) -> (
+        tuple[int, float, float, np.ndarray, np.ndarray, dict | None, dict | None]
+        | tuple[None, None, float, None, None, None, None]
+    ):
         """Find best split considering constraints directly in the node
 
         Args
@@ -100,15 +103,10 @@ class BDFNode:
         """
         try:
             # Import and use the Rust implementation
-            import bdf_rust  # type: ignore[import-untyped]
-
-            from bdf.distributions.distribution_manager import DistributionManager as DM
+            import bdf_rs  # type: ignore[import-untyped]
 
             # Create distribution spec with native and fallback options
-            dist_spec = DM.to_rust_spec(self.distribution)
-
-            # Always include the Python object as fallback
-            dist_spec["_python_object"] = self.distribution
+            dist_spec = self.distribution.to_rust_spec()
 
             # Convert column indices if provided
             if col_idcs is not None:
@@ -121,11 +119,13 @@ class BDFNode:
                 loss_reduction,
                 left_indices,
                 right_indices,
-            ) = bdf_rust.find_best_split(  # type: ignore
+                left_params,
+                right_params,
+            ) = bdf_rs.find_best_split(  # type: ignore
                 X, y, min_samples_leaf, min_child_weight, dist_spec, eta, col_idcs
             )
 
-            return feature_idx, threshold, loss_reduction, left_indices, right_indices
+            return feature_idx, threshold, loss_reduction, left_indices, right_indices, left_params, right_params
 
         except (ImportError, Exception) as e:
             warnings.warn(f"Rust implementation not available or failed: {e}. Falling back to Python implementation.")
@@ -139,7 +139,9 @@ class BDFNode:
         min_child_weight: float,
         col_idcs: list | np.ndarray | None = None,
         eta=0.025,
-    ) -> tuple[int, float, float, np.ndarray, np.ndarray] | tuple[None, None, float, None, None]:
+    ) -> (
+        tuple[int, float, float, np.ndarray, np.ndarray, None, None] | tuple[None, None, float, None, None, None, None]
+    ):
         n_samples, n_features = X.shape
         best_feature: int | None = None
         best_threshold: float | None = None
@@ -149,7 +151,7 @@ class BDFNode:
         n_thresholds = int(np.ceil(1 / eta))  # Number of thresholds to consider per feature
 
         # Current node NLL
-        current_nll = self.distribution.nll(y)
+        current_score = self.distribution.score(y)
 
         # Try each feature
         feature_idcs = range(n_features) if col_idcs is None else col_idcs
@@ -175,12 +177,11 @@ class BDFNode:
                 ):
                     continue
 
-                left_nll = self.distribution.nll(y[left_indices])
-                right_nll = self.distribution.nll(y[right_indices])
+                left_score = self.distribution.score(y[left_indices])
+                right_score = self.distribution.score(y[right_indices])
 
                 # Calculate loss reduction (improvement)
-                loss_reduction = current_nll - (left_nll + right_nll)
-
+                loss_reduction = current_score - (left_score + right_score)
                 if loss_reduction > best_loss_reduction:
                     best_loss_reduction = loss_reduction
                     best_feature = feature_idx
@@ -189,9 +190,10 @@ class BDFNode:
                     best_right_indices = right_indices
 
         if best_feature is None or best_threshold is None or best_left_indices is None or best_right_indices is None:
-            return None, None, 0, None, None
+            return None, None, 0, None, None, None, None
 
-        return best_feature, best_threshold, best_loss_reduction, best_left_indices, best_right_indices
+        # No need to estimate params as python distribution call will be done either way
+        return best_feature, best_threshold, best_loss_reduction, best_left_indices, best_right_indices, None, None
 
     def _generate_candidate_thresholds(self, data: np.ndarray, n_thresholds: int) -> np.ndarray:
         """Generate candidate thresholds based on the data and eta value.

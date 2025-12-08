@@ -1,186 +1,445 @@
 import warnings
-from typing import Any
+from typing import ClassVar, Literal
 
 import numpy as np
-from pydantic import Field
+from pydantic import Field, field_validator
+from scipy.fft import irfft, rfft
 
-from bdf.utils.constants import RANDOM_SEED
+from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
 
-from .bdf_distribution import BDFDistribution, BDFDistributionParams
+# ============================================================================
+# PARAMS CLASSES
+# ============================================================================
 
 
-class KDEBaseParams(BDFDistributionParams):
-    """Parameters for the KDE distribution.
+class KDEParams(BDFDistributionParams):
+    """Parameters for KDE distribution.
 
-    Attributes
+    **Model Specification:**
+    - Non-parametric density estimation using kernel smoothing
+    - Bandwidth selection via rule-of-thumb or fixed value
+
+    Parameters
     ----------
     bandwidth : float | str
-        Bandwidth for the kernel density estimation. Can be a positive float or 'scott' or 'silverman' for rule-of-thumb methods.
+        Bandwidth for KDE. Can be positive float, 'scott', or 'silverman'.
+    kernel : str
+        Kernel type: 'gaussian' or 'epanechnikov'.
+    min_bandwidth : float
+        Minimum allowable bandwidth to prevent numerical issues.
     """
 
-    bandwidth: str | float | int = Field(
+    # KDE hyperparameters
+    bandwidth: str | float = Field(
         default="scott",
-        description="Bandwidth for the kernel density estimation. Can be a positive float or 'scott' or 'silverman' for rule-of-thumb methods.",
+        description="Bandwidth: positive float, 'scott', or 'silverman'.",
     )
-    kernel: str = Field(
+    kernel: Literal["gaussian", "epanechnikov"] = Field(
         default="gaussian",
-        description="Kernel type for the kernel density estimation. Currently, only 'gaussian' and 'epanechnikov' are supported.",
+        description="Kernel type for KDE.",
     )
-    cv: str | int = Field(
-        default=2,  # 2-fold cv by default; balancing bias-variance trade-off and computational cost
-        description="Cross-validation strategy for bandwidth selection: 'loo' for leave-one-out, 1 for in-sample, or an integer >= 2 for K-fold CV.",
-    )
-    min_bandwidth: float | int = Field(
+    min_bandwidth: float = Field(
         default=1e-6,
         gt=1e-10,
-        description="Minimum allowable bandwidth to prevent numerical issues.",
+        description="Minimum allowable bandwidth.",
     )
-    recompute_bandwidth_splits: bool = Field(
+
+    # FFT configuration - DEFERRED FOR NOW
+    use_fft: bool = Field(
         default=False,
-        description="Whether to recompute bandwidth for each split in cross-validation.",
+        description="Use FFT-based KDE for likelihood calculations.",
     )
-    shuffle_splits: bool = Field(
-        default=True,
-        description="Whether to shuffle data before creating folds in K-fold cross-validation.",
+    # fft_grid_points: int = Field(
+    #     default=512,
+    #     ge=64,
+    #     description="Number of grid points for FFT-based KDE.",
+    # )
+    # fft_grid_edges: np.ndarray | None = Field(
+    #     default=None,
+    #     description="Precomputed grid edges for FFT (set by regressor).",
+    # )
+    # fft_kernel_rfft: np.ndarray | None = Field(
+    #     default=None,
+    #     description="Precomputed kernel FFT at reference bandwidth=1 (set by regressor).",
+    # )
+    # fft_grid_delta: float | None = Field(
+    #     default=None,
+    #     description="Grid spacing for FFT (set by regressor).",
+    # )
+
+    # Scoring defaults for non-parametric model
+    score_method: Literal["nle", "nll"] = Field(
+        default="nll",
+        description="KDE uses NLL scoring (no closed-form evidence).",
+    )
+    score_correction: Literal["aic", "bic", "loo_cv", "kfold_cv"] | None = Field(
+        default="loo_cv",
+        description="Default to LOO-CV for KDE (natural cross-validation).",
+    )
+    use_posterior_predictive: bool = Field(
+        default=False,
+        description="KDE doesn't have posterior predictive in traditional sense.",
     )
 
-    class Config:
-        extra = "forbid"
-        validate_by_name = True
+    model_config = {"extra": "forbid"}
 
-    def __init__(self, **data):
-        # Check for missing fields before initialization
-        missing_fields = {}
-        if "bandwidth" not in data:
-            missing_fields["bandwidth"] = self.__class__.model_fields["bandwidth"].default
-        if "kernel" not in data:
-            missing_fields["kernel"] = self.__class__.model_fields["kernel"].default
-        if "cv" not in data:
-            missing_fields["cv"] = self.__class__.model_fields["cv"].default
-        if "min_bandwidth" not in data:
-            missing_fields["min_bandwidth"] = self.__class__.model_fields["min_bandwidth"].default
-        if "recompute_bandwidth_splits" not in data:
-            missing_fields["recompute_bandwidth_splits"] = self.__class__.model_fields[
-                "recompute_bandwidth_splits"
-            ].default
-        if "shuffle_splits" not in data:
-            missing_fields["shuffle_splits"] = self.__class__.model_fields["shuffle_splits"].default
-
-        super().__init__(**data)
-
-        # Issue warnings for missing fields
-        for field, default_value in missing_fields.items():
-            warnings.warn(
-                f"No value provided for '{field}', using default: {default_value}",
-                UserWarning,
-                stacklevel=2,
-            )
+    # @model_validator(mode="after")
+    # def validate_fft_config(self) -> "KDEParams":
+    #     if self.use_fft and self.kernel != "gaussian":
+    #         raise ValueError("FFT-based KDE only supports Gaussian kernel.")
+    #     return self
+    @field_validator("use_fft")
+    def warn_fft_deferred(cls, v: bool) -> bool:
+        if v:
+            warnings.warn("FFT-based KDE is currently deferred and not implemented.")
+        return False
 
 
-class KDEBase(BDFDistribution):
-    """Base implementation for all Kernel Density Estimation (KDE) distributions.
-    Calculation of (posterior) bandwidth has to be implemented by subclasses, all
-    (log-)likelihood and sampling methods are implemented here.
+class BayesianKDEParams(KDEParams):
+    """Parameters for Bayesian KDE with prior on bandwidth.
+
+    Extends KDE with pseudo-Bayesian bandwidth estimation:
+    posterior_h = (m_h * prior_h + n * data_h) / (m_h + n)
     """
 
-    def __init__(self, prior_params: BDFDistributionParams, params: KDEBaseParams):
-        super().__init__(prior_params=prior_params, params=params)
+    prior_h: float = Field(
+        default=1.0,
+        gt=0,
+        description="Prior bandwidth for pseudo-Bayesian estimation.",
+    )
+    m_h: float = Field(
+        default=1.0,
+        gt=0,
+        description="Prior weight for bandwidth (pseudo sample size).",
+    )
 
-    def nll(self, data: np.ndarray) -> float:
-        """Compute the negative log-likelihood of the data given the KDE."""
-        return -np.sum(self.log_likelihood(data))
 
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> dict | tuple:
-        raise NotImplementedError("Subclasses must implement this method.")
+# ============================================================================
+# DISTRIBUTION IMPLEMENTATIONS
+# ============================================================================
 
-    def likelihood(self, data: np.ndarray) -> np.ndarray:
-        raise NotImplementedError("Likelihood computation not implemented currently, use log_likelihood instead.")
 
-    def _calc_data_bandwidth(self, data: np.ndarray) -> float:
-        """Calculate bandwidth from data using specified method or value."""
-        arr = np.asarray(data, dtype=float).ravel()
-        bandwidth = self.params.bandwidth  # type: ignore[attr-defined]
-        if isinstance(bandwidth, str):
-            match bandwidth:
-                case "scott":
-                    return self._compute_bandwidth_scott(arr)
-                case "silverman":
-                    return self._compute_bandwidth_silverman(arr)
-                case _:
-                    raise ValueError("bandwidth string must be 'scott' or 'silverman'.")
-        if isinstance(bandwidth, (float, int)):
-            if bandwidth <= 0:
-                raise ValueError("bandwidth must be a positive float.")
-            return float(bandwidth)
-        raise TypeError("bandwidth must be a positive float or 'scott' or 'silverman'.")
+class KDE(BDFDistribution):
+    """Kernel Density Estimation distribution.
 
-    def log_likelihood(self, data: np.ndarray) -> np.ndarray:
-        """Compute the log-likelihood of the data given the KDE."""
-        flat = np.asarray(data, dtype=float).ravel()
-        _, h = self.calc_posterior_params(flat, return_dict=False)
-        match self.params.cv:  # type: ignore[attr-defined]
-            case "loo":
-                return self._compute_loo_loglik(flat, h)
-            case 1:
-                return self._compute_insample_loglik(flat, h)
-            case int() if self.params.cv >= 2:  # type: ignore[attr-defined]
-                return self._compute_kfold_loglik(flat, h, self.params.cv)  # type: ignore[attr-defined]
-            case _:
-                raise ValueError("cv must be 'loo', 1 (insample), or an integer >= 2.")
+    **String Alias:** ``'kde'``
 
-    def _compute_loo_loglik(self, data: np.ndarray, h: float) -> np.ndarray:
-        """Compute leave-one-out log-likelihood, calling _compute_kernel_loglik to route to the appropriate kernel.
+    Non-parametric density estimation using kernel smoothing.
+    Supports both direct evaluation and FFT-based computation.
 
-        Args
-        ----
-        `data` : np.ndarray
-            Data points for which to compute the log-likelihood.
-        `h` : float
-            Bandwidth for the kernel density estimation.
+    Parameters
+    ----------
+    bandwidth : float or {'scott', 'silverman'}, default='scott'
+        Bandwidth selection method or fixed value.
+    kernel : {'gaussian', 'epanechnikov'}, default='gaussian'
+        Kernel function.
+    use_fft : bool, default=False
+        Use FFT for fast density evaluation (requires precomputed grid).
+    """
 
-        Returns
-        -------
-        np.ndarray
-            Log-likelihood values for each data point.
+    params_cls: ClassVar[type[BDFDistributionParams]] = KDEParams
+
+    # Capabilities
+    _supports_nle = False  # No closed-form evidence
+    _has_fast_loo_cv = True  # O(n²) but vectorized
+    _has_fast_kfold_cv = True
+    _supports_posterior_predictive = False
+
+    def __init__(self, params: KDEParams):
+        super().__init__(params)
+
+    # ========================================================================
+    # REQUIRED METHODS
+    # ========================================================================
+
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, float | np.ndarray]:
+        """Calculate KDE parameters from data.
+
+        Returns dict with:
+        - data: The kernel centers (copy of input data)
+        - bandwidth: Computed or specified bandwidth
+        - n: Number of data points
         """
         data = np.asarray(data, dtype=float).ravel()
         n = data.size
+
         if n < 2:
-            return np.full(n, -np.inf, dtype=float)
+            raise ValueError("KDE requires at least 2 data points.")
 
-        all_loglik = self._compute_kernel_loglik(data, data, h)
-        np.fill_diagonal(all_loglik, -np.inf)
+        bandwidth = self._compute_bandwidth(data)
 
-        row_logsum = np.logaddexp.reduce(all_loglik, axis=1)
-        return row_logsum - np.log(n - 1)
+        return {
+            "data": data.copy(),
+            "bandwidth": float(bandwidth),
+            "n": n,
+        }
 
-    def _compute_kfold_loglik(
-        self,
-        data: np.ndarray,
-        h: float,
-        k: int,
-        seed: int = RANDOM_SEED,
+    def _plugin_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
+        """Compute log-likelihood using KDE density estimate."""
+        eval_points = np.asarray(data, dtype=float).ravel()
+        ref_data = params["data"]
+        h = params["bandwidth"]
+
+        if self.params.use_fft and self._fft_ready():
+            return self._fft_log_likelihood(eval_points, ref_data, h)
+        else:
+            return self._direct_log_likelihood(eval_points, ref_data, h)
+
+    def _num_parameters(self) -> int:
+        """Effective number of parameters for KDE.
+
+        For KDE, this is approximately n/h (bandwidth controls complexity).
+        Return 1 as conservative estimate (just bandwidth).
+        """
+        return 1
+
+    def _sample_posterior_params(
+        self, params: dict[str, float | np.ndarray], size: int, random_state: int
     ) -> np.ndarray:
-        """K-fold log-likelihood using posterior bandwidth `h` (or per-fold updates)."""
+        """Sample from KDE distribution."""
+        data = np.asarray(params["data"], dtype=float).ravel()
+        h = params["bandwidth"]
+
+        if data.size == 0:
+            raise ValueError("No reference data for KDE sampling.")
+
+        rng = np.random.default_rng(random_state)
+
+        # Sample kernel centers
+        centers = rng.choice(data, size=size, replace=True)
+
+        # Add kernel noise
+        if self.params.kernel == "gaussian":
+            noise = rng.normal(0, h, size=size)
+        elif self.params.kernel == "epanechnikov":
+            noise = h * self._sample_epanechnikov(size, rng)
+        else:
+            raise ValueError(f"Unknown kernel: {self.params.kernel}")
+
+        return centers + noise
+
+    def validate_targets(self, data: np.ndarray) -> np.ndarray:
+        """Validate data for KDE."""
+        arr = np.asarray(data, dtype=float)
+        if arr.ndim == 0:
+            raise ValueError("Data must contain at least one observation.")
+        if not np.isfinite(arr).all():
+            raise ValueError("Data must be finite real numbers.")
+        if arr.shape[0] < 2:
+            raise ValueError("KDE requires at least 2 observations.")
+        return arr
+
+    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
+        """Mean of KDE is sample mean."""
+        if params is None:
+            if data is None:
+                raise ValueError("Provide either 'data' or 'params'")
+            params = self.calc_posterior_params(data)
+
+        return float(np.mean(params["data"]))
+
+    def get_posterior_variance(
+        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
+    ) -> float:
+        """Variance of KDE = sample variance + kernel variance."""
+        if params is None:
+            if data is None:
+                raise ValueError("Provide either 'data' or 'params'")
+            params = self.calc_posterior_params(data)
+
+        sample_var = float(np.var(params["data"], ddof=1))
+        h = params["bandwidth"]
+
+        if self.params.kernel == "gaussian":
+            kernel_var = h**2
+        elif self.params.kernel == "epanechnikov":
+            kernel_var = 0.2 * h**2  # Second moment of Epanechnikov
+        else:
+            kernel_var = h**2
+
+        return sample_var + kernel_var
+
+    # ========================================================================
+    # BANDWIDTH COMPUTATION
+    # ========================================================================
+
+    def _compute_bandwidth(self, data: np.ndarray) -> float:
+        """Compute bandwidth from data or params."""
+        bw = self.params.bandwidth
+
+        if isinstance(bw, str):
+            if bw == "scott":
+                return self._bandwidth_scott(data)
+            elif bw == "silverman":
+                return self._bandwidth_silverman(data)
+            else:
+                raise ValueError(f"Unknown bandwidth method: {bw}")
+        elif isinstance(bw, (int, float)):
+            if bw <= 0:
+                raise ValueError("Bandwidth must be positive.")
+            return max(float(bw), self.params.min_bandwidth)
+        else:
+            raise TypeError(f"Invalid bandwidth type: {type(bw)}")
+
+    def _bandwidth_scott(self, data: np.ndarray) -> float:
+        """Scott's rule: h = σ * n^(-1/5)"""
+        n = data.size
+        std = float(np.std(data, ddof=1))
+        return max(self.params.min_bandwidth, std * n ** (-0.2))
+
+    def _bandwidth_silverman(self, data: np.ndarray) -> float:
+        """Silverman's rule: h = 0.9 * min(σ, IQR/1.349) * n^(-1/5)"""
+        n = data.size
+        std = float(np.std(data, ddof=1))
+        iqr = float(np.subtract(*np.percentile(data, [75, 25])))
+
+        scale = min(std, iqr / 1.349) if iqr > 0 else std
+        if scale <= 0:
+            scale = std
+
+        return max(self.params.min_bandwidth, 0.9 * scale * n ** (-0.2))
+
+    # ========================================================================
+    # DIRECT LIKELIHOOD COMPUTATION
+    # ========================================================================
+
+    def _direct_log_likelihood(self, eval_points: np.ndarray, ref_data: np.ndarray, h: float) -> np.ndarray:
+        """Direct O(n*m) kernel evaluation."""
+        n_ref = ref_data.size
+
+        if n_ref == 0:
+            return np.full(eval_points.size, -np.inf)
+
+        # Compute kernel contributions: shape (n_eval, n_ref)
+        if self.params.kernel == "gaussian":
+            log_kernel = self._gaussian_log_kernel(eval_points, ref_data, h)
+        elif self.params.kernel == "epanechnikov":
+            log_kernel = self._epanechnikov_log_kernel(eval_points, ref_data, h)
+        else:
+            raise ValueError(f"Unknown kernel: {self.params.kernel}")
+
+        # Log-sum-exp over reference points, then subtract log(n)
+        return np.logaddexp.reduce(log_kernel, axis=1) - np.log(n_ref)
+
+    def _gaussian_log_kernel(self, eval_points: np.ndarray, ref_data: np.ndarray, h: float) -> np.ndarray:
+        """Gaussian kernel log-contributions (n_eval × n_ref)."""
+        diffs = (eval_points[:, None] - ref_data[None, :]) / h
+        log_k = -0.5 * diffs**2
+        log_k -= 0.5 * np.log(2 * np.pi)
+        log_k -= np.log(h)
+        return log_k
+
+    def _epanechnikov_log_kernel(self, eval_points: np.ndarray, ref_data: np.ndarray, h: float) -> np.ndarray:
+        """Epanechnikov kernel log-contributions (n_eval × n_ref)."""
+        u = (eval_points[:, None] - ref_data[None, :]) / h
+        log_k = np.full_like(u, -np.inf, dtype=float)
+        mask = np.abs(u) <= 1.0
+        log_k[mask] = np.log(0.75) + np.log(1 - u[mask] ** 2) - np.log(h)
+        return log_k
+
+    # ========================================================================
+    # FFT-BASED LIKELIHOOD (FAST)
+    # ========================================================================
+
+    def _fft_ready(self) -> bool:
+        """Check if FFT precomputation is available."""
+        return (
+            self.params.fft_grid_edges is not None
+            and self.params.fft_kernel_rfft is not None
+            and self.params.fft_grid_delta is not None
+        )
+
+    def _fft_log_likelihood(self, eval_points: np.ndarray, ref_data: np.ndarray, h: float) -> np.ndarray:
+        """FFT-based KDE evaluation.
+
+        Steps:
+        1. Bin reference data into grid
+        2. FFT of bin counts
+        3. Multiply by scaled kernel FFT
+        4. IFFT to get density on grid
+        5. Interpolate to evaluation points
+        """
+        edges = self.params.fft_grid_edges
+        kernel_rfft_ref = self.params.fft_kernel_rfft
+        delta = self.params.fft_grid_delta
+        n_grid = self.params.fft_grid_points
+
+        n_ref = ref_data.size
+
+        # Step 1: Bin counts
+        counts, _ = np.histogram(ref_data, bins=edges)
+        counts = counts.astype(float)
+
+        # Step 2: FFT of counts
+        counts_rfft = rfft(counts)
+
+        # Step 3: Scale kernel FFT by bandwidth
+        # For Gaussian: K(x/h)/h, so in frequency domain: h * K_hat(h*ω)
+        # With reference bandwidth=1, we need to rescale frequencies
+        freq = np.fft.rfftfreq(n_grid, d=delta)
+        kernel_rfft_scaled = kernel_rfft_ref * np.exp(-2 * np.pi**2 * freq**2 * (h**2 - 1))
+
+        # Step 4: Multiply and IFFT
+        density_grid = irfft(counts_rfft * kernel_rfft_scaled, n=n_grid)
+        density_grid = density_grid / n_ref  # Normalize by number of points
+        density_grid = np.maximum(density_grid, 1e-300)  # Avoid log(0)
+
+        # Step 5: Interpolate to evaluation points
+        grid_centers = 0.5 * (edges[:-1] + edges[1:])
+        log_density = np.interp(eval_points, grid_centers, np.log(density_grid))
+
+        # Handle points outside grid
+        outside = (eval_points < edges[0]) | (eval_points > edges[-1])
+        log_density[outside] = -np.inf
+
+        return log_density
+
+    # ========================================================================
+    # EFFICIENT LOO-CV
+    # ========================================================================
+
+    def _loo_cv_log_likelihood(self, data: np.ndarray) -> np.ndarray:
+        """Efficient vectorized LOO-CV for KDE."""
         data = np.asarray(data, dtype=float).ravel()
         n = data.size
-        if n < 2:
-            return np.full(n, -np.inf, dtype=float)
 
-        if k <= 1:
-            raise ValueError("k-fold cross-validation requires k >= 2.")
-        if k > n:
-            k = n
+        if n < 2:
+            return np.full(n, -np.inf)
+
+        params = self.calc_posterior_params(data)
+        h: float = params["bandwidth"]  # type: ignore
+
+        # Compute all pairwise kernel contributions (use correct kernel!)
+        if self.params.kernel == "gaussian":
+            log_kernel = self._gaussian_log_kernel(data, data, h)
+        elif self.params.kernel == "epanechnikov":
+            log_kernel = self._epanechnikov_log_kernel(data, data, h)
+        else:
+            raise ValueError(f"Unknown kernel: {self.params.kernel}")
+
+        # Exclude self-contribution by setting diagonal to -inf
+        np.fill_diagonal(log_kernel, -np.inf)
+
+        # LOO log-likelihood: log-sum-exp over other points, minus log(n-1)
+        return np.logaddexp.reduce(log_kernel, axis=1) - np.log(n - 1)
+
+    def _kfold_log_likelihood(self, data: np.ndarray, n_folds: int, shuffle: bool, seed: int | None) -> np.ndarray:
+        """K-fold CV for KDE."""
+        data = np.asarray(data, dtype=float).ravel()
+        n = data.size
+
+        if n < 2:
+            return np.full(n, -np.inf)
 
         rng = np.random.default_rng(seed)
         indices = np.arange(n)
-        if self.params.shuffle_splits:  # type: ignore[attr-defined]
+        if shuffle:
             rng.shuffle(indices)
 
-        fold_sizes = np.full(k, n // k, dtype=int)
-        fold_sizes[: n % k] += 1
+        fold_sizes = np.full(n_folds, n // n_folds, dtype=int)
+        fold_sizes[: n % n_folds] += 1
 
-        loglik = np.empty(n, dtype=float)
+        cv_ll = np.empty(n, dtype=float)
         start = 0
 
         for fold_size in fold_sizes:
@@ -189,387 +448,67 @@ class KDEBase(BDFDistribution):
             train_idx = np.concatenate((indices[:start], indices[stop:]))
             start = stop
 
-            eval_data = data[val_idx]
-            ref_data = data[train_idx]
-
-            if ref_data.size == 0:
-                loglik[val_idx] = -np.inf
+            if train_idx.size == 0:
+                cv_ll[val_idx] = -np.inf
                 continue
 
-            if self.params.recompute_bandwidth_splits:  # type: ignore[attr-defined]
-                _, h_fold = self.calc_posterior_params(ref_data, return_dict=False)
-            else:
-                h_fold = h
+            train_params = self.calc_posterior_params(data[train_idx])
+            cv_ll[val_idx] = self._plugin_log_likelihood(data[val_idx], train_params)
 
-            fold_log_weights = self._compute_kernel_loglik(eval_data, ref_data, h_fold)
-            loglik[val_idx] = np.logaddexp.reduce(fold_log_weights, axis=1) - np.log(ref_data.size)
+        return cv_ll
 
-        return loglik
-
-    def _compute_insample_loglik(self, data: np.ndarray, h: float) -> np.ndarray:
-        """Compute in-sample log-likelihood, calling _compute_kernel_loglik to route to the appropriate kernel.
-
-        Args
-        ----
-        `data` : np.ndarray
-            Data points for which to compute the log-likelihood.
-        `h` : float
-            Bandwidth for the kernel density estimation.
-
-        Returns
-        -------
-        np.ndarray
-            Log-likelihood values for each data point.
-        """
-        data = np.asarray(data, dtype=float).ravel()
-        n = data.size
-        if n < 1:
-            return np.full(n, -np.inf, dtype=float)
-
-        all_loglik = self._compute_kernel_loglik(data, data, h)
-        row_logsum = np.logaddexp.reduce(all_loglik, axis=1)
-        return row_logsum - np.log(n)
-
-    def _compute_kernel_loglik(self, ref_data: np.ndarray, eval_data: np.ndarray, h: float) -> np.ndarray:
-        """Return the per-pair log kernel contributions (shape: n_eval × n_ref)."""
-        if self.params.kernel == "gaussian":  # type: ignore[attr-defined]
-            return self._compute_gaussian_loglik(eval_data, ref_data, h)
-        if self.params.kernel == "epanechnikov":  # type: ignore[attr-defined]
-            return self._compute_epanechnikov_loglik(eval_data, ref_data, h)
-        raise ValueError("Unsupported kernel type. Use 'gaussian' or 'epanechnikov'.")
-
-    def _compute_gaussian_loglik(self, eval_data: np.ndarray, ref_data: np.ndarray, h: float) -> np.ndarray:
-        """Gaussian kernel contributions before averaging over references."""
-        ref = np.asarray(ref_data, dtype=float).ravel()
-        eva = np.asarray(eval_data, dtype=float).ravel()
-
-        n_ref = ref.size
-        if n_ref == 0:
-            return np.full((eva.size, 0), -np.inf, dtype=float)
-        if h <= 0:
-            raise ValueError("Bandwidth must be strictly positive for Gaussian kernel.")
-
-        diffs = (eva[:, None] - ref[None, :]) / h
-        log_kernel = -0.5 * diffs**2
-        log_kernel -= 0.5 * np.log(2.0 * np.pi)
-        log_kernel -= np.log(h)
-        return log_kernel
-
-    def _compute_epanechnikov_loglik(self, eval_data: np.ndarray, ref_data: np.ndarray, h: float) -> np.ndarray:
-        """Epanechnikov kernel contributions (currently 1D only)."""
-        ref = np.asarray(ref_data, dtype=float).ravel()
-        eva = np.asarray(eval_data, dtype=float).ravel()
-
-        n_ref = ref.size
-        if n_ref == 0:
-            return np.full((eva.size, 0), -np.inf, dtype=float)
-        if h <= 0:
-            raise ValueError("Bandwidth must be strictly positive for Epanechnikov kernel.")
-
-        u = (eva[:, None] - ref[None, :]) / h
-        log_kernel = np.full_like(u, -np.inf, dtype=float)
-        mask = np.abs(u) <= 1.0
-        inside = np.clip(1.0 - u[mask] ** 2, 0.0, None)
-        log_kernel[mask] = np.log(0.75) + np.log(inside) - np.log(h)
-        return log_kernel
-
-    def _compute_bandwidth_silverman(self, X: np.ndarray) -> float:
-        """X is currently only supported for 1D, else X_1d = X[:, 0]"""
-        arr = np.asarray(X, dtype=float).ravel()
-        n = arr.size
-        if n < 2:
-            raise ValueError("At least two samples are required to estimate bandwidth.")
-        std = float(np.std(arr, ddof=1))
-        iqr = float(np.subtract(*np.percentile(arr, [75, 25])))
-        scale = min(std, iqr / 1.349) if iqr > 0 else std
-        if scale <= 0:
-            scale = std
-        return max(self.params.min_bandwidth, 0.9 * scale * n ** (-1.0 / 5))  # type: ignore
-
-    def _compute_bandwidth_scott(self, X: np.ndarray) -> float:
-        """Compute bandwidth using Scott's or Silverman's rule of thumb."""
-        arr = np.asarray(X, dtype=float).ravel()
-        n = arr.size
-        if n < 2:
-            raise ValueError("At least two samples are required to estimate bandwidth.")
-        scale = float(np.std(arr, ddof=1))
-        return max(self.params.min_bandwidth, scale * n ** (-1.0 / 5))  # type: ignore
-
-    def _sample_posterior_params(self, params: dict[str, Any], size: int, random_state: int) -> np.ndarray:
-        data, h = params["data"], params.get("posterior_h", params["h"])
-        return self._sample_posterior_kernel(data, h, size, random_state)
-
-    def _sample_posterior_data(self, data: np.ndarray, size: int, random_state: int) -> np.ndarray:
-        """Sample from the posterior KDE using given data and computed bandwidth."""
-        params = self.calc_posterior_params(data, return_dict=True)
-        return self._sample_posterior_params(params, size, random_state)  # type: ignore
-
-    def _sample_posterior_kernel(self, data: np.ndarray, h: float, size: int, random_state: int) -> np.ndarray:
-        data = np.asarray(data, dtype=float)
-        if data.size == 0:
-            raise ValueError("No reference data available for KDE sampling.")
-        if h <= 0:
-            raise ValueError("Bandwidth must be strictly positive.")
-
-        rng = np.random.default_rng(random_state)
-        picked = rng.integers(0, data.size, size=size)
-        centers = data[picked]
-
-        match self.params.kernel:  # type: ignore[attr-defined]
-            case "gaussian":
-                noise = rng.normal(loc=0.0, scale=h, size=size)
-                return centers + noise
-            case "epanechnikov":
-                noise = h * self._draw_epanechnikov(size=size, rng=rng)
-                return centers + noise
-            case _:
-                raise ValueError("Unsupported kernel type for posterior sampling.")
+    # ========================================================================
+    # SAMPLING UTILITIES
+    # ========================================================================
 
     @staticmethod
-    def _draw_epanechnikov(*, size: int, rng: np.random.Generator) -> np.ndarray:
+    def _sample_epanechnikov(size: int, rng: np.random.Generator) -> np.ndarray:
+        """Sample from Epanechnikov kernel using rejection sampling."""
         samples = np.empty(size, dtype=float)
         filled = 0
         while filled < size:
             remaining = size - filled
-            candidate = rng.uniform(-1.0, 1.0, size=remaining)
-            accept = rng.uniform(0.0, 1.0, size=remaining) <= (1.0 - candidate**2)
-            num_accept = int(np.sum(accept))
-            if num_accept:
-                samples[filled : filled + num_accept] = candidate[accept]
-                filled += num_accept
+            candidates = rng.uniform(-1, 1, remaining)
+            accept = rng.uniform(0, 1, remaining) <= (1 - candidates**2)
+            n_accept = accept.sum()
+            if n_accept:
+                samples[filled : filled + n_accept] = candidates[accept]
+                filled += n_accept
         return samples
 
-    def sample_prior(self, size: int) -> np.ndarray:
-        """Sample from the prior KDE using prior parameters."""
-        raise NotImplementedError("Sampling from prior not possible as likelihood inherently requires data.")
 
-    def get_posterior_params(self, data: np.ndarray) -> dict:
-        """Return posterior data copy and bandwidth."""
-        return self.calc_posterior_params(data, return_dict=True)  # type: ignore
+class BayesianKDE(KDE):
+    """Bayesian KDE with prior on bandwidth.
 
-    def get_posterior_mean(self, data: np.ndarray) -> float:
-        arr = np.asarray(data, dtype=float)
-        return np.mean(arr, axis=0)
+    **String Alias:** ``'bayesian_kde'``
 
-    def get_posterior_variance(self, data: np.ndarray) -> float:
-        arr = np.asarray(data, dtype=float)
-        if arr.ndim == 1:
-            arr = arr[:, None]
-        posterior = self.calc_posterior_params(arr, return_dict=False)
-        posterior_h = float(posterior[-1])
-        sample_var = np.var(arr, axis=0, ddof=1)
-        if self.params.kernel == "gaussian":  # type: ignore[attr-defined]
-            return sample_var + posterior_h**2
-        # Epanechnikov second moment coefficient (beta2 = 0.2)
-        return sample_var + 0.2 * posterior_h**2
-
-    def validate_targets(self, data: np.ndarray) -> np.ndarray:
-        """Ensure numeric, finite data and sufficient sample size."""
-        arr = np.asarray(data, dtype=float)  # ravel?
-        if arr.ndim == 0:
-            raise ValueError("Data must contain at least one observation.")
-        if not np.isfinite(arr).all():
-            raise ValueError("Data for KDE must be finite real numbers.")
-        if arr.shape[0] < 2:
-            raise ValueError("KDE requires at least two observations.")
-        return arr
-
-
-class PseudoHKDEParams(BDFDistributionParams):
-    """Parameters for the PseudoHKDE distribution.
-
-    Attributes
-    ----------
-    prior_h : float
-        Prior bandwidth for the kernel density estimation.
-    m_h : float
-        Weighting factor for the prior bandwidth.
+    Posterior bandwidth is weighted average of prior and data-based estimate:
+    h_posterior = (m_h * h_prior + n * h_data) / (m_h + n)
     """
 
-    prior_h: float = Field(default=1.0, description="Prior bandwidth for the kernel density estimation.")
-    m_h: float = Field(default=1.0, description="Weighting factor for the prior bandwidth.")
+    params_cls: ClassVar[type[BDFDistributionParams]] = BayesianKDEParams
 
-    class Config:
-        extra = "forbid"
-        validate_by_name = True
+    def __init__(self, params: BayesianKDEParams):
+        super().__init__(params)
 
-    def __init__(self, **data):
-        # Check for missing fields before initialization
-        missing_fields = {}
-        if "prior_h" not in data:
-            missing_fields["prior_h"] = self.__class__.model_fields["prior_h"].default
-        if "m_h" not in data:
-            missing_fields["m_h"] = self.__class__.model_fields["m_h"].default
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, float | np.ndarray]:
+        """Calculate posterior bandwidth using pseudo-Bayesian weighting."""
+        data = np.asarray(data, dtype=float).ravel()
+        n = data.size
 
-        super().__init__(**data)
-
-        # Issue warnings for missing fields
-        for field, default_value in missing_fields.items():
-            warnings.warn(
-                f"No value provided for '{field}', using default: {default_value}",
-                UserWarning,
-                stacklevel=2,
-            )
-
-
-class PseudoHKDE(KDEBase):
-    """
-    Kernel Density Estimation distribution.
-
-    Uses Gaussian kernel with isotropic bandwidth for non-parametric density estimation.
-    """
-
-    def __init__(self, prior_params: dict | PseudoHKDEParams, params: dict | KDEBaseParams | None = None):
-        if isinstance(prior_params, dict):
-            prior_params = PseudoHKDEParams.model_validate(prior_params)  # type: ignore
-        assert isinstance(
-            prior_params, PseudoHKDEParams
-        ), "prior_params must be an instance of NormalNormalParams after possible conversion from dict."
-        if params is None:  # keep consistent with other distributions, but needed here
-            params = KDEBaseParams.model_validate({})  # type: ignore
-        else:
-            params = KDEBaseParams.model_validate(params)  # type: ignore
-        super().__init__(prior_params=prior_params, params=params)
-
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> dict | tuple:
-        """Calculate the posterior bandwidth using a pseudo-Bayesian approach.
-
-        The posterior bandwidth is a weighted average of the prior bandwidth and the
-        bandwidth estimated from the data using Silverman's rule of thumb.
-
-        Args:
-            data (np.ndarray): The input data for bandwidth estimation.
-            return_dict (bool): If True, return the parameters as a dictionary.
-
-        Returns:
-            dict or tuple: The posterior parameters as a dictionary or tuple.
-        """
-        n = len(data)
         if n < 2:
-            raise ValueError("At least two data points are required to estimate bandwidth.")
-        data_h = self._calc_data_bandwidth(data)
-        prior_h = self.prior_params.prior_h  # type: ignore[attr-defined]
-        m_h = self.prior_params.m_h  # type: ignore[attr-defined]
+            raise ValueError("KDE requires at least 2 data points.")
+
+        data_h = self._compute_bandwidth(data)
+        prior_h = self.params.prior_h
+        m_h = self.params.m_h
+
         posterior_h = (m_h * prior_h + n * data_h) / (m_h + n)
-        if return_dict:
-            return {"data": data.copy(), "posterior_h": posterior_h}
-        else:
-            return data.copy(), posterior_h
+        posterior_h = max(posterior_h, self.params.min_bandwidth)
 
-
-# NOTE/TODO: Investigate whether this even makes sense, would need to reimplement (log-)likelihood calculations
-# to include penalty term; also, how to choose lambda_h?
-class PenalizedHKDEParams(BDFDistributionParams):
-    """Parameters for the PenalizedHKDE distribution.
-
-    Attributes
-    ----------
-    lambda_h : float
-        Penalty parameter for bandwidth regularization.
-    """
-
-    lambda_h: float = Field(default=1.0, description="Penalty parameter of `h` for `nll` calculation.")
-
-    class Config:
-        extra = "forbid"
-        validate_by_name = True
-
-    def __init__(self, **data):
-        # Check for missing fields before initialization
-        missing_fields = {}
-        if "lambda_h" not in data:
-            missing_fields["lambda_h"] = self.__class__.model_fields["lambda_h"].default
-
-        super().__init__(**data)
-
-        # Issue warnings for missing fields
-        for field, default_value in missing_fields.items():
-            warnings.warn(
-                f"No value provided for '{field}', using default: {default_value}",
-                UserWarning,
-                stacklevel=2,
-            )
-
-
-class PenalizedHKDE(KDEBase):
-    """
-    Kernel Density Estimation distribution with penalized bandwidth.
-
-    Uses Gaussian kernel with isotropic bandwidth for non-parametric density estimation.
-    The bandwidth is estimated by minimizing the penalized negative log-likelihood.
-    """
-
-    def __init__(self, prior_params: dict | PenalizedHKDEParams, params: dict | KDEBaseParams | None = None):
-        if isinstance(prior_params, dict):
-            prior_params = PenalizedHKDEParams.model_validate(prior_params)  # type: ignore
-        assert isinstance(
-            prior_params, PenalizedHKDEParams
-        ), "prior_params must be an instance of PenalizedHKDEParams after possible conversion from dict."
-        if params is None:  # keep consistent with other distributions, but needed here
-            params = KDEBaseParams.model_validate({})  # type: ignore
-        else:
-            params = KDEBaseParams.model_validate(params)  # type: ignore
-        super().__init__(prior_params=prior_params, params=params)
-
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> dict | tuple:
-        """Calculate the posterior bandwidth by minimizing the penalized negative log-likelihood.
-
-        The posterior bandwidth is found by minimizing the sum of the negative log-likelihood
-        of the data and a penalty term proportional to the bandwidth.
-
-        Args:
-            data (np.ndarray): The input data for bandwidth estimation.
-            return_dict (bool): If True, return the parameters as a dictionary.
-        Returns:
-            dict or tuple: The posterior parameters as a dictionary or tuple.
-        """
-        n = len(data)
-        if n < 2:
-            raise ValueError("At least two data points are required to estimate bandwidth.")
-        data_h = self._calc_data_bandwidth(data)
-        lambda_h = self.prior_params.lambda_h  # type: ignore[attr-defined]
-        posterior_h = max(data_h, lambda_h**0.5)  # simple heuristic to avoid too small bandwidths
-        if return_dict:
-            return {"data": data, "posterior_h": posterior_h}
-        else:
-            return data, posterior_h
-
-
-class KDE(KDEBase):
-    """
-    Kernel Density Estimation distribution. Non-Bayesian version with `prior_params` None.
-    """
-
-    def __init__(self, prior_params: dict | BDFDistributionParams, params: dict | KDEBaseParams | None = None):
-        if isinstance(prior_params, dict):
-            prior_params = BDFDistributionParams.model_validate(prior_params)  # type: ignore
-        assert isinstance(
-            prior_params, BDFDistributionParams
-        ), "prior_params must be an instance of BDFDistributionParams after possible conversion from dict."
-        if params is None:  # keep consistent with other distributions, but needed here
-            params = KDEBaseParams.model_validate({})  # type: ignore
-        else:
-            params = KDEBaseParams.model_validate(params)  # type: ignore
-        super().__init__(prior_params=prior_params, params=params)
-
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> dict | tuple:
-        """Calculate the posterior bandwidth using a pseudo-Bayesian approach.
-
-        The posterior bandwidth is a weighted average of the prior bandwidth and the
-        bandwidth estimated from the data using Silverman's rule of thumb.
-
-        Args:
-            data (np.ndarray): The input data for bandwidth estimation.
-            return_dict (bool): If True, return the parameters as a dictionary.
-
-        Returns:
-            dict or tuple: The posterior parameters as a dictionary or tuple.
-        """
-        n = len(data)
-        if n < 2:
-            raise ValueError("At least two data points are required to estimate bandwidth.")
-        data_h = self._calc_data_bandwidth(data)
-        if return_dict:
-            return {"data": data.copy(), "h": data_h}
-        else:
-            return data.copy(), data_h
+        return {
+            "data": data.copy(),
+            "bandwidth": float(posterior_h),
+            "data_bandwidth": float(data_h),
+            "n": n,
+        }

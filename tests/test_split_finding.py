@@ -1,4 +1,4 @@
-import bdf_rust
+import bdf_rs
 import numpy as np
 import pytest
 
@@ -121,7 +121,7 @@ def test_rust_python_split_equivalence():
 
     # Use Rust implementation
     rust_spec = DistributionManager.to_rust_spec(dist)
-    rust_feature_idx, rust_threshold, rust_loss, rust_left, rust_right = bdf_rust.find_best_split(  # type: ignore
+    rust_feature_idx, rust_threshold, rust_loss, rust_left, rust_right = bdf_rs.find_best_split(  # type: ignore
         X, y, 1, 0.0, rust_spec, 0.1, None
     )
 
