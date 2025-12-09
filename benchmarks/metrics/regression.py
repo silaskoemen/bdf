@@ -39,6 +39,14 @@ def coverage_90(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return coverage
 
 
+def coverage_50(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Compute the 50% prediction interval coverage."""
+    lower_bound = np.percentile(y_pred, 25, axis=1)
+    upper_bound = np.percentile(y_pred, 75, axis=1)
+    coverage = np.mean((y_true >= lower_bound) & (y_true <= upper_bound))
+    return coverage
+
+
 def coverage_95(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """Compute the 95% prediction interval coverage."""
     lower_bound = np.percentile(y_pred, 2.5, axis=1)
@@ -101,6 +109,7 @@ REG_POINT_METRICS = {
 REG_PROB_METRICS = {
     "crps": crps_wrapper,
     "pica": pica,
+    "coverage_50": coverage_50,
     "coverage_90": coverage_90,
     "coverage_95": coverage_95,
     "interval_score_90": lambda y_true, y_pred: interval_score(y_true, y_pred, alpha=0.1),

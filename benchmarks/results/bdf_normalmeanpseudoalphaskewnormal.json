@@ -1,0 +1,183 @@
+{
+  "model_config": {
+    "name": "bdf_normalmeanpseudoalphaskewnormal",
+    "target_type": "regression",
+    "class_name": "BDFModel",
+    "probabilistic": true,
+    "compatible_target_domains": [
+      "real",
+      "positive_real",
+      "nonnegative_real",
+      "integer",
+      "nonnegative_integer",
+      "positive_integer"
+    ],
+    "fixed_init_kwargs": {
+      "dist": "NormalMeanPseudoAlphaSkewNormal",
+      "random_state": 1234
+    },
+    "tunable_init_kwargs": {
+      "n_trees": {
+        "type": "int",
+        "low": 5,
+        "high": 200
+      },
+      "reg_lambda": {
+        "type": "float",
+        "low": 0.0001,
+        "high": 10.0,
+        "log": true
+      },
+      "min_samples_leaf": {
+        "type": "int",
+        "low": 5,
+        "high": 50
+      },
+      "min_samples_split": {
+        "type": "int",
+        "low": 10,
+        "high": 100
+      },
+      "subsample": {
+        "type": "float",
+        "low": 0.5,
+        "high": 1.0
+      },
+      "colsample": {
+        "type": "float",
+        "low": 0.5,
+        "high": 1.0
+      },
+      "eta": {
+        "type": "float",
+        "low": 0.005,
+        "high": 0.1,
+        "log": true
+      }
+    },
+    "tunable_params": {
+      "sigma_mu": {
+        "type": "float",
+        "low": 0.1,
+        "high": 100.0,
+        "log": true
+      },
+      "m_alpha": {
+        "type": "int",
+        "low": 1,
+        "high": 100
+      }
+    },
+    "fixed_params": {
+      "mu_mu": "auto",
+      "mean_alpha": 0.0
+    }
+  },
+  "datasets": {
+    "realestate": {
+      "metadata": {
+        "name": "realestate",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 99.25709652207122,
+        "mae": 5.789392723678025,
+        "rmse": 9.962785580452447,
+        "r2": 0.5328142056930956,
+        "msle": 0.03931209153546003,
+        "mape": 0.14976077986258368,
+        "crps": 4.371250721151629,
+        "pica": 0.02132867132867133,
+        "coverage_50": 0.5192307692307693,
+        "coverage_90": 0.9519230769230769,
+        "coverage_95": 0.9807692307692307,
+        "interval_score_90": 41.10238751461709,
+        "interval_score_95": 57.18857902157221,
+        "weighted_interval_score": 4.177124679044451
+      },
+      "best_params": {
+        "n_trees": 200,
+        "reg_lambda": 0.003948519912094133,
+        "min_samples_leaf": 6,
+        "min_samples_split": 46,
+        "subsample": 0.8896949283728316,
+        "colsample": 0.7708189858875614,
+        "eta": 0.034791840269276245,
+        "sigma_mu": 99.07352903438795,
+        "m_alpha": 27
+      },
+      "tuning_time_seconds": 26.759144067764282,
+      "fit_time_seconds": 0.4962151050567627
+    },
+    "boston_housing": {
+      "metadata": {
+        "name": "boston_housing",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 9.293313685229782,
+        "mae": 2.1052882456113458,
+        "rmse": 3.0484936747892033,
+        "r2": 0.8851503539727771,
+        "msle": 0.019318047086844745,
+        "mape": 0.10623808304897955,
+        "crps": 1.6485109018471185,
+        "pica": 0.05183654729109275,
+        "coverage_50": 0.5858585858585859,
+        "coverage_90": 0.9696969696969697,
+        "coverage_95": 0.98989898989899,
+        "interval_score_90": 14.800576436734266,
+        "interval_score_95": 19.316744169349956,
+        "weighted_interval_score": 1.559009856873918
+      },
+      "best_params": {
+        "n_trees": 200,
+        "reg_lambda": 0.003948519912094133,
+        "min_samples_leaf": 6,
+        "min_samples_split": 46,
+        "subsample": 0.8896949283728316,
+        "colsample": 0.7708189858875614,
+        "eta": 0.034791840269276245,
+        "sigma_mu": 99.07352903438795,
+        "m_alpha": 27
+      },
+      "tuning_time_seconds": 26.979206085205078,
+      "fit_time_seconds": 0.7094740867614746
+    },
+    "abalone_age": {
+      "metadata": {
+        "name": "abalone_age",
+        "target_domain": "positive_integer"
+      },
+      "metrics": {
+        "mse": 4.459408165222741,
+        "mae": 1.5020125524545256,
+        "rmse": 2.1117310826008935,
+        "r2": 0.5502614507721102,
+        "msle": 0.029414785318221746,
+        "mape": 0.1501136926362309,
+        "crps": 1.0670803137099056,
+        "pica": 0.03214441061331013,
+        "coverage_50": 0.5473684210526316,
+        "coverage_90": 0.9464114832535885,
+        "coverage_95": 0.9760765550239234,
+        "interval_score_90": 8.87216177958907,
+        "interval_score_95": 10.568819736349392,
+        "weighted_interval_score": 1.0164418956987826
+      },
+      "best_params": {
+        "n_trees": 185,
+        "reg_lambda": 0.00010031799557786967,
+        "min_samples_leaf": 11,
+        "min_samples_split": 13,
+        "subsample": 0.9552434278272223,
+        "colsample": 0.7535375433137711,
+        "eta": 0.025951568772459025,
+        "sigma_mu": 17.226212063292543,
+        "m_alpha": 10
+      },
+      "tuning_time_seconds": 270.27189779281616,
+      "fit_time_seconds": 3.497530698776245
+    }
+  }
+}
