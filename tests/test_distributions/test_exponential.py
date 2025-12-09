@@ -5,14 +5,8 @@ from scipy.stats import expon
 from bdf.distributions.exponential import (
     GammaABLambdaExponential,
     GammaABLambdaExponentialParams,
-    GammaABLambdaExponentialPP,
-    GammaABLambdaExponentialPPParams,
     GammaMVLambdaExponential,
     GammaMVLambdaExponentialParams,
-    GammaMVLambdaExponentialPP,
-    GammaMVLambdaExponentialPPParams,
-    PseudoLambdaExponential,
-    PseudoLambdaExponentialParams,
 )
 
 

@@ -198,7 +198,8 @@ class FrequentistStudentT(BDFDistribution):
         try:
             df_new = brentq(objective, 2.05, 100.0)
             return float(df_new)  # pyright: ignore[reportArgumentType]
-        except:
+        except Exception as e:
+            warnings.warn(f"DF update via root finding failed: {e}; keeping previous df.", RuntimeWarning)
             return df_init  # Fallback if solver fails
 
     def _fit_mle(self, data: np.ndarray) -> tuple[float, float, float]:

@@ -21,12 +21,12 @@ class TestFindBestSplit:
         print(X)
         y = np.array([1, 2, 11, 12])
 
-        dist = DM.create_distribution("NormalMuNormal", params={"mean": 6.5, "std": 20})
+        dist = DM.create_distribution("NormalMuNormal", params={"mu_mu": 6.5, "sigma_mu": 20}, y=y)
         # Create a BDFNode with this data
-        node = BDFNode(distribution=dist, depth=1)
+        node = BDFNode(distribution=dist, depth=1, random_state=1234)
 
         # Find the best split
-        feat, thresh, loss, left_idcs, right_idcs = node.find_best_split(
+        feat, thresh, loss, _, _, _, _ = node.find_best_split(
             X, y, col_idcs=None, eta=0.025, min_child_weight=0.0, min_samples_leaf=1
         )
         assert feat == 1
@@ -47,12 +47,12 @@ class TestFindBestSplit:
         )
         y = np.array([1, 2, 11, 12])
 
-        dist = DM.create_distribution("NormalMuNormal", params={"mean": 6.5, "std": 20})
+        dist = DM.create_distribution("NormalMuNormal", params={"mu_mu": 6.5, "sigma_mu": 20}, y=y)
         # Create a BDFNode with this data
-        node = BDFNode(distribution=dist, depth=1)
+        node = BDFNode(distribution=dist, depth=1, random_state=1234)
 
         # Find the best split using only feature indices [0, 2]
-        feat, thresh, loss, left_idcs, right_idcs = node.find_best_split(
+        feat, thresh, loss, _, _, _, _ = node.find_best_split(
             X, y, col_idcs=[0, 2], eta=0.025, min_child_weight=0.0, min_samples_leaf=2
         )
         assert feat == 2
@@ -71,7 +71,7 @@ class TestFindBestSplit:
             dtype=float,
         )
         y = np.array([0, 0, 1, 1])
-        dist = DM.create_distribution("NormalMuNormal", params={"mu_mu": 8, "sigma_mu": 1})
+        dist = DM.create_distribution("NormalMuNormal", params={"mu_mu": 8, "sigma_mu": 1}, y=y)
         # Create a BDFNode with this data
         node = BDFNode(distribution=dist, depth=1, random_state=1234)
         # Find the best split

@@ -13,8 +13,8 @@ def test_threshold_generation_python():
     data = np.linspace(0, 10, 101)
 
     # Create node
-    dist = DM.create_distribution("NormalMuNormal", {"mean": 0, "std": 1})
-    node = BDFNode(distribution=dist)
+    dist = DM.create_distribution("NormalMuNormal", {"mu_mu": 0, "sigma_mu": 1}, y=np.ones(len(data)))
+    node = BDFNode(distribution=dist, depth=0, random_state=1234)
 
     # Expose a method to get candidate thresholds for testing
     def get_thresholds(eta):
@@ -67,8 +67,8 @@ def test_threshold_deduplication():
     # Data with repeated values
     data = np.array([1.0, 1.0, 2.0, 3.0, 3.0, 3.0, 4.0, 5.0])
 
-    dist = DM.create_distribution("NormalMuNormal", {"mean": 0, "std": 1})
-    node = BDFNode(distribution=dist)
+    dist = DM.create_distribution("NormalMuNormal", {"mu_mu": 0, "sigma_mu": 1}, y=data)
+    node = BDFNode(distribution=dist, depth=0, random_state=1234)
 
     thresholds = node._generate_candidate_thresholds(data, 101)
 
@@ -85,8 +85,8 @@ def test_constant_feature_handling():
     # Constant data
     data = np.array([5.0, 5.0, 5.0, 5.0, 5.0])
 
-    dist = DM.create_distribution("NormalMuNormal", {"mean": 0, "std": 1})
-    node = BDFNode(distribution=dist)
+    dist = DM.create_distribution("NormalMuNormal", {"mu_mu": 0, "sigma_mu": 1}, y=data)
+    node = BDFNode(distribution=dist, depth=0, random_state=1234)
 
     thresholds = node._generate_candidate_thresholds(data, 101)
 
