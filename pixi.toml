@@ -1,6 +1,6 @@
 [project]
 name = "bdf"
-version = "0.0.1"
+version = "0.1.0"
 description = "Bayesian Distributional Forest"
 authors = ["Silas Koemen <research@silaskoemen.com>"]
 channels = ["conda-forge"]
@@ -47,6 +47,9 @@ pyright = "*"
 [feature.lint.tasks]
 lint = "pre-commit run --all-files"
 lint-rust = "cargo clippy --manifest-path compiled/rust/Cargo.toml --all-targets --all-features -- -D warnings"
+
+[feature.typecheck.tasks]
+lint-ci = "pre-commit run --all-files"
 
 [feature.benchmark.dependencies]
 matplotlib = "*"
@@ -98,6 +101,8 @@ test = { features = ["test"], solve-group = "prod" }
 
 # LINT: Isolated fast check
 lint = { features = ["lint"], no-default-feature = true }
+
+typecheck = { features = ["lint"], solve-group = "prod" }
 
 # BENCHMARK: Heavy plotting deps
 benchmark = { features = ["benchmark"], solve-group = "prod" }
