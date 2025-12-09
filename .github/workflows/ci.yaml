@@ -16,7 +16,7 @@ jobs:
           cache: true
           environments: lint
       - name: Run Lint
-        run: pixi run -e typecheck lint-ci
+        run: pixi run -e lint lint
 
   test:
     needs: lint

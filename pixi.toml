@@ -48,9 +48,6 @@ pyright = "*"
 lint = "pre-commit run --all-files"
 lint-rust = "cargo clippy --manifest-path compiled/rust/Cargo.toml --all-targets --all-features -- -D warnings"
 
-[feature.typecheck.tasks]
-lint-ci = "pre-commit run --all-files"
-
 [feature.benchmark.dependencies]
 matplotlib = "*"
 seaborn = "*"
@@ -99,10 +96,8 @@ prod = { features = [], solve-group = "prod" }
 # TEST: CI/CD
 test = { features = ["test"], solve-group = "prod" }
 
-# LINT: Isolated fast check
-lint = { features = ["lint"], no-default-feature = true }
-
-typecheck = { features = ["lint"], solve-group = "prod" }
+# LINT: Isolated fast check, pyright requires base features
+lint = { features = ["lint"] }
 
 # BENCHMARK: Heavy plotting deps
 benchmark = { features = ["benchmark"], solve-group = "prod" }
