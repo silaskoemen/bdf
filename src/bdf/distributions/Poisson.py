@@ -10,7 +10,7 @@ Both support:
 - Efficient inference (conjugate updates)
 """
 
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 import numpy as np
 from pydantic import Field
@@ -52,6 +52,10 @@ class GammaABLambdaPoissonParams(BDFDistributionParams):
         default=True, description="Use Negative Binomial posterior predictive (marginalizes λ uncertainty)."
     )
 
+    raise_on_non_integer: bool = Field(
+        default=True, description="Raise error if non-integer data is provided for Poisson distribution."
+    )
+
 
 class GammaMVLambdaPoissonParams(BDFDistributionParams):
     """Parameters for Poisson with Gamma prior specified via mean/variance.
@@ -74,13 +78,17 @@ class GammaMVLambdaPoissonParams(BDFDistributionParams):
     score_method: Literal["nle", "nll"] = Field(default="nle")
     use_posterior_predictive: bool = Field(default=True, description="Use Negative Binomial posterior predictive.")
 
+    raise_on_non_integer: bool = Field(
+        default=True, description="Raise error if non-integer data is provided for Poisson distribution."
+    )
+
 
 # ============================================================================
 # DISTRIBUTION IMPLEMENTATIONS
 # ============================================================================
 
 
-class GammaABLambdaPoisson(BDFDistribution):
+class GammaABLambdaPoisson(BDFDistribution[GammaABLambdaPoissonParams]):
     """Poisson-Gamma conjugate model with shape-rate (α, β) parameterization.
 
     Supports:
@@ -99,8 +107,8 @@ class GammaABLambdaPoisson(BDFDistribution):
 
     def __init__(self, params: GammaABLambdaPoissonParams):
         super().__init__(params)
-        self.alpha_lambda = params.alpha_lambda
-        self.beta_lambda = params.beta_lambda
+        self.alpha_lambda = self.params.alpha_lambda
+        self.beta_lambda = self.params.beta_lambda
 
     # ========================================================================
     # REQUIRED METHODS
@@ -175,7 +183,7 @@ class GammaABLambdaPoisson(BDFDistribution):
             raise ValueError("Data cannot be empty")
         if not np.all(data >= 0):
             raise ValueError("Poisson data must be non-negative integers (k ≥ 0)")
-        if not np.all(data == np.floor(data)):
+        if not np.all(data == np.floor(data)) and self.params.raise_on_non_integer:
             raise ValueError("Poisson data must be integers")
         if not np.all(np.isfinite(data)):
             raise ValueError("Data contains non-finite values")
@@ -280,7 +288,7 @@ class GammaABLambdaPoisson(BDFDistribution):
         return np.array(gamma_dist.rvs(a=self.alpha_lambda, scale=1.0 / self.beta_lambda, size=size, random_state=rng))
 
 
-class GammaMVLambdaPoisson(BDFDistribution):
+class GammaMVLambdaPoisson(BDFDistribution[GammaMVLambdaPoissonParams]):
     """Poisson-Gamma conjugate model with mean-variance parameterization.
 
     Same as GammaABLambdaPoisson, but prior specified via:
@@ -299,8 +307,8 @@ class GammaMVLambdaPoisson(BDFDistribution):
 
     def __init__(self, params: GammaMVLambdaPoissonParams):
         super().__init__(params)
-        self.mean_lambda = params.mean_lambda
-        self.var_lambda = params.var_lambda
+        self.mean_lambda = self.params.mean_lambda
+        self.var_lambda = self.params.var_lambda
 
         # Convert mean-variance to shape-rate
         self.alpha_lambda = self.mean_lambda**2 / self.var_lambda
@@ -355,7 +363,7 @@ class GammaMVLambdaPoisson(BDFDistribution):
             raise ValueError("Data cannot be empty")
         if not np.all(data >= 0):
             raise ValueError("Poisson data must be non-negative integers (k ≥ 0)")
-        if not np.all(data == np.floor(data)):
+        if not np.all(data == np.floor(data)) and self.params.raise_on_non_integer:
             raise ValueError("Poisson data must be integers")
         if not np.all(np.isfinite(data)):
             raise ValueError("Data contains non-finite values")
@@ -425,3 +433,15 @@ class GammaMVLambdaPoisson(BDFDistribution):
         """Sample λ from prior Gamma(α, β)."""
         rng = np.random.default_rng(random_state)
         return np.array(gamma_dist.rvs(a=self.alpha_lambda, scale=1.0 / self.beta_lambda, size=size, random_state=rng))
+
+    @classmethod
+    def resolve_auto_params(cls, key: str, data: np.ndarray) -> Any:
+        """Resolve 'auto' parameters based on data.
+
+        For NormalMuNormal:
+        - 'mean_lambda': Use sample mean
+        """
+        if key == "mean_lambda":
+            return float(np.mean(data))
+        else:
+            raise ValueError(f"Unknown parameter '{key}' for auto resolution in {cls.__name__}")

@@ -1,4 +1,4 @@
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 import numpy as np
 from pydantic import Field
@@ -71,7 +71,7 @@ class NormalMuInvGammaSigmaNormalParams(BDFDistributionParams):
 # ============================================================================
 
 
-class NormalMuNormal(BDFDistribution):
+class NormalMuNormal(BDFDistribution[NormalMuNormalParams]):
     r"""Normal-Normal conjugate model (μ unknown, σ² estimated from data).
 
     **String Alias:** ``'normal_normal'``
@@ -116,10 +116,10 @@ class NormalMuNormal(BDFDistribution):
     _has_fast_kfold_cv = False
     _supports_posterior_predictive = True
 
-    def __init__(self, params: NormalMuNormalParams):
+    def __init__(self, params: dict[str, Any] | NormalMuNormalParams):
         super().__init__(params)
-        self.mu_mu = params.mu_mu
-        self.sigma_mu = params.sigma_mu
+        self.mu_mu = self.params.mu_mu
+        self.sigma_mu = self.params.sigma_mu
 
     # ========================================================================
     # REQUIRED METHODS
@@ -130,7 +130,7 @@ class NormalMuNormal(BDFDistribution):
 
         Returns dict with:
         - posterior_mu: Posterior mean of μ
-        - posterior_sigma: Posterior std of μ (for PP) or sample std (for plug-in)
+        - posterior_sigma_mu: Posterior std of μ (for PP) or sample std (for plug-in)
         - sample_std: Always store sample std for likelihood evaluation
         """
         n = data.shape[0]
@@ -160,7 +160,7 @@ class NormalMuNormal(BDFDistribution):
 
         return {
             "posterior_mu": float(posterior_mu),
-            "posterior_sigma": float(posterior_sigma_mu),  # Used for PP
+            "posterior_sigma_mu": float(posterior_sigma_mu),  # Used for PP
             "sample_std": float(sample_std),  # Used for plug-in
         }
 
@@ -177,7 +177,7 @@ class NormalMuNormal(BDFDistribution):
     def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from posterior predictive N(μ_post, σ_μ² + σ_data²)."""
         mu = params["posterior_mu"]
-        sigma_mu = params["posterior_sigma"]
+        sigma_mu = params["posterior_sigma_mu"]
         sample_std = params["sample_std"]
 
         # Posterior predictive variance = parameter uncertainty + data noise
@@ -214,7 +214,7 @@ class NormalMuNormal(BDFDistribution):
                 raise ValueError("Provide either 'data' or 'params'")
             params = self.calc_posterior_params(data)
 
-        return params["posterior_sigma"] ** 2
+        return params["posterior_sigma_mu"] ** 2
 
     # ========================================================================
     # OPTIONAL METHODS (OVERRIDE FOR EFFICIENCY)
@@ -251,7 +251,7 @@ class NormalMuNormal(BDFDistribution):
         Integrates out uncertainty in μ.
         """
         mu = params["posterior_mu"]
-        sigma_mu = params["posterior_sigma"]
+        sigma_mu = params["posterior_sigma_mu"]
         sample_std = params["sample_std"]
 
         # Posterior predictive variance
@@ -295,8 +295,20 @@ class NormalMuNormal(BDFDistribution):
         rng = np.random.default_rng(random_state)
         return rng.normal(self.mu_mu, self.sigma_mu, size=size)
 
+    @classmethod
+    def resolve_auto_params(cls, key: str, data: np.ndarray) -> Any:
+        """Resolve 'auto' parameters based on data.
 
-class NormalMuInvGammaSigmaNormal(BDFDistribution):
+        For NormalMuNormal:
+        - 'mu_mu': Use sample mean
+        """
+        if key == "mu_mu":
+            return float(np.mean(data))
+        else:
+            raise ValueError(f"Unknown parameter '{key}' for auto resolution in {cls.__name__}")
+
+
+class NormalMuInvGammaSigmaNormal(BDFDistribution[NormalMuInvGammaSigmaNormalParams]):
     """Normal-Inverse-Gamma conjugate model (μ and σ² both unknown).
 
     Supports:
@@ -311,12 +323,12 @@ class NormalMuInvGammaSigmaNormal(BDFDistribution):
     _has_fast_kfold_cv = False
     _supports_posterior_predictive = True
 
-    def __init__(self, params: NormalMuInvGammaSigmaNormalParams):
+    def __init__(self, params: dict[str, Any] | NormalMuInvGammaSigmaNormalParams):
         super().__init__(params)
-        self.mu_mu = params.mu_mu
-        self.n_mu = params.n_mu
-        self.nu_sigma = params.nu_sigma
-        self.phi_sigma = params.phi_sigma
+        self.mu_mu = self.params.mu_mu
+        self.n_mu = self.params.n_mu
+        self.nu_sigma = self.params.nu_sigma
+        self.phi_sigma = self.params.phi_sigma
 
     # ========================================================================
     # REQUIRED METHODS
@@ -349,13 +361,13 @@ class NormalMuInvGammaSigmaNormal(BDFDistribution):
 
         # Posterior mode of σ² (if ν > 2), else use mean
         if post_nu > 2:
-            posterior_sigma = np.sqrt(post_phi / (post_nu - 2))
+            posterior_sigma_mu = np.sqrt(post_phi / (post_nu - 2))
         else:
-            posterior_sigma = np.sqrt(post_phi / post_nu)
+            posterior_sigma_mu = np.sqrt(post_phi / post_nu)
 
         return {
             "posterior_mu": float(posterior_mu),
-            "posterior_sigma": float(posterior_sigma),
+            "posterior_sigma_mu": float(posterior_sigma_mu),
             "post_n": float(post_n),
             "post_nu": float(post_nu),
             "post_phi": float(post_phi),
@@ -364,7 +376,7 @@ class NormalMuInvGammaSigmaNormal(BDFDistribution):
     def _plugin_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
         """Plug-in Normal likelihood with posterior mode."""
         mu = params["posterior_mu"]
-        sigma = params["posterior_sigma"]
+        sigma = params["posterior_sigma_mu"]
         return norm.logpdf(data, loc=mu, scale=sigma)
 
     def _num_parameters(self) -> int:
@@ -412,7 +424,7 @@ class NormalMuInvGammaSigmaNormal(BDFDistribution):
                 raise ValueError("Provide either 'data' or 'params'")
             params = self.calc_posterior_params(data)
 
-        return params["posterior_sigma"] ** 2
+        return params["posterior_sigma_mu"] ** 2
 
     # ========================================================================
     # OPTIONAL METHODS

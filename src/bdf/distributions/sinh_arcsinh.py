@@ -79,7 +79,7 @@ class SHASHBase(BDFDistribution):
     def __init__(self, prior_params, params=None):
         super().__init__(prior_params, params)
 
-    def calc_posterior_params(self, data, return_dict=True):
+    def calc_posterior_params(self, data):
         raise NotImplementedError("Subclass must implement calc_posterior_params.")
 
     def log_likelihood(self, data: np.ndarray) -> np.ndarray:
@@ -95,9 +95,7 @@ class SHASHBase(BDFDistribution):
         np.ndarray
             A numpy array containing the log-likelihood values for each data point.
         """
-        posterior_mu, posterior_sigma, posterior_epsilon, posterior_delta = self.calc_posterior_params(
-            data, return_dict=False
-        )
+        posterior_mu, posterior_sigma, posterior_epsilon, posterior_delta = self.calc_posterior_params(data)
         if posterior_sigma <= 0 or posterior_delta <= 0:
             raise ValueError("Scale sigma and tailweight delta must be positive.")
 
@@ -125,9 +123,7 @@ class SHASHBase(BDFDistribution):
         np.ndarray
             A numpy array containing the likelihood values for each data point.
         """
-        posterior_mu, posterior_sigma, posterior_epsilon, posterior_delta = self.calc_posterior_params(
-            data, return_dict=False
-        )
+        posterior_mu, posterior_sigma, posterior_epsilon, posterior_delta = self.calc_posterior_params(data)
         if posterior_sigma <= 0 or posterior_delta <= 0:
             raise ValueError("Scale sigma and tailweight delta must be positive.")
 
@@ -245,5 +241,5 @@ class SHASHBase(BDFDistribution):
         np.ndarray
             Samples from the posterior distribution.
         """
-        posterior_params = self.calc_posterior_params(data, return_dict=True)
+        posterior_params = self.calc_posterior_params(data)
         return self._sample_posterior_params(posterior_params, size=size, random_state=random_state)

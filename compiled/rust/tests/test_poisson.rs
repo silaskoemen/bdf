@@ -36,8 +36,8 @@ mod tests {
         let sum_log_factorial: f64 = data.iter().map(|&k| lgamma(k + 1.0)).sum();
         let expected_diff = sum_log_factorial;
 
-        assert!((nle_full - nle_stats - expected_diff).abs() < 1e-10, 
-            "NLE mismatch: full={}, stats={}, diff={}, expected_diff={}", 
+        assert!((nle_full - nle_stats - expected_diff).abs() < 1e-10,
+            "NLE mismatch: full={}, stats={}, diff={}, expected_diff={}",
             nle_full, nle_stats, nle_full - nle_stats, expected_diff);
     }
 

@@ -11,7 +11,7 @@ Both support:
 """
 
 import warnings
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 import numpy as np
 from pydantic import Field
@@ -81,7 +81,7 @@ class GammaMVLambdaExponentialParams(BDFDistributionParams):
 # ============================================================================
 
 
-class GammaABLambdaExponential(BDFDistribution):
+class GammaABLambdaExponential(BDFDistribution[GammaABLambdaExponentialParams]):
     """Exponential-Gamma conjugate model with shape-rate (α, β) parameterization.
 
     Supports:
@@ -289,7 +289,7 @@ class GammaABLambdaExponential(BDFDistribution):
         return np.array(gamma_dist.rvs(a=self.alpha_lambda, scale=1.0 / self.beta_lambda, size=size, random_state=rng))
 
 
-class GammaMVLambdaExponential(BDFDistribution):
+class GammaMVLambdaExponential(BDFDistribution[GammaMVLambdaExponentialParams]):
     """Exponential-Gamma conjugate model with mean-variance parameterization.
 
     Same as GammaABExponential, but prior specified via:
@@ -308,8 +308,8 @@ class GammaMVLambdaExponential(BDFDistribution):
 
     def __init__(self, params: GammaMVLambdaExponentialParams):
         super().__init__(params)
-        self.mean_lambda = params.mean_lambda
-        self.var_lambda = params.var_lambda
+        self.mean_lambda = self.params.mean_lambda
+        self.var_lambda = self.params.var_lambda
 
         # Convert mean-variance to shape-rate
         self.alpha_lambda = self.mean_lambda**2 / self.var_lambda
@@ -433,3 +433,15 @@ class GammaMVLambdaExponential(BDFDistribution):
         """Sample λ from prior Gamma(α, β)."""
         rng = np.random.default_rng(random_state)
         return np.array(gamma_dist.rvs(a=self.alpha_lambda, scale=1.0 / self.beta_lambda, size=size, random_state=rng))
+
+    @classmethod
+    def resolve_auto_params(cls, key: str, data: np.ndarray) -> Any:
+        """Resolve 'auto' parameters based on data.
+
+        For NormalMuNormal:
+        - 'mean_lambda': Use sample mean
+        """
+        if key == "mean_lambda":
+            return float(np.mean(data))
+        else:
+            raise ValueError(f"Unknown parameter '{key}' for auto resolution in {cls.__name__}")

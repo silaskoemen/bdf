@@ -109,9 +109,7 @@ class TestGammaABLambdaExponential:
     def test_calc_posterior_params(self, get_alpha_beta, data):
         alpha_lambda, beta_lambda = get_alpha_beta
         prior_params = GammaABLambdaExponentialParams(alpha_lambda=alpha_lambda, beta_lambda=beta_lambda)
-        posterior_params = GammaABLambdaExponential(prior_params=prior_params).calc_posterior_params(
-            data, return_dict=True
-        )
+        posterior_params = GammaABLambdaExponential(prior_params=prior_params).calc_posterior_params(data)
         posterior_alpha = alpha_lambda + len(data)
         posterior_beta = beta_lambda + np.sum(data)
         expected_posterior_lambda = posterior_alpha / posterior_beta

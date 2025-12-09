@@ -3,7 +3,6 @@ from typing import ClassVar, Literal
 
 import numpy as np
 from pydantic import Field, field_validator
-from scipy.fft import irfft, rfft
 
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
 
@@ -81,7 +80,7 @@ class KDEParams(BDFDistributionParams):
         description="KDE doesn't have posterior predictive in traditional sense.",
     )
 
-    model_config = {"extra": "forbid"}
+    # model_config = {"extra": "forbid"}
 
     # @model_validator(mode="after")
     # def validate_fft_config(self) -> "KDEParams":
@@ -119,7 +118,7 @@ class BayesianKDEParams(KDEParams):
 # ============================================================================
 
 
-class KDE(BDFDistribution):
+class KDE(BDFDistribution[KDEParams]):
     """Kernel Density Estimation distribution.
 
     **String Alias:** ``'kde'``
@@ -180,10 +179,10 @@ class KDE(BDFDistribution):
         ref_data = params["data"]
         h = params["bandwidth"]
 
-        if self.params.use_fft and self._fft_ready():
-            return self._fft_log_likelihood(eval_points, ref_data, h)
-        else:
-            return self._direct_log_likelihood(eval_points, ref_data, h)
+        # if self.params.use_fft and self._fft_ready():
+        #     return self._fft_log_likelihood(eval_points, ref_data, h)
+        # else:
+        return self._direct_log_likelihood(eval_points, ref_data, h)
 
     def _num_parameters(self) -> int:
         """Effective number of parameters for KDE.
@@ -194,7 +193,7 @@ class KDE(BDFDistribution):
         return 1
 
     def _sample_posterior_params(
-        self, params: dict[str, float | np.ndarray], size: int, random_state: int
+        self, params: dict[str, float | np.ndarray], size: int | tuple[int, ...], random_state: int
     ) -> np.ndarray:
         """Sample from KDE distribution."""
         data = np.asarray(params["data"], dtype=float).ravel()
@@ -229,23 +228,23 @@ class KDE(BDFDistribution):
             raise ValueError("KDE requires at least 2 observations.")
         return arr
 
-    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
+    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:  # type: ignore[override]
         """Mean of KDE is sample mean."""
         if params is None:
             if data is None:
                 raise ValueError("Provide either 'data' or 'params'")
-            params = self.calc_posterior_params(data)
+            params: dict = self.calc_posterior_params(data)
 
         return float(np.mean(params["data"]))
 
     def get_posterior_variance(
-        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
+        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None  # type: ignore[override]
     ) -> float:
         """Variance of KDE = sample variance + kernel variance."""
         if params is None:
             if data is None:
                 raise ValueError("Provide either 'data' or 'params'")
-            params = self.calc_posterior_params(data)
+            params: dict = self.calc_posterior_params(data)
 
         sample_var = float(np.var(params["data"], ddof=1))
         h = params["bandwidth"]
@@ -321,6 +320,7 @@ class KDE(BDFDistribution):
         # Log-sum-exp over reference points, then subtract log(n)
         return np.logaddexp.reduce(log_kernel, axis=1) - np.log(n_ref)
 
+    # TODO: Create n^2 once at node level, use for all left/right evaluations
     def _gaussian_log_kernel(self, eval_points: np.ndarray, ref_data: np.ndarray, h: float) -> np.ndarray:
         """Gaussian kernel log-contributions (n_eval × n_ref)."""
         diffs = (eval_points[:, None] - ref_data[None, :]) / h
@@ -338,61 +338,135 @@ class KDE(BDFDistribution):
         return log_k
 
     # ========================================================================
+    # NODE-LEVEL CACHED LIKELIHOOD
+    # ========================================================================
+
+    def _precompute_node_log_kernel(
+        self, data: np.ndarray, params: dict[str, float | np.ndarray] | None = None
+    ) -> tuple[np.ndarray, float]:
+        """Precompute pairwise log-kernel matrix for a node.
+
+        Returns
+        -------
+        log_kernel : np.ndarray
+            Matrix of shape (n, n) with log K(y_i, y_j).
+        h : float
+            Bandwidth used.
+        """
+        data = np.asarray(data, dtype=float).ravel()
+        if params is None:
+            params = self.calc_posterior_params(data)
+        ref_data = np.asarray(params["data"], dtype=float).ravel()
+        h = float(params["bandwidth"])
+
+        if ref_data.shape[0] != data.shape[0] or not np.allclose(ref_data, data):
+            # Fallback: compute using data as eval points and ref_data as centers
+            if self.params.kernel == "gaussian":
+                log_kernel = self._gaussian_log_kernel(data, ref_data, h)
+            elif self.params.kernel == "epanechnikov":
+                log_kernel = self._epanechnikov_log_kernel(data, ref_data, h)
+            else:
+                raise ValueError(f"Unknown kernel: {self.params.kernel}")
+        else:
+            # Fast symmetric n × n matrix for in-node y
+            if self.params.kernel == "gaussian":
+                log_kernel = self._gaussian_log_kernel(data, data, h)
+            elif self.params.kernel == "epanechnikov":
+                log_kernel = self._epanechnikov_log_kernel(data, data, h)
+            else:
+                raise ValueError(f"Unknown kernel: {self.params.kernel}")
+
+        return log_kernel, h
+
+    def _subset_log_likelihood_from_kernel(self, subset_mask: np.ndarray, log_kernel: np.ndarray) -> float:
+        """Compute total NLL for a subset using precomputed log_kernel.
+
+        Parameters
+        ----------
+        subset_mask : np.ndarray, bool, shape (n,)
+            Mask selecting points in the subset.
+        log_kernel : np.ndarray, shape (n, n)
+            Log-kernel matrix for the current node.
+
+        Returns
+        -------
+        float
+            Negative log-likelihood of the subset under KDE.
+        """
+        idx = np.nonzero(subset_mask)[0]
+        m = idx.size
+        if m < 2:
+            # follow general KDE behaviour: very bad / invalid
+            return np.inf
+
+        # Extract submatrix for subset
+        sub_log_kernel = log_kernel[np.ix_(idx, idx)].copy()
+
+        # Exclude self-contributions
+        np.fill_diagonal(sub_log_kernel, -np.inf)
+
+        # log p(y_i | y_{-i}) = logsumexp_j log K(y_i, y_j) - log(m - 1)
+        ll_per_point = np.logaddexp.reduce(sub_log_kernel, axis=1) - np.log(m - 1)
+
+        # NLL is minus sum of log-likelihoods
+        return float(-np.sum(ll_per_point))
+
+    # ========================================================================
     # FFT-BASED LIKELIHOOD (FAST)
     # ========================================================================
 
-    def _fft_ready(self) -> bool:
-        """Check if FFT precomputation is available."""
-        return (
-            self.params.fft_grid_edges is not None
-            and self.params.fft_kernel_rfft is not None
-            and self.params.fft_grid_delta is not None
-        )
+    # def _fft_ready(self) -> bool:
+    #     """Check if FFT precomputation is available."""
+    #     return (
+    #         self.params.fft_grid_edges is not None
+    #         and self.params.fft_kernel_rfft is not None
+    #         and self.params.fft_grid_delta is not None
+    #     )
 
-    def _fft_log_likelihood(self, eval_points: np.ndarray, ref_data: np.ndarray, h: float) -> np.ndarray:
-        """FFT-based KDE evaluation.
+    # def _fft_log_likelihood(self, eval_points: np.ndarray, ref_data: np.ndarray, h: float) -> np.ndarray:
+    #     """FFT-based KDE evaluation.
 
-        Steps:
-        1. Bin reference data into grid
-        2. FFT of bin counts
-        3. Multiply by scaled kernel FFT
-        4. IFFT to get density on grid
-        5. Interpolate to evaluation points
-        """
-        edges = self.params.fft_grid_edges
-        kernel_rfft_ref = self.params.fft_kernel_rfft
-        delta = self.params.fft_grid_delta
-        n_grid = self.params.fft_grid_points
+    #     Steps:
+    #     1. Bin reference data into grid
+    #     2. FFT of bin counts
+    #     3. Multiply by scaled kernel FFT
+    #     4. IFFT to get density on grid
+    #     5. Interpolate to evaluation points
+    #     """
+    #     edges = self.params.fft_grid_edges
+    #     kernel_rfft_ref = self.params.fft_kernel_rfft
+    #     delta = self.params.fft_grid_delta
+    #     n_grid = self.params.fft_grid_points
 
-        n_ref = ref_data.size
+    #     n_ref = ref_data.size
 
-        # Step 1: Bin counts
-        counts, _ = np.histogram(ref_data, bins=edges)
-        counts = counts.astype(float)
+    #     # Step 1: Bin counts
+    #     counts, _ = np.histogram(ref_data, bins=edges)
+    #     counts = counts.astype(float)
 
-        # Step 2: FFT of counts
-        counts_rfft = rfft(counts)
+    #     # Step 2: FFT of counts
+    #     counts_rfft = rfft(counts)
 
-        # Step 3: Scale kernel FFT by bandwidth
-        # For Gaussian: K(x/h)/h, so in frequency domain: h * K_hat(h*ω)
-        # With reference bandwidth=1, we need to rescale frequencies
-        freq = np.fft.rfftfreq(n_grid, d=delta)
-        kernel_rfft_scaled = kernel_rfft_ref * np.exp(-2 * np.pi**2 * freq**2 * (h**2 - 1))
+    #     # Step 3: Scale kernel FFT by bandwidth
+    #     # For Gaussian: K(x/h)/h, so in frequency domain: h * K_hat(h*ω)
+    #     # With reference bandwidth=1, we need to rescale frequencies
+    #     freq = np.fft.rfftfreq(n_grid, d=delta)
+    #     kernel_rfft_scaled = kernel_rfft_ref * np.exp(-2 * np.pi**2 * freq**2 * (h**2 - 1))
 
-        # Step 4: Multiply and IFFT
-        density_grid = irfft(counts_rfft * kernel_rfft_scaled, n=n_grid)
-        density_grid = density_grid / n_ref  # Normalize by number of points
-        density_grid = np.maximum(density_grid, 1e-300)  # Avoid log(0)
+    #     # Step 4: Multiply and IFFT
+    #     density_grid = irfft(counts_rfft * kernel_rfft_scaled, n=n_grid)
+    #     density_grid = density_grid / n_ref  # Normalize by number of points
+    #     density_grid = np.maximum(density_grid, 1e-300)  # Avoid log(0)
 
-        # Step 5: Interpolate to evaluation points
-        grid_centers = 0.5 * (edges[:-1] + edges[1:])
-        log_density = np.interp(eval_points, grid_centers, np.log(density_grid))
+    #     # Step 5: Interpolate to evaluation points
+    #     grid_centers = 0.5 * (edges[:-1] + edges[1:])
+    #     log_density = np.interp(eval_points, grid_centers, np.log(density_grid))
 
-        # Handle points outside grid
-        outside = (eval_points < edges[0]) | (eval_points > edges[-1])
-        log_density[outside] = -np.inf
+    #     # Handle points outside grid
+    #     outside = (eval_points < edges[0]) | (eval_points > edges[-1])
+    #     log_density[outside] = -np.inf
 
-        return log_density
+    #     return log_density
 
     # ========================================================================
     # EFFICIENT LOO-CV
@@ -462,19 +536,27 @@ class KDE(BDFDistribution):
     # ========================================================================
 
     @staticmethod
-    def _sample_epanechnikov(size: int, rng: np.random.Generator) -> np.ndarray:
+    def _sample_epanechnikov(size: int | tuple[int, ...], rng: np.random.Generator) -> np.ndarray:
         """Sample from Epanechnikov kernel using rejection sampling."""
-        samples = np.empty(size, dtype=float)
+        if isinstance(size, tuple):
+            n_samples = int(np.prod(size))
+            shape = size
+        else:
+            n_samples = size
+            shape = (size,)
+
+        samples = np.empty(n_samples, dtype=float)
         filled = 0
-        while filled < size:
-            remaining = size - filled
+        while filled < n_samples:
+            remaining = n_samples - filled
             candidates = rng.uniform(-1, 1, remaining)
             accept = rng.uniform(0, 1, remaining) <= (1 - candidates**2)
             n_accept = accept.sum()
             if n_accept:
                 samples[filled : filled + n_accept] = candidates[accept]
                 filled += n_accept
-        return samples
+
+        return samples.reshape(shape)
 
 
 class BayesianKDE(KDE):

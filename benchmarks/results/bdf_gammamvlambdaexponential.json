@@ -1,0 +1,130 @@
+{
+  "model_config": {
+    "name": "bdf_gammamvlambdaexponential",
+    "target_type": "regression",
+    "class_name": "BDFModel",
+    "probabilistic": false,
+    "compatible_target_domains": [
+      "positive_real",
+      "nonnegative_real",
+      "nonnegative_integer",
+      "positive_integer"
+    ],
+    "fixed_init_kwargs": {
+      "dist": "GammaMVLambdaExponential",
+      "random_state": 1234
+    },
+    "tunable_init_kwargs": {
+      "n_trees": {
+        "type": "int",
+        "low": 5,
+        "high": 200
+      },
+      "reg_beta": {
+        "type": "float",
+        "low": 0.0001,
+        "high": 10.0,
+        "log": true
+      },
+      "reg_lambda": {
+        "type": "float",
+        "low": 0.0001,
+        "high": 10.0,
+        "log": true
+      },
+      "min_samples_leaf": {
+        "type": "int",
+        "low": 5,
+        "high": 50
+      },
+      "min_samples_split": {
+        "type": "int",
+        "low": 10,
+        "high": 100
+      },
+      "subsample": {
+        "type": "float",
+        "low": 0.5,
+        "high": 1.0
+      },
+      "colsample": {
+        "type": "float",
+        "low": 0.5,
+        "high": 1.0
+      },
+      "eta": {
+        "type": "float",
+        "low": 0.005,
+        "high": 0.1,
+        "log": true
+      }
+    },
+    "tunable_params": {
+      "var_lambda": {
+        "type": "float",
+        "low": 0.1,
+        "high": 20,
+        "log": true
+      }
+    },
+    "fixed_params": {
+      "mean_lambda": "auto"
+    }
+  },
+  "datasets": {
+    "realestate": {
+      "metadata": {
+        "name": "realestate",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 296.7020868324953,
+        "mae": 12.821795468882586,
+        "rmse": 17.225042433401878,
+        "r2": -0.3965248326454165,
+        "msle": 0.16823948309671083,
+        "mape": 0.31274443222372494
+      },
+      "best_params": {
+        "n_trees": 32,
+        "reg_beta": 0.43801610436840377,
+        "reg_lambda": 5.546199221881108,
+        "min_samples_leaf": 15,
+        "min_samples_split": 71,
+        "subsample": 0.8578914420545473,
+        "colsample": 0.7042554583290384,
+        "eta": 0.06904281931912062,
+        "var_lambda": 19.388343887585737
+      },
+      "tuning_time_seconds": 5.578606843948364,
+      "fit_time_seconds": 0.012228250503540039
+    },
+    "boston_housing": {
+      "metadata": {
+        "name": "boston_housing",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 89.55794052285341,
+        "mae": 6.644308351907986,
+        "rmse": 9.46350572054846,
+        "r2": -0.10678473969131685,
+        "msle": 0.1490569891278427,
+        "mape": 0.3173196933111471
+      },
+      "best_params": {
+        "n_trees": 32,
+        "reg_beta": 0.43801610436840377,
+        "reg_lambda": 5.546199221881108,
+        "min_samples_leaf": 15,
+        "min_samples_split": 71,
+        "subsample": 0.8578914420545473,
+        "colsample": 0.7042554583290384,
+        "eta": 0.06904281931912062,
+        "var_lambda": 19.388343887585737
+      },
+      "tuning_time_seconds": 4.1180579662323,
+      "fit_time_seconds": 0.012480974197387695
+    }
+  }
+}

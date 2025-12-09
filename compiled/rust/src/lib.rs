@@ -1,4 +1,4 @@
-// lib.rs - CORRECTED
+#![allow(unsafe_op_in_unsafe_fn)]  // 2024 edition stricter rules about pyfunctions, silence for now
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3::types::PyDict;
@@ -80,6 +80,8 @@ fn create_distribution_from_spec(spec: &PyDict, py: Python)
         "NormalMuInvGammaSigmaNormal" => Ok(Box::new(distributions::normal::NormalMuInvGammaSigmaNormal::from_spec(spec)?)),
         "GammaABLambdaPoisson" => Ok(Box::new(distributions::poisson::GammaABLambdaPoisson::from_spec(spec)?)),
         "GammaMVLambdaPoisson" => Ok(Box::new(distributions::poisson::GammaMVLambdaPoisson::from_spec(spec)?)),
+        "GammaABLambdaExponential" => Ok(Box::new(distributions::exponential::GammaABLambdaExponential::from_spec(spec)?)),
+        "GammaMVLambdaExponential" => Ok(Box::new(distributions::exponential::GammaMVLambdaExponential::from_spec(spec)?)),
         "BetaABBernoulli" => Ok(Box::new(distributions::bernoulli::BetaABBernoulli::from_spec(spec)?)),
         "BetaMVBernoulli" => Ok(Box::new(distributions::bernoulli::BetaMVBernoulli::from_spec(spec)?)),
         "KDE" => Ok(Box::new(distributions::kde::Kde::from_spec(spec)?)),

@@ -146,7 +146,7 @@ class NormalMuBeta(BDFDistribution):
         np.ndarray
             The likelihood of the data.
         """
-        posterior_params = self.calc_posterior_params(data, return_dict=True)
+        posterior_params = self.calc_posterior_params(data)
         alpha, beta = self.get_alpha_beta(posterior_params)
         return beta_dist.pdf(data, a=alpha, b=beta)
 
@@ -163,7 +163,7 @@ class NormalMuBeta(BDFDistribution):
         np.ndarray
             The log likelihood of the data.
         """
-        posterior_params = self.calc_posterior_params(data, return_dict=True)
+        posterior_params = self.calc_posterior_params(data)
         alpha, beta = self.get_alpha_beta(posterior_params)
         return beta_dist.logpdf(data, a=alpha, b=beta)
 
@@ -240,7 +240,7 @@ class NormalMuBeta(BDFDistribution):
         np.ndarray
             Samples drawn from the posterior distribution based on the data.
         """
-        mu, nu = self.calc_posterior_params(data, return_dict=False)
+        mu, nu = self.calc_posterior_params(data)
         alpha, beta = self.get_alpha_beta((mu, nu))  # type: ignore
         return beta_dist.rvs(a=alpha, b=beta, size=size, random_state=random_state)  # type: ignore
 
@@ -262,7 +262,7 @@ class NormalMuBeta(BDFDistribution):
         if params is not None:
             return params["mu"]
         elif data is not None:
-            mu, _ = self.calc_posterior_params(data, return_dict=False)
+            mu, _ = self.calc_posterior_params(data)
             return mu  # type: ignore
         else:
             raise ValueError("Either 'data' or 'params' must be provided to get the posterior mean.")
@@ -287,7 +287,7 @@ class NormalMuBeta(BDFDistribution):
         if params is not None:
             return params["mu"] / (params["nu"] ** 2) / (params["nu"] + 1)  # type: ignore
         elif data is not None:
-            mu, nu = self.calc_posterior_params(data, return_dict=False)
+            mu, nu = self.calc_posterior_params(data)
             return mu / (nu**2) / (nu + 1)  # type: ignore
         else:
             raise ValueError("Either 'data' or 'params' must be provided to get the posterior standard deviation.")

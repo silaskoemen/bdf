@@ -10,7 +10,12 @@
     "fixed_init_kwargs": {
       "metric": "log_loss",
       "boosting_type": "gbdt",
-      "verbose": -1
+      "verbose": -1,
+      "random_state": 1234,
+      "bagging_seed": 1234,
+      "feature_fraction_seed": 1234,
+      "data_random_seed": 1234,
+      "deterministic": true
     },
     "tunable_init_kwargs": {
       "num_leaves": {
@@ -47,19 +52,45 @@
         "target_domain": "binary"
       },
       "metrics": {
-        "auroc": 0.9181818181818182,
-        "accuracy": 0.9370629370629371,
-        "f1": 0.9513513513513514,
-        "recall": 1.0,
-        "precision": 0.9072164948453608,
-        "log_loss": 2.268481681832548
+        "auroc": 0.9873966942148761,
+        "accuracy": 0.9230769230769231,
+        "f1": 0.8910891089108911,
+        "recall": 0.8181818181818182,
+        "precision": 0.9782608695652174,
+        "log_loss": 0.17067670880993954,
+        "brier": 0.04748581033872206
       },
       "best_params": {
-        "num_leaves": 151,
-        "learning_rate": 0.07927846174254305,
-        "max_depth": 3,
-        "n_estimators": 436
-      }
+        "num_leaves": 26,
+        "learning_rate": 0.015934489274712648,
+        "max_depth": 10,
+        "n_estimators": 335
+      },
+      "tuning_time_seconds": 52.66186189651489,
+      "fit_time_seconds": 0.6521120071411133
+    },
+    "boston_housing_classification": {
+      "metadata": {
+        "name": "boston_housing_classification",
+        "target_domain": "binary"
+      },
+      "metrics": {
+        "auroc": 0.9357610474631751,
+        "accuracy": 0.8787878787878788,
+        "f1": 0.8636363636363636,
+        "recall": 0.8085106382978723,
+        "precision": 0.926829268292683,
+        "log_loss": 0.629697889102332,
+        "brier": 0.11204587340481562
+      },
+      "best_params": {
+        "num_leaves": 240,
+        "learning_rate": 0.07788967674770411,
+        "max_depth": 7,
+        "n_estimators": 255
+      },
+      "tuning_time_seconds": 31.026201963424683,
+      "fit_time_seconds": 0.3351140022277832
     },
     "titanic": {
       "metadata": {
@@ -67,19 +98,22 @@
         "target_domain": "binary"
       },
       "metrics": {
-        "auroc": 0.7972860472860471,
-        "accuracy": 0.820627802690583,
-        "f1": 0.7530864197530864,
-        "recall": 0.6703296703296703,
-        "precision": 0.8591549295774648,
-        "log_loss": 6.46522930746496
+        "auroc": 0.872848200312989,
+        "accuracy": 0.8044692737430168,
+        "f1": 0.7407407407407407,
+        "recall": 0.704225352112676,
+        "precision": 0.78125,
+        "log_loss": 0.4264590479766323,
+        "brier": 0.13638338061596764
       },
       "best_params": {
-        "num_leaves": 50,
-        "learning_rate": 0.013947229337887687,
-        "max_depth": 7,
-        "n_estimators": 323
-      }
+        "num_leaves": 224,
+        "learning_rate": 0.017540826460636715,
+        "max_depth": 9,
+        "n_estimators": 149
+      },
+      "tuning_time_seconds": 41.235121726989746,
+      "fit_time_seconds": 0.3108358383178711
     }
   }
 }

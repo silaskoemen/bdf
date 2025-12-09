@@ -1,14 +1,17 @@
 from .bdf_distribution import BDFDistributionParams
+from .bernoulli import BetaABBernoulli, BetaMVBernoulli
 from .normal import (
+    NormalMuInvGammaSigmaNormal,
     NormalMuNormal,
-    NormGammaNormal,
 )
 
 # ... import others ...
 
 __all__ = [
     "NormalMuNormal",
-    "NormGammaNormal",
+    "NormalMuInvGammaSigmaNormal",
+    "BetaABBernoulli",
+    "BetaMVBernoulli",
     "BDFDistributionParams",
     # ...
 ]

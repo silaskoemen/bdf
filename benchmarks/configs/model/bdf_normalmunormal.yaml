@@ -1,14 +1,14 @@
 # LightGBM regression model config
 
-name: bdf_betamvbernoulli
-target_type: classification
+name: bdf_normalmunormal
+target_type: regression
 class_name: BDFModel
 probabilistic: true
 
-compatible_target_domains: [binary]
+compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
 
 fixed_init_kwargs:
-  dist: BetaMVBernoulli
+  dist: NormalMuNormal
   random_state: 1234
 
 tunable_init_kwargs:
@@ -44,10 +44,11 @@ tunable_init_kwargs:
     log: true
 
 tunable_params:
-  var_p:
+  sigma_mu:
     type: float
-    low: 0.0
-    high: .23
+    low: 0.1
+    high: 100.0
+    log: true
 
 fixed_params:
-  mean_p: auto  # Set prior mean based on data
+  mu_mu: auto  # Set prior mean based on data

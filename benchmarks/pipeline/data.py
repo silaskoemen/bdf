@@ -4,6 +4,7 @@ This file contains utility functions to load various regression and classificati
 for benchmarking purposes. Includes loading of datasets in pandas format, as well as a registry
 and possible variable transformations to ensure compatibility with the benchmarking pipeline.
 """
+
 import os
 from dataclasses import dataclass
 from enum import Enum
@@ -38,8 +39,22 @@ class DatasetMetadata:
 
 
 def _load_abalone_age():
-    data = pd.read_csv("data/raw/abalone_age.csv")
+    columns = [
+        "sex",
+        "length",
+        "diameter",
+        "height",
+        "whole_weight",
+        "shucked_weight",
+        "viscera_weight",
+        "shell_weight",
+        "age",
+    ]
+    data = pd.read_csv("data/raw/abalone_age.csv", names=columns)
     X = data.drop("age", axis=1)
+    # Encode sex in [M, F, I]
+    X = pd.get_dummies(X, columns=["sex"], drop_first=True)
+    X = X.astype(float)
     y = data["age"]
     return X, y, "positive_integer"
 
@@ -47,13 +62,15 @@ def _load_abalone_age():
 def _load_parkinsons_updrs():
     data = pd.read_csv("data/raw/parkinsons_updrs.csv")
     # Should prob rename columns with '%' char
-    X = data.drop("total_UPDRS", axis=1)
+    X = data.drop(columns=["motor_UPDRS", "total_UPDRS", "subject#"], axis=1)
+    X.columns = X.columns.str.replace("%", "percent").str.replace(":", "_")
     y = data["total_UPDRS"]
     return X, y, "positive_real"
 
 
 def _load_boston_housing():
     data = pd.read_csv("data/raw/boston_housing.csv")
+    data = data.dropna()
     X = data.drop(columns=["MEDV"])
     y = data["MEDV"]
     return X, y, "positive_real"
@@ -67,19 +84,19 @@ def _load_realestate():
 
 
 def _load_wine_quality():
-    data = pd.read_csv("data/raw/wine_quality.csv")
+    data = pd.read_csv("data/raw/wine_quality.csv", sep=";")
     X = data.drop("quality", axis=1)
     y = data["quality"]
-    return X, y, "Z+"
+    return X, y, "positive_integer"
 
 
 # Registry of name - load functions for datasets
 REGRESSION_DATASET_REGISTRY: dict[str, Callable] = {
     "realestate": _load_realestate,
     "boston_housing": _load_boston_housing,
-    # "abalone_age": _load_abalone_age,
-    # "parkinsons_updrs": _load_parkinsons_updrs,
-    # "wine_quality": _load_wine_quality,
+    "abalone_age": _load_abalone_age,
+    "parkinsons_updrs": _load_parkinsons_updrs,
+    "wine_quality": _load_wine_quality,
 }
 
 
@@ -97,7 +114,7 @@ def available_regression_datasets() -> Iterator[tuple[DatasetMetadata, pd.DataFr
 def _load_breast_cancer():
     data = pd.read_csv("data/raw/breast_cancer.csv")
     X = data.drop(columns=["diagnosis", "id", "Unnamed: 32"])
-    y = data["diagnosis"] == "B"
+    y = (data["diagnosis"] == "M").astype(int)  # Malignant = 1, Benign = 0, convert to int
     return X, y, "binary"
 
 
@@ -105,28 +122,31 @@ def _load_iris():
     data = pd.read_csv("data/raw/iris.csv", header=0)
     X = data.drop("target", axis=1)
     y = data["target"]
-    return X, y, "multi"
+    return X, y, "multiclass"
 
 
 def _load_wine_quality_classification():
     data = pd.read_csv("data/raw/wine_quality_classification.csv")
     X = data.drop("target", axis=1)
     y = data["target"]
-    return X, y, "multi"
+    return X, y, "multiclass"
 
 
 def _load_boston_housing_classification():
-    data = pd.read_csv("data/raw/boston_housing_classification.csv")
-    X = data.drop("target", axis=1)
-    y = data["target"]
-    y = y[y > y.mean()]  # Convert to binary classification problem
+    data = pd.read_csv("data/raw/boston_housing.csv")
+    data = data.dropna()
+    X = data.drop(columns=["MEDV"])
+    y = data["MEDV"]
+    y = (y > y.mean()).astype(float)  # Convert to binary classification problem
     return X, y, "binary"
 
 
 def _load_titanic():
     data = pd.read_csv("data/raw/titanic.csv")
+    drop_cols = ["PassengerId", "Ticket", "Embarked", "Name", "Cabin"]
+    data = data.dropna(subset=data.columns.difference(drop_cols))
     X = data.drop(columns=["Survived", "PassengerId", "Ticket", "Embarked", "Name", "Cabin"], axis=1)
-    X["Sex"] = X["Sex"] == "male"
+    X["Sex"] = (X["Sex"] == "male").astype(int)
     y = data["Survived"]
     return X, y, "binary"
 
@@ -135,7 +155,7 @@ CLASSIFICATION_DATASET_REGISTRY: dict[str, Callable] = {
     "breast_cancer": _load_breast_cancer,
     # "iris": _load_iris,
     # "wine_quality_classification": _load_wine_quality_classification,
-    # "boston_housing_classification": _load_boston_housing_classification,
+    "boston_housing_classification": _load_boston_housing_classification,
     "titanic": _load_titanic,
 }
 

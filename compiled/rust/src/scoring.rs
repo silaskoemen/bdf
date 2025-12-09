@@ -39,7 +39,7 @@ pub fn score_split(
                 Some("kfold_cv") => {
                     kfold_cv_nll(
                         data, dist, spec.use_posterior_predictive,
-                        spec.cv_folds, spec.cv_shuffle, spec.cv_seed
+                        spec.score_cv_folds, spec.score_cv_shuffle, spec.score_cv_seed
                     )
                 }
 

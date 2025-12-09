@@ -12,10 +12,11 @@ Both support:
 Data format: Binary labels {0, 1}
 """
 
-from typing import ClassVar, Literal
+import warnings
+from typing import Any, ClassVar, Literal
 
 import numpy as np
-from pydantic import Field, field_validator
+from pydantic import Field, model_validator
 from scipy.special import betaln
 from scipy.stats import beta as beta_dist
 
@@ -78,23 +79,34 @@ class BetaMVBernoulliParams(BDFDistributionParams):
     # Prior hyperparameters (mean-variance parameterization)
     mean_p: float = Field(default=0.5, gt=0, lt=1, description="Prior mean E[p] (expected success probability)")
     var_p: float = Field(default=0.1, gt=0, description="Prior variance Var[p] (uncertainty about p)")
+    raise_on_invalid_var: bool = Field(
+        default=False,
+        description="Raise error if var_p is invalid for given mean_p; else auto-adjust to max valid variance.",
+    )
 
     # Scoring defaults
     score_method: Literal["nle", "nll"] = Field(default="nle")
     use_posterior_predictive: bool = Field(default=True, description="Use Beta-Bernoulli posterior predictive.")
 
-    @field_validator("var_p")
-    @classmethod
-    def validate_var_p(cls, v, info):
+    @model_validator(mode="after")
+    def validate_var_p(self):
         """Validate variance is within valid range for Beta."""
-        mean_p = info.data.get("mean_p", 0.5)
+        mean_p = self.mean_p
+        var_p = self.var_p
         max_var = mean_p * (1 - mean_p)  # Maximum variance at given mean
-        if v >= max_var:
-            raise ValueError(
-                f"var_p={v:.4f} is too large for mean_p={mean_p:.4f}. "
-                f"Maximum allowed variance is {max_var:.4f} (occurs when α=β→0)."
-            )
-        return v
+        if var_p >= max_var:
+            if self.raise_on_invalid_var:
+                raise ValueError(
+                    f"var_p={var_p:.4f} is too large for mean_p={mean_p:.4f}. "
+                    f"Maximum allowed variance is {max_var:.4f} (occurs when α=β→0)."
+                )
+            else:
+                warnings.warn(
+                    f"var_p={var_p:.4f} is too large for mean_p={mean_p:.4f}. "
+                    f"Adjusting to maximum valid variance {max_var:.4f}."
+                )
+                self.var_p = max_var - 1e-6  # Slightly below max to avoid edge case
+        return self
 
 
 # ============================================================================
@@ -102,7 +114,7 @@ class BetaMVBernoulliParams(BDFDistributionParams):
 # ============================================================================
 
 
-class BetaABBernoulli(BDFDistribution):
+class BetaABBernoulli(BDFDistribution[BetaABBernoulliParams]):
     """Bernoulli-Beta conjugate model with concentration (α, β) parameterization.
 
     Supports:
@@ -122,10 +134,10 @@ class BetaABBernoulli(BDFDistribution):
     _has_fast_kfold_cv = False
     _supports_posterior_predictive = True
 
-    def __init__(self, params: BetaABBernoulliParams):
+    def __init__(self, params: dict[str, Any] | BetaABBernoulliParams):
         super().__init__(params)
-        self.alpha_p = params.alpha_p
-        self.beta_p = params.beta_p
+        self.alpha_p = self.params.alpha_p
+        self.beta_p = self.params.beta_p
 
     # ========================================================================
     # REQUIRED METHODS
@@ -320,7 +332,7 @@ class BetaABBernoulli(BDFDistribution):
         return np.array(beta_dist.rvs(a=self.alpha_p, b=self.beta_p, size=size, random_state=rng))
 
 
-class BetaMVBernoulli(BDFDistribution):
+class BetaMVBernoulli(BDFDistribution[BetaMVBernoulliParams]):
     """Bernoulli-Beta conjugate model with mean-variance parameterization.
 
     Same as BetaABBernoulli, but prior specified via:
@@ -340,10 +352,10 @@ class BetaMVBernoulli(BDFDistribution):
     _has_fast_kfold_cv = False
     _supports_posterior_predictive = True
 
-    def __init__(self, params: BetaMVBernoulliParams):
+    def __init__(self, params: dict[str, Any] | BetaMVBernoulliParams):
         super().__init__(params)
-        self.mean_p = params.mean_p
-        self.var_p = params.var_p
+        self.mean_p = self.params.mean_p
+        self.var_p = self.params.var_p
 
         # Convert mean-variance to concentration parameters
         # From Beta properties:
@@ -402,7 +414,7 @@ class BetaMVBernoulli(BDFDistribution):
             raise ValueError(f"Data must be 1-dimensional, got shape {data.shape}")
         if len(data) == 0:
             raise ValueError("Data cannot be empty")
-        if not np.all((data == 0) | (data == 1)):
+        if not np.all((data == 0.0) | (data == 1.0)):
             raise ValueError("Bernoulli data must be binary (0 or 1)")
         if not np.all(np.isfinite(data)):
             raise ValueError("Data contains non-finite values")
@@ -467,3 +479,12 @@ class BetaMVBernoulli(BDFDistribution):
         """Sample p from prior Beta(α, β)."""
         rng = np.random.default_rng(random_state)
         return np.array(beta_dist.rvs(a=self.alpha_p, b=self.beta_p, size=size, random_state=rng))
+
+    @classmethod
+    def resolve_auto_params(cls, key: str, y: np.ndarray) -> Any:
+        """Resolve 'auto' parameters based on data y."""
+        if key == "mean_p":
+            # Set prior mean to empirical mean of data
+            return float(np.mean(y))
+        else:
+            raise ValueError(f"Cannot resolve 'auto' for unknown parameter '{key}'")

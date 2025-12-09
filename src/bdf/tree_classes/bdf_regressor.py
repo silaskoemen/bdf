@@ -1,25 +1,28 @@
 import warnings
+from typing import cast
 
 import numpy as np
 import pandas as pd
-from sklearn.base import BaseEstimator, RegressorMixin
-from tqdm import tqdm
+from joblib import Parallel, delayed
+from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 
 from bdf.distributions.distribution_manager import DistributionManager as DM
 from bdf.tree_classes.bdf_tree import BDFTree
 from bdf.utils.constants import RANDOM_SEED
 
+from .utils import _fit_single_tree
 
-class BDFRegressor(BaseEstimator, RegressorMixin):
-    """BDFRegressor class for Bayesian Distributional Forests."""
+
+class BDFModel(BaseEstimator, RegressorMixin):
+    """BDFModel class for Bayesian Distributional Forests."""
 
     def __init__(
         self,
-        dist: str = "normal_normal",
+        dist: str = "NormalMuNormal",
         params: dict = {},
-        n_trees: int = 100,
-        reg_beta: float = 0,
-        reg_lambda: float = 0,
+        n_trees: int = 25,
+        reg_beta: float = 0.0,
+        reg_lambda: float = 0.0,
         max_depth: int = 10,
         min_samples_leaf: int = 10,
         min_samples_split: int = 20,
@@ -27,6 +30,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         subsample: float = 0.7,
         colsample: float = 1.0,
         eta: float = 0.025,
+        n_jobs: int = -1,
         random_state: int = RANDOM_SEED,
     ):
         """Initialize the BDFRegressor with prior parameters.
@@ -52,7 +56,6 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             Minimum sum of instance weight (hessian) needed in a child, default is 10.
         """
         self.is_fitted_ = False
-        self.distribution = DM.create_distribution(dist=dist, params=params)
         self.dist, self.params = dist, params
         self._validate_init_params(
             n_trees=n_trees,
@@ -66,9 +69,10 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             colsample=colsample,
             eta=eta,
             random_state=random_state,
+            n_jobs=n_jobs,
         )
 
-    def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False, standardize_y: bool = True) -> "BDFRegressor":
+    def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False, standardize_y: bool = False):
         """Fit the BDFRegressor to the training data.
         Args
         ----
@@ -84,47 +88,45 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         if standardize_y:
             y = self._standardize_y(y.copy())
 
+        # Optimization: Convert to Fortran order for faster column access in Rust
+        if not np.isfortran(X):
+            X = np.asfortranarray(X)
+
+        self.distribution = DM.create_distribution(dist=self.dist, params=self.params, y=y)
+        self.distribution.validate_targets(y)
+
         # Initialize FFT for KDE if needed
         if self._is_fft_kde():
             self._init_kde_fft(y)
 
-        self.distribution = self.resolve_distribution(y)
-
         # Otherwise regularization depends on size of the dataset (NLL as sum)
         n_features_iter = int(np.ceil(X.shape[1] * self.colsample))
-        self.trees: list[BDFTree] = []
-        # Create a progress bar for tree creation and fitting
-        for i in tqdm(range(self.n_trees)):
-            # Create and fit a tree
-            iter_tree = BDFTree(
+        penalty = self.reg_lambda * np.ceil(X.shape[0] * self.subsample)  # Penalty scaled by subsample size
+
+        trees = Parallel(n_jobs=self.n_jobs)(
+            delayed(_fit_single_tree)(
+                X=X,
+                y=y,
+                n_features_iter=n_features_iter,
+                col_idcs=None,
+                verbose=verbose,
                 distribution=self.distribution,
                 reg_beta=self.reg_beta,
                 reg_lambda=self.reg_lambda,
+                penalty=penalty,
                 max_depth=self.max_depth,
                 min_samples_leaf=self.min_samples_leaf,
                 min_samples_split=self.min_samples_split,
                 min_child_weight=self.min_child_weight,
-                random_state=self.random_state,
+                subsample=self.subsample,
+                colsample=self.colsample,
+                eta=self.eta,
+                random_state=self.random_state + i,  # Ensure distinct seeds per tree
             )
-            # Subsample rows and columns if specified
-            if self.subsample < 1.0:
-                n_samples = int(X.shape[0] * self.subsample)
-                # Could allow kw bootstrap to allow replacement, do replacement below too
-                row_indices = np.random.choice(
-                    X.shape[0],
-                    n_samples,
-                    replace=False,
-                )
-                X_iter = X[row_indices]
-                y_iter = y[row_indices]
-            else:
-                X_iter = X
-                y_iter = y
-            col_idcs = np.random.choice(X.shape[1], n_features_iter, replace=False) if self.colsample < 1.0 else None
-            iter_tree.fit(X_iter, y_iter, col_idcs=col_idcs, verbose=verbose, eta=self.eta)
-            self.trees.append(iter_tree)
+            for i in range(self.n_trees)
+        )
+        self.trees = cast(list[BDFTree], trees)
         self.is_fitted_ = True
-        return self
 
     def _standardize_y(self, y: np.ndarray) -> np.ndarray:
         """Standardize the target variable y.
@@ -151,20 +153,6 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         if hasattr(self, "y_mean") and hasattr(self, "y_std"):
             return y * self.y_std + self.y_mean
         return y
-
-    def resolve_distribution(self, y: np.ndarray):
-        # Resolve "auto" in params
-        params_dict = self.distribution.params.model_dump()
-        for key, value in params_dict.items():
-            if value == "auto":
-                # Delegate to distribution's logic
-                if hasattr(self.distribution, "suggest_param"):
-                    params_dict[key] = self.distribution.suggest_param(key, y)
-                else:
-                    # Fallback: use data mean/empirical stats
-                    params_dict[key] = self._default_suggest_param(key, y)
-
-        self.distribution = self.distribution.__class__(self.distribution.params_cls(**params_dict))
 
     def _get_pooled_samples(self, X: np.ndarray, sample_size: int) -> np.ndarray:
         """
@@ -404,6 +392,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         colsample: float,
         eta: float,
         random_state: int,
+        n_jobs: int,
     ):
         """Validate the initialization parameters."""
         assert (
@@ -439,6 +428,9 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         assert (
             isinstance(random_state, int) and random_state >= 0
         ), f"random_state must be a non-negative integer, got {random_state} of type {type(random_state)}"
+        assert (
+            isinstance(n_jobs, int) and n_jobs != 0
+        ), f"n_jobs must be a non-zero integer, got {n_jobs} of type {type(n_jobs)}"
         self.random_state = random_state
         self.eta = eta
         self.reg_beta = reg_beta
@@ -450,6 +442,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         self.min_child_weight = min_child_weight
         self.subsample = subsample
         self.colsample = colsample
+        self.n_jobs = n_jobs
 
     def _validate_prediction_input(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
         """Validate the input for prediction."""
@@ -553,7 +546,7 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             X = X.values  # type: ignore
             self.n_features_in_ = X.shape[1]
         if isinstance(y, pd.Series):
-            y = y.to_numpy()  # type: ignore
+            y = y.to_numpy().astype(np.float64)  # type: ignore
         assert (
             X.shape[0] == y.shape[0]
         ), f"Number of samples in X ({X.shape[0]}) must match number of samples in y ({y.shape[0]})"
@@ -566,9 +559,9 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
         assert X.ndim == 2, f"X must be a 2D array, got {X.ndim}D array"
         if X.shape[0] == 0:
             raise ValueError("X must contain at least one sample")
-        assert not any(np.isnan(X)), "Input data cannot be NaN."
+        assert not np.isnan(X).any(), "Input data cannot be NaN."
         assert np.issubdtype(
-            X, float
+            X.dtype, np.number
         ), "Input data has to be subtype of float. If it fails although all features are numeric, consider casting to float/int for all columns."
 
     def _validate_targets(self, y: np.ndarray):
@@ -581,11 +574,11 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
             targets used for fit input
         """
         assert y.ndim == 1, f"y must be a 1D array, got {y.ndim}D array"
-        assert not any(np.isnan(y)), "Targets cannot be NaN."
+        assert not np.isnan(y).any(), "Targets cannot be NaN."
         assert np.issubdtype(
-            y, float
-        ), "Targets have to be subtype of float. If it fails although all features are numeric, consider casting to float/int for all columns."
-        self.distribution.validate_targets(y)
+            y.dtype, np.floating
+        ), "Targets have to be subtype of float. If it fails although all targets are numeric, consider casting to float/int."
+        # self.distribution.validate_targets(y)
 
     def _is_fft_kde(self) -> bool:
         """Check if distribution is FFT-based KDE."""
@@ -640,3 +633,33 @@ class BDFRegressor(BaseEstimator, RegressorMixin):
 
         # Replace distribution with updated params
         self.distribution = self.distribution.__class__(params=updated_params)
+
+
+class BDFRegressor(BDFModel, RegressorMixin):
+    """Alias for BDFModel to maintain backward compatibility."""
+
+    pass
+
+
+class BDFClassifier(BDFModel, ClassifierMixin):
+    """BDFClassifier class for Bayesian Distributional Forests for classification tasks.
+    Uses the same functionality under the hood but allows different standardization, input checks,
+    target validation and the `predict_proba` method.
+    """
+
+    def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False):
+        """Fit the BDFClassifier to the training data.
+        Args
+        ----
+        `X` : np.ndarray | pd.DataFrame
+            Training data features.
+        `y` : np.ndarray | pd.Series
+            Training data target values.
+        """
+        # Ensure targets are integers for classification
+        if not np.issubdtype(y.dtype, np.integer):
+            raise ValueError("Targets for BDFClassifier must be of integer type representing class labels.")
+        super().fit(X, y, verbose=verbose)
+
+    def predict_proba(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
+        return -1 * np.ones_like(self.predict(X))  # Placeholder implementation

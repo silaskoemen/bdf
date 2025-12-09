@@ -57,7 +57,7 @@ class GammaBase(BDFDistribution):
         np.ndarray
             Log-likelihood values for each data point.
         """
-        alpha, beta = self.calc_posterior_params(data, return_dict=False)
+        alpha, beta = self.calc_posterior_params(data)
         return gamma_dist.logpdf(data, a=alpha, scale=1 / beta)
 
     def likelihood(self, data: np.ndarray) -> np.ndarray:
@@ -171,7 +171,7 @@ class GammaBase(BDFDistribution):
         np.ndarray
             Samples from the posterior distribution.
         """
-        params = self.calc_posterior_params(data, return_dict=True)
+        params = self.calc_posterior_params(data)
         return self._sample_posterior_params(params, size=size, random_state=random_state)
 
     def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
@@ -193,7 +193,7 @@ class GammaBase(BDFDistribution):
             posterior_alpha = params["posterior_alpha"]
             posterior_beta = params["posterior_beta"]
         elif data is not None:
-            posterior_alpha, posterior_beta = self.calc_posterior_params(data, return_dict=True)
+            posterior_alpha, posterior_beta = self.calc_posterior_params(data)
         else:
             raise ValueError("Either 'data' or 'params' must be provided.")
         return posterior_alpha / posterior_beta
@@ -237,7 +237,7 @@ class GammaBase(BDFDistribution):
         dict
             Dictionary containing 'alpha' and 'beta'.
         """
-        return self.calc_posterior_params(data, return_dict=True)
+        return self.calc_posterior_params(data)
 
 
 # =============================================================================

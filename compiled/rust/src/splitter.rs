@@ -140,12 +140,17 @@ pub fn find_best_split(
 
     // Calculate final params for the best split (Cold Path - OK to use HashMap)
     let (left_params, right_params) = if let (Some(l_mask), Some(r_mask)) = (&best.3, &best.4) {
-        let left_y: Array1<f64> = y.iter().zip(l_mask.iter()).filter(|(_, &m)| m).map(|(&v, _)| v).collect();
-        let right_y: Array1<f64> = y.iter().zip(r_mask.iter()).filter(|(_, &m)| m).map(|(&v, _)| v).collect();
-        (
-            Some(distribution.calc_posterior_params(&left_y.view())),
-            Some(distribution.calc_posterior_params(&right_y.view()))
-        )
+        if distribution.supports_rust_params() {
+            let left_y: Array1<f64> = y.iter().zip(l_mask.iter()).filter(|&(_, &m)| m).map(|(&v, _)| v).collect();
+            let right_y: Array1<f64> = y.iter().zip(r_mask.iter()).filter(|&(_, &m)| m).map(|(&v, _)| v).collect();
+            (
+                Some(distribution.calc_posterior_params(&left_y.view())),
+                Some(distribution.calc_posterior_params(&right_y.view()))
+            )
+        } else {
+            // KDE: skip Rust calculation, let Python do it
+            (None, None)
+        }
     } else {
         (None, None)
     };

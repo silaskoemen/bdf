@@ -1,8 +1,7 @@
-#%%
+# %%
+import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.datasets import make_regression
-
-import matplotlib.pyplot as plt
 
 
 def silverman_bandwidth(x: np.ndarray) -> float:
@@ -54,7 +53,7 @@ X, _ = make_regression(n_samples=512, n_features=3, noise=0.1, random_state=42)
 n_features = X.shape[1]
 
 
-#%%
+# %%
 fig, axes = plt.subplots(n_features, 2, figsize=(12, 9), sharex=False, sharey=False)
 if n_features == 1:
     axes = np.expand_dims(axes, axis=0)
@@ -86,9 +85,7 @@ for feature_idx in range(n_features):
         ax = axes[feature_idx, col]
         ax.plot(grid_x, density, label="FFT KDE")
         ax.scatter(samples, np.zeros_like(samples), marker="|", color="k", alpha=0.3, label="samples")
-        ax.set_title(
-            f"Feature {feature_idx} - {side_name} (n={len(samples)}, h={bandwidth:.4f}, NLL={nll:.3f})"
-        )
+        ax.set_title(f"Feature {feature_idx} - {side_name} (n={len(samples)}, h={bandwidth:.4f}, NLL={nll:.3f})")
         ax.set_xlabel("Value")
         ax.set_ylabel("Density")
         ax.legend(loc="upper right")
@@ -109,9 +106,6 @@ plt.show()
 
 print("feature\tside\tn_samples\tbandwidth\tNLL")
 for res in results:
-    print(
-        f"{res['feature']}\t{res['side']}\t{res['n_samples']}\t"
-        f"{res['bandwidth']:.6f}\t{res['nll']:.6f}"
-    )
+    print(f"{res['feature']}\t{res['side']}\t{res['n_samples']}\t" f"{res['bandwidth']:.6f}\t{res['nll']:.6f}")
 
 # %%

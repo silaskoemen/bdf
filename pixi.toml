@@ -10,6 +10,7 @@ platforms = ["osx-arm64", "linux-64", "win-64"]
 # SOTA: Setup should build the extension immediately so 'import bdf' works instantly
 setup = "pip install --no-deps -e . && pre-commit install && pixi run build-rust"
 clean = "rm -rf build/ dist/ *.egg-info"
+bench = "PYTHONPATH=src python -m benchmarks.run"
 
 # ==========================================
 # 1. CORE DEPENDENCIES
@@ -59,9 +60,6 @@ lightgbm = "*"
 xgboost = "*"
 ngboost = "*"
 
-[feature.benchmark.tasks]
-bench = "python -m benchmarks.run"
-
 # --- DOCS FEATURE (Sphinx) ---
 [feature.docs.dependencies]
 sphinx = "*"
@@ -90,7 +88,7 @@ build-rust = "maturin develop --release --manifest-path compiled/rust/Cargo.toml
 [environments]
 # DEFAULT: Core + Test + Lint + DevTools.
 # Light enough to be fast, complete enough to build/test.
-default = { features = ["test", "lint", "dev-tools"], solve-group = "prod" }
+default = { features = ["test", "lint", "dev-tools", "benchmark"], solve-group = "prod" }
 
 # PROD: Minimal runtime check
 prod = { features = [], solve-group = "prod" }

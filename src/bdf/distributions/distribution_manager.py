@@ -1,5 +1,7 @@
 from typing import Any
 
+import numpy as np
+
 from bdf.distributions.bdf_distribution import BDFDistribution
 from bdf.distributions.kdl import KDL
 from bdf.utils.distribution_helpers import import_all_distributions
@@ -16,7 +18,7 @@ class DistributionManager:
         return BDFDistribution._registry
 
     @classmethod
-    def create_distribution(cls, dist: str, params: dict[str, Any]) -> BDFDistribution:
+    def create_distribution(cls, dist: str, params: dict[str, Any], y: np.ndarray) -> BDFDistribution:
         registry = cls._registry()
 
         if "+" in dist:
@@ -36,6 +38,12 @@ class DistributionManager:
             DistClass = registry[dist]
         except KeyError:
             raise ValueError(f"Unknown distribution: {dist}") from None
+
+        # Check whether any value in params has value 'auto', then call `resolve_auto_params`
+        # on keys with value 'auto' and data y
+        for key, value in params.items():
+            if value == "auto":
+                params[key] = DistClass.resolve_auto_params(key, y)
         return DistClass(params=params)  # type: ignore
 
     @classmethod

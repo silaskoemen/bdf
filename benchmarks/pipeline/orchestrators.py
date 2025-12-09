@@ -1,23 +1,25 @@
 import json
 import os
+from time import time
 
-import optuna
-from omegaconf import OmegaConf
 import numpy as np
+import optuna
 import pandas as pd
 from loguru import logger
-
+from omegaconf import OmegaConf
+from optuna.samplers import TPESampler
 from sklearn.metrics import log_loss, make_scorer, mean_squared_error
+from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.model_selection import cross_val_score as CVS
 from sklearn.model_selection import train_test_split as TTS
-from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
-from ..metrics.classification import CLAS_POINT_METRICS, CLAS_PROB_METRICS 
+from ..metrics.classification import CLAS_POINT_METRICS, CLAS_PROB_METRICS
 from ..metrics.regression import REG_POINT_METRICS, REG_PROB_METRICS
 from ..models.factory import ModelFactory
-from ..pipeline.utils import LogTransformTransformer
 from ..pipeline.data import DatasetMetadata, available_classification_datasets, available_regression_datasets
+from ..pipeline.utils import LogTransformTransformer
 
 
 class Orchestrator:
@@ -30,7 +32,6 @@ class Orchestrator:
 
     def _is_compatible(self, dataset_metadata: DatasetMetadata) -> bool:
         """Check if model can handle this dataset's target domain."""
-
         compatible_domains = self.model_cfg["compatible_target_domains"]
         return dataset_metadata.target_domain.value in compatible_domains
 
@@ -40,9 +41,9 @@ class Orchestrator:
         if self.target_type != "regression":
             return y_train, None
         else:
-            if self.target_type in ['positive_real', 'positive_integer']:
+            if self.target_type in ["positive_real", "positive_integer"]:
                 if self.log_transform_target:
-                    steps.append(('log_transform', LogTransformTransformer()))
+                    steps.append(("log_transform", LogTransformTransformer()))
 
         if self.standardize_target == "no":
             if not steps:
@@ -51,10 +52,10 @@ class Orchestrator:
             return pipeline.fit_transform(y_train.reshape(-1, 1)).ravel(), pipeline
 
         scaler = StandardScaler()
-        steps.append(('scaler', scaler))
+        steps.append(("scaler", scaler))
         pipeline = Pipeline(steps)
         y_train_scaled = pipeline.fit_transform(y_train.reshape(-1, 1)).ravel()
-        
+
         return y_train_scaled, pipeline
 
     def _get_score_metric(self, metadata: DatasetMetadata):
@@ -68,6 +69,9 @@ class Orchestrator:
                 return make_scorer(log_loss, greater_is_better=False)
 
     def run(self):
+        # Set global random seed for reproducibility
+        np.random.seed(self.cfg.seed)
+
         model_cls = ModelFactory.get(self.model_cfg)
         logger.success(f"⚙ Loaded model class {model_cls.__name__}")
         results = {"model_config": OmegaConf.to_container(self.model_cfg, resolve=True), "datasets": {}}
@@ -86,15 +90,25 @@ class Orchestrator:
                 continue
 
             logger.info(f"🔬 Processing {metadata.name} with target domain {metadata.target_domain.value}")
+            logger.info(f"Number of samples: {X.shape[0]}, Number of features: {X.shape[1]}")
+            start_time = time()
             results["datasets"][metadata.name] = {"metadata": metadata.to_dict(), "metrics": {}, "best_params": {}}
 
+            # Use seed for train/test split
             X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.25, random_state=self.cfg.seed, shuffle=True)
 
-            # FUTURE: Apply standardization
-            # y_train_proc, scaler = self._maybe_apply_target_standardization(y_train)
+            # Create CV splitter with explicit seed for reproducible folds
+            if self.target_type == "regression":
+                cv_splitter = KFold(n_splits=3, shuffle=True, random_state=self.cfg.seed)
+            else:
+                cv_splitter = StratifiedKFold(n_splits=3, shuffle=True, random_state=self.cfg.seed)
 
             # Tune model
             def objective(trial):
+                # Reset NumPy seed at each trial for reproducibility within CVS
+                np.random.seed(self.cfg.seed + trial.number)
+
+                # 1. Build init_kwargs from tunable init parameters
                 iter_init_kwargs = {}
                 for name, args in self.model_cfg.tunable_init_kwargs.items():
                     if args["type"] == "int":
@@ -110,13 +124,42 @@ class Orchestrator:
                     else:
                         raise ValueError(f"Parameter type '{args['type']}' unknown!")
 
+                # 2. Build params dict: always include fixed_params (if present), then add tunable_params
+                iter_params = {}
+
+                # Always add fixed_params first (if model has them)
+                if "fixed_params" in self.model_cfg:
+                    iter_params.update(self.model_cfg.fixed_params)
+
+                # Add tunable_params suggestions (if model has them)
+                if "tunable_params" in self.model_cfg:
+                    for name, args in self.model_cfg.tunable_params.items():
+                        if args["type"] == "int":
+                            iter_params[name] = trial.suggest_int(
+                                name, args["low"], args["high"], log=args.get("log", False)
+                            )
+                        elif args["type"] == "float":
+                            iter_params[name] = trial.suggest_float(
+                                name, args["low"], args["high"], log=args.get("log", False)
+                            )
+                        elif args["type"] == "categorical":
+                            iter_params[name] = trial.suggest_categorical(name, args["categories"])
+                        else:
+                            raise ValueError(f"Parameter type '{args['type']}' unknown!")
+
+                # 3. Only pass params dict if it has content
+                if iter_params:
+                    iter_init_kwargs["params"] = iter_params
+
+                # Create model with fixed init kwargs + trial-suggested init kwargs (+ params if present)
                 model = model_cls(**self.model_cfg.fixed_init_kwargs, **iter_init_kwargs)
                 score_metric = mean_squared_error if self.target_type == "regression" else log_loss
 
-                # Regression uses MSE (lower is better), classification uses log_loss (lower is better)
-                return np.mean(
-                    CVS(model, X_train, y_train, cv=3, scoring=make_scorer(score_metric, greater_is_better=False))
+                # Use explicit CV splitter for reproducible fold splits
+                cv_scores = CVS(
+                    model, X_train, y_train, cv=cv_splitter, scoring=make_scorer(score_metric, greater_is_better=False)
                 )
+                return np.mean(cv_scores)
 
             study_name = f"{self.model_cfg.name}-{metadata.name}"
             storage_name = f"sqlite:///benchmarks/results/optuna/{study_name}.db"
@@ -129,17 +172,57 @@ class Orchestrator:
             except Exception as e:
                 logger.warning(f"⚠️  Warning: Could not delete existing study: {e}")
 
+            # Create study with seeded sampler for reproducible trial suggestions
+            sampler = TPESampler(seed=self.cfg.seed)
             study = optuna.create_study(
                 study_name=study_name,
                 storage=storage_name,
-                direction="maximize",  # `make_scorer` adds negative sign if greater_is_better=False, maximize this score
+                direction="maximize",
+                sampler=sampler,
                 load_if_exists=False,
             )
             study.optimize(objective, n_trials=self.cfg.n_trials)
+            end_time = time()
+            logger.info(f"⏱ Tuning completed in {end_time - start_time:.2f} seconds")
+            results["datasets"][metadata.name]["tuning_time_seconds"] = end_time - start_time
 
-            # Evaluate on test set
-            best_model = model_cls(**self.model_cfg.fixed_init_kwargs, **study.best_params)
+            optuna_best_params = study.best_params
+            tuned_init_kwargs = {}
+            tuned_params = {}
+
+            # Split best params into init kwargs and distribution params
+            for param, value in optuna_best_params.items():
+                if param in self.model_cfg.tunable_init_kwargs.keys():
+                    tuned_init_kwargs[param] = value
+                elif "tunable_params" in self.model_cfg and param in self.model_cfg.tunable_params.keys():
+                    tuned_params[param] = value
+
+            # Reconstruct params dict: fixed_params + tuned_params
+            # Only if the model has fixed_params or tunable_params sections
+            if "fixed_params" in self.model_cfg or "tunable_params" in self.model_cfg:
+                combined_params = {}
+
+                # Always start with fixed_params (if present)
+                if "fixed_params" in self.model_cfg:
+                    combined_params.update(self.model_cfg.fixed_params)
+
+                # Update with tuned params
+                if tuned_params:
+                    combined_params.update(tuned_params)
+
+                # Only pass params if non-empty
+                if combined_params:
+                    tuned_init_kwargs["params"] = combined_params
+
+            logger.info(f"🏆 Best params for {metadata.name}: tuned_init_kwargs={tuned_init_kwargs}")
+
+            # Evaluate on test set with seed reset
+            np.random.seed(self.cfg.seed)
+            best_model = model_cls(**self.model_cfg.fixed_init_kwargs, **tuned_init_kwargs)
+            start_time = time()
             best_model.fit(X_train, y_train)
+            end_time = time()
+            results["datasets"][metadata.name]["fit_time_seconds"] = end_time - start_time
 
             # NEW: Store best params
             results["datasets"][metadata.name]["best_params"] = study.best_params
@@ -152,33 +235,35 @@ class Orchestrator:
             # NEW: Save intermediate results
             self._save_results(results)
             logger.success(f"💾 Saved intermediate results for {metadata.name}")
-        
+
         return results
 
-    def calc_metrics(self, X, y, model, scaler=None) -> dict:
+    def calc_metrics(self, X, y, model, pipeline=None) -> dict:
         """Calculate metrics with optional inverse standardization."""
         do_reg = self.target_type == "regression"
         point_metrics = REG_POINT_METRICS if do_reg else CLAS_POINT_METRICS
-        proba_metrics = (
-            REG_PROB_METRICS if do_reg else CLAS_PROB_METRICS
-        )
+        proba_metrics = REG_PROB_METRICS if do_reg else CLAS_PROB_METRICS
 
         metric_dict = {}
-        y_pred = model.predict(X)
+        try:
+            y_pred = model.predict(X) if do_reg else model.predict_proba(X)[:, 1]
+        except Exception as e:
+            logger.error(f"❌ Prediction failed: {e}")
+            y_pred = model.predict(X)
 
         # Inverse transform if we standardized test targets
-        if scaler is not None and self.standardize_target in ["only", "both"]:
-            y_pred = scaler.inverse_transform(y_pred.reshape(-1, 1)).ravel()
+        if pipeline is not None and self.standardize_target in ["only", "both"]:
+            y_pred = pipeline.inverse_transform(y_pred.reshape(-1, 1)).ravel()
 
         for m, m_func in point_metrics.items():
             metric_dict[m] = float(m_func(y, y_pred))
 
         if self.model_cfg.probabilistic:
-            y_pred_samples = model.predict_samples(X, n_samples=self.cfg.n_samples)
+            y_pred_samples = model.predict_samples(X, sample_size=self.cfg.sample_size)
 
             # Inverse transform samples if needed
-            if scaler is not None and self.standardize_target in ["only", "both"]:
-                y_pred_samples = scaler.inverse_transform(y_pred_samples)
+            if pipeline is not None and self.standardize_target in ["only", "both"]:
+                y_pred_samples = pipeline.inverse_transform(y_pred_samples)
 
             for m, m_func in proba_metrics.items():
                 metric_dict[m] = float(m_func(y, y_pred_samples))

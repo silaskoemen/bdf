@@ -1,7 +1,7 @@
 import inspect
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Literal, get_type_hints
+from typing import Any, ClassVar, Generic, Literal, TypeVar, cast, get_type_hints
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
@@ -47,10 +47,13 @@ class BDFDistributionParams(BaseModel, ABC):
         default=True, description="Use posterior predictive (True) or plug-in MAP (False) for NLL/inference."
     )
 
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    model_config = ConfigDict(extra="forbid", validate_assignment=True, validate_by_name=True)
 
 
-class BDFDistribution(ABC):
+P = TypeVar("P", bound=BDFDistributionParams)
+
+
+class BDFDistribution(ABC, Generic[P]):
     """Abstract base class for all BDF distributions.
 
     Subclasses MUST implement all abstract methods:
@@ -73,6 +76,7 @@ class BDFDistribution(ABC):
 
     params_cls: ClassVar[type[BDFDistributionParams]] = BDFDistributionParams
     _registry: ClassVar[dict[str, type["BDFDistribution"]]] = {}
+    params: P
 
     # Capability flags (override in subclasses)
     _supports_nle: bool = False
@@ -80,8 +84,8 @@ class BDFDistribution(ABC):
     _has_fast_kfold_cv: bool = False
     _supports_posterior_predictive: bool = False
 
-    def __init__(self, params: BDFDistributionParams):
-        self.params = params
+    def __init__(self, params: dict[str, Any] | P):
+        self.params = cast(P, self.params_cls.model_validate(params))
         self._validate_scoring_support()
 
     def __init_subclass__(cls, **kwargs):
@@ -115,6 +119,13 @@ class BDFDistribution(ABC):
     # ============================================================================
     # VALIDATION & SERIALIZATION
     # ============================================================================
+    @classmethod
+    def resolve_auto_params(cls, key: str, y: np.ndarray) -> Any:
+        """Resolve 'auto' parameters based on data.
+
+        Override in subclasses to implement distribution-specific auto-parameter logic.
+        """
+        raise NotImplementedError(f"{cls.__name__} does not implement auto-parameter resolution for '{key}'")
 
     def _validate_scoring_support(self):
         """Validate that requested scoring is supported by this distribution."""
@@ -196,7 +207,9 @@ class BDFDistribution(ABC):
         pass
 
     @abstractmethod
-    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
+    def _sample_posterior_params(
+        self, params: dict[str, float], size: int | tuple[int, int], random_state: int
+    ) -> np.ndarray:
         """Sample from the posterior distribution using provided parameters (REQUIRED)."""
         pass
 
@@ -286,7 +299,7 @@ class BDFDistribution(ABC):
         *,
         data: np.ndarray | None = None,
         params: dict[str, float] | None = None,
-        size: int = 1,
+        size: int | tuple[int, int] = 1,
         random_state: int = RANDOM_SEED,
     ) -> np.ndarray:
         """Sample from posterior (CONCRETE)."""

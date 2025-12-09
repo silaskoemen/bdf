@@ -1,0 +1,183 @@
+{
+  "model_config": {
+    "name": "bdf_kde",
+    "target_type": "regression",
+    "class_name": "BDFModel",
+    "probabilistic": true,
+    "compatible_target_domains": [
+      "real",
+      "positive_real",
+      "nonnegative_real",
+      "integer",
+      "nonnegative_integer",
+      "positive_integer"
+    ],
+    "fixed_init_kwargs": {
+      "dist": "KDE",
+      "random_state": 1234
+    },
+    "tunable_init_kwargs": {
+      "n_trees": {
+        "type": "int",
+        "low": 5,
+        "high": 200
+      },
+      "reg_lambda": {
+        "type": "float",
+        "low": 0.0001,
+        "high": 10.0,
+        "log": true
+      },
+      "min_samples_leaf": {
+        "type": "int",
+        "low": 5,
+        "high": 50
+      },
+      "min_samples_split": {
+        "type": "int",
+        "low": 10,
+        "high": 100
+      },
+      "subsample": {
+        "type": "float",
+        "low": 0.5,
+        "high": 1.0
+      },
+      "colsample": {
+        "type": "float",
+        "low": 0.5,
+        "high": 1.0
+      },
+      "eta": {
+        "type": "float",
+        "low": 0.005,
+        "high": 0.1,
+        "log": true
+      }
+    },
+    "tunable_params": {
+      "bandwidth": {
+        "type": "categorical",
+        "categories": [
+          "scott",
+          "silverman"
+        ]
+      },
+      "kernel": {
+        "type": "categorical",
+        "categories": [
+          "gaussian",
+          "epanechnikov"
+        ]
+      }
+    },
+    "fixed_params": {
+      "score_correction": "bic",
+      "score_cv_folds": 3
+    }
+  },
+  "datasets": {
+    "realestate": {
+      "metadata": {
+        "name": "realestate",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 97.55708781484886,
+        "mae": 5.987339697973285,
+        "rmse": 9.877099159917798,
+        "r2": 0.540815849364344,
+        "msle": 0.039595761810081245,
+        "mape": 0.1565953282275689,
+        "crps": 4.422529652331071,
+        "pica": 0.01783216783216784,
+        "coverage_90": 0.9230769230769231,
+        "coverage_95": 0.9423076923076923,
+        "interval_score_90": 42.18918089671171,
+        "interval_score_95": 55.53226008077047,
+        "weighted_interval_score": 4.214849021397119
+      },
+      "best_params": {
+        "n_trees": 52,
+        "reg_lambda": 0.0015226361038256167,
+        "min_samples_leaf": 9,
+        "min_samples_split": 10,
+        "subsample": 0.7225346904783634,
+        "colsample": 0.6886454208573816,
+        "eta": 0.02848801758094801,
+        "bandwidth": "scott",
+        "kernel": "gaussian"
+      },
+      "tuning_time_seconds": 67.91791605949402,
+      "fit_time_seconds": 0.43163299560546875
+    },
+    "boston_housing": {
+      "metadata": {
+        "name": "boston_housing",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 11.084598240809681,
+        "mae": 2.370389798742272,
+        "rmse": 3.3293540275569495,
+        "r2": 0.8630131051818152,
+        "msle": 0.022209530902119377,
+        "mape": 0.11776718132166028,
+        "crps": 1.7472230627786982,
+        "pica": 0.01767676767676767,
+        "coverage_90": 0.9191919191919192,
+        "coverage_95": 0.9595959595959596,
+        "interval_score_90": 14.791490593479457,
+        "interval_score_95": 19.04878340921529,
+        "weighted_interval_score": 1.6701981091381826
+      },
+      "best_params": {
+        "n_trees": 59,
+        "reg_lambda": 0.0005706561449410549,
+        "min_samples_leaf": 7,
+        "min_samples_split": 79,
+        "subsample": 0.9421389001832723,
+        "colsample": 0.7733969149978267,
+        "eta": 0.008991552914986796,
+        "bandwidth": "scott",
+        "kernel": "epanechnikov"
+      },
+      "tuning_time_seconds": 217.1968960762024,
+      "fit_time_seconds": 6.163611888885498
+    },
+    "abalone_age": {
+      "metadata": {
+        "name": "abalone_age",
+        "target_domain": "positive_integer"
+      },
+      "metrics": {
+        "mse": 4.480595737483296,
+        "mae": 1.5048114816143667,
+        "rmse": 2.1167417739259777,
+        "r2": 0.5481246497310134,
+        "msle": 0.029813895577526638,
+        "mape": 0.15073904532241011,
+        "crps": 1.070979847231025,
+        "pica": 0.03310134841235319,
+        "coverage_90": 0.9473684210526315,
+        "coverage_95": 0.9751196172248804,
+        "interval_score_90": 8.630248493121655,
+        "interval_score_95": 10.259798223583191,
+        "weighted_interval_score": 1.0205551793354986
+      },
+      "best_params": {
+        "n_trees": 163,
+        "reg_lambda": 0.0010144289043955677,
+        "min_samples_leaf": 10,
+        "min_samples_split": 65,
+        "subsample": 0.589461090108378,
+        "colsample": 0.6956519943537018,
+        "eta": 0.02316678179978172,
+        "bandwidth": "scott",
+        "kernel": "gaussian"
+      },
+      "tuning_time_seconds": 3602.6296660900116,
+      "fit_time_seconds": 88.28231906890869
+    }
+  }
+}

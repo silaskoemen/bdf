@@ -17,7 +17,7 @@ import numpy as np
 from pydantic import Field
 
 from .bdf_distribution import BDFDistribution, BDFDistributionParams
-from .kde import KDEBaseParams, PenalizedHKDE, PenalizedHKDEParams
+from .kde import BayesianKDEParams, KDEParams
 from .normal import NormalMuNormal, NormalMuNormalParams
 
 
@@ -30,9 +30,9 @@ class NormalMuNormalPenalizedHKDLParams(BDFDistributionParams):
     )
 
     # KDE (leaf) params
-    kde_prior_params: PenalizedHKDEParams = Field(description="Prior parameters for KDE used in leaf predictions")
+    kde_prior_params: BayesianKDEParams = Field(description="Prior parameters for KDE used in leaf predictions")
 
-    kde_params: KDEBaseParams = Field(description="KDE configuration for leaf modeling")
+    kde_params: KDEParams = Field(description="KDE configuration for leaf modeling")
 
     class Config:
         extra = "forbid"

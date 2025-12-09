@@ -48,7 +48,7 @@ fn mock_fast_score(stats: &SufficientStats) -> f64 {
 // Iterates over the data slice AND has higher base overhead
 fn mock_slow_score(data: &[f64]) -> f64 {
     let mut res = 0.0;
-    
+
     // 1. The cost of iterating the data (O(N))
     for &x in data {
         res += x;
@@ -63,7 +63,7 @@ fn mock_slow_score(data: &[f64]) -> f64 {
 
 fn main() {
     println!("Generating data (N={}, ETA={})...", N_SAMPLES, ETA);
-    
+
     // Generate random data
     let x: Vec<f64> = (0..N_SAMPLES).map(|i| (i as f64 * 0.5).sin()).collect();
     let y: Vec<f64> = (0..N_SAMPLES).map(|i| (i as f64 * 0.1).cos()).collect();
@@ -72,14 +72,14 @@ fn main() {
     // APPROACH 1: STANDARD (Quantile + Allocation + Slow Score)
     // ========================================================================
     let start_std = Instant::now();
-    
+
     // 1. Sort feature to find quantiles
     let mut x_sorted = x.clone();
     x_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    
+
     let n_thresholds = (1.0 / ETA).ceil() as usize;
     let stride = N_SAMPLES / n_thresholds;
-    
+
     let mut thresholds = Vec::with_capacity(n_thresholds);
     for i in 1..n_thresholds {
         if i * stride < N_SAMPLES {
@@ -136,7 +136,7 @@ fn main() {
 
     for (i, &idx) in indices.iter().enumerate() {
         let val = y[idx];
-        
+
         // O(1) Update
         left_stats.add(val);
         right_stats.remove(val);

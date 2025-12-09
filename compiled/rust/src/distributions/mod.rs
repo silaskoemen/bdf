@@ -7,6 +7,7 @@
 pub mod normal;
 pub mod bernoulli;
 pub mod poisson;
+pub mod exponential;
 pub mod kde;
 pub mod python_callback;
 
@@ -43,6 +44,10 @@ impl SufficientStats {
 pub trait DistributionPrimitives: Send + Sync {
     /// Compute posterior parameters (returns ALL params needed for both plug-in and PP)
     fn calc_posterior_params(&self, data: &ArrayView1<f64>) -> HashMap<String, f64>;
+
+    fn supports_rust_params(&self) -> bool {
+        true  // Default: most distributions only need scalars
+    }
 
     /// Plug-in log-likelihood: log p(x | θ_MAP)
     fn plugin_log_likelihood(&self, data: &ArrayView1<f64>, params: &HashMap<String, f64>)
@@ -115,9 +120,9 @@ pub struct ScoringSpec {
     pub score_correction: Option<String>, // None, "aic", "bic", "loo_cv", "kfold_cv"
     pub use_posterior_predictive: bool,
     pub num_parameters: usize,          // Pre-computed in Python!
-    pub cv_folds: usize,
-    pub cv_shuffle: bool,
-    pub cv_seed: u64,
+    pub score_cv_folds: usize,
+    pub score_cv_shuffle: bool,
+    pub score_cv_seed: u64,
 }
 
 impl ScoringSpec {
@@ -136,14 +141,14 @@ impl ScoringSpec {
             num_parameters: dict.get_item("num_parameters").ok_or_else(|| pyo3::exceptions::PyValueError::new_err(
                 "Missing num_parameters in scoring spec"
             ))?.extract()?,
-            cv_folds: dict.get_item("cv_folds").ok_or_else(|| pyo3::exceptions::PyValueError::new_err(
-                "Missing cv_folds in scoring spec"
+            score_cv_folds: dict.get_item("score_cv_folds").ok_or_else(|| pyo3::exceptions::PyValueError::new_err(
+                "Missing score_cv_folds in scoring spec"
             ))?.extract()?,
-            cv_shuffle: dict.get_item("cv_shuffle").ok_or_else(|| pyo3::exceptions::PyValueError::new_err(
-                "Missing cv_shuffle in scoring spec"
+            score_cv_shuffle: dict.get_item("score_cv_shuffle").ok_or_else(|| pyo3::exceptions::PyValueError::new_err(
+                "Missing score_cv_shuffle in scoring spec"
             ))?.extract()?,
-            cv_seed: dict.get_item("cv_seed").ok_or_else(|| pyo3::exceptions::PyValueError::new_err(
-                "Missing cv_seed in scoring spec"
+            score_cv_seed: dict.get_item("score_cv_seed").ok_or_else(|| pyo3::exceptions::PyValueError::new_err(
+                "Missing score_cv_seed in scoring spec"
             ))?.extract()?,
         })
     }

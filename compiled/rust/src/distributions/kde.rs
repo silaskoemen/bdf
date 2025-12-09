@@ -37,7 +37,7 @@ impl Kde {
 
         let bw_item = spec.get_item("bandwidth")
             .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("Missing 'bandwidth'"))?;
-        
+
         let bandwidth_rule = if let Ok(h) = bw_item.extract::<f64>() {
             BandwidthRule::Fixed(h)
         } else if let Ok(s) = bw_item.extract::<String>() {
@@ -73,10 +73,10 @@ impl Kde {
             BandwidthRule::Silverman => {
                 // Silverman's rule: h = 0.9 * min(σ, IQR/1.349) * n^(-1/5)
                 let std = sample_std(data);
-                
+
                 let mut sorted_data = data.to_vec();
                 sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                
+
                 let q25 = percentile_sorted(&sorted_data, 0.25);
                 let q75 = percentile_sorted(&sorted_data, 0.75);
                 let iqr = q75 - q25;
@@ -86,9 +86,9 @@ impl Kde {
                 } else {
                     std
                 };
-                
+
                 let used_scale = if scale <= 0.0 { std.max(self.min_bandwidth) } else { scale };
-                
+
                 (0.9 * used_scale * n.powf(-0.2)).max(self.min_bandwidth)
             }
         }
@@ -99,7 +99,7 @@ impl Kde {
             KernelType::Gaussian => {
                 let log_h = h.ln();
                 const LOG_2PI: f64 = 1.8378770664093453; // ln(2*pi)
-                
+
                 ref_data.mapv(|y| {
                     let diff = (x - y) / h;
                     -0.5 * diff * diff - 0.5 * LOG_2PI - log_h
@@ -108,7 +108,7 @@ impl Kde {
             KernelType::Epanechnikov => {
                 let log_h = h.ln();
                 let log_075 = 0.75f64.ln();
-                
+
                 ref_data.mapv(|y| {
                     let u = (x - y) / h;
                     if u.abs() <= 1.0 {
@@ -136,7 +136,7 @@ impl Kde {
         // For each evaluation point, compute logsumexp of kernel contributions
         eval_points.mapv(|x| {
             let log_k = self.log_kernel_row(x, ref_data, h);
-            
+
             // LogSumExp for numerical stability
             let max_val = log_k.fold(f64::NEG_INFINITY, |a, &b| a.max(b));
             if max_val == f64::NEG_INFINITY {
@@ -183,6 +183,10 @@ impl DistributionPrimitives for Kde {
         params.insert("bandwidth".to_string(), h);
         params.insert("n".to_string(), n as f64);
         params
+    }
+
+    fn supports_rust_params(&self) -> bool {
+        false // Can't add the full data array to HashMap<String, f64>
     }
 
     fn plugin_log_likelihood(&self, data: &ArrayView1<f64>, _params: &HashMap<String, f64>) -> Array1<f64> {
@@ -240,15 +244,19 @@ impl DistributionPrimitives for BayesianKde {
         if n < 2.0 {
             return params;
         }
-        
+
         let data_h = self.base.compute_bandwidth(data);
-        
+
         // Bayesian bandwidth update: posterior_h = (m_h * prior_h + n * data_h) / (m_h + n)
         let posterior_h = (self.m_h * self.prior_h + n * data_h) / (self.m_h + n);
-        
+
         params.insert("bandwidth".to_string(), posterior_h);
         params.insert("n".to_string(), n);
         params
+    }
+
+    fn supports_rust_params(&self) -> bool {
+        false // Can't add the full data array to HashMap<String, f64>
     }
 
     fn plugin_log_likelihood(&self, data: &ArrayView1<f64>, params: &HashMap<String, f64>) -> Array1<f64> {
@@ -267,7 +275,7 @@ impl DistributionPrimitives for BayesianKde {
     fn nll(&self, data: &ArrayView1<f64>, _use_posterior_predictive: bool) -> f64 {
         let params = self.calc_posterior_params(data);
         let h = *params.get("bandwidth").unwrap_or(&self.base.min_bandwidth);
-        
+
         let ll = self.base.plugin_log_likelihood_impl(data, data, h);
         -ll.sum()
     }
@@ -275,7 +283,7 @@ impl DistributionPrimitives for BayesianKde {
     fn nll_train_test(&self, train: &ArrayView1<f64>, test: &ArrayView1<f64>, _use_posterior_predictive: bool) -> f64 {
         let params = self.calc_posterior_params(train);
         let h = *params.get("bandwidth").unwrap_or(&self.base.min_bandwidth);
-        
+
         let ll = self.base.plugin_log_likelihood_impl(test, train, h);
         -ll.sum()
     }
