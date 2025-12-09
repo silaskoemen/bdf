@@ -76,8 +76,8 @@ class SHASHBase(BDFDistribution):
     """
 
     # This is just a placeholder - child classes will have their own init
-    def __init__(self, prior_params, params=None):
-        super().__init__(prior_params, params)
+    def __init__(self, params):
+        super().__init__(params)
 
     def calc_posterior_params(self, data):
         raise NotImplementedError("Subclass must implement calc_posterior_params.")

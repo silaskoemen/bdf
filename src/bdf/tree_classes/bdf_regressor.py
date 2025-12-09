@@ -38,7 +38,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
         ----
         `data_dist` : str | BDFDistribution.BDFDistribution, optional
             Data distribution type or instance, default is 'normal'.
-        `prior_params` : str | BDFDistribution.BDFDistribution | dict, optional
+        `params` : str | BDFDistribution.BDFDistribution | dict, optional
             Prior parameters for the distribution, can be string name or 'auto', a BDFDistribution instance, or a dictionary parameters as keys. Default is 'auto'.
         `n_trees` : int, optional
             Number of trees in the forest, default is 100.

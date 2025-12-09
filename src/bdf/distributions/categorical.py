@@ -2,7 +2,7 @@
 larger numbers mean stronger influence of priors, as posterior counts absolute number of
 events in category"""
 
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 
@@ -14,18 +14,18 @@ class DirichletCategorical(BDFDistribution):
     This class models a Categorical distribution with a Dirichlet prior on the category probabilities.
     """
 
-    def __init__(self, prior_params: Dict[str, Any], params: tuple | None = None):
+    def __init__(self, params: dict[str, Any]):
         """Initialize the Dirichlet-Categorical distribution with prior parameters.
 
         Args
         ----
-        `prior_params` : dict
+        `params` : dict
             Dictionary containing prior parameters, must include 'alpha' for each category.
         `params` : tuple, optional
             Additional parameters for the distribution, default is None.
         """
-        super().__init__(prior_params, params)
-        self.prior_alpha = np.array(prior_params.get("alpha", [1.0] * len(prior_params)))
+        super().__init__(params)
+        self.prior_alpha = np.array(params.get("alpha", [1.0] * len(params)))
         if np.any(self.prior_alpha <= 0):
             raise ValueError("Prior parameters 'alpha' must be positive.")
         self.params = tuple(self.prior_alpha)

@@ -13,9 +13,7 @@ def test_end_to_end_regression():
     X, y = make_regression(n_samples=200, n_features=10, random_state=42)  # type: ignore
 
     # Train model
-    regressor = BDFRegressor(
-        dist="normal", prior_params={"mean": 0, "std": 5}, n_trees=10, max_depth=5, min_samples_leaf=2
-    )
+    regressor = BDFRegressor(dist="normal", params={"mean": 0, "std": 5}, n_trees=10, max_depth=5, min_samples_leaf=2)
     regressor.fit(X, y)
 
     # Make predictions
@@ -69,7 +67,7 @@ def test_subsample_colsample():
     # Test with very low subsampling and column sampling
     regressor = BDFRegressor(
         dist="normal",
-        prior_params={"mean": 0, "std": 1},
+        params={"mean": 0, "std": 1},
         subsample=0.5,  # Use only half the data per tree
         colsample=0.5,  # Use only half the features per tree
         n_trees=5,

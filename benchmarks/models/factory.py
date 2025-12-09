@@ -13,7 +13,7 @@ from bdf.tree_classes.bdf_regressor import BDFModel
 class ModelFactory:
     @staticmethod
     def get(cfg: OmegaConf) -> Any:
-        match cfg.class_name:
+        match cfg.class_name:  # type: ignore[reportAttributeAccessIssue]
             case "LGBMRegressor":
                 return LGBMRegressor
             case "LGBMClassifier":
@@ -25,4 +25,4 @@ class ModelFactory:
             case "BDFModel":
                 return BDFModel
             case _:
-                raise ValueError(f"Model class name '{cfg.name}' not recognized.")
+                raise ValueError(f"Model class name '{cfg.name}' not recognized.")  # type: ignore[reportUnboundVariable]

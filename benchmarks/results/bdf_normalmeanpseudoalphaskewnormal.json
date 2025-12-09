@@ -178,6 +178,76 @@
       },
       "tuning_time_seconds": 270.27189779281616,
       "fit_time_seconds": 3.497530698776245
+    },
+    "parkinsons_updrs": {
+      "metadata": {
+        "name": "parkinsons_updrs",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 11.880751865088765,
+        "mae": 2.563760814494691,
+        "rmse": 3.4468466552907113,
+        "r2": 0.8931486246571713,
+        "msle": 0.024918650483595806,
+        "mape": 0.11843727813872838,
+        "crps": 1.5146875496635654,
+        "pica": 0.13221734018194192,
+        "coverage_50": 0.7801225323349217,
+        "coverage_90": 0.9979577944179714,
+        "coverage_95": 0.998638529611981,
+        "interval_score_90": 20.96106235069421,
+        "interval_score_95": 27.054296486289857,
+        "weighted_interval_score": 1.3731497370738692
+      },
+      "best_params": {
+        "n_trees": 113,
+        "reg_lambda": 0.0009755979781708605,
+        "min_samples_leaf": 23,
+        "min_samples_split": 70,
+        "subsample": 0.6778845743138066,
+        "colsample": 0.9235259237592522,
+        "eta": 0.005107025197014464,
+        "sigma_mu": 20.87413916924559,
+        "m_alpha": 39
+      },
+      "tuning_time_seconds": 1723.7275221347809,
+      "fit_time_seconds": 46.173988819122314
+    },
+    "wine_quality": {
+      "metadata": {
+        "name": "wine_quality",
+        "target_domain": "positive_integer"
+      },
+      "metrics": {
+        "mse": 0.4766909091479332,
+        "mae": 0.528858949201806,
+        "rmse": 0.6904280622540868,
+        "r2": 0.3933865980396316,
+        "msle": 0.01071650155994776,
+        "mape": 0.09386053922935608,
+        "crps": 0.3639255477780796,
+        "pica": 0.049758812615955474,
+        "coverage_50": 0.6187755102040816,
+        "coverage_90": 0.9493877551020408,
+        "coverage_95": 0.9730612244897959,
+        "interval_score_90": 3.0976576621762524,
+        "interval_score_95": 3.688496725704121,
+        "weighted_interval_score": 0.3457259603238578
+      },
+      "best_params": {
+        "n_trees": 162,
+        "reg_lambda": 0.0005825841316346422,
+        "min_samples_leaf": 5,
+        "min_samples_split": 95,
+        "subsample": 0.6042037509770323,
+        "colsample": 0.6854957061587014,
+        "eta": 0.010640900724385992,
+        "sigma_mu": 73.3977782561801,
+        "m_alpha": 64
+      },
+      "tuning_time_seconds": 280.21113109588623,
+      "fit_time_seconds": 4.631893873214722
     }
   }
 }

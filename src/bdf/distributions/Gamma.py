@@ -283,16 +283,14 @@ class GammaPseudoMean(GammaBase):
     Rate β is adjusted to achieve the regularized mean.
     """
 
-    def __init__(self, prior_params: dict | GammaPseudoMeanParams, params: dict | None = None):
-        if isinstance(prior_params, dict):
-            prior_params = GammaPseudoMeanParams.model_validate(prior_params)
-        assert isinstance(
-            prior_params, GammaPseudoMeanParams
-        ), "prior_params must be an instance of GammaPseudoMeanParams"
-        super().__init__(prior_params, params)
-        self.prior_mean = prior_params.prior_mean
-        self.prior_strength = prior_params.prior_strength
-        self.min_variance = prior_params.min_variance
+    def __init__(self, params: dict | GammaPseudoMeanParams):
+        if isinstance(params, dict):
+            params = GammaPseudoMeanParams.model_validate(params)
+        assert isinstance(params, GammaPseudoMeanParams), "params must be an instance of GammaPseudoMeanParams"
+        super().__init__(params)
+        self.prior_mean = params.prior_mean
+        self.prior_strength = params.prior_strength
+        self.min_variance = params.min_variance
 
     def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | tuple | dict:
         """Calculate posterior parameters with pseudo-prior regularization."""
@@ -367,16 +365,14 @@ class GammaNormalMean(GammaBase):
     Rate β is calculated to achieve the posterior mean (MAP estimate).
     """
 
-    def __init__(self, prior_params: dict | GammaNormalMeanParams, params: dict | None = None):
-        if isinstance(prior_params, dict):
-            prior_params = GammaNormalMeanParams.model_validate(prior_params)
-        assert isinstance(
-            prior_params, GammaNormalMeanParams
-        ), "prior_params must be an instance of GammaNormalMeanParams"
-        super().__init__(prior_params, params)
-        self.prior_mean = prior_params.prior_mean
-        self.prior_variance = prior_params.prior_variance
-        self.min_variance = prior_params.min_variance
+    def __init__(self, params: dict | GammaNormalMeanParams):
+        if isinstance(params, dict):
+            params = GammaNormalMeanParams.model_validate(params)
+        assert isinstance(params, GammaNormalMeanParams), "params must be an instance of GammaNormalMeanParams"
+        super().__init__(params)
+        self.prior_mean = params.prior_mean
+        self.prior_variance = params.prior_variance
+        self.min_variance = params.min_variance
 
     def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | dict | tuple:
         """Calculate posterior parameters using Normal prior on the mean."""
@@ -445,12 +441,12 @@ class GammaMLE(GammaBase):
     This is the maximum likelihood approach.
     """
 
-    def __init__(self, prior_params: dict | GammaMLEParams, params: dict | None = None):
-        if isinstance(prior_params, dict):
-            prior_params = GammaMLEParams.model_validate(prior_params)
-        assert isinstance(prior_params, GammaMLEParams), "prior_params must be an instance of GammaMLEParams"
-        super().__init__(prior_params, params)
-        self.min_variance = prior_params.min_variance
+    def __init__(self, params: dict | GammaMLEParams):
+        if isinstance(params, dict):
+            params = GammaMLEParams.model_validate(params)
+        assert isinstance(params, GammaMLEParams), "params must be an instance of GammaMLEParams"
+        super().__init__(params)
+        self.min_variance = params.min_variance
 
     def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | dict | tuple:
         """Calculate MLE parameters using method of moments."""

@@ -41,9 +41,6 @@ class NormalMuBetaParams(BDFDistributionParams):
         if "sigma_zero" not in data and "std" not in data:
             missing_fields["sigma_zero"] = self.__class__.model_fields["sigma_zero"].default
 
-        # Initialize the model
-        super().__init__(**data)
-
         # Issue warnings for missing fields
         for field, default_value in missing_fields.items():
             warnings.warn(
@@ -60,25 +57,25 @@ class NormalMuBeta(BDFDistribution):
     nu in terms of observed quantities is mu * (1 - mu) / var - 1.
     """
 
-    def __init__(self, prior_params: dict | NormalMuBetaParams, params: tuple | None = None, var_ddof: int = 1):
+    def __init__(self, params: dict | NormalMuBetaParams, var_ddof: int = 1):
         """Initialize the Normal distribution with prior parameters.
         Args
         ----
-        `prior_params` : dict
+        `params` : dict
             Dictionary containing prior parameters, must include 'mean' and 'std'.
         `params` : tuple, optional
             Additional parameters for the distribution, default is None.
         `var_ddof` : int, optional
             Degrees of freedom for variance calculation, default is 1 (sample standard deviation).
         """
-        if isinstance(prior_params, dict):
-            prior_params = NormalMuBetaParams.model_validate(prior_params)  # type: ignore
+        if isinstance(params, dict):
+            params = NormalMuBetaParams.model_validate(params)  # type: ignore
         assert isinstance(
-            prior_params, NormalMuBetaParams
-        ), "prior_params must be an instance of NormalNormalParams after possible conversion from dict."
-        super().__init__(prior_params, params)
-        self.mu_zero = prior_params.mu_zero
-        self.sigma_zero = prior_params.sigma_zero
+            params, NormalMuBetaParams
+        ), "params must be an instance of NormalNormalParams after possible conversion from dict."
+        super().__init__(params)
+        self.mu_zero = params.mu_zero
+        self.sigma_zero = params.sigma_zero
         self.var_ddof = var_ddof  # Degrees of freedom for sample variance calculation
 
     def calc_posterior_params(

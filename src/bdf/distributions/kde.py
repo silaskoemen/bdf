@@ -1,5 +1,5 @@
 import warnings
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal, TypeVar
 
 import numpy as np
 from pydantic import Field, field_validator
@@ -117,8 +117,10 @@ class BayesianKDEParams(KDEParams):
 # DISTRIBUTION IMPLEMENTATIONS
 # ============================================================================
 
+K = TypeVar("K", bound=KDEParams)
 
-class KDE(BDFDistribution[KDEParams]):
+
+class KDE(BDFDistribution[K]):
     """Kernel Density Estimation distribution.
 
     **String Alias:** ``'kde'``
@@ -144,7 +146,7 @@ class KDE(BDFDistribution[KDEParams]):
     _has_fast_kfold_cv = True
     _supports_posterior_predictive = False
 
-    def __init__(self, params: KDEParams):
+    def __init__(self, params: dict[str, Any] | K):
         super().__init__(params)
 
     # ========================================================================
@@ -559,7 +561,7 @@ class KDE(BDFDistribution[KDEParams]):
         return samples.reshape(shape)
 
 
-class BayesianKDE(KDE):
+class BayesianKDE(KDE[BayesianKDEParams]):
     """Bayesian KDE with prior on bandwidth.
 
     **String Alias:** ``'bayesian_kde'``

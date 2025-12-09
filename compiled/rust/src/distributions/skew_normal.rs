@@ -72,7 +72,7 @@ fn skewnorm_logpdf(x: f64, alpha: f64, xi: f64, omega: f64) -> f64 {
 pub struct NormalMeanPseudoAlphaSkewNormal {
     mu_mu: f64,       // Prior mean for data mean
     sigma_mu: f64,    // Prior std for data mean
-    mean_alpha: f64,  // Shrinkage target for alpha
+    prior_alpha: f64,  // Shrinkage target for alpha
     m_alpha: f64,     // Shrinkage strength (pseudo sample size)
 }
 
@@ -85,7 +85,7 @@ impl NormalMeanPseudoAlphaSkewNormal {
             sigma_mu: spec.get_item("sigma_mu")
                 .and_then(|v| v.extract().ok())
                 .unwrap_or(1.0),
-            mean_alpha: spec.get_item("mean_alpha")
+            prior_alpha: spec.get_item("prior_alpha")
                 .and_then(|v| v.extract().ok())
                 .unwrap_or(0.0),
             m_alpha: spec.get_item("m_alpha")
@@ -98,7 +98,7 @@ impl NormalMeanPseudoAlphaSkewNormal {
     fn calc_params_from_stats(&self, n: f64, sum: f64, sum_sq: f64, sum_cu: f64) -> HashMap<String, f64> {
         if n == 0.0 {
             let mut params = HashMap::new();
-            params.insert("posterior_alpha".to_string(), self.mean_alpha);
+            params.insert("posterior_alpha".to_string(), self.prior_alpha);
             params.insert("posterior_xi".to_string(), self.mu_mu);
             params.insert("posterior_omega".to_string(), 1.0);
             return params;
@@ -129,7 +129,7 @@ impl NormalMeanPseudoAlphaSkewNormal {
 
         // Apply shrinkage prior
         let posterior_alpha = (n / (n + self.m_alpha)) * alpha_mle
-            + (self.m_alpha / (n + self.m_alpha)) * self.mean_alpha;
+            + (self.m_alpha / (n + self.m_alpha)) * self.prior_alpha;
 
         // Step 3: Estimate omega from sample variance adjusted for skewness
         let posterior_omega = calc_omega(sample_var, delta);

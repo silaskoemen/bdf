@@ -16,7 +16,7 @@ def benchmark_split_finding(n_samples=1000, n_features=10, n_runs=3):
     X, y = make_regression(n_samples=n_samples, n_features=n_features, random_state=42)  # type: ignore
 
     # Create distribution
-    dist = DM.create_distribution("normal", {"mean": 0, "std": 1})
+    dist = DM.create_distribution("NormalMuNormal", {"mean": 0, "std": 1})
     rust_spec = DM.to_rust_spec(dist)
 
     # Python implementation timing
@@ -52,7 +52,7 @@ def benchmark_training(n_samples=1000, n_features=10, n_trees=100):
 
     # BDF timing
     start = time.time()
-    bdf = BDFRegressor(dist="normal", prior_params={"mean": 0, "std": 1})
+    bdf = BDFRegressor(dist="normal", params={"mean": 0, "std": 1})
     bdf.fit(X, y)
     bdf_time = time.time() - start
 

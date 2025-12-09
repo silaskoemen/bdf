@@ -14,7 +14,7 @@ RANDOM_STATE = 42
 @pytest.fixture(scope="module")
 def regression_data():
     """Generate synthetic regression data."""
-    X, y = make_regression(
+    X, y = make_regression(  # type: ignore[reportAssignmentType]
         n_samples=N_SAMPLES,
         n_features=N_FEATURES,
         noise=10.0,

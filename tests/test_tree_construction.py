@@ -11,7 +11,7 @@ def test_tree_building():
     X, y = make_regression(n_samples=100, n_features=5, random_state=42)  # type: ignore
 
     # Create regressor with limited depth
-    regressor = BDFRegressor(dist="normal", n_trees=1, max_depth=3, prior_params={"mean": y.mean(), "std": y.std()})
+    regressor = BDFRegressor(dist="normal", n_trees=1, max_depth=3, params={"mean": y.mean(), "std": y.std()})
     regressor.fit(X, y)
 
     # Check tree structure
@@ -32,13 +32,13 @@ def test_forest_ensemble():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # Train with different tree counts
-    regressor1 = BDFRegressor(dist="normal", n_trees=1, max_depth=3, prior_params={"mean": y.mean(), "std": y.std()})
+    regressor1 = BDFRegressor(dist="normal", n_trees=1, max_depth=3, params={"mean": y.mean(), "std": y.std()})
     regressor1.fit(X_train, y_train)
 
-    regressor10 = BDFRegressor(dist="normal", n_trees=10, max_depth=3, prior_params={"mean": y.mean(), "std": y.std()})
+    regressor10 = BDFRegressor(dist="normal", n_trees=10, max_depth=3, params={"mean": y.mean(), "std": y.std()})
     regressor10.fit(X_train, y_train)
 
-    regressor50 = BDFRegressor(dist="normal", n_trees=50, max_depth=3, prior_params={"mean": y.mean(), "std": y.std()})
+    regressor50 = BDFRegressor(dist="normal", n_trees=50, max_depth=3, params={"mean": y.mean(), "std": y.std()})
     regressor50.fit(X_train, y_train)
 
     # Calculate RMSE
@@ -56,7 +56,7 @@ def test_distribution_specific_methods():
     X, y = make_regression(n_samples=100, n_features=5, random_state=42)  # type: ignore
 
     # For normal_normal, we should be able to get predictive variance
-    regressor = BDFRegressor(dist="normal", n_trees=10, prior_params={"mean": y.mean(), "std": y.std()})
+    regressor = BDFRegressor(dist="normal", n_trees=10, params={"mean": y.mean(), "std": y.std()})
     regressor.fit(X, y)
 
     # Call method to get variance estimates
@@ -75,7 +75,7 @@ def test_categorical_features():
     X[:, 0] = np.random.choice([0, 1, 2], size=100)  # Categorical feature
     y = 2 * X[:, 0] + X[:, 1] + np.random.randn(100) * 0.1  # Response depends on categorical
 
-    regressor = BDFRegressor(dist="normal", n_trees=10, max_depth=3, prior_params={"mean": y.mean(), "std": y.std()})
+    regressor = BDFRegressor(dist="normal", n_trees=10, max_depth=3, params={"mean": y.mean(), "std": y.std()})
     regressor.fit(X, y)
 
     # Create test data with categorical values

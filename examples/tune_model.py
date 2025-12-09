@@ -39,7 +39,7 @@ def objective(trial):
     # Create and train the model with the suggested parameters
     bdf = BDFRegressor(
         dist="sn",
-        prior_params={"mean": 0, "std": std, "mean_alpha": 0, "m_alpha": m_alpha},
+        params={"mean": 0, "std": std, "mean_alpha": 0, "m_alpha": m_alpha},
         n_trees=n_trees,
         min_samples_leaf=min_samples_leaf,
         reg_beta=reg_beta,
@@ -87,7 +87,7 @@ for key, value in trial.params.items():
 best_params = trial.params
 best_bdf = BDFRegressor(
     dist="sn",
-    prior_params={
+    params={
         "mean": best_params["prior_mean"],
         "std": best_params["prior_std"],
         "mean_alpha": best_params["prior_mean_alpha"],

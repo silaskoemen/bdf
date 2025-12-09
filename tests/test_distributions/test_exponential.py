@@ -99,17 +99,17 @@ class TestGammaABLambdaExponential:
     def test_params_initialization(self, get_alpha_beta):
         alpha, beta = get_alpha_beta
         params = GammaABLambdaExponentialParams(alpha_lambda=alpha, beta_lambda=beta)
-        dist = GammaABLambdaExponential(prior_params=params)
+        dist = GammaABLambdaExponential(params=params)
         assert dist.alpha_lambda == alpha
         assert dist.beta_lambda == beta
-        assert dist.prior_params == params
+        assert dist.params == params
         # Assert `params` if used for distribution
 
     @pytest.mark.parametrize("data", [get_small_data, get_large_data])
     def test_calc_posterior_params(self, get_alpha_beta, data):
         alpha_lambda, beta_lambda = get_alpha_beta
-        prior_params = GammaABLambdaExponentialParams(alpha_lambda=alpha_lambda, beta_lambda=beta_lambda)
-        posterior_params = GammaABLambdaExponential(prior_params=prior_params).calc_posterior_params(data)
+        params = GammaABLambdaExponentialParams(alpha_lambda=alpha_lambda, beta_lambda=beta_lambda)
+        posterior_params = GammaABLambdaExponential(params=params).calc_posterior_params(data)
         posterior_alpha = alpha_lambda + len(data)
         posterior_beta = beta_lambda + np.sum(data)
         expected_posterior_lambda = posterior_alpha / posterior_beta
@@ -133,7 +133,7 @@ class TestGammaABLambdaExponential:
     )
     def test_calc_posterior_params_edge_cases(self, get_bdf_dist_params, data):
         with pytest.raises(ValueError):
-            GammaABLambdaExponential(prior_params=get_bdf_dist_params).calc_posterior_params(data)
+            GammaABLambdaExponential(params=get_bdf_dist_params).calc_posterior_params(data)
 
     def test_correct_likelihoods(self, get_small_data, get_alpha_beta):
         # Check whether (log-)likelihoods are correct for certain values,
@@ -169,12 +169,12 @@ class TestGammaABLambdaExponential:
         # Only float accepted, test against int, str, bool
         data = np.array([1, 2, 3])
         with pytest.raises(ValueError):
-            GammaABLambdaExponential(prior_params=get_bdf_dist_params).calc_posterior_params(data)
+            GammaABLambdaExponential(params=get_bdf_dist_params).calc_posterior_params(data)
 
         data = np.array(["a", "b", "c"])
         with pytest.raises(ValueError):
-            GammaABLambdaExponential(prior_params=get_bdf_dist_params).calc_posterior_params(data)
+            GammaABLambdaExponential(params=get_bdf_dist_params).calc_posterior_params(data)
 
         data = np.array([True, False, True])
         with pytest.raises(ValueError):
-            GammaABLambdaExponential(prior_params=get_bdf_dist_params).calc_posterior_params(data)
+            GammaABLambdaExponential(params=get_bdf_dist_params).calc_posterior_params(data)

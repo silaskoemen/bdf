@@ -27,7 +27,7 @@ class NormalMeanPseudoAlphaSkewNormalParams(BDFDistributionParams):
         Prior mean for the data mean (used in Normal-like posterior update for location).
     sigma_mu : float
         Prior standard deviation for the data mean.
-    mean_alpha : float
+    prior_alpha : float
         Prior mean for skewness parameter alpha (shrinkage target).
     m_alpha : float
         Prior strength (pseudo sample size) for alpha shrinkage.
@@ -36,7 +36,7 @@ class NormalMeanPseudoAlphaSkewNormalParams(BDFDistributionParams):
     # Prior hyperparameters
     mu_mu: float = Field(default=0.0, description="Prior mean for data mean μ")
     sigma_mu: float = Field(default=1.0, gt=0, description="Prior std for data mean μ")
-    mean_alpha: float = Field(default=0.0, description="Prior mean (shrinkage target) for skewness α")
+    prior_alpha: float = Field(default=0.0, description="Prior mean (shrinkage target) for skewness α")
     m_alpha: float = Field(default=10.0, gt=0, description="Prior strength for α shrinkage")
 
     # Scoring defaults for non-conjugate model
@@ -151,7 +151,7 @@ class NormalMeanPseudoAlphaSkewNormal(BDFDistribution[NormalMeanPseudoAlphaSkewN
         Prior mean for data mean.
     sigma_mu : float, default=1.0
         Prior std for data mean.
-    mean_alpha : float, default=0.0
+    prior_alpha : float, default=0.0
         Shrinkage target for skewness α.
     m_alpha : float, default=10.0
         Shrinkage strength for α.
@@ -174,7 +174,7 @@ class NormalMeanPseudoAlphaSkewNormal(BDFDistribution[NormalMeanPseudoAlphaSkewN
         super().__init__(params)
         self.mu_mu = self.params.mu_mu
         self.sigma_mu = self.params.sigma_mu
-        self.mean_alpha = self.params.mean_alpha
+        self.prior_alpha = self.params.prior_alpha
         self.m_alpha = self.params.m_alpha
 
     # ========================================================================
@@ -217,7 +217,7 @@ class NormalMeanPseudoAlphaSkewNormal(BDFDistribution[NormalMeanPseudoAlphaSkewN
         alpha_mle = np.sign(delta) * (np.abs(delta) / np.sqrt(1 - delta**2)) ** (1 / 3)
 
         # Apply shrinkage prior
-        posterior_alpha = (n / (n + self.m_alpha)) * alpha_mle + (self.m_alpha / (n + self.m_alpha)) * self.mean_alpha
+        posterior_alpha = (n / (n + self.m_alpha)) * alpha_mle + (self.m_alpha / (n + self.m_alpha)) * self.prior_alpha
 
         # Step 3: Estimate omega from sample variance adjusted for skewness
         posterior_omega = np.sqrt(sample_var) / np.sqrt(1 - 2 * delta**2 / np.pi)

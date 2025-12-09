@@ -20,9 +20,9 @@ X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.2, random_state=42)
 start_time = time()
 bdf = BDFRegressor(
     dist="nnsnmap",
-    # prior_params={"mu_zero": 0, "sigma_zero": 1, "mu_gamma": 0, "sigma_gamma": .25},
-    prior_params={"mu_alpha": 0, "sigma_alpha": 5, "mu_xi": 0, "sigma_xi": 1},
-    # prior_params={"mu_zero": 0, "sigma_zero": 1, "mean_alpha": 0, "m_alpha": 10},
+    # params={"mu_zero": 0, "sigma_zero": 1, "mu_gamma": 0, "sigma_gamma": .25},
+    params={"mu_alpha": 0, "sigma_alpha": 5, "mu_xi": 0, "sigma_xi": 1},
+    # params={"mu_zero": 0, "sigma_zero": 1, "mean_alpha": 0, "m_alpha": 10},
     n_trees=25,
     reg_beta=0.04,
     reg_lambda=0.05,
@@ -58,7 +58,7 @@ X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.2, random_state=1234)
 start_time = time()
 bdf = BDFRegressor(
     dist="sn",
-    prior_params={"mean": 0, "std": 3, "mean_alpha": 0, "m_alpha": 5},
+    params={"mean": 0, "std": 3, "mean_alpha": 0, "m_alpha": 5},
     n_trees=25,
     reg_beta=0.5,
     reg_lambda=0,
@@ -94,7 +94,7 @@ X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.2, random_state=1234)
 start_time = time()
 bdf = BDFRegressor(
     dist="sn",
-    prior_params={"mean": 0, "std": 10, "mean_alpha": 0, "m_alpha": 5},
+    params={"mean": 0, "std": 10, "mean_alpha": 0, "m_alpha": 5},
     n_trees=25,
     reg_beta=0.05,
     reg_lambda=0,
@@ -150,7 +150,7 @@ X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.2, random_state=1234)
 start_time = time()
 bdf = BDFRegressor(
     dist="nnsn",
-    prior_params={"mu_zero": 0, "sigma_zero": 3, "mu_gamma": 0, "sigma_gamma": 0.5},  # "mean_alpha": 0, "m_alpha": 10},
+    params={"mu_zero": 0, "sigma_zero": 3, "mu_gamma": 0, "sigma_gamma": 0.5},  # "mean_alpha": 0, "m_alpha": 10},
     n_trees=25,
     reg_beta=0.1,
     reg_lambda=0.01,
