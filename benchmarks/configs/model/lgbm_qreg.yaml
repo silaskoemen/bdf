@@ -1,0 +1,46 @@
+name: lgbm_qreg
+target_type: regression
+class_name: LGBMQuantileRegressor
+probabilistic: true
+
+compatible_target_domains: [real, positive_real, nonnegative_real, positive_integer, nonnegative_integer]
+
+fixed_init_kwargs:
+  random_state: 1234
+  verbose: -1
+  boosting_type: gbdt
+  bagging_seed: 1234
+  feature_fraction_seed: 1234
+  data_random_seed: 1234
+  deterministic: true
+
+tunable_init_kwargs:
+  num_leaves:
+    type: int
+    low: 5
+    high: 250
+  learning_rate:
+    type: float
+    low: 0.001
+    high: 0.2
+    log: true
+  max_depth:
+    type: int
+    low: 2
+    high: 15
+  n_estimators:
+    type: int
+    low: 10
+    high: 250
+  min_child_samples:
+    type: int
+    low: 5
+    high: 100
+  subsample:
+    type: float
+    low: 0.5
+    high: 1.0
+  colsample_bytree:
+    type: float
+    low: 0.5
+    high: 1.0

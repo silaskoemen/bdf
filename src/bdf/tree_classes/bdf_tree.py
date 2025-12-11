@@ -141,7 +141,7 @@ class BDFTree:
         """Predict the parameters for each observation in X."""
         return np.array([self._find_leaf_node(x).predict_params() for x in X], dtype=object)
 
-    def predict_samples(self, X: np.ndarray, size: int = 1) -> np.ndarray:
+    def predict_samples(self, X: np.ndarray, n_samples: int = 1) -> np.ndarray:
         """Draw samples for each observation in X."""
-        return self.root.predict_samples(X)
-        return np.array([self._find_leaf_node(x).predict_samples(size=size) for x in X])
+        return self.root.predict_samples(X, n_samples)
+        return np.array([self._find_leaf_node(x).predict_samples(n_samples=n_samples) for x in X])

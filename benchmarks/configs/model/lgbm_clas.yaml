@@ -34,7 +34,7 @@ tunable_init_kwargs:
   n_estimators:
     type: int
     low: 10
-    high: 500
+    high: 250
 
 fit_kwargs:
   early_stopping_rounds: 10

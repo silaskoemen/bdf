@@ -1,0 +1,186 @@
+{
+  "model_config": {
+    "name": "rf_reg",
+    "target_type": "regression",
+    "class_name": "RandomForestRegressor",
+    "probabilistic": false,
+    "compatible_target_domains": [
+      "real",
+      "positive_real",
+      "nonnegative_real",
+      "integer",
+      "nonnegative_integer",
+      "positive_integer"
+    ],
+    "fixed_init_kwargs": {
+      "random_state": 1234
+    },
+    "tunable_init_kwargs": {
+      "criterion": {
+        "type": "categorical",
+        "categories": [
+          "squared_error",
+          "absolute_error",
+          "poisson"
+        ]
+      },
+      "max_leaf_nodes": {
+        "type": "int",
+        "low": 5,
+        "high": 250
+      },
+      "max_depth": {
+        "type": "int",
+        "low": 2,
+        "high": 30
+      },
+      "min_samples_leaf": {
+        "type": "int",
+        "low": 5,
+        "high": 50
+      },
+      "min_samples_split": {
+        "type": "int",
+        "low": 10,
+        "high": 100
+      },
+      "max_features": {
+        "type": "float",
+        "low": 0.1,
+        "high": 1.0
+      },
+      "n_estimators": {
+        "type": "int",
+        "low": 10,
+        "high": 200
+      }
+    }
+  },
+  "datasets": {
+    "realestate": {
+      "metadata": {
+        "name": "realestate",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 96.72022950580626,
+        "mae": 5.771999224608157,
+        "rmse": 9.834644350753425,
+        "r2": 0.5447547950672889,
+        "msle": 0.03726821741321459,
+        "mape": 0.14787519846718886
+      },
+      "best_params": {
+        "criterion": "squared_error",
+        "max_leaf_nodes": 183,
+        "max_depth": 8,
+        "min_samples_leaf": 7,
+        "min_samples_split": 10,
+        "max_features": 0.6649376334404915,
+        "n_estimators": 77
+      },
+      "tuning_time_seconds": 12.248332023620605,
+      "fit_time_seconds": 0.04245495796203613
+    },
+    "boston_housing": {
+      "metadata": {
+        "name": "boston_housing",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 9.701208707811283,
+        "mae": 2.221385235774997,
+        "rmse": 3.114676340779453,
+        "r2": 0.8801094610742402,
+        "msle": 0.018970023502155077,
+        "mape": 0.10872197144415371
+      },
+      "best_params": {
+        "criterion": "poisson",
+        "max_leaf_nodes": 54,
+        "max_depth": 30,
+        "min_samples_leaf": 5,
+        "min_samples_split": 17,
+        "max_features": 0.7955141607128244,
+        "n_estimators": 128
+      },
+      "tuning_time_seconds": 12.07004189491272,
+      "fit_time_seconds": 0.10293316841125488
+    },
+    "abalone_age": {
+      "metadata": {
+        "name": "abalone_age",
+        "target_domain": "positive_integer"
+      },
+      "metrics": {
+        "mse": 4.459501920820798,
+        "mae": 1.5099777374490493,
+        "rmse": 2.111753281238317,
+        "r2": 0.5502519953679197,
+        "msle": 0.029502252980899587,
+        "mape": 0.15113736056042956
+      },
+      "best_params": {
+        "criterion": "squared_error",
+        "max_leaf_nodes": 246,
+        "max_depth": 30,
+        "min_samples_leaf": 5,
+        "min_samples_split": 11,
+        "max_features": 0.6139268076930763,
+        "n_estimators": 200
+      },
+      "tuning_time_seconds": 144.4358367919922,
+      "fit_time_seconds": 0.7942788600921631
+    },
+    "parkinsons_updrs": {
+      "metadata": {
+        "name": "parkinsons_updrs",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 5.829474736830142,
+        "mae": 1.632902007565446,
+        "rmse": 2.4144305201910745,
+        "r2": 0.9475717193465751,
+        "msle": 0.013825595424114639,
+        "mape": 0.07609489394819713
+      },
+      "best_params": {
+        "criterion": "poisson",
+        "max_leaf_nodes": 127,
+        "max_depth": 22,
+        "min_samples_leaf": 9,
+        "min_samples_split": 10,
+        "max_features": 0.9102116888185985,
+        "n_estimators": 91
+      },
+      "tuning_time_seconds": 934.8009040355682,
+      "fit_time_seconds": 2.50614595413208
+    },
+    "wine_quality": {
+      "metadata": {
+        "name": "wine_quality",
+        "target_domain": "positive_integer"
+      },
+      "metrics": {
+        "mse": 0.4456786089731837,
+        "mae": 0.5023481209209795,
+        "rmse": 0.6675916483698576,
+        "r2": 0.4328513257082326,
+        "msle": 0.010068981309141915,
+        "mape": 0.08916392020365371
+      },
+      "best_params": {
+        "criterion": "squared_error",
+        "max_leaf_nodes": 191,
+        "max_depth": 27,
+        "min_samples_leaf": 7,
+        "min_samples_split": 16,
+        "max_features": 0.6313568820591755,
+        "n_estimators": 129
+      },
+      "tuning_time_seconds": 195.6814432144165,
+      "fit_time_seconds": 0.7132213115692139
+    }
+  }
+}

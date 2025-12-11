@@ -1,0 +1,22 @@
+
+name: gp_reg
+target_type: regression
+class_name: GaussianProcessRegressor
+probabilistic: true
+
+compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+
+fixed_init_kwargs:
+  random_state: 1234
+
+tunable_init_kwargs:
+  kernel_comb:
+    type: categorical
+    categories: [RBF, RBF+RQ, RBF*RQ, RBF+Matern, RBF*Matern]
+  alpha:
+    type: float
+    low: 0.0001
+    high: 10.0
+  normalize_y:
+    type: categorical
+    categories: [true, false]

@@ -58,7 +58,10 @@ hydra-core = "<1.4.0"
 optuna = "*"
 lightgbm = "*"
 xgboost = "*"
-ngboost = "*"
+ngboost = ">=0.3.6,<0.4"
+catboost = ">=1.2.8,<2"
+tqdm = ">=4.67.1,<5"
+scoringrules = ">=0.8.0,<0.9"
 
 # --- DOCS FEATURE (Sphinx) ---
 [feature.docs.dependencies]

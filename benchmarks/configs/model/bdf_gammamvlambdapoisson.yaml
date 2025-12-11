@@ -37,9 +37,13 @@ tunable_init_kwargs:
     type: float
     low: 0.5
     high: 1.0
+  max_depth:
+    type: int
+    low: 10
+    high: 30
   eta:
     type: float
-    low: 0.005
+    low: 0.001
     high: 0.1
     log: true
 

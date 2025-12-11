@@ -38,7 +38,19 @@ tunable_init_kwargs:
   n_estimators:
     type: int
     low: 10
-    high: 500
+    high: 250
+  min_child_samples:
+    type: int
+    low: 5
+    high: 100
+  subsample:
+    type: float
+    low: 0.5
+    high: 1.0
+  colsample_bytree:
+    type: float
+    low: 0.5
+    high: 1.0
 
 fit_kwargs:
   early_stopping_rounds: 10

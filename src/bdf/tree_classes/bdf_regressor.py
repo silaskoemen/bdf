@@ -19,17 +19,17 @@ class BDFModel(BaseEstimator, RegressorMixin):
     def __init__(
         self,
         dist: str = "NormalMeanPseudoAlphaSkewNormal",
-        params: dict = {},
+        params: dict = {"mu_mu": "auto", "sigma_mu": 10.0},
         n_trees: int = 25,
         reg_beta: float = 0.0,
         reg_lambda: float = 0.001,
-        max_depth: int = 10,
+        max_depth: int = 25,
         min_samples_leaf: int = 10,
         min_samples_split: int = 20,
         min_child_weight: int | float = 10,
-        subsample: float = 0.75,
+        subsample: float = 0.9,
         colsample: float = 0.9,
-        eta: float = 0.025,
+        eta: float = 0.01,
         n_jobs: int = -1,
         random_state: int = RANDOM_SEED,
     ):
@@ -57,6 +57,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
         """
         self.is_fitted_ = False
         self.dist, self.params = dist, params
+        self.rng = np.random.default_rng(random_state)
         self._validate_init_params(
             n_trees=n_trees,
             reg_beta=reg_beta,
@@ -81,7 +82,8 @@ class BDFModel(BaseEstimator, RegressorMixin):
         `y` : np.ndarray | pd.Series
             Training data target values.
         """
-        # Seed for reproducibility of subsample and colsample
+        # Seed for reproducibility of subsample and colsample, reseed for each fit call
+        self.rng = np.random.default_rng(self.random_state)
         np.random.seed(self.random_state)
         X, y = self._validate_fit_input(X, y)
         self.n_features_in_ = X.shape[1]
@@ -154,24 +156,25 @@ class BDFModel(BaseEstimator, RegressorMixin):
             return y * self.y_std + self.y_mean
         return y
 
-    def _get_pooled_samples(self, X: np.ndarray, sample_size: int) -> np.ndarray:
+    def _get_pooled_samples(self, X: np.ndarray, n_samples: int) -> np.ndarray:
         """
         Internal helper to draw and pool samples from all trees.
 
-        Returns an array of shape (n_obs, sample_size).
+        Returns an array of shape (n_obs, n_samples).
         """
-        # To get a total of `sample_size` samples, we need to draw `ceil(sample_size / n_trees)` from each.
-        per_tree_size = int(np.ceil(sample_size / self.n_trees))
+        # To get a total of `n_samples` samples, we need to draw `ceil(n_samples / n_trees)` from each.
+        per_tree_size = int(np.ceil(n_samples / self.n_trees))
 
         # Shape: (n_trees, n_obs, per_tree_size)
-        tree_samples = np.array([tree.predict_samples(X, size=per_tree_size) for tree in self.trees])
+        tree_samples = np.array([tree.predict_samples(X, n_samples=per_tree_size) for tree in self.trees])
 
         # Transpose and reshape to pool samples across trees
         # Shape: (n_obs, n_trees * per_tree_size)
         pooled_samples = tree_samples.transpose(1, 0, 2).reshape(X.shape[0], -1)
 
-        # Return exactly sample_size samples
-        return pooled_samples[:, :sample_size]
+        # Return exactly `n_samples` but draw randomly
+        indices = self.rng.choice(pooled_samples.shape[1], size=n_samples, replace=False)
+        return pooled_samples[:, indices]
 
     def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
         """
@@ -257,12 +260,12 @@ class BDFModel(BaseEstimator, RegressorMixin):
             return total_variance * self.y_std**2
         return total_variance
 
-    def predict_samples(self, X: np.ndarray | pd.DataFrame, sample_size: int = 1) -> np.ndarray:
+    def predict_samples(self, X: np.ndarray | pd.DataFrame, n_samples: int = 1) -> np.ndarray:
         """
         Draws samples from the predictive distribution for each observation in X.
         """
         X_validated = self._validate_prediction_input(X)
-        pooled_samples = self._get_pooled_samples(X_validated, sample_size)
+        pooled_samples = self._get_pooled_samples(X_validated, n_samples)
         return self._unstandardize_y(pooled_samples)
 
     def predict_params(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
@@ -662,4 +665,10 @@ class BDFClassifier(BDFModel, ClassifierMixin):
         super().fit(X, y, verbose=verbose)
 
     def predict_proba(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
-        return -1 * np.ones_like(self.predict(X))  # Placeholder implementation
+        # Also stack columns for [n_obs, n_classes]
+        true_class_preds = self.predict_mean(X)
+        return np.vstack([1 - true_class_preds, true_class_preds]).T
+
+    def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
+        proba = self.predict_proba(X)
+        return np.argmax(proba, axis=1)

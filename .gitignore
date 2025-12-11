@@ -30,3 +30,7 @@ outputs/
 
 .pixi/
 .local/
+
+**/*return.py
+**/*finance*.py
+**/*stock*.py

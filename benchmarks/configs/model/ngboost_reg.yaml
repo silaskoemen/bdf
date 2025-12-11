@@ -1,0 +1,35 @@
+
+name: ngboost_reg
+target_type: regression
+class_name: NGBRegressor
+probabilistic: true
+
+compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+
+fixed_init_kwargs:
+  random_state: 1234
+  verbose: false
+
+tunable_init_kwargs:
+  dist_name:
+    type: categorical
+    categories: [Normal, LogNormal, Exponential]
+  n_estimators:
+    type: int
+    low: 25
+    high: 250
+  learning_rate:
+    type: float
+    low: 0.01
+    high: 0.5
+  minibatch_frac:
+    type: float
+    low: 0.1
+    high: 1.0
+  col_sample:
+    type: float
+    low: 0.5
+    high: 1.0
+  natural_gradient:
+    type: categorical
+    categories: [true, false]

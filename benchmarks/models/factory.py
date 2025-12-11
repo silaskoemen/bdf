@@ -7,6 +7,14 @@ from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessR
 
 from bdf.tree_classes.bdf_regressor import BDFModel
 
+from .wrappers import (
+    GPClassifierWrapper,
+    GPRegressorWrapper,
+    LGBMQuantileRegressorWrapper,
+    NGBClassifierWrapper,
+    NGBRegressorWrapper,
+)
+
 # from ngboost import NGBoostClassifier, ...
 
 
@@ -24,5 +32,15 @@ class ModelFactory:
                 return RandomForestRegressor
             case "BDFModel":
                 return BDFModel
+            case "GaussianProcessRegressor":
+                return GPRegressorWrapper
+            case "GaussianProcessClassifier":
+                return GPClassifierWrapper
+            case "NGBRegressor":
+                return NGBRegressorWrapper
+            case "NGBClassifier":
+                return NGBClassifierWrapper
+            case "LGBMQuantileRegressor":
+                return LGBMQuantileRegressorWrapper
             case _:
                 raise ValueError(f"Model class name '{cfg.name}' not recognized.")  # type: ignore[reportUnboundVariable]

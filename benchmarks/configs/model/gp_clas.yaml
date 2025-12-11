@@ -1,0 +1,18 @@
+
+name: gp_clas
+target_type: classification
+class_name: GaussianProcessClassifier
+probabilistic: true
+
+compatible_target_domains: [binary]
+
+fixed_init_kwargs:
+  random_state: 1234
+
+tunable_init_kwargs:
+  kernel_comb:
+    type: categorical
+    categories: [RBF, RBF+RQ, RBF*RQ, RBF+Matern, RBF*Matern]
+  normalize_y:
+    type: categorical
+    categories: [true, false]

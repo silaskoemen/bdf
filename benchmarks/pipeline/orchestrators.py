@@ -14,6 +14,7 @@ from sklearn.model_selection import cross_val_score as CVS
 from sklearn.model_selection import train_test_split as TTS
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from tqdm import tqdm
 
 from ..metrics.classification import CLAS_POINT_METRICS, CLAS_PROB_METRICS
 from ..metrics.regression import REG_POINT_METRICS, REG_PROB_METRICS
@@ -25,7 +26,7 @@ from ..pipeline.utils import LogTransformTransformer
 class Orchestrator:
     def __init__(self, cfg: OmegaConf):
         self.cfg = cfg
-        self.model_cfg = cfg.model
+        self.model_cfg = cfg.model  # type: ignore[attr-defined]
         self.target_type = self.model_cfg.target_type
         self.standardize_target = self.model_cfg.get("standardize_target", "no")
         self.log_transform_target = self.model_cfg.get("log_transform_target", False)
@@ -35,7 +36,7 @@ class Orchestrator:
         compatible_domains = self.model_cfg["compatible_target_domains"]
         return dataset_metadata.target_domain.value in compatible_domains
 
-    def _maybe_apply_target_standardization(self, y_train) -> tuple[np.ndarray | pd.Series, StandardScaler | None]:
+    def _maybe_apply_target_standardization(self, y_train) -> tuple[np.ndarray | pd.Series, Pipeline | None]:
         """Apply target standardization based on config."""
         steps = []
         if self.target_type != "regression":
@@ -70,7 +71,7 @@ class Orchestrator:
 
     def run(self):
         # Set global random seed for reproducibility
-        np.random.seed(self.cfg.seed)
+        np.random.seed(self.cfg.seed)  # type: ignore[attr-defined]
 
         model_cls = ModelFactory.get(self.model_cfg)
         logger.success(f"⚙ Loaded model class {model_cls.__name__}")
@@ -91,22 +92,21 @@ class Orchestrator:
 
             logger.info(f"🔬 Processing {metadata.name} with target domain {metadata.target_domain.value}")
             logger.info(f"Number of samples: {X.shape[0]}, Number of features: {X.shape[1]}")
-            start_time = time()
             results["datasets"][metadata.name] = {"metadata": metadata.to_dict(), "metrics": {}, "best_params": {}}
 
             # Use seed for train/test split
-            X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.25, random_state=self.cfg.seed, shuffle=True)
+            X_train, X_test, y_train, y_test = TTS(X, y, test_size=0.25, random_state=self.cfg.seed, shuffle=True)  # type: ignore[arg-type]
 
             # Create CV splitter with explicit seed for reproducible folds
             if self.target_type == "regression":
-                cv_splitter = KFold(n_splits=3, shuffle=True, random_state=self.cfg.seed)
+                cv_splitter = KFold(n_splits=3, shuffle=True, random_state=self.cfg.seed)  # type: ignore[arg-type]
             else:
-                cv_splitter = StratifiedKFold(n_splits=3, shuffle=True, random_state=self.cfg.seed)
+                cv_splitter = StratifiedKFold(n_splits=3, shuffle=True, random_state=self.cfg.seed)  # type: ignore[arg-type]
 
             # Tune model
             def objective(trial):
                 # Reset NumPy seed at each trial for reproducibility within CVS
-                np.random.seed(self.cfg.seed + trial.number)
+                np.random.seed(self.cfg.seed + trial.number)  # type: ignore[attr-defined]
 
                 # 1. Build init_kwargs from tunable init parameters
                 iter_init_kwargs = {}
@@ -173,7 +173,7 @@ class Orchestrator:
                 logger.warning(f"⚠️  Warning: Could not delete existing study: {e}")
 
             # Create study with seeded sampler for reproducible trial suggestions
-            sampler = TPESampler(seed=self.cfg.seed)
+            sampler = TPESampler(seed=self.cfg.seed)  # type: ignore[arg-type]
             study = optuna.create_study(
                 study_name=study_name,
                 storage=storage_name,
@@ -181,7 +181,8 @@ class Orchestrator:
                 sampler=sampler,
                 load_if_exists=False,
             )
-            study.optimize(objective, n_trials=self.cfg.n_trials)
+            start_time = time()
+            study.optimize(objective, n_trials=self.cfg.n_trials)  # type: ignore[arg-type]
             end_time = time()
             logger.info(f"⏱ Tuning completed in {end_time - start_time:.2f} seconds")
             results["datasets"][metadata.name]["tuning_time_seconds"] = end_time - start_time
@@ -217,7 +218,7 @@ class Orchestrator:
             logger.info(f"🏆 Best params for {metadata.name}: tuned_init_kwargs={tuned_init_kwargs}")
 
             # Evaluate on test set with seed reset
-            np.random.seed(self.cfg.seed)
+            np.random.seed(self.cfg.seed)  # type: ignore[attr-defined]
             best_model = model_cls(**self.model_cfg.fixed_init_kwargs, **tuned_init_kwargs)
             start_time = time()
             best_model.fit(X_train, y_train)
@@ -255,18 +256,38 @@ class Orchestrator:
         if pipeline is not None and self.standardize_target in ["only", "both"]:
             y_pred = pipeline.inverse_transform(y_pred.reshape(-1, 1)).ravel()
 
-        for m, m_func in point_metrics.items():
-            metric_dict[m] = float(m_func(y, y_pred))
+        # Point metrics with progress bar
+        pbar = tqdm(point_metrics.items(), desc="Point metrics", leave=False)
+        for m, m_func in pbar:
+            pbar.set_description(f"📊 {m}")
+            try:
+                metric_dict[m] = float(m_func(y, y_pred))
+            except Exception as e:
+                logger.error(f"❌ Point metric {m} failed: {e}")
+                metric_dict[m] = float("nan")
 
-        if self.model_cfg.probabilistic:
-            y_pred_samples = model.predict_samples(X, sample_size=self.cfg.sample_size)
+        # Probabilistic metrics
+        if self.model_cfg.probabilistic and proba_metrics:
+            try:
+                y_pred_samples = model.predict_samples(X, n_samples=self.cfg.sample_size)  # type: ignore[attr-defined]
 
-            # Inverse transform samples if needed
-            if pipeline is not None and self.standardize_target in ["only", "both"]:
-                y_pred_samples = pipeline.inverse_transform(y_pred_samples)
+                # Inverse transform samples if needed
+                if pipeline is not None and self.standardize_target in ["only", "both"]:
+                    y_pred_samples = pipeline.inverse_transform(y_pred_samples)
 
-            for m, m_func in proba_metrics.items():
-                metric_dict[m] = float(m_func(y, y_pred_samples))
+                pbar = tqdm(proba_metrics.items(), desc="Prob metrics", leave=False)
+                for m, m_func in pbar:
+                    pbar.set_description(f"🎲 {m}")
+                    try:
+                        metric_dict[m] = float(m_func(y, y_pred_samples))
+                    except Exception as e:
+                        logger.error(f"❌ Prob metric {m} failed: {e}")
+                        metric_dict[m] = float("nan")
+            except Exception as e:
+                logger.error(f"❌ predict_samples failed: {e}")
+                import traceback
+
+                traceback.print_exc()
 
         return metric_dict
 

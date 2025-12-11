@@ -185,6 +185,10 @@ impl DistributionPrimitives for Kde {
         params
     }
 
+    fn required_moment_order(&self) -> usize {
+        0 // KDE does not require moments
+    }
+
     fn supports_rust_params(&self) -> bool {
         false // Can't add the full data array to HashMap<String, f64>
     }

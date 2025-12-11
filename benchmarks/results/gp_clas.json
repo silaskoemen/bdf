@@ -1,0 +1,88 @@
+{
+  "model_config": {
+    "name": "gp_clas",
+    "target_type": "classification",
+    "class_name": "GaussianProcessClassifier",
+    "probabilistic": true,
+    "compatible_target_domains": [
+      "binary"
+    ],
+    "fixed_init_kwargs": {
+      "random_state": 1234,
+      "normalize_y": true
+    },
+    "tunable_init_kwargs": {
+      "kernel_comb": {
+        "type": "categorical",
+        "categories": [
+          "RBF+RQ",
+          "RBF*RQ",
+          "RBF+Matern",
+          "RBF*Matern"
+        ]
+      }
+    }
+  },
+  "datasets": {
+    "breast_cancer": {
+      "metadata": {
+        "name": "breast_cancer",
+        "target_domain": "binary"
+      },
+      "metrics": {
+        "auroc": 0.9704545454545455,
+        "accuracy": 0.9440559440559441,
+        "f1": 0.9259259259259259,
+        "recall": 0.9090909090909091,
+        "precision": 0.9433962264150944,
+        "log_loss": 0.2137578211630215,
+        "brier": 0.056878118305505265
+      },
+      "best_params": {
+        "kernel_comb": "RBF+Matern"
+      },
+      "tuning_time_seconds": 213.09412598609924,
+      "fit_time_seconds": 8.099395036697388
+    },
+    "boston_housing_classification": {
+      "metadata": {
+        "name": "boston_housing_classification",
+        "target_domain": "binary"
+      },
+      "metrics": {
+        "auroc": 0.9525368248772504,
+        "accuracy": 0.8585858585858586,
+        "f1": 0.8444444444444444,
+        "recall": 0.8085106382978723,
+        "precision": 0.8837209302325582,
+        "log_loss": 0.29013905670688805,
+        "brier": 0.08961597079187102
+      },
+      "best_params": {
+        "kernel_comb": "RBF*Matern"
+      },
+      "tuning_time_seconds": 154.8758101463318,
+      "fit_time_seconds": 1.5960969924926758
+    },
+    "titanic": {
+      "metadata": {
+        "name": "titanic",
+        "target_domain": "binary"
+      },
+      "metrics": {
+        "auroc": 0.8414188836724047,
+        "accuracy": 0.7877094972067039,
+        "f1": 0.7246376811594203,
+        "recall": 0.704225352112676,
+        "precision": 0.746268656716418,
+        "log_loss": 0.4758505711960038,
+        "brier": 0.1518158139203741
+      },
+      "best_params": {
+        "kernel_comb": "RBF+RQ"
+      },
+      "tuning_time_seconds": 263.45717883110046,
+      "fit_time_seconds": 1.5289018154144287
+    }
+  }
+}
