@@ -92,10 +92,10 @@ def _load_wine_quality():
 
 # Registry of name - load functions for datasets
 REGRESSION_DATASET_REGISTRY: dict[str, Callable] = {
-    "realestate": _load_realestate,
-    "boston_housing": _load_boston_housing,
     "abalone_age": _load_abalone_age,
+    "boston_housing": _load_boston_housing,
     "parkinsons_updrs": _load_parkinsons_updrs,
+    "realestate": _load_realestate,
     "wine_quality": _load_wine_quality,
 }
 

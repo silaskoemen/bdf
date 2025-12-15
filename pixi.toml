@@ -11,6 +11,8 @@ platforms = ["osx-arm64", "linux-64", "win-64"]
 setup = "pip install --no-deps -e . && pre-commit install && pixi run build-rust"
 clean = "rm -rf build/ dist/ *.egg-info"
 bench = "PYTHONPATH=src python -m benchmarks.run"
+reg = "PYTHONPATH=src python -m benchmarks.calc_plot_regression_metrics"
+clas = "PYTHONPATH=src python -m benchmarks.calc_plot_classification_metrics"
 
 # ==========================================
 # 1. CORE DEPENDENCIES
@@ -52,7 +54,6 @@ lint-rust = "cargo clippy --manifest-path compiled/rust/Cargo.toml --all-targets
 matplotlib = "*"
 seaborn = "*"
 loguru = "*"
-properscoring = "*"
 omegaconf = "*"
 hydra-core = "<1.4.0"
 optuna = "*"
@@ -62,6 +63,9 @@ ngboost = ">=0.3.6,<0.4"
 catboost = ">=1.2.8,<2"
 tqdm = ">=4.67.1,<5"
 scoringrules = ">=0.8.0,<0.9"
+quantile-forest = ">=1.4.1,<2"
+mapie = ">=1.2.0,<2"
+polars = ">=1.36.1,<2"
 
 # --- DOCS FEATURE (Sphinx) ---
 [feature.docs.dependencies]

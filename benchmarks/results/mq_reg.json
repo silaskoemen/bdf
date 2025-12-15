@@ -1,0 +1,281 @@
+{
+  "model_config": {
+    "name": "mq_reg",
+    "target_type": "regression",
+    "class_name": "MapieQuantileRegressor",
+    "probabilistic": true,
+    "compatible_target_domains": [
+      "real",
+      "positive_real",
+      "nonnegative_real",
+      "integer",
+      "nonnegative_integer",
+      "positive_integer"
+    ],
+    "fixed_init_kwargs": {
+      "random_state": 1234
+    },
+    "tunable_init_kwargs": {
+      "criterion": {
+        "type": "categorical",
+        "categories": [
+          "squared_error",
+          "absolute_error",
+          "poisson"
+        ]
+      },
+      "max_leaf_nodes": {
+        "type": "int",
+        "low": 5,
+        "high": 250
+      },
+      "max_depth": {
+        "type": "int",
+        "low": 2,
+        "high": 30
+      },
+      "min_samples_leaf": {
+        "type": "int",
+        "low": 5,
+        "high": 50
+      },
+      "min_samples_split": {
+        "type": "int",
+        "low": 10,
+        "high": 100
+      },
+      "max_features": {
+        "type": "float",
+        "low": 0.1,
+        "high": 1.0
+      },
+      "n_estimators": {
+        "type": "int",
+        "low": 10,
+        "high": 200
+      }
+    }
+  },
+  "datasets": {
+    "realestate": {
+      "metadata": {
+        "name": "realestate",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 96.4966938789332,
+        "mae": 5.870946164421498,
+        "rmse": 9.823273073621296,
+        "r2": 0.5458069381689498,
+        "msle": 0.03829001996354573,
+        "mape": 0.15261998787011183,
+        "crps": 4.4136572365667694,
+        "pica": 0.07525641025641025,
+        "coverage_50": 0.3942307692307692,
+        "coverage_90": 0.7788461538461539,
+        "coverage_95": 0.9230769230769231,
+        "interval_score_50": 19.534786914769718,
+        "interval_score_90": 43.297610272744045,
+        "interval_score_95": 59.31462107097639,
+        "weighted_interval_score": 2.5395696823583433,
+        "sharpness": 5.371466817748916,
+        "ci_width_50": 6.566834343610528,
+        "ci_width_90": 16.254715653486056,
+        "ci_width_div_sigma_50": 0.44835501760964824,
+        "ci_width_div_sigma_90": 1.109801609378134,
+        "pit_ks_statistic": 0.16238461538461535,
+        "quantile_loss_50": 2.936316173241935,
+        "quantile_loss_90": 1.8164861330978117,
+        "quantile_loss_95": 1.416919032031503,
+        "dawid_sebastiani_score": 6.689402432785382
+      },
+      "best_params": {
+        "criterion": "poisson",
+        "max_leaf_nodes": 149,
+        "max_depth": 14,
+        "min_samples_leaf": 6,
+        "min_samples_split": 22,
+        "max_features": 0.6810984143641611,
+        "n_estimators": 107
+      },
+      "tuning_time_seconds": 11.48807692527771,
+      "fit_time_seconds": 0.06107592582702637
+    },
+    "boston_housing": {
+      "metadata": {
+        "name": "boston_housing",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 10.291945106673131,
+        "mae": 2.2905588687931115,
+        "rmse": 3.2081061557674695,
+        "r2": 0.8728089578734809,
+        "msle": 0.019630927606199777,
+        "mape": 0.10973388767323349,
+        "crps": 1.6890392612632465,
+        "pica": 0.011338383838383806,
+        "coverage_50": 0.494949494949495,
+        "coverage_90": 0.9090909090909091,
+        "coverage_95": 0.9393939393939394,
+        "interval_score_50": 7.485112406113378,
+        "interval_score_90": 15.967023427431819,
+        "interval_score_95": 19.62854350053651,
+        "weighted_interval_score": 0.9088992105720322,
+        "sharpness": 3.271480042758286,
+        "ci_width_50": 3.5985260446223744,
+        "ci_width_90": 10.13757971703821,
+        "ci_width_div_sigma_50": 0.39801516810352633,
+        "ci_width_div_sigma_90": 1.1212675537723618,
+        "pit_ks_statistic": 0.07334343434343438,
+        "quantile_loss_50": 1.1390958215449751,
+        "quantile_loss_90": 0.6609738707985369,
+        "quantile_loss_95": 0.4532121615389585,
+        "dawid_sebastiani_score": 3.3447154389268805
+      },
+      "best_params": {
+        "criterion": "poisson",
+        "max_leaf_nodes": 98,
+        "max_depth": 25,
+        "min_samples_leaf": 8,
+        "min_samples_split": 15,
+        "max_features": 0.8107224401074895,
+        "n_estimators": 103
+      },
+      "tuning_time_seconds": 10.456183910369873,
+      "fit_time_seconds": 0.07372498512268066
+    },
+    "abalone_age": {
+      "metadata": {
+        "name": "abalone_age",
+        "target_domain": "positive_integer"
+      },
+      "metrics": {
+        "mse": 4.56485834784039,
+        "mae": 1.5332776310957548,
+        "rmse": 2.1365529124831872,
+        "r2": 0.5396266287533211,
+        "msle": 0.03057330853293104,
+        "mape": 0.15375052967285552,
+        "crps": 1.1290391084613798,
+        "pica": 0.007922647527910665,
+        "coverage_50": 0.4880382775119617,
+        "coverage_90": 0.9023923444976076,
+        "coverage_95": 0.9521531100478469,
+        "interval_score_50": 5.041818885071408,
+        "interval_score_90": 10.01980612589953,
+        "interval_score_95": 12.663507319078908,
+        "weighted_interval_score": 0.6005519623060602,
+        "sharpness": 2.0569179989845394,
+        "ci_width_50": 2.219494070181802,
+        "ci_width_90": 6.731529365017394,
+        "ci_width_div_sigma_50": 0.704510610166407,
+        "ci_width_div_sigma_90": 2.136718418857065,
+        "pit_ks_statistic": 0.08077033492822971,
+        "quantile_loss_50": 0.7665292687005391,
+        "quantile_loss_90": 0.45839797328800774,
+        "quantile_loss_95": 0.30436745139976606,
+        "dawid_sebastiani_score": 2.52828503658452
+      },
+      "best_params": {
+        "criterion": "squared_error",
+        "max_leaf_nodes": 162,
+        "max_depth": 9,
+        "min_samples_leaf": 12,
+        "min_samples_split": 16,
+        "max_features": 0.7555181362463333,
+        "n_estimators": 110
+      },
+      "tuning_time_seconds": 79.67274689674377,
+      "fit_time_seconds": 0.33255505561828613
+    },
+    "parkinsons_updrs": {
+      "metadata": {
+        "name": "parkinsons_updrs",
+        "target_domain": "positive_real"
+      },
+      "metrics": {
+        "mse": 6.890426353784065,
+        "mae": 1.826192939531731,
+        "rmse": 2.624962162352834,
+        "r2": 0.9380298872528637,
+        "msle": 0.014535539379936251,
+        "mape": 0.0824436590209323,
+        "crps": 1.3710802458594045,
+        "pica": 0.013238597685500342,
+        "coverage_50": 0.5309734513274337,
+        "coverage_90": 0.9203539823008849,
+        "coverage_95": 0.95643294758339,
+        "interval_score_50": 6.168371155484375,
+        "interval_score_90": 12.5832542107248,
+        "interval_score_95": 15.73192819461889,
+        "weighted_interval_score": 0.7368812448321406,
+        "sharpness": 2.6387098591595426,
+        "ci_width_50": 2.696292693354188,
+        "ci_width_90": 9.045993726296727,
+        "ci_width_div_sigma_50": 0.25561554427772426,
+        "ci_width_div_sigma_90": 0.8575836798354856,
+        "pit_ks_statistic": 0.029296800544588164,
+        "quantile_loss_50": 0.9137961314903956,
+        "quantile_loss_90": 0.4848075574720523,
+        "quantile_loss_95": 0.3152819686609181,
+        "dawid_sebastiani_score": 2.936208435238269
+      },
+      "best_params": {
+        "criterion": "poisson",
+        "max_leaf_nodes": 108,
+        "max_depth": 19,
+        "min_samples_leaf": 8,
+        "min_samples_split": 12,
+        "max_features": 0.9055171018353589,
+        "n_estimators": 72
+      },
+      "tuning_time_seconds": 642.9190061092377,
+      "fit_time_seconds": 1.5194191932678223
+    },
+    "wine_quality": {
+      "metadata": {
+        "name": "wine_quality",
+        "target_domain": "positive_integer"
+      },
+      "metrics": {
+        "mse": 0.4441493650821041,
+        "mae": 0.4995474337128789,
+        "rmse": 0.6664453203992838,
+        "r2": 0.4347973662586031,
+        "msle": 0.010054520532863776,
+        "mape": 0.08878558464645782,
+        "crps": 0.3623681000164797,
+        "pica": 0.01835034013605442,
+        "coverage_50": 0.48489795918367345,
+        "coverage_90": 0.8808163265306123,
+        "coverage_95": 0.9338775510204081,
+        "interval_score_50": 1.622551572226743,
+        "interval_score_90": 3.043332440812025,
+        "interval_score_95": 3.6848090187461127,
+        "weighted_interval_score": 0.18860057144433734,
+        "sharpness": 0.5900849068005204,
+        "ci_width_50": 0.7374179912959944,
+        "ci_width_90": 1.9792046421310387,
+        "ci_width_div_sigma_50": 0.8315224122790104,
+        "ci_width_div_sigma_90": 2.2317776862566716,
+        "pit_ks_statistic": 0.02361224489795921,
+        "quantile_loss_50": 0.24940783121941618,
+        "quantile_loss_90": 0.11981240630205502,
+        "quantile_loss_95": 0.07415489874818837,
+        "dawid_sebastiani_score": 0.22593558744391812
+      },
+      "best_params": {
+        "criterion": "poisson",
+        "max_leaf_nodes": 223,
+        "max_depth": 30,
+        "min_samples_leaf": 5,
+        "min_samples_split": 11,
+        "max_features": 0.38982381753959794,
+        "n_estimators": 154
+      },
+      "tuning_time_seconds": 132.22018885612488,
+      "fit_time_seconds": 0.6042060852050781
+    }
+  }
+}

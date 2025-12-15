@@ -1,9 +1,7 @@
-# Random Forest regression model config
-
-name: rf_reg
+name: mq_reg
 target_type: regression
-class_name: RandomForestRegressor
-probabilistic: false
+class_name: MapieQuantileRegressor
+probabilistic: true
 
 compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
 

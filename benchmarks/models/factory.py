@@ -8,9 +8,12 @@ from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessR
 from bdf.tree_classes.bdf_regressor import BDFModel
 
 from .wrappers import (
+    CatBoostUncertaintyWrapper,
+    DeepEnsembleWrapper,
     GPClassifierWrapper,
     GPRegressorWrapper,
     LGBMQuantileRegressorWrapper,
+    MapieQuantileRegressorWrapper,
     NGBClassifierWrapper,
     NGBRegressorWrapper,
 )
@@ -42,5 +45,11 @@ class ModelFactory:
                 return NGBClassifierWrapper
             case "LGBMQuantileRegressor":
                 return LGBMQuantileRegressorWrapper
+            case "CatBoostUncertaintyRegressor":
+                return CatBoostUncertaintyWrapper
+            case "DeepEnsembleRegressor":
+                return DeepEnsembleWrapper
+            case "MapieQuantileRegressor":
+                return MapieQuantileRegressorWrapper
             case _:
                 raise ValueError(f"Model class name '{cfg.name}' not recognized.")  # type: ignore[reportUnboundVariable]

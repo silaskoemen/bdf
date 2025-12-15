@@ -1,14 +1,21 @@
 import warnings
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
+from catboost import CatBoostRegressor
+from mapie.regression import SplitConformalRegressor
 from ngboost import NGBClassifier, NGBRegressor
 from ngboost.distns import Bernoulli, Exponential, LogNormal, Normal, Poisson
 from ngboost.scores import LogScore
 from scipy import stats
+from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Kernel as Ker
+from sklearn.linear_model import BayesianRidge
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neural_network import MLPRegressor
 
 
 def configure_kernel(kernel_comb: str) -> Ker:
@@ -323,8 +330,6 @@ class NGBClassifierWrapper(NGBClassifier):
         return samples
 
 
-import lightgbm as lgb
-
 # =============================================================================
 # LightGBM Quantile Regression Wrapper
 # =============================================================================
@@ -463,13 +468,10 @@ class LGBMQuantileRegressorWrapper:
         return self
 
 
-from catboost import CatBoostRegressor
-
-
 class CatBoostUncertaintyWrapper(CatBoostRegressor):
-    def __init__(self, iterations=1000, **kwargs):
+    def __init__(self, **kwargs):
         # Force the loss function to be probabilistic
-        super().__init__(iterations=iterations, loss_function="RMSEWithUncertainty", posterior_sampling=True, **kwargs)
+        super().__init__(**kwargs)
 
     def fit(self, X, y, **kwargs):
         if hasattr(X, "values"):
@@ -477,6 +479,11 @@ class CatBoostUncertaintyWrapper(CatBoostRegressor):
         if hasattr(y, "values"):
             y = y.values
         return super().fit(X, y, **kwargs)
+
+    def predict(self, X):
+        if hasattr(X, "values"):
+            X = X.values
+        return super().predict(X)[:, 0]  # Return only the mean predictions
 
     def predict_samples(self, X, n_samples=100):
         if hasattr(X, "values"):
@@ -490,25 +497,26 @@ class CatBoostUncertaintyWrapper(CatBoostRegressor):
         return np.random.normal(loc=mean[:, np.newaxis], scale=std[:, np.newaxis], size=(X.shape[0], n_samples))
 
 
-from sklearn.base import BaseEstimator, RegressorMixin, clone
-from sklearn.neural_network import MLPRegressor
-
-
 class DeepEnsembleWrapper(BaseEstimator, RegressorMixin):
-    def __init__(self, n_estimators=5, hidden_layer_sizes=(100,), random_state=None, **kwargs):
+    def __init__(self, n_estimators=5, hidden_layers=2, hidden_size=100, random_state=None, max_iter=200, **kwargs):
         self.n_estimators = n_estimators
-        self.hidden_layer_sizes = hidden_layer_sizes
+        self.hidden_layers = hidden_layers
+        self.hidden_size = hidden_size
+        self.hidden_layer_sizes = tuple([self.hidden_size] * self.hidden_layers)
+        self.max_iter = max_iter
         self.random_state = random_state
-        self.kwargs = kwargs
+        self.kwargs = {k: v for k, v in kwargs.items() if k != "hidden_layers" and k != "hidden_size"}
         self.estimators_ = []
 
     def fit(self, X, y):
         self.estimators_ = []
-        rng = np.random.RandomState(self.random_state)
         for i in range(self.n_estimators):
             # Each MLP gets a different seed
             est = MLPRegressor(
-                hidden_layer_sizes=self.hidden_layer_sizes, random_state=rng.randint(0, 10000), **self.kwargs
+                hidden_layer_sizes=self.hidden_layer_sizes,
+                random_state=self.random_state + i,
+                max_iter=self.max_iter,
+                **self.kwargs,
             )
             est.fit(X, y)
             self.estimators_.append(est)
@@ -537,9 +545,6 @@ class DeepEnsembleWrapper(BaseEstimator, RegressorMixin):
         return samples
 
 
-from sklearn.linear_model import BayesianRidge
-
-
 class BayesianRidgeWrapper(BayesianRidge):
     def predict_samples(self, X, n_samples=100) -> np.ndarray:
         # BayesianRidge returns mean and std
@@ -554,3 +559,175 @@ class BayesianRidgeWrapper(BayesianRidge):
             scale=std[:, None],
             size=(mean.shape[0], n_samples),
         )
+
+
+class QuantileForestWrapper(BaseEstimator, RegressorMixin):
+    """
+    Wrapper for Quantile Regression Forests.
+    Requires: pip install quantile-forest
+    """
+
+    def __init__(self, n_estimators=100, quantiles=None, random_state=None, **kwargs):
+        self.n_estimators = n_estimators
+        # Default quantiles to cover the distribution well
+        self.quantiles = quantiles or [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]
+        self.random_state = random_state
+        self.kwargs = kwargs
+        self.model_ = None
+
+    def fit(self, X, y):
+        try:
+            from quantile_forest import RandomForestQuantileRegressor
+        except ImportError:
+            raise ImportError("Please install quantile-forest: pip install quantile-forest")
+
+        self.model_ = RandomForestQuantileRegressor(
+            n_estimators=self.n_estimators, random_state=self.random_state, **self.kwargs
+        )
+        self.model_.fit(X, y)
+        return self
+
+    def predict(self, X):
+        return self.model_.predict(X, quantiles=0.5)
+
+    def predict_samples(self, X, n_samples=100):
+        # Predict quantiles
+        sorted_quantiles = sorted(self.quantiles)
+        # shape: (n_samples, n_quantiles)
+        quantile_preds = self.model_.predict(X, quantiles=sorted_quantiles)
+
+        # Interpolate samples (Inverse Transform Sampling approximation)
+        n_obs = X.shape[0]
+        samples = np.empty((n_obs, n_samples))
+
+        # Vectorized interpolation is tricky, looping is safer for now
+        # We treat the predicted quantiles as the CDF
+        random_u = np.random.uniform(0, 1, size=(n_obs, n_samples))
+
+        # Add 0 and 1 bounds for interpolation
+        # We assume the distribution doesn't extend much beyond the 1st and 99th quantile
+        # A robust way is to use the min/max of the predicted quantiles as bounds
+
+        x_points = np.array(sorted_quantiles)
+
+        for i in range(n_obs):
+            # y_points are the predicted values for the quantiles
+            y_points = quantile_preds[i]
+            samples[i] = np.interp(random_u[i], x_points, y_points)
+
+        return samples
+
+
+class ProbabilisticKNNWrapper(KNeighborsRegressor):
+    """
+    Probabilistic KNN: Uses the y-values of the k-nearest neighbors
+    as the empirical predictive distribution.
+    """
+
+    def __init__(self, n_neighbors=50, **kwargs):
+        super().__init__(n_neighbors=n_neighbors, **kwargs)
+        self.y_train_ = None
+
+    def fit(self, X, y):
+        super().fit(X, y)
+        self.y_train_ = np.array(y)
+        return self
+
+    def predict_samples(self, X, n_samples=100):
+        # Find indices of k nearest neighbors
+        # neigh_ind: (n_obs, n_neighbors)
+        neigh_dist, neigh_ind = self.kneighbors(X)
+
+        # Retrieve the y values of these neighbors
+        # shape: (n_obs, n_neighbors)
+        neighbor_values = self.y_train_[neigh_ind]
+
+        # Resample from these neighbors to get exactly n_samples
+        # If n_neighbors > n_samples, we downsample. If <, we upsample (bootstrap).
+
+        idx = np.random.randint(0, self.n_neighbors, size=(X.shape[0], n_samples))
+        samples = np.take_along_axis(neighbor_values, idx, axis=1)
+
+        # Add tiny jitter to avoid identical samples
+        samples += np.random.normal(0, 1e-6, size=samples.shape)
+
+        return samples
+
+
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split as TTS
+
+
+class MapieQuantileRegressorWrapper(RegressorMixin):
+    """
+    Wrapper for MapieQuantileRegressor to provide predict_samples method.
+    """
+
+    DEFAULT_CONFIDENCE_LEVELS = (0.025, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.975)
+
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.confidence_levels = self.DEFAULT_CONFIDENCE_LEVELS
+        self.estimator = RandomForestRegressor(**kwargs)
+        self.mapie = SplitConformalRegressor(self.estimator, confidence_level=self.confidence_levels, prefit=False)
+
+    def fit(self, X, y):
+        X_train, X_calib, y_train, y_calib = TTS(
+            X, y, test_size=0.2, random_state=self.kwargs.get("random_state", 1234)
+        )
+        self.mapie.fit(X_train, y_train).conformalize(X_calib, y_calib)
+        return self
+
+    def get_params(self, deep=True):
+        return self.kwargs
+
+    def predict(self, X):
+        return self.mapie.predict(X)
+
+    def predict_samples(self, X: np.ndarray | pd.DataFrame, n_samples: int) -> np.ndarray:
+        """
+        Generate samples by interpolating between the lower and upper bounds of all conformal intervals.
+
+        Returns:
+            np.ndarray of shape (n_observations, n_samples)
+        """
+        # Get intervals: shape (n_obs, 2, n_intervals)
+        _, intervals = self.mapie.predict_interval(X)
+
+        # The confidence_levels correspond to central intervals, e.g. 0.9 -> (0.05, 0.95)
+        # For each interval, compute the lower and upper quantile
+        lower_quantiles = [(1 - c) / 2 for c in self.confidence_levels]
+        upper_quantiles = [1 - (1 - c) / 2 for c in self.confidence_levels]
+
+        # Combine and sort all quantile levels
+        all_quantiles = np.array(sorted(set(lower_quantiles + upper_quantiles)))
+
+        # For each observation, collect the corresponding lower and upper bounds
+        n_obs = X.shape[0]
+        n_q = len(all_quantiles)
+        quantile_preds = np.empty((n_obs, n_q))
+
+        # Map quantile levels to interval indices
+        quantile_to_interval = {q: i for i, q in enumerate(lower_quantiles)}
+        quantile_to_interval.update({q: i for i, q in enumerate(upper_quantiles)})
+
+        for i in range(n_obs):
+            # For each quantile, pick the corresponding lower or upper bound
+            for j, q in enumerate(all_quantiles):
+                if q in quantile_to_interval:
+                    idx = quantile_to_interval[q]
+                    if q in lower_quantiles:
+                        quantile_preds[i, j] = intervals[i, 0, idx]
+                    else:
+                        quantile_preds[i, j] = intervals[i, 1, idx]
+                else:
+                    # Should not happen, but just in case
+                    quantile_preds[i, j] = np.nan
+
+        # Now interpolate as in the LightGBM wrapper
+        samples = np.empty((n_obs, n_samples))
+        random_quantiles = np.random.uniform(0, 1, size=(n_obs, n_samples))
+        for i in range(n_obs):
+            samples[i] = np.interp(random_quantiles[i], all_quantiles, quantile_preds[i])
+
+        return samples

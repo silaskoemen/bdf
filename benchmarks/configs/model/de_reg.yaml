@@ -1,0 +1,27 @@
+name: de_reg
+target_type: regression
+class_name: DeepEnsembleRegressor
+probabilistic: true
+
+compatible_target_domains: [real, positive_real, nonnegative_real, positive_integer, nonnegative_integer]
+
+fixed_init_kwargs:
+  random_state: 1234
+
+tunable_init_kwargs:
+  hidden_layers:
+    type: int
+    low: 1
+    high: 3
+  hidden_size:
+    type: int
+    low: 10
+    high: 200
+  n_estimators:
+    type: int
+    low: 3
+    high: 25
+  max_iter:
+    type: int
+    low: 50
+    high: 500

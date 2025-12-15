@@ -103,7 +103,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
 
         # Otherwise regularization depends on size of the dataset (NLL as sum)
         n_features_iter = int(np.ceil(X.shape[1] * self.colsample))
-        penalty = self.reg_lambda * np.ceil(X.shape[0] * self.subsample)  # Penalty scaled by subsample size
+        penalty = self.reg_lambda * np.log(np.ceil(X.shape[0] * self.subsample))  # before had n
 
         trees = Parallel(n_jobs=self.n_jobs)(
             delayed(_fit_single_tree)(

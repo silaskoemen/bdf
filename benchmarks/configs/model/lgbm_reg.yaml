@@ -1,6 +1,6 @@
 # LightGBM regression model config
 
-name: lightgbm_reg
+name: lgbm_reg
 target_type: regression
 class_name: LGBMRegressor
 probabilistic: false

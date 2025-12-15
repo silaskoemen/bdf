@@ -34,3 +34,5 @@ outputs/
 **/*return.py
 **/*finance*.py
 **/*stock*.py
+
+catboost_info/

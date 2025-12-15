@@ -1,7 +1,7 @@
 from typing import Callable
 
 import numpy as np
-import properscoring
+from mapie.metrics.calibration import expected_calibration_error
 from sklearn import metrics
 
 
@@ -18,6 +18,7 @@ CLAS_POINT_METRICS: dict[str, Callable] = {
     "precision": lambda y, y_pred: metrics.precision_score(y, np.round(y_pred)),
     "log_loss": metrics.log_loss,  # Log loss handles probabilities naturally
     "brier": custom_brier,
+    "ece": expected_calibration_error,
 }
 
 CLAS_PROB_METRICS: dict[str, Callable] = {}
