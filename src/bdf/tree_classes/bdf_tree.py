@@ -10,8 +10,9 @@ class BDFTree:
     def __init__(
         self,
         distribution: BDFDistribution,
-        reg_beta: float,
         reg_lambda: float,
+        reg_gamma: float,
+        reg_nu: float,
         max_depth: int,
         min_samples_leaf: int,
         penalty: float,
@@ -25,7 +26,7 @@ class BDFTree:
         ----
         `distribution` : BDFDistribution
             The distribution to use for the tree.
-        `reg_beta` : float
+        `reg_gamma` : float
             Regularization parameter for the tree.
         `reg_lambda` : float
             Additional regularization parameter
@@ -39,8 +40,9 @@ class BDFTree:
             Minimum sum of instance weight (hessian) needed in a child
         """
         self.distribution = distribution
-        self.reg_beta = reg_beta
         self.reg_lambda = reg_lambda
+        self.reg_gamma = reg_gamma
+        self.reg_nu = reg_nu
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
         self.min_samples_split = min_samples_split
@@ -52,12 +54,13 @@ class BDFTree:
         self,
         X: np.ndarray,
         y: np.ndarray,
-        col_idcs: list | np.ndarray | None = None,
+        rng: np.random.Generator,
+        colsample: float = 1.0,
         verbose: int = 0,
         eta: float = 0.025,
     ) -> "BDFTree":
         # NOTE: if reg_lambda is 0, each loss component is fully seperable, meaning each
-        # node can be split simply by considering NLL reduction and including reg_beta; no need for a queue.
+        # node can be split simply by considering NLL reduction and including reg_gamma; no need for a queue.
         # TODO: Implement separate fit functions given reg_lambda == 0 and reg_lambda > 0.
         # Create root node
         self.root = BDFNode(distribution=self.distribution, depth=0, random_state=self.random_state)
@@ -70,7 +73,9 @@ class BDFTree:
                 X=X,
                 y=y,
                 penalty=self.penalty,
-                col_idcs=col_idcs,
+                reg_nu=self.reg_nu,
+                colsample=colsample,
+                rng=rng,
                 eta=eta,
             )
         return self
@@ -81,20 +86,30 @@ class BDFTree:
         X: np.ndarray,
         y: np.ndarray,
         penalty: float,
-        col_idcs: list | np.ndarray | None = None,
+        reg_nu: float,
+        colsample: float,
+        rng: np.random.Generator,
         eta: float = 0.025,
     ) -> None:
         """Recursively grow the tree from the given node, using the linear (in |T|) penalty, meaning
         fixed threshold"""
         if node.depth >= self.max_depth:
             return
-
+        n_features_iter = np.ceil(X.shape[1] * colsample).astype(int)
+        col_idcs = rng.choice(X.shape[1], n_features_iter, replace=False) if n_features_iter < X.shape[1] else None
         feature_idx, threshold, loss_reduction, left_indices, right_indices, left_params, right_params = (
-            node.find_best_split(X, y, self.min_samples_leaf, self.min_child_weight, col_idcs=col_idcs, eta=eta)
+            node.find_best_split(
+                X, y, self.min_samples_leaf, self.min_child_weight, col_idcs=col_idcs, eta=eta, reg_gamma=self.reg_gamma
+            )
         )
+        if reg_nu > 0.0:
+            # Add nu * d penalty for depth d
+            depth_penalty = penalty + self.reg_nu * node.depth
+        else:
+            depth_penalty = penalty
 
         # Check if valid split found (feature_idx is not None) AND gain > penalty
-        if feature_idx is not None and loss_reduction > penalty:
+        if feature_idx is not None and loss_reduction > depth_penalty:
             # Safety check for indices and params (though Rust logic implies they exist if feature_idx exists)
             if left_indices is None or right_indices is None or threshold is None:
                 return
@@ -112,8 +127,26 @@ class BDFTree:
             # Recursively grow left and right child nodes
             if node.left_node is None or node.right_node is None:
                 raise ValueError("Node split failed to create child nodes.")
-            self._grow_node(node.left_node, X[left_indices], y[left_indices], penalty, col_idcs, eta)
-            self._grow_node(node.right_node, X[right_indices], y[right_indices], penalty, col_idcs, eta)
+            self._grow_node(
+                node.left_node,
+                X=X[left_indices],
+                y=y[left_indices],
+                penalty=penalty,
+                reg_nu=reg_nu,
+                colsample=colsample,
+                rng=rng,
+                eta=eta,
+            )
+            self._grow_node(
+                node=node.right_node,
+                X=X[right_indices],
+                y=y[right_indices],
+                penalty=penalty,
+                reg_nu=reg_nu,
+                colsample=colsample,
+                rng=rng,
+                eta=eta,
+            )
 
     def _find_leaf_node(self, x: np.ndarray) -> BDFNode:
         """Traverse the tree to find the leaf node for a single observation."""

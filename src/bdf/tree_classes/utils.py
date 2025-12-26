@@ -6,28 +6,30 @@ from bdf.tree_classes.bdf_tree import BDFTree
 def _fit_single_tree(
     X: np.ndarray,
     y: np.ndarray,
-    n_features_iter,
     distribution,
     reg_lambda: float,
+    reg_gamma: float,
+    reg_nu: float,
     max_depth: int,
     min_samples_leaf: int,
     min_samples_split: int,
     min_child_weight: float | int,
     random_state: int,
-    reg_beta: float,
     colsample: float,
     subsample: float,
     penalty: float,
     eta: float,
-    col_idcs: list | np.ndarray | None = None,
+    # col_idcs: list | np.ndarray | None = None,
     verbose: bool = False,
+    bootstrap: bool = True,
 ) -> BDFTree:
     """Helper function to fit a single tree, used for parallel fitting."""
     rng = np.random.default_rng(random_state)
     iter_tree = BDFTree(
         distribution=distribution,
-        reg_beta=reg_beta,
         reg_lambda=reg_lambda,
+        reg_gamma=reg_gamma,
+        reg_nu=reg_nu,
         max_depth=max_depth,
         min_samples_leaf=min_samples_leaf,
         min_samples_split=min_samples_split,
@@ -42,13 +44,21 @@ def _fit_single_tree(
         row_indices = rng.choice(
             X.shape[0],
             n_samples,
-            replace=False,
+            replace=bootstrap,
         )
         X_iter = X[row_indices]
         y_iter = y[row_indices]
     else:
         X_iter = X
         y_iter = y
-    col_idcs = rng.choice(X.shape[1], n_features_iter, replace=False) if colsample < 1.0 else None
-    iter_tree.fit(X_iter, y_iter, col_idcs=col_idcs, verbose=verbose, eta=eta)
+    # col_idcs = rng.choice(X.shape[1], n_features_iter, replace=False) if colsample < 1.0 else None
+    iter_tree.fit(X_iter, y_iter, rng=rng, colsample=colsample, verbose=verbose, eta=eta)
     return iter_tree
+
+
+# def _logsumexp(a: np.ndarray) -> float:
+#     #Stable logsumexp; returns -inf for empty arrays.
+#     if a.size == 0:
+#         return -np.inf
+#     m = np.max(a)
+#     return float(m + np.log(np.sum(np.exp(a - m))))

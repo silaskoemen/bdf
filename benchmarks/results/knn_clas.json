@@ -1,0 +1,122 @@
+{
+  "model_config": {
+    "name": "knn_clas",
+    "target_type": "classification",
+    "class_name": "KNeighborsClassifier",
+    "probabilistic": false,
+    "compatible_target_domains": [
+      "binary"
+    ],
+    "fixed_init_kwargs": {},
+    "tunable_init_kwargs": {
+      "n_neighbors": {
+        "type": "int",
+        "low": 1,
+        "high": 50
+      },
+      "weights": {
+        "type": "categorical",
+        "categories": [
+          "uniform",
+          "distance"
+        ]
+      },
+      "algorithm": {
+        "type": "categorical",
+        "categories": [
+          "auto",
+          "ball_tree",
+          "kd_tree",
+          "brute"
+        ]
+      },
+      "leaf_size": {
+        "type": "int",
+        "low": 10,
+        "high": 100
+      },
+      "p": {
+        "type": "int",
+        "low": 1,
+        "high": 2
+      }
+    }
+  },
+  "datasets": {
+    "breast_cancer": {
+      "metadata": {
+        "name": "breast_cancer",
+        "target_domain": "binary"
+      },
+      "metrics": {
+        "auroc": 0.971900826446281,
+        "accuracy": 0.951048951048951,
+        "f1": 0.9345794392523364,
+        "recall": 0.9090909090909091,
+        "precision": 0.9615384615384616,
+        "log_loss": 0.6118196020836606,
+        "brier": 0.046855806524838,
+        "ece": 0.0738080437904372
+      },
+      "best_params": {
+        "n_neighbors": 11,
+        "weights": "distance",
+        "algorithm": "brute",
+        "leaf_size": 96,
+        "p": 1
+      },
+      "tuning_time_seconds": 1.46378493309021,
+      "fit_time_seconds": 0.0005557537078857422
+    },
+    "boston_housing_classification": {
+      "metadata": {
+        "name": "boston_housing_classification",
+        "target_domain": "binary"
+      },
+      "metrics": {
+        "auroc": 0.8993453355155483,
+        "accuracy": 0.8383838383838383,
+        "f1": 0.8181818181818182,
+        "recall": 0.7659574468085106,
+        "precision": 0.8780487804878049,
+        "log_loss": 0.4019341673228302,
+        "brier": 0.13055994083640257,
+        "ece": 0.16577547607052653
+      },
+      "best_params": {
+        "n_neighbors": 20,
+        "weights": "distance",
+        "algorithm": "kd_tree",
+        "leaf_size": 24,
+        "p": 1
+      },
+      "tuning_time_seconds": 1.3460297584533691,
+      "fit_time_seconds": 0.0006997585296630859
+    },
+    "titanic": {
+      "metadata": {
+        "name": "titanic",
+        "target_domain": "binary"
+      },
+      "metrics": {
+        "auroc": 0.78377673448096,
+        "accuracy": 0.7653631284916201,
+        "f1": 0.671875,
+        "recall": 0.6056338028169014,
+        "precision": 0.7543859649122807,
+        "log_loss": 1.4865818162934301,
+        "brier": 0.18487057329162848,
+        "ece": 0.17531530896812741
+      },
+      "best_params": {
+        "n_neighbors": 36,
+        "weights": "distance",
+        "algorithm": "ball_tree",
+        "leaf_size": 83,
+        "p": 1
+      },
+      "tuning_time_seconds": 1.3632807731628418,
+      "fit_time_seconds": 0.0006251335144042969
+    }
+  }
+}

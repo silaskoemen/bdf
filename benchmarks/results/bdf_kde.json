@@ -24,8 +24,8 @@
       },
       "reg_lambda": {
         "type": "float",
-        "low": 0.0001,
-        "high": 10.0,
+        "low": 1e-05,
+        "high": 1.0,
         "log": true
       },
       "min_samples_leaf": {
@@ -82,41 +82,52 @@
     }
   },
   "datasets": {
-    "realestate": {
+    "abalone_age": {
       "metadata": {
-        "name": "realestate",
-        "target_domain": "positive_real"
+        "name": "abalone_age",
+        "target_domain": "positive_integer"
       },
       "metrics": {
-        "mse": 99.34549404720141,
-        "mae": 5.8170938040069355,
-        "rmse": 9.967220979149676,
-        "r2": 0.5323981340021053,
-        "msle": 0.03939951700551933,
-        "mape": 0.14977825435010977,
-        "crps": 4.287832971636605,
-        "pica": 0.054020979020979014,
-        "coverage_50": 0.41346153846153844,
-        "coverage_90": 0.8076923076923077,
-        "coverage_95": 0.8942307692307693,
-        "interval_score_90": 41.69408365942872,
-        "interval_score_95": 55.060702979092824,
-        "weighted_interval_score": 4.1333430987124595
+        "mse": 4.527490257447398,
+        "mae": 1.511244093609368,
+        "rmse": 2.1277899937370224,
+        "r2": 0.5433952613023272,
+        "msle": 0.0301189588374114,
+        "mape": 0.1512369703975049,
+        "crps": 1.070693938111649,
+        "pica": 0.03155103668261564,
+        "coverage_50": 0.5320574162679426,
+        "coverage_90": 0.9550239234449761,
+        "coverage_95": 0.9770334928229665,
+        "interval_score_50": 4.802250128305705,
+        "interval_score_90": 8.467041353040054,
+        "interval_score_95": 10.266444476617503,
+        "weighted_interval_score": 0.5437273265961335,
+        "sharpness": 2.2872647065489065,
+        "ci_width_50": 2.65465865620984,
+        "ci_width_90": 7.285439668054001,
+        "ci_width_div_sigma_50": 0.8426403182580864,
+        "ci_width_div_sigma_90": 2.3125403283689994,
+        "pit_ks_statistic": 0.056564593301435415,
+        "quantile_loss_50": 0.7470996272521092,
+        "quantile_loss_90": 0.4167193040170963,
+        "quantile_loss_95": 0.26329880231357916,
+        "dawid_sebastiani_score": 2.2531955761224913
       },
       "best_params": {
-        "n_trees": 31,
-        "reg_lambda": 0.0017741622019593255,
-        "min_samples_leaf": 5,
-        "min_samples_split": 37,
-        "max_depth": 30,
-        "subsample": 0.681772174620197,
-        "colsample": 0.843403176978667,
-        "eta": 0.0018694116146725003,
-        "bandwidth": "silverman",
+        "n_trees": 54,
+        "reg_lambda": 0.020869616881972013,
+        "min_samples_leaf": 14,
+        "min_samples_split": 94,
+        "max_depth": 13,
+        "subsample": 0.5667526221860409,
+        "colsample": 0.7161501884732987,
+        "eta": 0.0022694388916952336,
+        "bandwidth": "scott",
         "kernel": "gaussian"
       },
-      "tuning_time_seconds": 42.123278856277466,
-      "fit_time_seconds": 1.0258839130401611
+      "tuning_time_seconds": 28881.46129798889,
+      "fit_time_seconds": 293.5287330150604
     },
     "boston_housing": {
       "metadata": {
@@ -124,35 +135,46 @@
         "target_domain": "positive_real"
       },
       "metrics": {
-        "mse": 10.436990606269422,
-        "mae": 2.27960006674011,
-        "rmse": 3.2306331587274686,
-        "r2": 0.8710164407099903,
-        "msle": 0.02131933981269694,
-        "mape": 0.11307260630406539,
-        "crps": 1.7504212044233614,
-        "pica": 0.02534435261707986,
-        "coverage_50": 0.5454545454545454,
-        "coverage_90": 0.9090909090909091,
-        "coverage_95": 0.9393939393939394,
-        "interval_score_90": 16.422090093041284,
-        "interval_score_95": 23.100699086324422,
-        "weighted_interval_score": 1.6729910956490905
+        "mse": 10.21147410819608,
+        "mae": 2.3152539285952956,
+        "rmse": 3.1955397209542054,
+        "r2": 0.8738034433717198,
+        "msle": 0.020533314887323288,
+        "mape": 0.11310842594777311,
+        "crps": 1.6866645699669325,
+        "pica": 0.03975589225589227,
+        "coverage_50": 0.5555555555555556,
+        "coverage_90": 0.9494949494949495,
+        "coverage_95": 0.9696969696969697,
+        "interval_score_50": 7.510889212260735,
+        "interval_score_90": 16.71183086633396,
+        "interval_score_95": 21.6521428928797,
+        "weighted_interval_score": 0.9177854711536187,
+        "sharpness": 4.462628653356084,
+        "ci_width_50": 4.2149154277887915,
+        "ci_width_90": 13.22729309377656,
+        "ci_width_div_sigma_50": 0.46619094921947374,
+        "ci_width_div_sigma_90": 1.463005469181357,
+        "pit_ks_statistic": 0.1106767676767677,
+        "quantile_loss_50": 1.128274490789949,
+        "quantile_loss_90": 0.6290842759613492,
+        "quantile_loss_95": 0.47798665902873205,
+        "dawid_sebastiani_score": 3.4483968644717407
       },
       "best_params": {
-        "n_trees": 61,
-        "reg_lambda": 0.002793443800597114,
+        "n_trees": 66,
+        "reg_lambda": 0.0008347753054337221,
         "min_samples_leaf": 7,
-        "min_samples_split": 100,
-        "max_depth": 15,
-        "subsample": 0.7703742138121079,
-        "colsample": 0.8705072294642834,
-        "eta": 0.028777443769566036,
+        "min_samples_split": 51,
+        "max_depth": 29,
+        "subsample": 0.7007893651654626,
+        "colsample": 0.9763037434664472,
+        "eta": 0.00958140265630825,
         "bandwidth": "scott",
         "kernel": "gaussian"
       },
-      "tuning_time_seconds": 126.50638222694397,
-      "fit_time_seconds": 1.463179111480713
+      "tuning_time_seconds": 218.03351402282715,
+      "fit_time_seconds": 3.8318920135498047
     }
   }
 }

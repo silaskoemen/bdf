@@ -10,6 +10,7 @@ compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonn
 fixed_init_kwargs:
   dist: NormalMuNormal
   random_state: 1234
+  max_depth: 50
 
 tunable_init_kwargs:
   n_trees:
@@ -18,17 +19,25 @@ tunable_init_kwargs:
     high: 200
   reg_lambda:
     type: float
-    low: 0.0001
-    high: 10.0
+    low: 0.00001
+    high: 100.0
     log: true
+  reg_gamma:
+    type: float
+    low: 0.0
+    high: 1.0
+  reg_nu:
+    type: float
+    low: 0.0
+    high: 1.0
   min_samples_leaf:
     type: int
     low: 5
     high: 50
-  max_depth:
-    type: int
-    low: 10
-    high: 30
+  # max_depth:
+  #   type: int
+  #   low: 10
+  #   high: 30
   min_samples_split:
     type: int
     low: 10
@@ -51,7 +60,7 @@ tunable_params:
   sigma_mu:
     type: float
     low: 0.1
-    high: 100.0
+    high: 150.0
   score_method:
     type: categorical
     categories: [nll, nle]

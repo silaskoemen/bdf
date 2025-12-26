@@ -13,6 +13,9 @@ clean = "rm -rf build/ dist/ *.egg-info"
 bench = "PYTHONPATH=src python -m benchmarks.run"
 reg = "PYTHONPATH=src python -m benchmarks.calc_plot_regression_metrics"
 clas = "PYTHONPATH=src python -m benchmarks.calc_plot_classification_metrics"
+perf = "PYTHONPATH=src python -m benchmarks.performance"
+prior-clas = "PYTHONPATH=src python -m benchmarks.effect_prior_clas"
+label-noise-clas = "PYTHONPATH=src python -m benchmarks.label_noise_clas"
 
 # ==========================================
 # 1. CORE DEPENDENCIES
@@ -66,6 +69,9 @@ scoringrules = ">=0.8.0,<0.9"
 quantile-forest = ">=1.4.1,<2"
 mapie = ">=1.2.0,<2"
 polars = ">=1.36.1,<2"
+
+[feature.benchmark.pypi-dependencies]
+bartpy = ">=0.0.2, <0.0.3"
 
 # --- DOCS FEATURE (Sphinx) ---
 [feature.docs.dependencies]

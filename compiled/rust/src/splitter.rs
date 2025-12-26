@@ -13,7 +13,9 @@ pub fn find_best_split(
     distribution: &dyn DistributionPrimitives,
     scoring_spec: &ScoringSpec,
     eta: f64,
+    reg_gamma: f64,
     col_idcs: Option<Array1<usize>>,
+    split_gain_method: str,
 ) -> (Option<usize>, Option<f64>, f64, Option<Array1<bool>>, Option<Array1<bool>>, Option<HashMap<String, f64>>, Option<HashMap<String, f64>>) {
     let n_features = x.shape()[1];
     let n_samples = y.len();
@@ -47,6 +49,7 @@ pub fn find_best_split(
 
     let stride = (n_samples as f64 * eta).max(1.0) as usize;
     let num_quantiles = (n_samples / stride).max(1);
+    let num_features_tried = feature_idcs.len();
 
     if use_suff_stats {
         // ====================================================================
@@ -70,6 +73,8 @@ pub fn find_best_split(
             let mut local_best_threshold = None;
             let mut local_best_split_idx = None;
 
+            let mut num_thresholds_tried = 0;
+
             for i in 0..(n_samples - 1) {
                 let idx = sorted_indices[i];
                 let val = y[idx];
@@ -90,6 +95,7 @@ pub fn find_best_split(
                             continue;
                         }
 
+                        num_thresholds_tried += 1;
                         // Direct unwrap - we know suff stats is supported
                         let left_score = score_split_from_stats(&left_stats, distribution, scoring_spec).unwrap();
                         let right_score = score_split_from_stats(&right_stats, distribution, scoring_spec).unwrap();
@@ -103,6 +109,10 @@ pub fn find_best_split(
                         }
                     }
                 }
+            }
+            if (reg_gamma > 0.0) && (num_thresholds_tried > 0) && (local_best_threshold.is_some()) {
+                // Apply complexity penalty of gamma*(ln(k) + ln(m_j))
+                local_best_loss -= reg_gamma * ((num_features_tried as f64).ln() + (num_thresholds_tried as f64).ln());
             }
 
             update_best(&best_results, feature_idx, n_samples, local_best_loss,
@@ -128,6 +138,8 @@ pub fn find_best_split(
             let mut local_best_threshold = None;
             let mut local_best_split_idx = None;
 
+            let mut num_thresholds_tried = 0;
+
             // Jump directly to quantile positions
             for q in 1..num_quantiles {
                 let split_idx = (q * stride).min(n_samples - 1) - 1;
@@ -150,6 +162,8 @@ pub fn find_best_split(
                     continue;
                 }
 
+                num_thresholds_tried += 1;
+
                 // Direct slice views - no allocation
                 let left_y = ArrayView1::from(&sorted_y[..=split_idx]);
                 let right_y = ArrayView1::from(&sorted_y[split_idx + 1..]);
@@ -171,6 +185,10 @@ pub fn find_best_split(
                     local_best_threshold = Some((feat_val + next_feat_val) / 2.0);
                     local_best_split_idx = Some(split_idx);
                 }
+            }
+            if (reg_gamma > 0.0) && (num_thresholds_tried > 0) && (local_best_threshold.is_some()) {
+                // Apply complexity penalty of gamma*(ln(k) + ln(m_j))
+                local_best_loss -= reg_gamma * ((num_features_tried as f64).ln() + (num_thresholds_tried as f64).ln());
             }
 
             update_best(&best_results, feature_idx, n_samples, local_best_loss,

@@ -1,4 +1,5 @@
 import warnings
+from typing import Literal
 
 import lightgbm as lgb
 import numpy as np
@@ -9,11 +10,14 @@ from ngboost import NGBClassifier, NGBRegressor
 from ngboost.distns import Bernoulli, Exponential, LogNormal, Normal, Poisson
 from ngboost.scores import LogScore
 from scipy import stats
-from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Kernel as Ker
 from sklearn.linear_model import BayesianRidge
+from sklearn.model_selection import train_test_split as TTS
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPRegressor
 
@@ -654,10 +658,6 @@ class ProbabilisticKNNWrapper(KNeighborsRegressor):
         return samples
 
 
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split as TTS
-
-
 class MapieQuantileRegressorWrapper(RegressorMixin):
     """
     Wrapper for MapieQuantileRegressor to provide predict_samples method.
@@ -731,3 +731,55 @@ class MapieQuantileRegressorWrapper(RegressorMixin):
             samples[i] = np.interp(random_quantiles[i], all_quantiles, quantile_preds[i])
 
         return samples
+
+
+class CalibratedRFWrapper(BaseEstimator, ClassifierMixin):
+    """
+    Wrapper that exposes RF init args at top-level, fits a RandomForestClassifier
+    inside CalibratedClassifierCV(cv=3), and exposes predict / predict_proba.
+    """
+
+    def __init__(
+        self, cv: int = 3, method: Literal["sigmoid", "isotonic"] = "sigmoid", random_state=None, **rf_init_kwargs
+    ):
+        self.cv = cv
+        self.method: Literal["sigmoid", "isotonic"] = method
+        self.random_state = random_state
+        self.rf_init_kwargs = dict(rf_init_kwargs)
+
+    def fit(self, X, y):
+        rf_kwargs = dict(self.rf_init_kwargs)
+        if self.random_state is not None:
+            rf_kwargs.setdefault("random_state", self.random_state)
+        base = RandomForestClassifier(**rf_kwargs)
+        self.calibrator_ = CalibratedClassifierCV(estimator=base, method=self.method, cv=self.cv)
+        self.calibrator_.fit(X, y)
+        return self
+
+    def predict(self, X):
+        return self.calibrator_.predict(X)
+
+    def predict_proba(self, X):
+        return self.calibrator_.predict_proba(X)
+
+    def get_params(self, deep=True):
+        params = {"cv": self.cv, "method": self.method, "random_state": self.random_state}
+        params.update(self.rf_init_kwargs)
+        return params
+
+    def set_params(self, **params):
+        # Pull out wrapper params
+        for k in ("cv", "method", "random_state"):
+            if k in params:
+                setattr(self, k, params.pop(k))
+        # remaining params are RF init kwargs
+        self.rf_init_kwargs.update(params)
+        return self
+
+
+# from bartpy.sklearnmodel import SklearnModel
+# class BARTRegressor(SklearnModel):
+#     def __init__(self, **kwargs):
+#         p_prune = 1 - kwargs['p_grow']
+#         kwargs.update({'p_prune': p_prune})
+#         self.kwargs = kwargs

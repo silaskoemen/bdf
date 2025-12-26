@@ -36,3 +36,5 @@ outputs/
 **/*stock*.py
 
 catboost_info/
+
+examples/

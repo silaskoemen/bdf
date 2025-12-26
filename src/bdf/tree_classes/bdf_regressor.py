@@ -18,19 +18,22 @@ class BDFModel(BaseEstimator, RegressorMixin):
 
     def __init__(
         self,
-        dist: str = "NormalMeanPseudoAlphaSkewNormal",
+        dist: str = "NormalMuNormal",
         params: dict = {"mu_mu": "auto", "sigma_mu": 10.0},
-        n_trees: int = 25,
-        reg_beta: float = 0.0,
+        n_trees: int = 50,
         reg_lambda: float = 0.001,
-        max_depth: int = 25,
+        reg_gamma: float = 0.1,
+        reg_nu: float = 0.01,
+        max_depth: int = 50,
         min_samples_leaf: int = 10,
         min_samples_split: int = 20,
         min_child_weight: int | float = 10,
         subsample: float = 0.9,
         colsample: float = 0.9,
         eta: float = 0.01,
+        bootstrap: bool = True,
         n_jobs: int = -1,
+        verbose: int = 0,
         random_state: int = RANDOM_SEED,
     ):
         """Initialize the BDFRegressor with prior parameters.
@@ -42,8 +45,8 @@ class BDFModel(BaseEstimator, RegressorMixin):
             Prior parameters for the distribution, can be string name or 'auto', a BDFDistribution instance, or a dictionary parameters as keys. Default is 'auto'.
         `n_trees` : int, optional
             Number of trees in the forest, default is 100.
-        `reg_beta` : float, optional
-            Regularization parameter for the beta term, default is 0.
+        `reg_gamma` : float, optional
+            Regularization parameter for the gamma term, default is 0.
         `reg_lambda` : float, optional
             Regularization parameter for the lambda term, default is 0.
         `max_depth` : int, optional
@@ -60,8 +63,9 @@ class BDFModel(BaseEstimator, RegressorMixin):
         self.rng = np.random.default_rng(random_state)
         self._validate_init_params(
             n_trees=n_trees,
-            reg_beta=reg_beta,
+            reg_gamma=reg_gamma,
             reg_lambda=reg_lambda,
+            reg_nu=reg_nu,
             max_depth=max_depth,
             min_samples_leaf=min_samples_leaf,
             min_samples_split=min_samples_split,
@@ -71,6 +75,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
             eta=eta,
             random_state=random_state,
             n_jobs=n_jobs,
+            bootstrap=bootstrap,
         )
 
     def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False, standardize_y: bool = False):
@@ -102,19 +107,18 @@ class BDFModel(BaseEstimator, RegressorMixin):
             self._init_kde_fft(y)
 
         # Otherwise regularization depends on size of the dataset (NLL as sum)
-        n_features_iter = int(np.ceil(X.shape[1] * self.colsample))
-        penalty = self.reg_lambda * np.log(np.ceil(X.shape[0] * self.subsample))  # before had n
+        # n_features_iter = int(np.ceil(X.shape[1] * self.colsample))
+        penalty = self.reg_lambda  # * np.log(np.ceil(X.shape[0] * self.subsample))  # before had n
 
         trees = Parallel(n_jobs=self.n_jobs)(
             delayed(_fit_single_tree)(
                 X=X,
                 y=y,
-                n_features_iter=n_features_iter,
-                col_idcs=None,
                 verbose=verbose,
                 distribution=self.distribution,
-                reg_beta=self.reg_beta,
                 reg_lambda=self.reg_lambda,
+                reg_gamma=self.reg_gamma,
+                reg_nu=self.reg_nu,
                 penalty=penalty,
                 max_depth=self.max_depth,
                 min_samples_leaf=self.min_samples_leaf,
@@ -122,6 +126,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
                 min_child_weight=self.min_child_weight,
                 subsample=self.subsample,
                 colsample=self.colsample,
+                bootstrap=self.bootstrap,
                 eta=self.eta,
                 random_state=self.random_state + i,  # Ensure distinct seeds per tree
             )
@@ -385,8 +390,9 @@ class BDFModel(BaseEstimator, RegressorMixin):
     def _validate_init_params(
         self,
         n_trees: int,
-        reg_beta: float,
         reg_lambda: float,
+        reg_gamma: float,
+        reg_nu: float,
         max_depth: int,
         min_samples_leaf: int,
         min_samples_split: int,
@@ -394,16 +400,20 @@ class BDFModel(BaseEstimator, RegressorMixin):
         subsample: float,
         colsample: float,
         eta: float,
+        bootstrap: bool,
         random_state: int,
         n_jobs: int,
     ):
         """Validate the initialization parameters."""
         assert (
-            isinstance(reg_beta, (float, int)) and reg_beta >= 0
-        ), f"reg_beta must be float and non-negative, got {reg_beta} of type {type(reg_beta)}"
+            isinstance(reg_gamma, (float, int)) and reg_gamma >= 0.0 and reg_gamma <= 1.0
+        ), f"reg_gamma must be float and non-negative, got {reg_gamma} of type {type(reg_gamma)}"
         assert isinstance(
             reg_lambda, (float, int)
         ), f"reg_lambda must be a float, got {reg_lambda} of type {type(reg_lambda)}"
+        assert (
+            isinstance(reg_nu, (float, int)) and reg_nu >= 0.0 and reg_nu <= 1.0
+        ), f"reg_nu must be a float in [0, 1], got {reg_nu} of type {type(reg_nu)}"
         assert (
             isinstance(n_trees, int) and n_trees > 0
         ), f"n_trees must be a positive integer, got {n_trees} of type {type(n_trees)}"
@@ -434,10 +444,13 @@ class BDFModel(BaseEstimator, RegressorMixin):
         assert (
             isinstance(n_jobs, int) and n_jobs != 0
         ), f"n_jobs must be a non-zero integer, got {n_jobs} of type {type(n_jobs)}"
+        assert isinstance(bootstrap, bool), f"bootstrap must be a boolean, got {bootstrap} of type {type(bootstrap)}"
+        self.bootstrap = bootstrap
         self.random_state = random_state
         self.eta = eta
-        self.reg_beta = reg_beta
         self.reg_lambda = reg_lambda
+        self.reg_gamma = reg_gamma
+        self.reg_nu = reg_nu
         self.n_trees = n_trees
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
@@ -553,6 +566,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
         assert (
             X.shape[0] == y.shape[0]
         ), f"Number of samples in X ({X.shape[0]}) must match number of samples in y ({y.shape[0]})"
+        X, y = X.astype(np.float64), y.astype(np.float64)
         self._validate_features(X)
         self._validate_targets(y)  # Passes or raises Assertion-/ValueError
         return X, y
@@ -564,7 +578,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
             raise ValueError("X must contain at least one sample")
         assert not np.isnan(X).any(), "Input data cannot be NaN."
         assert np.issubdtype(
-            X.dtype, np.number
+            X.dtype, np.floating
         ), "Input data has to be subtype of float. If it fails although all features are numeric, consider casting to float/int for all columns."
 
     def _validate_targets(self, y: np.ndarray):
@@ -660,8 +674,8 @@ class BDFClassifier(BDFModel, ClassifierMixin):
             Training data target values.
         """
         # Ensure targets are integers for classification
-        if not np.issubdtype(y.dtype, np.integer):
-            raise ValueError("Targets for BDFClassifier must be of integer type representing class labels.")
+        # if not np.issubdtype(y.dtype, np.integer):
+        #     raise ValueError("Targets for BDFClassifier must be of integer type representing class labels.")
         super().fit(X, y, verbose=verbose)
 
     def predict_proba(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
@@ -672,3 +686,19 @@ class BDFClassifier(BDFModel, ClassifierMixin):
     def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
         proba = self.predict_proba(X)
         return np.argmax(proba, axis=1)
+
+    # def _validate_targets(self, y: np.ndarray):
+    #     """Validation function to check whether targets are allowed under the
+    #     given distribution.
+
+    #     Args
+    #     ----
+    #     `y` : np.ndarray
+    #         targets used for fit input
+    #     """
+    #     assert y.ndim == 1, f"y must be a 1D array, got {y.ndim}D array"
+    #     assert not np.isnan(y).any(), "Targets cannot be NaN."
+    #     assert np.issubdtype(
+    #         y.dtype, np.floating
+    #     ), "Targets have to be subtype of float. If it fails although all targets are numeric, consider casting to float/int."
+    #     # self.distribution.validate_targets(y)

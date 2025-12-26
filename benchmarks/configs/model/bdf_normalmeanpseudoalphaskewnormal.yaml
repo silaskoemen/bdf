@@ -28,7 +28,7 @@ tunable_init_kwargs:
   max_depth:
     type: int
     low: 10
-    high: 30
+    high: 50
   min_samples_split:
     type: int
     low: 10
@@ -51,7 +51,7 @@ tunable_params:
   sigma_mu:
     type: float
     low: 0.1
-    high: 100.0
+    high: 150.0
   m_alpha:
     type: int
     low: 1

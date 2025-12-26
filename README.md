@@ -18,6 +18,12 @@ Key features:
 pip install bayesian-distributional-forest
 ```
 
+To run all benchmarks, the BART (bartpy) uses the deprecated sklearn package and is no longer actively maintained. You need to set the environment variable
+
+```bash
+export SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
+```
+
 ## Quick Start
 
 ```python
