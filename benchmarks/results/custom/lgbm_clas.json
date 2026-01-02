@@ -1,0 +1,194 @@
+{
+  "model_config": {
+    "name": "lgbm_clas",
+    "target_type": "classification",
+    "class_name": "LGBMClassifier",
+    "probabilistic": false,
+    "compatible_target_domains": [
+      "binary"
+    ],
+    "fixed_init_kwargs": {
+      "metric": "log_loss",
+      "boosting_type": "gbdt",
+      "verbose": -1,
+      "random_state": 1234,
+      "bagging_seed": 1234,
+      "feature_fraction_seed": 1234,
+      "data_random_seed": 1234,
+      "deterministic": true
+    },
+    "tunable_init_kwargs": {
+      "num_leaves": {
+        "type": "int",
+        "low": 5,
+        "high": 250
+      },
+      "learning_rate": {
+        "type": "float",
+        "low": 0.0001,
+        "high": 0.2,
+        "log": true
+      },
+      "max_depth": {
+        "type": "int",
+        "low": 3,
+        "high": 15
+      },
+      "n_estimators": {
+        "type": "int",
+        "low": 10,
+        "high": 250
+      }
+    },
+    "fit_kwargs": {
+      "early_stopping_rounds": 10,
+      "verbose": -1
+    }
+  },
+  "datasets": {
+    "breast_cancer": {
+      "metadata": {
+        "name": "breast_cancer",
+        "target_domain": "binary"
+      },
+      "metrics": {
+        "auroc": {
+          "mean": 0.9946154668376891,
+          "std": 0.007680706058823587
+        },
+        "accuracy": {
+          "mean": 0.970725424672793,
+          "std": 0.018471085791707805
+        },
+        "f1": {
+          "mean": 0.959427403755254,
+          "std": 0.026023120813397256
+        },
+        "recall": {
+          "mean": 0.9422799422799422,
+          "std": 0.048721336265899376
+        },
+        "precision": {
+          "mean": 0.9790524290524291,
+          "std": 0.023453496644476275
+        },
+        "log_loss": {
+          "mean": 0.1605118525200755,
+          "std": 0.14243738062795
+        },
+        "brier": {
+          "mean": 0.02644805741566898,
+          "std": 0.015175740184366978
+        },
+        "ece": {
+          "mean": 0.03195532443775667,
+          "std": 0.014118184572721862
+        }
+      },
+      "best_params": {
+        "num_leaves": 37,
+        "learning_rate": 0.12623277221795823,
+        "max_depth": 4,
+        "n_estimators": 204
+      },
+      "tuning_time_seconds": 18.13441801071167,
+      "fitting_time": 0.22012514538235134
+    },
+    "boston_housing_classification": {
+      "metadata": {
+        "name": "boston_housing_classification",
+        "target_domain": "binary"
+      },
+      "metrics": {
+        "auroc": {
+          "mean": 0.9462737993748225,
+          "std": 0.04774062402692052
+        },
+        "accuracy": {
+          "mean": 0.89002849002849,
+          "std": 0.0429078888200731
+        },
+        "f1": {
+          "mean": 0.8619923219306521,
+          "std": 0.05751714771717769
+        },
+        "recall": {
+          "mean": 0.8378267973856208,
+          "std": 0.09930924388824067
+        },
+        "precision": {
+          "mean": 0.9013877285807111,
+          "std": 0.0763776753400368
+        },
+        "log_loss": {
+          "mean": 0.28125729338220984,
+          "std": 0.12015178392075923
+        },
+        "brier": {
+          "mean": 0.08305642275618602,
+          "std": 0.03897703941583048
+        },
+        "ece": {
+          "mean": 0.09921248481159763,
+          "std": 0.025368380049134734
+        }
+      },
+      "best_params": {
+        "num_leaves": 7,
+        "learning_rate": 0.07542531056654765,
+        "max_depth": 9,
+        "n_estimators": 71
+      },
+      "tuning_time_seconds": 9.318757772445679,
+      "fitting_time": 0.07688079939948188
+    },
+    "titanic": {
+      "metadata": {
+        "name": "titanic",
+        "target_domain": "binary"
+      },
+      "metrics": {
+        "auroc": {
+          "mean": 0.868362376582104,
+          "std": 0.04217401679700513
+        },
+        "accuracy": {
+          "mean": 0.8317683881064162,
+          "std": 0.04785280130372534
+        },
+        "f1": {
+          "mean": 0.7795733079659081,
+          "std": 0.06787748359031665
+        },
+        "recall": {
+          "mean": 0.7394636015325671,
+          "std": 0.08919882549289512
+        },
+        "precision": {
+          "mean": 0.8294882389786551,
+          "std": 0.060539366264648974
+        },
+        "log_loss": {
+          "mean": 0.4270015544027467,
+          "std": 0.07752589337583321
+        },
+        "brier": {
+          "mean": 0.13061524691928786,
+          "std": 0.025955192406291752
+        },
+        "ece": {
+          "mean": 0.1042737038726239,
+          "std": 0.02000542787097297
+        }
+      },
+      "best_params": {
+        "num_leaves": 142,
+        "learning_rate": 0.023605166426543298,
+        "max_depth": 9,
+        "n_estimators": 189
+      },
+      "tuning_time_seconds": 28.244000911712646,
+      "fitting_time": 0.5726215309566922
+    }
+  }
+}

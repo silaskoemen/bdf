@@ -32,7 +32,7 @@ def load_all_results(results_dir: Path = RESULTS_DIR, models: List[str] | None =
                 row = {"model": model_name, "dataset": ds_name}
                 # copy metrics (flatten)
                 for k, v in metrics.items():
-                    row[k] = v
+                    row[k] = v["mean"]
                 rows.append(row)
     else:
         for model in models:
@@ -49,7 +49,7 @@ def load_all_results(results_dir: Path = RESULTS_DIR, models: List[str] | None =
                 row = {"model": model, "dataset": ds_name}
                 # copy metrics (flatten)
                 for k, v in metrics.items():
-                    row[k] = v
+                    row[k] = v["mean"]
                 rows.append(row)
 
     if not rows:

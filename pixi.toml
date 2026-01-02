@@ -10,19 +10,27 @@ platforms = ["osx-arm64", "linux-64", "win-64"]
 # SOTA: Setup should build the extension immediately so 'import bdf' works instantly
 setup = "pip install --no-deps -e . && pre-commit install && pixi run build-rust"
 clean = "rm -rf build/ dist/ *.egg-info"
-bench = "PYTHONPATH=src python -m benchmarks.run"
+bench-bdf = "PYTHONPATH=src python -m benchmarks.run"
+reg-suite = "PYTHONPATH=src python -m benchmarks.run_regression_suite"
+clas-suite = "PYTHONPATH=src python -m benchmarks.run_classification_suite"
 reg = "PYTHONPATH=src python -m benchmarks.calc_plot_regression_metrics"
 clas = "PYTHONPATH=src python -m benchmarks.calc_plot_classification_metrics"
 perf = "PYTHONPATH=src python -m benchmarks.performance"
 prior-clas = "PYTHONPATH=src python -m benchmarks.effect_prior_clas"
 label-noise-clas = "PYTHONPATH=src python -m benchmarks.label_noise_clas"
 
+[feature.bench-models.tasks]
+bench-models = "PYTHONPATH=src python -m benchmarks.run"
+reg-suite-models = "PYTHONPATH=src python -m benchmarks.run_regression_suite"
+clas-suite-models = "PYTHONPATH=src python -m benchmarks.run_classification_suite"
+load-data = "PYTHONPATH=src python -m benchmarks.load_save_datasets"
+
 # ==========================================
 # 1. CORE DEPENDENCIES
 # ==========================================
-[dependencies]
+[feature.prod.dependencies]
 python = ">=3.11,<=3.13"  # hydra argparse issue with 3.14
-numpy = ">=2.0.0"
+numpy = "*"
 pandas = ">=2.0"
 scikit-learn = ">=1.4.4"
 scipy = ">=1.10"
@@ -53,25 +61,34 @@ pyright = "*"
 lint = "pre-commit run --all-files"
 lint-rust = "cargo clippy --manifest-path compiled/rust/Cargo.toml --all-targets --all-features -- -D warnings"
 
-[feature.benchmark.dependencies]
+[feature.bench-tools.dependencies]
 matplotlib = "*"
 seaborn = "*"
 loguru = "*"
 omegaconf = "*"
 hydra-core = "<1.4.0"
 optuna = "*"
+tqdm = "*"
+scoringrules = "*"
+polars = ">=1.36.1,<2"
+ucimlrepo = ">=0.0.7,<0.0.8"
+
+[feature.bench-models.dependencies]
+python = "3.11.*"  # pymc-bart needs 3.11+
+numpy = "<2.0.0"
 lightgbm = "*"
 xgboost = "*"
 ngboost = ">=0.3.6,<0.4"
 catboost = ">=1.2.8,<2"
-tqdm = ">=4.67.1,<5"
-scoringrules = ">=0.8.0,<0.9"
 quantile-forest = ">=1.4.1,<2"
 mapie = ">=1.2.0,<2"
-polars = ">=1.36.1,<2"
+# drf impossible to install: ERROR: Could not find a version that satisfies the requirement rpy2 (from drf) (from versions: none)
+# ERROR: No matching distribution found for rpy2
 
-[feature.benchmark.pypi-dependencies]
-bartpy = ">=0.0.2, <0.0.3"
+[feature.bench-models.pypi-dependencies]
+treeffuser = ">=0.1.3, <0.2"
+pymc = "==5.19.1"
+pymc-bart = ">=0.9.2, <0.10"
 
 # --- DOCS FEATURE (Sphinx) ---
 [feature.docs.dependencies]
@@ -101,10 +118,10 @@ build-rust = "maturin develop --release --manifest-path compiled/rust/Cargo.toml
 [environments]
 # DEFAULT: Core + Test + Lint + DevTools.
 # Light enough to be fast, complete enough to build/test.
-default = { features = ["test", "lint", "dev-tools", "benchmark"], solve-group = "prod" }
+default = { features = ["prod", "test", "lint", "dev-tools", "bench-tools"], solve-group = "prod" }
 
 # PROD: Minimal runtime check
-prod = { features = [], solve-group = "prod" }
+prod = { features = ["prod"], solve-group = "prod" }
 
 # TEST: CI/CD
 test = { features = ["test"], solve-group = "prod" }
@@ -112,8 +129,8 @@ test = { features = ["test"], solve-group = "prod" }
 # LINT: Isolated fast check, pyright requires base features
 lint = { features = ["lint"] }
 
-# BENCHMARK: Heavy plotting deps
-benchmark = { features = ["benchmark"], solve-group = "prod" }
+# BENCHMARK: Heavy plotting/model deps isolated
+benchmark = { features = ["bench-tools", "bench-models", "dev-tools"], solve-group = "bench" }
 
 # DOCS: Isolated documentation build
 docs = { features = ["docs"], solve-group = "prod" }

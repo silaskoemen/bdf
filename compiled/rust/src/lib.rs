@@ -20,7 +20,7 @@ fn find_best_split(
     eta: f64,
     reg_gamma: f64,  // Parameter for split cost complexity penalty
     col_idcs: Option<PyReadonlyArray1<i64>>,
-    split_gain_method: str
+    split_gain_method: &str
 ) -> PyResult<(Option<usize>, Option<f64>, f64, Option<pyo3::Py<numpy::PyArray1<bool>>>, Option<pyo3::Py<numpy::PyArray1<bool>>>, Option<pyo3::Py<PyDict>>, Option<pyo3::Py<PyDict>>)> {
     let x_array = x.as_array();
     let y_array = y.as_array();
@@ -47,7 +47,7 @@ fn find_best_split(
             &scoring_spec,
             eta,
             reg_gamma,
-            col_indices
+            col_indices,
             split_gain_method
         );
 

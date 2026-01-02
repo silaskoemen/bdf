@@ -3,6 +3,38 @@ import scoringrules
 from sklearn import metrics
 
 
+# Implement 'safe' versions of mse, mae, rmse, mape that sets inf predictions to large finite values
+def _safe_preds(y_pred: np.ndarray) -> np.ndarray:
+    y_pred = np.copy(y_pred)
+    y_pred[np.isinf(y_pred)] = np.finfo(np.float64).max
+    return y_pred
+
+
+def _safe_mse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    y_pred = _safe_preds(y_pred)
+    square = (y_true - y_pred) ** 2
+    safe_square = np.where(np.isfinite(square), square, np.finfo(np.float64).max)
+    return float(np.mean(safe_square))
+
+
+def _safe_mae(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    y_pred = _safe_preds(y_pred)
+    abs_error = np.abs(y_true - y_pred)
+    safe_abs_error = np.where(np.isfinite(abs_error), abs_error, np.finfo(np.float64).max)
+    return float(np.mean(safe_abs_error))
+
+
+def _safe_rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    return np.sqrt(_safe_mse(y_true, y_pred))
+
+
+def _safe_mape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    y_pred = _safe_preds(y_pred)
+    ape = np.abs((y_true - y_pred) / y_true)
+    safe_ape = np.where(np.isfinite(ape), ape, np.finfo(np.float64).max)
+    return float(np.mean(safe_ape)) * 100.0
+
+
 def quantile_loss(y_true: np.ndarray, y_pred: np.ndarray, quantile: float) -> float:
     """Compute the quantile loss for a specific quantile."""
     # Extract the predicted quantile from the samples
@@ -139,12 +171,12 @@ def weighted_interval_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
 
 REG_POINT_METRICS = {
-    "mse": metrics.mean_squared_error,
-    "mae": metrics.mean_absolute_error,
-    "rmse": metrics.root_mean_squared_error,
+    "mse": _safe_mse,
+    "mae": _safe_mae,
+    "rmse": _safe_rmse,
     "r2": metrics.r2_score,
-    "msle": metrics.mean_squared_log_error,
-    "mape": metrics.mean_absolute_percentage_error,
+    # "msle": metrics.mean_squared_log_error,
+    "mape": _safe_mape,
 }
 
 REG_PROB_METRICS = {

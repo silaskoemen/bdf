@@ -3,7 +3,7 @@ from pathlib import Path
 
 from .utils.aggregate_results import average_rmse_rank, load_all_results, rel_to_best
 
-JSON_ROOT = Path("benchmarks/results")
+JSON_ROOT = Path("benchmarks/results/custom/")
 
 # 1. Avg rank of RMSE
 # Could include others like concrete strength etc.
@@ -11,6 +11,8 @@ DATASETS = ["breast_cancer", "boston_housing_classification", "titanic"]
 MODELS = [
     "bdf_betamvbernoulli",
     "rf_clas",
+    "knn_clas",
+    "calrf_clas",
     "lgbm_clas",
     "ngboost_clas",
 ]

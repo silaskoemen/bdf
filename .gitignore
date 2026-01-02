@@ -17,6 +17,8 @@ debug/
 target/
 **/*.rs.bk
 
+multirun/
+
 .ruff_cache/
 
 **/*.db

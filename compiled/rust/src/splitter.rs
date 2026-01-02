@@ -15,7 +15,7 @@ pub fn find_best_split(
     eta: f64,
     reg_gamma: f64,
     col_idcs: Option<Array1<usize>>,
-    split_gain_method: str,
+    split_gain_method: &str,
 ) -> (Option<usize>, Option<f64>, f64, Option<Array1<bool>>, Option<Array1<bool>>, Option<HashMap<String, f64>>, Option<HashMap<String, f64>>) {
     let n_features = x.shape()[1];
     let n_samples = y.len();

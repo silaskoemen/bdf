@@ -2,7 +2,7 @@
 
 name: bdf_normalmunormal
 target_type: regression
-class_name: BDFModel
+class_name: BDFRegressor
 probabilistic: true
 
 compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
@@ -67,4 +67,4 @@ tunable_params:
 
 fixed_params:
   mu_mu: 'auto'  # Set prior mean based on data
-  score_correction: bic  # Bayesian information criterion for score correction
+  score_correction: bic  # Bayesian information criterion for score correction if 'nll' is used

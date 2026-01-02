@@ -127,7 +127,7 @@ class BDFNode:
                 left_params,
                 right_params,
             ) = bdf_rs.find_best_split(  # type: ignore
-                X, y, min_samples_leaf, min_child_weight, dist_spec, eta, reg_gamma, col_idcs
+                X, y, min_samples_leaf, min_child_weight, dist_spec, eta, reg_gamma, col_idcs, split_gain_method
             )
 
             return feature_idx, threshold, loss_reduction, left_indices, right_indices, left_params, right_params

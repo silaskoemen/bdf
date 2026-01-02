@@ -210,6 +210,16 @@ def return_dist_by_name(dist_name: str):
 
 
 class NGBRegressorWrapper(NGBRegressor):
+    """Uses the monkey patched NGBoost for regression tasks.
+
+    NOTE: Internal use of np.bool was deprecated in numpy 1.20.0, but we need a higher numpy
+    for python minor compatibility. Change the following two lines in ngboost/helpers.py (ll 21-22) if needed:
+    ```python
+    Y = np.empty(dtype=[("Event", np.bool_), ("Time", np.float64)], shape=T.shape[0])
+    Y["Event"] = E.astype(np.bool_)
+    ```
+    """
+
     def __init__(
         self,
         dist_name="Normal",
@@ -253,6 +263,13 @@ class NGBRegressorWrapper(NGBRegressor):
         super().fit(X_np, y_np, **kwargs)
         return self
 
+    def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
+        X_np = X.values if hasattr(X, "values") else X
+        preds = super().predict(X_np)
+        preds[np.isinf(preds)] = np.finfo(np.float64).max  # sklearn raises error on inf
+        preds[np.isneginf(preds)] = np.finfo(np.float64).min
+        return preds
+
     def predict_samples(self, X: np.ndarray | pd.DataFrame, n_samples: int) -> np.ndarray:
         """Generate samples from the predictive distribution at inputs X.
 
@@ -266,6 +283,9 @@ class NGBRegressorWrapper(NGBRegressor):
         # Use the scipy sampling function for this distribution
         sampler = NGBOOST_TO_SCIPY[self.dist_name]
         samples = sampler(params, n_samples)
+        # Set infinite samples to large finite values
+        samples[np.isinf(samples)] = np.finfo(np.float64).max
+        samples[np.isneginf(samples)] = np.finfo(np.float64).min
         return samples
 
 
@@ -494,7 +514,7 @@ class CatBoostUncertaintyWrapper(CatBoostRegressor):
             X = X.values
 
         # CatBoost returns [mean, variance] for RMSEWithUncertainty
-        preds = self.predict(X)
+        preds = super().predict(X)
         mean = preds[:, 0]
         variance = preds[:, 1]
         std = np.sqrt(variance)
@@ -777,9 +797,169 @@ class CalibratedRFWrapper(BaseEstimator, ClassifierMixin):
         return self
 
 
-# from bartpy.sklearnmodel import SklearnModel
-# class BARTRegressor(SklearnModel):
-#     def __init__(self, **kwargs):
-#         p_prune = 1 - kwargs['p_grow']
-#         kwargs.update({'p_prune': p_prune})
-#         self.kwargs = kwargs
+class BARTRegressorWrapper(BaseEstimator, RegressorMixin):
+    """
+    Wrapper around pymc3.pm.BART providing:
+    - fit(X, y): runs MCMC and stores trace
+    - predict(X): posterior predictive mean
+    - predict_samples(X, n_samples): samples from posterior predictive
+    """
+
+    def __init__(
+        self,
+        m=50,
+        draws=500,
+        tune=500,
+        chains=2,
+        cores=1,
+        random_state=None,
+        sigma_prior_sd=1.0,
+        bart_alpha=0.95,
+        bart_beta=2.0,
+    ):
+        self.m = m
+        self.draws = draws
+        self.tune = tune
+        self.chains = chains
+        self.cores = cores
+        self.random_state = random_state
+        self.sigma_prior_sd = sigma_prior_sd
+        self.bart_alpha = bart_alpha
+        self.bart_beta = bart_beta
+
+        # set during fit
+        self._model = None
+        self._trace = None
+        self._X_shared = None
+
+    def fit(self, X, y):
+        try:
+            import numpy as _np
+
+            if not hasattr(_np, "testing") or not hasattr(_np.testing, "Tester"):
+                try:
+                    from numpy.testing._private import Tester as _Tester  # new NumPy layout
+
+                    _np.testing.Tester = _Tester
+                except Exception:
+
+                    class Tester:  # fallback no-op minimal shim
+                        def __init__(self, *args, **kwargs):
+                            pass
+
+                        def run(self, *args, **kwargs):
+                            return None
+
+                        def test(self, *args, **kwargs):
+                            return None
+
+                    _np.testing.Tester = Tester
+
+            import pymc as pm
+        except Exception as e:
+            raise ImportError("pymc3/theano required for BARTRegressorWrapper") from e
+
+        import pymc_bart as pmb
+
+        warnings.filterwarnings("ignore", category=FutureWarning, message="MutableData is deprecated")
+        X_np = X.values if hasattr(X, "values") else X
+        y_np = y.values if hasattr(y, "values") else y
+        X_np = np.asarray(X_np, dtype=float)
+        y_np = np.asarray(y_np, dtype=float)
+        with pm.Model() as model_oos_regression:
+            self.X_bart = pm.MutableData("X", X_np)
+            Y_bart = y_np
+            mu = pmb.BART("mu", self.X_bart, y_np, m=self.m, alpha=self.bart_alpha, beta=self.bart_beta)
+            sigma = pm.HalfNormal("sigma", sigma=self.sigma_prior_sd)
+            pm.Normal("y_obs", mu=mu, sigma=sigma, observed=Y_bart, shape=mu.shape)
+            idata_oos_regression = pm.sample(
+                self.draws,
+                random_seed=1234,
+                chains=self.chains,
+            )
+            # posterior_predictive_oos_regression_train = pm.sample_posterior_predictive(
+            #     trace=idata_oos_regression, random_seed=1234
+            # )
+        self._model = model_oos_regression
+        self._trace = idata_oos_regression
+        return self
+
+    def predict_samples(self, X, n_samples: int) -> np.ndarray:
+        if self._model is None:
+            raise RuntimeError("Fit the model before calling predict_samples()")
+        import pymc as pm
+
+        with self._model:
+            self.X_bart.set_value(X)
+            pred_samples = pm.sample_posterior_predictive(
+                self._trace, random_seed=1234, predictions=True, var_names=["y_obs"]
+            ).predictions
+        samples = pred_samples["y_obs"].to_numpy()
+        # print(f"Samples are: {samples} or type {type(samples)} and available methods {dir(samples)}")
+        # Has shape [n_chains, n_draws, n_obs], need to reshape to (n_obs, n_samples)
+        n_chains, n_draws, n_obs = samples.shape
+        samples = samples.reshape(-1, n_obs)  # shape (n_chains * n_draws, n_obs)
+        if samples.shape[0] > n_samples:
+            # Downsample
+            indices = np.random.choice(samples.shape[0], size=n_samples, replace=False)
+            samples = samples[indices]
+        elif samples.shape[0] < n_samples:
+            # Upsample with replacement
+            indices = np.random.choice(samples.shape[0], size=n_samples, replace=True)
+            samples = samples[indices]
+        return samples.T  # shape (n_obs, n_samples)
+
+    def predict(self, X) -> np.ndarray:
+        # use modest number of predictive samples and return posterior mean
+        samples = self.predict_samples(X, n_samples=200)
+        return np.mean(samples, axis=1)
+
+
+class TreeffuserWrapper(BaseEstimator, RegressorMixin):
+    """
+    Thin sklearn-compatible wrapper for the external Treeffuser class.
+
+    Stores constructor args verbatim (so sklearn.clone works) and only
+    instantiates the real Treeffuser inside fit(), using a deep-copy of
+    dict-like args to avoid in-place mutations.
+    """
+
+    def __init__(self, **init_kwargs):
+        self.init_kwargs = dict(init_kwargs)
+        for k, v in self.init_kwargs.items():
+            setattr(self, k, v)
+        self.model_ = None
+
+    def fit(self, X, y, **fit_kwargs):
+        warnings.filterwarnings("ignore", category=UserWarning, message="X does not have valid feature names")
+        warnings.filterwarnings("ignore", message="Input array is not float32")
+        import copy
+
+        from treeffuser import Treeffuser
+
+        X = X.values if hasattr(X, "values") else X
+        y = y.values if hasattr(y, "values") else y
+
+        tf_kwargs = copy.deepcopy(self.init_kwargs)
+        self.model_ = Treeffuser(**tf_kwargs)
+        # Assume Treeffuser implements .fit(X, y)
+        self.model_.fit(X, y, **fit_kwargs)
+        return self
+
+    def predict(self, X):
+        X = X.values if hasattr(X, "values") else X
+        return self.model_.predict(X)
+
+    def predict_samples(self, X, n_samples=100):
+        X = X.values if hasattr(X, "values") else X
+        # TODO: add n_steps as parameter when tuning on crps
+        return self.model_.sample(X, n_samples=n_samples, seed=1234, n_steps=50).T
+
+    def get_params(self, deep=True):
+        return dict(self.init_kwargs)
+
+    def set_params(self, **params):
+        self.init_kwargs.update(params)
+        for k, v in params.items():
+            setattr(self, k, v)
+        return self

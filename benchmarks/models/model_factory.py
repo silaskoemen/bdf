@@ -8,11 +8,10 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-
-from bdf.tree_classes.bdf_regressor import BDFModel
+from treeffuser import Treeffuser
 
 from .wrappers import (
-    BARTRegressor,
+    BARTRegressorWrapper,
     CalibratedRFWrapper,
     CatBoostUncertaintyWrapper,
     DeepEnsembleWrapper,
@@ -22,9 +21,8 @@ from .wrappers import (
     MapieQuantileRegressorWrapper,
     NGBClassifierWrapper,
     NGBRegressorWrapper,
+    TreeffuserWrapper,
 )
-
-# from ngboost import NGBoostClassifier, ...
 
 
 class ModelFactory:
@@ -39,8 +37,6 @@ class ModelFactory:
                 return RandomForestClassifier
             case "RandomForestRegressor":
                 return RandomForestRegressor
-            case "BDFModel":
-                return BDFModel
             case "GaussianProcessRegressor":
                 return GPRegressorWrapper
             case "GaussianProcessClassifier":
@@ -74,6 +70,8 @@ class ModelFactory:
             case "RandomForestQuantileRegressor":
                 return RandomForestQuantileRegressor
             case "BARTRegressor":
-                return BARTRegressor
+                return BARTRegressorWrapper
+            case "Treeffuser":
+                return TreeffuserWrapper
             case _:
                 raise ValueError(f"Model class name '{cfg.name}' not recognized.")  # type: ignore[reportUnboundVariable]

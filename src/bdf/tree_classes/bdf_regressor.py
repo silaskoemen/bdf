@@ -76,6 +76,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
             random_state=random_state,
             n_jobs=n_jobs,
             bootstrap=bootstrap,
+            verbose=verbose,
         )
 
     def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False, standardize_y: bool = False):
@@ -403,6 +404,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
         bootstrap: bool,
         random_state: int,
         n_jobs: int,
+        verbose: int,
     ):
         """Validate the initialization parameters."""
         assert (
@@ -445,6 +447,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
             isinstance(n_jobs, int) and n_jobs != 0
         ), f"n_jobs must be a non-zero integer, got {n_jobs} of type {type(n_jobs)}"
         assert isinstance(bootstrap, bool), f"bootstrap must be a boolean, got {bootstrap} of type {type(bootstrap)}"
+        assert isinstance(verbose, int) and verbose >= -1
         self.bootstrap = bootstrap
         self.random_state = random_state
         self.eta = eta
@@ -459,6 +462,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
         self.subsample = subsample
         self.colsample = colsample
         self.n_jobs = n_jobs
+        self.verbose = verbose
 
     def _validate_prediction_input(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
         """Validate the input for prediction."""

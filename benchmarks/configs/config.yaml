@@ -1,9 +1,10 @@
 # Main config for regression tests
 defaults:
   - _self_
-  - model: bart_reg  # Model config to use
+  - model: bdf_normalmunormal  # Model config to use
 
 seed: 1234  # Random seed for splitting, cv and tuning
+n_splits: 10  # Number of CV splits, fold 0 is always used for tuning
 n_trials: 50  # Number of optuna trials per dataset
 sample_size: 5000  # Number of samples of predictive distribution to draw for prob. metrics
 
