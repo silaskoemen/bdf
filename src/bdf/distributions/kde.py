@@ -1,8 +1,7 @@
-import warnings
 from typing import Any, ClassVar, Literal, TypeVar
 
 import numpy as np
-from pydantic import Field, field_validator
+from pydantic import Field, model_validator
 
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
 
@@ -29,7 +28,7 @@ class KDEParams(BDFDistributionParams):
     """
 
     # KDE hyperparameters
-    bandwidth: str | float = Field(
+    bandwidth: Literal["scott", "silverman"] | float = Field(
         default="scott",
         description="Bandwidth: positive float, 'scott', or 'silverman'.",
     )
@@ -39,35 +38,31 @@ class KDEParams(BDFDistributionParams):
     )
     min_bandwidth: float = Field(
         default=1e-6,
-        gt=1e-10,
+        ge=1e-10,
         description="Minimum allowable bandwidth.",
     )
 
-    # FFT configuration - DEFERRED FOR NOW
-    use_fft: bool = Field(
-        default=False,
-        description="Use FFT-based KDE for likelihood calculations.",
+    # Optional FFT grid settings (used by Rust split scoring backend too)
+    fft_grid_points: int = Field(
+        default=4096,
+        ge=64,
+        description="Number of uniform bins for FFT KDE grid.",
     )
-    # fft_grid_points: int = Field(
-    #     default=512,
-    #     ge=64,
-    #     description="Number of grid points for FFT-based KDE.",
-    # )
-    # fft_grid_edges: np.ndarray | None = Field(
-    #     default=None,
-    #     description="Precomputed grid edges for FFT (set by regressor).",
-    # )
-    # fft_kernel_rfft: np.ndarray | None = Field(
-    #     default=None,
-    #     description="Precomputed kernel FFT at reference bandwidth=1 (set by regressor).",
-    # )
-    # fft_grid_delta: float | None = Field(
-    #     default=None,
-    #     description="Grid spacing for FFT (set by regressor).",
-    # )
+    fft_grid_min: float | None = Field(
+        default=None,
+        description="Minimum grid value (if None, computed from y with padding).",
+    )
+    fft_grid_max: float | None = Field(
+        default=None,
+        description="Maximum grid value (if None, computed from y with padding).",
+    )
+    fft_grid_delta: float | None = Field(
+        default=None,
+        description="Grid spacing (optional, set by regressor for debugging/inspection).",
+    )
 
     # Scoring defaults for non-parametric model
-    score_method: Literal["nle", "nll"] = Field(
+    score_method: Literal["nll"] = Field(
         default="nll",
         description="KDE uses NLL scoring (no closed-form evidence).",
     )
@@ -80,18 +75,39 @@ class KDEParams(BDFDistributionParams):
         description="KDE doesn't have posterior predictive in traditional sense.",
     )
 
-    # model_config = {"extra": "forbid"}
+    kde_backend: Literal["pairwise", "fft", "switch"] = Field(
+        default="pairwise",
+        description="KDE backend for Rust split scoring: 'pairwise', 'fft', or 'switch'.",
+    )
+    kde_backend_switch_size: int = Field(
+        default=2_000_000,
+        ge=1,
+        description=(
+            "Auto-switch threshold in terms of O(n^2) pairwise work. "
+            "If n*n > kde_backend_switch_size, auto will use FFT (Gaussian only)."
+        ),
+    )
+    bandwidth_policy: Literal["parent", "per_split"] = Field(
+        default="parent",
+        description="Bandwidth policy: 'parent' uses one bandwidth for all candidate splits; 'per_split' recomputes per side.",
+    )
+    use_compact_support: bool = Field(
+        default=False,
+        description="If true: Epanechnikov uses exact compact support; Gaussian uses an approximate cutoff (Rust split scoring).",
+    )
 
-    # @model_validator(mode="after")
-    # def validate_fft_config(self) -> "KDEParams":
-    #     if self.use_fft and self.kernel != "gaussian":
-    #         raise ValueError("FFT-based KDE only supports Gaussian kernel.")
-    #     return self
-    @field_validator("use_fft")
-    def warn_fft_deferred(cls, v: bool) -> bool:
-        if v:
-            warnings.warn("FFT-based KDE is currently deferred and not implemented.")
-        return False
+    # model_config = {"extra": "forbid"}
+    @model_validator(mode="after")
+    def validate_fft_config(self) -> "KDEParams":
+        # Keep FFT support intentionally narrow for now:
+        # - Gaussian kernel only
+        # - Parent bandwidth policy only (matches Rust FFT implementation)
+        if self.kde_backend == "fft":
+            if self.kernel != "gaussian":
+                raise ValueError("kde_backend='fft' currently only supports kernel='gaussian'.")
+            if self.bandwidth_policy != "parent":
+                raise ValueError("kde_backend='fft' currently only supports bandwidth_policy='parent'.")
+        return self
 
 
 class BayesianKDEParams(KDEParams):
@@ -134,8 +150,8 @@ class KDE(BDFDistribution[K]):
         Bandwidth selection method or fixed value.
     kernel : {'gaussian', 'epanechnikov'}, default='gaussian'
         Kernel function.
-    use_fft : bool, default=False
-        Use FFT for fast density evaluation (requires precomputed grid).
+    kde_backend : {'pairwise','fft','auto'}, default='pairwise'
+        Backend used for Rust split scoring (FFT is Gaussian-only for now).
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = KDEParams

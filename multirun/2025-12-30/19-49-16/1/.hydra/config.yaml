@@ -1,0 +1,45 @@
+seed: 1234
+n_splits: 10
+n_trials: 50
+sample_size: 5000
+logging:
+  level: DEBUG
+model:
+  name: calrf_clas
+  target_type: classification
+  class_name: CalibratedRandomForestClassifier
+  probabilistic: false
+  compatible_target_domains:
+  - binary
+  fixed_init_kwargs:
+    random_state: 1234
+  tunable_init_kwargs:
+    criterion:
+      type: categorical
+      categories:
+      - gini
+      - log_loss
+    max_leaf_nodes:
+      type: int
+      low: 5
+      high: 250
+    max_depth:
+      type: int
+      low: 2
+      high: 30
+    min_samples_leaf:
+      type: int
+      low: 5
+      high: 50
+    min_samples_split:
+      type: int
+      low: 10
+      high: 100
+    max_features:
+      type: float
+      low: 0.1
+      high: 1.0
+    n_estimators:
+      type: int
+      low: 10
+      high: 200

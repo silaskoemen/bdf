@@ -75,7 +75,7 @@ class BDFNode:
         col_idcs: list | np.ndarray | None = None,
         reg_gamma: float = 0.0,
         eta=0.025,
-        split_gain_method: Literal["evidence", "map"] = "evidence",
+        split_gain_method: Literal["evidence", "map"] = "map",
     ) -> (
         tuple[int, float, float, np.ndarray, np.ndarray, dict | None, dict | None]
         | tuple[None, None, float, None, None, None, None]
@@ -127,7 +127,7 @@ class BDFNode:
                 left_params,
                 right_params,
             ) = bdf_rs.find_best_split(  # type: ignore
-                X, y, min_samples_leaf, min_child_weight, dist_spec, eta, reg_gamma, col_idcs
+                X, y, min_samples_leaf, min_child_weight, dist_spec, eta, reg_gamma, col_idcs, split_gain_method
             )
 
             return feature_idx, threshold, loss_reduction, left_indices, right_indices, left_params, right_params

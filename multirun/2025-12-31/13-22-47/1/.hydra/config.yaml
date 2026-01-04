@@ -1,0 +1,51 @@
+seed: 1234
+n_splits: 10
+n_trials: 50
+sample_size: 5000
+logging:
+  level: DEBUG
+model:
+  name: rf_reg
+  target_type: regression
+  class_name: RandomForestRegressor
+  probabilistic: false
+  compatible_target_domains:
+  - real
+  - positive_real
+  - nonnegative_real
+  - integer
+  - nonnegative_integer
+  - positive_integer
+  fixed_init_kwargs:
+    random_state: 1234
+  tunable_init_kwargs:
+    criterion:
+      type: categorical
+      categories:
+      - squared_error
+      - absolute_error
+      - poisson
+    max_leaf_nodes:
+      type: int
+      low: 5
+      high: 250
+    max_depth:
+      type: int
+      low: 2
+      high: 30
+    min_samples_leaf:
+      type: int
+      low: 5
+      high: 50
+    min_samples_split:
+      type: int
+      low: 10
+      high: 100
+    max_features:
+      type: float
+      low: 0.1
+      high: 1.0
+    n_estimators:
+      type: int
+      low: 10
+      high: 200

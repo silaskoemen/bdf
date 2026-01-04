@@ -249,9 +249,9 @@ class BDFDistribution(ABC, Generic[P]):
             case "bic":
                 score = nll + 0.5 * self._num_parameters() * np.log(data.shape[0])
             case "loo_cv":
-                score = -np.mean(self._loo_cv_log_likelihood(data))
+                score = -np.sum(self._loo_cv_log_likelihood(data))
             case "kfold_cv":
-                score = -np.mean(
+                score = -np.sum(
                     self._kfold_log_likelihood(
                         data, self.params.score_cv_folds, self.params.score_cv_shuffle, self.params.score_cv_seed
                     )

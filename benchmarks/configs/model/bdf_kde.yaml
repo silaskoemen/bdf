@@ -14,18 +14,24 @@ fixed_init_kwargs:
 tunable_init_kwargs:
   n_trees:
     type: int
-    low: 5
-    high: 75
+    low: 15
+    high: 100
   reg_lambda:
     type: float
     low: 0.00001
     high: 1.0
     log: true
+  reg_gamma:
+    type: float
+    low: 0.0001
+    high: 1.0
+    log: true
+  reg_nu:
+    type: float
+    low: 0.0001
+    high: 1.0
+    log: true
   min_samples_leaf:
-    type: int
-    low: 5
-    high: 50
-  min_samples_split:
     type: int
     low: 10
     high: 100
@@ -33,6 +39,10 @@ tunable_init_kwargs:
     type: int
     low: 10
     high: 30
+  min_samples_split:
+    type: int
+    low: 50
+    high: 200
   subsample:
     type: float
     low: 0.5
@@ -54,7 +64,14 @@ tunable_params:
   kernel:
     type: categorical
     categories: [gaussian, epanechnikov]
+  # score_correction:
+  #   type: categorical
+  #   categories: [loo_cv, bic]
 
 fixed_params:
-  score_correction: bic
+  score_correction: null  # could use bic too
+  # kernel: gaussian
   score_cv_folds: 3
+  kde_backend: switch
+  bandwidth_policy: parent
+  use_compact_support: true  # Whether to use compact support as speedup

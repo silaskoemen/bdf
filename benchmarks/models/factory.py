@@ -11,8 +11,7 @@ from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 from bdf.tree_classes.bdf_regressor import BDFModel
 
-from .wrappers import (
-    BARTRegressor,
+from .wrappers import (  # BARTRegressor,
     CalibratedRFWrapper,
     CatBoostUncertaintyWrapper,
     DeepEnsembleWrapper,
@@ -71,9 +70,9 @@ class ModelFactory:
                 return DecisionTreeRegressor
             case "CalibratedRandomForestClassifier":
                 return CalibratedRFWrapper
-            case "RandomForestQuantileRegressor":
-                return RandomForestQuantileRegressor
-            case "BARTRegressor":
-                return BARTRegressor
+            # case "RandomForestQuantileRegressor":
+            #     return RandomForestQuantileRegressor
+            # case "BARTRegressor":
+            #     return BARTRegressor
             case _:
                 raise ValueError(f"Model class name '{cfg.name}' not recognized.")  # type: ignore[reportUnboundVariable]

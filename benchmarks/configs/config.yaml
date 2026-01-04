@@ -1,7 +1,7 @@
 # Main config for regression tests
 defaults:
   - _self_
-  - model: bart_reg  # Model config to use
+  - model: bdf_kde  # Model config to use
 
 seed: 1234  # Random seed for splitting, cv and tuning
 n_trials: 50  # Number of optuna trials per dataset

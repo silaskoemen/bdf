@@ -76,6 +76,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
             random_state=random_state,
             n_jobs=n_jobs,
             bootstrap=bootstrap,
+            verbose=verbose,
         )
 
     def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False, standardize_y: bool = False):
@@ -403,6 +404,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
         bootstrap: bool,
         random_state: int,
         n_jobs: int,
+        verbose: int,
     ):
         """Validate the initialization parameters."""
         assert (
@@ -445,6 +447,10 @@ class BDFModel(BaseEstimator, RegressorMixin):
             isinstance(n_jobs, int) and n_jobs != 0
         ), f"n_jobs must be a non-zero integer, got {n_jobs} of type {type(n_jobs)}"
         assert isinstance(bootstrap, bool), f"bootstrap must be a boolean, got {bootstrap} of type {type(bootstrap)}"
+        assert (
+            isinstance(verbose, int) and verbose >= -1
+        ), f"verbose must be an integer >= -1, got {verbose} of type {type(verbose)}"
+        self.verbose = verbose
         self.bootstrap = bootstrap
         self.random_state = random_state
         self.eta = eta
@@ -601,7 +607,12 @@ class BDFModel(BaseEstimator, RegressorMixin):
         """Check if distribution is FFT-based KDE."""
         from bdf.distributions.kde import KDE, BayesianKDE
 
-        return isinstance(self.distribution, (KDE, BayesianKDE)) and self.distribution.params.use_fft
+        if not isinstance(self.distribution, (KDE, BayesianKDE)):
+            return False
+        backend = getattr(self.distribution.params, "kde_backend", "pairwise")
+        kernel = getattr(self.distribution.params, "kernel", "gaussian")
+        policy = getattr(self.distribution.params, "bandwidth_policy", "parent")
+        return backend in ("fft", "switch") and kernel == "gaussian" and policy == "parent"
 
     def _init_kde_fft(self, y: np.ndarray) -> None:
         """Initialize FFT grid and kernel for KDE.
@@ -614,37 +625,33 @@ class BDFModel(BaseEstimator, RegressorMixin):
         y : np.ndarray
             Target values (after standardization if applicable).
         """
-        from scipy.fft import rfft
+        n_grid = int(self.distribution.params.fft_grid_points)
 
-        n_grid = self.distribution.params.fft_grid_points
-
-        # Compute global grid edges with padding
+        # Compute global grid edges with padding.
+        # Match Rust's Gaussian cutoff (≈ ±4σ) when possible.
         y_min, y_max = y.min(), y.max()
         y_range = y_max - y_min
-        padding = 0.2 * y_range  # 20% padding on each side
+        if y_range <= 0:
+            y_range = 1.0
+        try:
+            h = float(self.distribution._compute_bandwidth(y))  # type: ignore[attr-defined]
+        except Exception:
+            h = float("nan")
 
-        edges = np.linspace(y_min - padding, y_max + padding, n_grid + 1)
-        delta = edges[1] - edges[0]  # Grid spacing
+        padding = 4.0 * h if np.isfinite(h) and h > 0 else (0.2 * y_range)
 
-        # Precompute Gaussian kernel FFT at reference bandwidth = 1
-        # Grid centers for kernel evaluation
-        grid_centers = 0.5 * (edges[:-1] + edges[1:])
-        center_idx = n_grid // 2
-
-        # Gaussian kernel centered at middle of grid (will be circular-shifted via FFT)
-        x_kernel = grid_centers - grid_centers[center_idx]
-        kernel_ref = np.exp(-0.5 * x_kernel**2) / np.sqrt(2 * np.pi)
-
-        # FFT of kernel (reference bandwidth = 1)
-        kernel_rfft = rfft(kernel_ref)
+        grid_min = float(y_min - padding)
+        grid_max = float(y_max + padding)
+        delta = float((grid_max - grid_min) / n_grid)
 
         # Update distribution params with FFT precomputation
         # Use model_copy to create new params with FFT data
         updated_params = self.distribution.params.model_copy(
             update={
-                "fft_grid_edges": edges,
-                "fft_kernel_rfft": kernel_rfft,
+                "fft_grid_min": grid_min,
+                "fft_grid_max": grid_max,
                 "fft_grid_delta": delta,
+                "fft_grid_points": n_grid,
             }
         )
 
