@@ -19,6 +19,8 @@ target/
 
 .ruff_cache/
 
+multirun/
+
 **/*.db
 *.db
 
