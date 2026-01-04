@@ -136,6 +136,12 @@ class BDFModel(BaseEstimator, RegressorMixin):
         self.trees = cast(list[BDFTree], trees)
         self.is_fitted_ = True
 
+        # temporary debug: print average number of nodes and depth
+        if self.verbose > 0:
+            avg_nodes = np.mean([tree.count_nodes() for tree in self.trees])
+            avg_depth = np.mean([tree.get_max_depth() for tree in self.trees])
+            print(f"Fitted {self.n_trees} trees with average nodes: {avg_nodes:.2f}, average depth: {avg_depth:.2f}")
+
     def _standardize_y(self, y: np.ndarray) -> np.ndarray:
         """Standardize the target variable y.
 

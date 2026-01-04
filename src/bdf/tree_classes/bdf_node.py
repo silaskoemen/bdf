@@ -541,6 +541,23 @@ class BDFNode:
 
         return np.quantile(data, np.linspace(0, 1, n_thresholds), method="closest_observation")
 
+    def count_nodes(self) -> int:
+        """Count the total number of nodes in the subtree rooted at this node."""
+        count = 1  # Count this node
+        if self.left_node is not None:
+            count += self.left_node.count_nodes()
+        if self.right_node is not None:
+            count += self.right_node.count_nodes()
+        return count
+
+    def get_max_depth(self) -> int:
+        """Get the maximum depth of the subtree rooted at this node."""
+        if self._is_leaf():
+            return self.depth
+        left_depth = self.left_node.get_max_depth() if self.left_node is not None else self.depth
+        right_depth = self.right_node.get_max_depth() if self.right_node is not None else self.depth
+        return max(left_depth, right_depth)
+
 
 """
 import numpy as np

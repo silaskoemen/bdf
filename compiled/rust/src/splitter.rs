@@ -154,10 +154,11 @@ pub fn find_best_split(
         feature_idcs.par_iter().for_each(|&feature_idx| {
             let column = x.slice(s![.., feature_idx]);
 
-            let mut sorted_indices: Vec<usize> = (0..n_samples).collect();
-            sorted_indices.sort_unstable_by(|&a, &b|
-                column[a].partial_cmp(&column[b]).unwrap_or(std::cmp::Ordering::Equal)
-            );
+            // let mut sorted_indices: Vec<usize> = (0..n_samples).collect();
+            // sorted_indices.sort_unstable_by(|&a, &b|
+            //     column[a].partial_cmp(&column[b]).unwrap_or(std::cmp::Ordering::Equal)
+            // );
+            let sorted_indices = sort_indices_by_feature(&column);
 
             let mut left_stats = SufficientStats::default();
             let mut right_stats = parent_stats;
@@ -184,9 +185,9 @@ pub fn find_best_split(
                            (right_stats.n as usize) < min_samples_leaf {
                             continue;
                         }
-                        if left_stats.n < min_child_weight || right_stats.n < min_child_weight {
-                            continue;
-                        }
+                        // if left_stats.n < min_child_weight || right_stats.n < min_child_weight {
+                        //     continue;
+                        // }
 
                         num_thresholds_tried += 1;
                         // Direct unwrap - we know suff stats is supported
@@ -219,10 +220,11 @@ pub fn find_best_split(
         feature_idcs.par_iter().for_each(|&feature_idx| {
             let column = x.slice(s![.., feature_idx]);
 
-            let mut sorted_indices: Vec<usize> = (0..n_samples).collect();
-            sorted_indices.sort_unstable_by(|&a, &b|
-                column[a].partial_cmp(&column[b]).unwrap_or(std::cmp::Ordering::Equal)
-            );
+            // let mut sorted_indices: Vec<usize> = (0..n_samples).collect();
+            // sorted_indices.sort_unstable_by(|&a, &b|
+            //     column[a].partial_cmp(&column[b]).unwrap_or(std::cmp::Ordering::Equal)
+            // );
+            let sorted_indices = sort_indices_by_feature(&column);
 
             // Pre-sort y for direct slicing
             let sorted_y: Vec<f64> = sorted_indices.iter().map(|&i| y[i]).collect();
@@ -262,11 +264,11 @@ pub fn find_best_split(
                 let right_y = ArrayView1::from(&sorted_y[split_idx + 1..]);
 
                 // Check min_child_weight
-                let left_weight: f64 = left_y.sum();
-                let right_weight: f64 = right_y.sum();
-                if left_weight < min_child_weight || right_weight < min_child_weight {
-                    continue;
-                }
+                // let left_weight: f64 = left_y.sum();
+                // let right_weight: f64 = right_y.sum();
+                // if left_weight < min_child_weight || right_weight < min_child_weight {
+                //     continue;
+                // }
 
                 let left_score = score_split(&left_y, distribution, scoring_spec);
                 let right_score = score_split(&right_y, distribution, scoring_spec);
@@ -402,10 +404,12 @@ pub fn find_best_split_kde(
         feature_idcs.par_iter().for_each(|&feature_idx| {
             let column = x.slice(s![.., feature_idx]);
 
-            let mut sorted_indices: Vec<usize> = (0..n_samples).collect();
-            sorted_indices.sort_unstable_by(|&a, &b| {
-                column[a].partial_cmp(&column[b]).unwrap_or(std::cmp::Ordering::Equal)
-            });
+            // let mut sorted_indices: Vec<usize> = (0..n_samples).collect();
+            // sorted_indices.sort_unstable_by(|&a, &b| {
+            //     column[a].partial_cmp(&column[b]).unwrap_or(std::cmp::Ordering::Equal)
+            // });
+
+            let sorted_indices = sort_indices_by_feature(&column);
 
             let mut sum_to_left = vec![0.0f64; n_samples];
 
@@ -441,9 +445,9 @@ pub fn find_best_split_kde(
                 }
 
                 // KDE: treat min_child_weight as a count constraint (matches suff-stats path)
-                if (left_n as f64) < min_child_weight || (right_n as f64) < min_child_weight {
-                    continue;
-                }
+                // if (left_n as f64) < min_child_weight || (right_n as f64) < min_child_weight {
+                //     continue;
+                // }
 
                 num_thresholds_tried += 1;
 
@@ -490,10 +494,12 @@ pub fn find_best_split_kde(
         feature_idcs.par_iter().for_each(|&feature_idx| {
             let column = x.slice(s![.., feature_idx]);
 
-            let mut sorted_indices: Vec<usize> = (0..n_samples).collect();
-            sorted_indices.sort_unstable_by(|&a, &b| {
-                column[a].partial_cmp(&column[b]).unwrap_or(std::cmp::Ordering::Equal)
-            });
+            // let mut sorted_indices: Vec<usize> = (0..n_samples).collect();
+            // sorted_indices.sort_unstable_by(|&a, &b| {
+            //     column[a].partial_cmp(&column[b]).unwrap_or(std::cmp::Ordering::Equal)
+            // });
+
+            let sorted_indices = sort_indices_by_feature(&column);
 
             let mut local_best_gain = 0.0;
             let mut local_best_threshold = None;
@@ -511,9 +517,9 @@ pub fn find_best_split_kde(
                     continue;
                 }
 
-                if (left_n as f64) < min_child_weight || (right_n as f64) < min_child_weight {
-                    continue;
-                }
+                // if (left_n as f64) < min_child_weight || (right_n as f64) < min_child_weight {
+                //     continue;
+                // }
 
                 let feat_val = column[sorted_indices[split_idx]];
                 let next_feat_val = column[sorted_indices[split_idx + 1]];
@@ -717,10 +723,12 @@ fn find_best_split_kde_fft(
 
     feature_idcs.par_iter().for_each(|&feature_idx| {
         let column = x.slice(s![.., feature_idx]);
-        let mut sorted_indices: Vec<usize> = (0..n_samples).collect();
-        sorted_indices.sort_unstable_by(|&a, &b| {
-            column[a].partial_cmp(&column[b]).unwrap_or(std::cmp::Ordering::Equal)
-        });
+        // let mut sorted_indices: Vec<usize> = (0..n_samples).collect();
+        // sorted_indices.sort_unstable_by(|&a, &b| {
+        //     column[a].partial_cmp(&column[b]).unwrap_or(std::cmp::Ordering::Equal)
+        // });
+
+        let sorted_indices = sort_indices_by_feature(&column);
 
         let mut left_counts_bins: Vec<f64> = vec![0.0; n_bins];
 
@@ -756,9 +764,9 @@ fn find_best_split_kde_fft(
             if left_n < min_samples_leaf || right_n < min_samples_leaf {
                 continue;
             }
-            if (left_n as f64) < min_child_weight || (right_n as f64) < min_child_weight {
-                continue;
-            }
+            // if (left_n as f64) < min_child_weight || (right_n as f64) < min_child_weight {
+            //     continue;
+            // }
 
             num_thresholds_tried += 1;
 
@@ -828,10 +836,14 @@ fn find_best_split_kde_fft(
     // Reconstruct masks
     let feature_idx = best.feature_idx;
     let threshold = best.threshold;
-    let split_idx = (0..n_samples).find(|&i| x[[i, feature_idx]] > threshold).unwrap_or(n_samples - 1);
 
     let column = x.slice(s![.., feature_idx]);
     let sorted_indices = sort_indices_by_feature(&column);
+
+    // let split_idx = (0..n_samples).find(|&i| x[[i, feature_idx]] > threshold).unwrap_or(n_samples - 1);
+    let Some(split_idx) = split_idx_from_threshold(&column, &sorted_indices, threshold) else {
+        return (None, None, 0.0, None, None);
+    };
 
     let mut left_mask = Array1::from_elem(n_samples, false);
     let mut right_mask = Array1::from_elem(n_samples, false);

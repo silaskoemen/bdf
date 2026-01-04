@@ -161,6 +161,14 @@ class BDFTree:
                 node = node.right_node
         return node
 
+    def count_nodes(self) -> int:
+        """Count the total number of nodes in the tree."""
+        return self.root.count_nodes()
+
+    def get_max_depth(self) -> int:
+        """Get the maximum depth of the tree."""
+        return self.root.get_max_depth()
+
     def predict_mean(self, X: np.ndarray) -> np.ndarray:
         """Predict the mean for each observation in X."""
         return self.root.predict_mean(X)

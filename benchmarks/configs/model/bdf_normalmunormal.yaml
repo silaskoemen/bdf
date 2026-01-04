@@ -11,6 +11,7 @@ fixed_init_kwargs:
   dist: NormalMuNormal
   random_state: 1234
   max_depth: 50
+  verbose: 1
 
 tunable_init_kwargs:
   n_trees:

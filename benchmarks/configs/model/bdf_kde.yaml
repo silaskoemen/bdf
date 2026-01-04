@@ -10,6 +10,7 @@ compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonn
 fixed_init_kwargs:
   dist: KDE
   random_state: 1234
+  verbose: 1
 
 tunable_init_kwargs:
   n_trees:
@@ -23,14 +24,14 @@ tunable_init_kwargs:
     log: true
   reg_gamma:
     type: float
-    low: 0.0001
+    low: 0.0  #001
     high: 1.0
-    log: true
+    # log: true
   reg_nu:
     type: float
-    low: 0.0001
+    low: 0.0  # 001
     high: 1.0
-    log: true
+    # log: true
   min_samples_leaf:
     type: int
     low: 10
@@ -55,7 +56,7 @@ tunable_init_kwargs:
     type: float
     low: 0.001
     high: 0.1
-    log: true
+    # log: true
 
 tunable_params:
   bandwidth:
@@ -64,14 +65,14 @@ tunable_params:
   kernel:
     type: categorical
     categories: [gaussian, epanechnikov]
-  # score_correction:
-  #   type: categorical
-  #   categories: [loo_cv, bic]
+  score_correction:
+    type: categorical
+    categories: [loo_cv, bic]
 
 fixed_params:
-  score_correction: null  # could use bic too
+  # score_correction: null  # could use bic too
   # kernel: gaussian
   score_cv_folds: 3
   kde_backend: switch
   bandwidth_policy: parent
-  use_compact_support: true  # Whether to use compact support as speedup
+  use_compact_support: false  # Whether to use compact support as speedup
