@@ -16,34 +16,34 @@ tunable_init_kwargs:
   n_trees:
     type: int
     low: 15
-    high: 100
+    high: 200
   reg_lambda:
     type: float
     low: 0.00001
-    high: 1.0
+    high: 0.1
     log: true
   reg_gamma:
     type: float
-    low: 0.0  #001
+    low: 0.0001
     high: 1.0
-    # log: true
+    log: true
   reg_nu:
     type: float
-    low: 0.0  # 001
-    high: 1.0
-    # log: true
+    low: 0.0001
+    high: 0.1
+    log: true
   min_samples_leaf:
     type: int
     low: 10
     high: 100
-  max_depth:
-    type: int
-    low: 10
-    high: 30
-  min_samples_split:
-    type: int
-    low: 50
-    high: 200
+  # max_depth:
+  #   type: int
+  #   low: 10
+  #   high: 30
+  # min_samples_split:
+  #   type: int
+  #   low: 10
+  #   high: 200
   subsample:
     type: float
     low: 0.5
@@ -67,7 +67,10 @@ tunable_params:
     categories: [gaussian, epanechnikov]
   score_correction:
     type: categorical
-    categories: [loo_cv, bic]
+    categories: [loo_cv, bic, null]
+  # bandwidth_policy:
+  #   type: categorical
+  #   categories: [parent, per_split]
 
 fixed_params:
   # score_correction: null  # could use bic too

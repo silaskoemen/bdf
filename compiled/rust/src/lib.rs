@@ -118,6 +118,9 @@ fn find_best_split(
         let kde_backend_switch_size = distribution_spec.get_item("kde_backend_switch_size")
             .and_then(|v| v.extract::<usize>().ok())
             .unwrap_or(2_000_000usize);
+        let score_correction: Option<String> = distribution_spec.get_item("score_correction")
+            .and_then(|v| v.extract::<Option<String>>().ok())
+            .flatten();
 
         let kde_config = splitter::KdeSplitConfig {
             kernel,
@@ -132,6 +135,7 @@ fn find_best_split(
             fft_grid_min,
             fft_grid_max,
             fft_grid_points,
+            score_correction,
         };
 
         splitter::find_best_split_kde(

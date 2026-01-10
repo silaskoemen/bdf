@@ -4,6 +4,9 @@ use pyo3::types::PyDict;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 
+/// Offer rescoring of top k splits instead of only top 1 (nice-to-have)
+/// Investigate whether k=1 is sensible for KDE or more effective params (sensible for learned bw)
+
 #[derive(Clone, Copy, Debug)]
 pub enum KernelType {
     Gaussian,

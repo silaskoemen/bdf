@@ -17,6 +17,13 @@ pub enum KdeBackend {
     Fft,
     Switch,
 }
+#[inline]
+fn kernel_self_density(kernel: KernelType, h: f64) -> f64 {
+    match kernel {
+        KernelType::Gaussian => INV_SQRT_2PI / h,
+        KernelType::Epanechnikov => 0.75 / h,
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub enum BandwidthPolicy {
@@ -39,6 +46,8 @@ pub struct KdeSplitConfig {
     pub fft_grid_min: Option<f64>,
     pub fft_grid_max: Option<f64>,
     pub fft_grid_points: Option<usize>,
+    // Score correction method (None = plugin, "loo_cv" = LOO-CV)
+    pub score_correction: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -345,32 +354,22 @@ pub fn find_best_split_kde(
     let full_indices: Vec<usize> = (0..n_samples).collect();
     let parent_h = compute_bandwidth_for_indices(&base_kde, config, y, &full_indices);
 
-    // FFT backend: only implemented for Gaussian + Parent bandwidth (fast + consistent).
-    let n2: u128 = (n_samples as u128) * (n_samples as u128);
-    let want_fft = match config.backend {
-        KdeBackend::Fft => true,
-        KdeBackend::Switch => n2 > (config.kde_backend_switch_size as u128),
-        KdeBackend::Pairwise => false,
-    };
+    let use_loo = config.score_correction.as_deref() == Some("loo_cv");
+    let score_corr = config.score_correction.as_deref();
+    let k0 = kernel_self_density(config.kernel, parent_h);
 
-    if want_fft {
-        if !matches!(config.kernel, KernelType::Gaussian) || !matches!(config.bandwidth_policy, BandwidthPolicy::Parent) {
-            // Fall back to existing implementations
-        } else {
-            let (f, t, g, lm, rm) = find_best_split_kde_fft(
-                x, y, min_samples_leaf, min_child_weight, config, parent_h, eta, reg_gamma, col_idcs
-            );
-            return (f, t, g, lm, rm, None, None);
-        }
+    // Backend routing: prefer FFT when requested and eligible; otherwise pairwise.
+    let n2: usize = n_samples.saturating_mul(n_samples);
+    let fft_eligible = matches!(config.bandwidth_policy, BandwidthPolicy::Parent)
+        && matches!(config.kernel, KernelType::Gaussian);
+    let want_fft = matches!(config.backend, KdeBackend::Fft)
+        || (matches!(config.backend, KdeBackend::Switch) && n2 > config.kde_backend_switch_size);
+    if want_fft && fft_eligible {
+        let (fi, thr, gain, lmask, rmask) = find_best_split_kde_fft(
+            x, y, min_samples_leaf, min_child_weight, config, parent_h, eta, reg_gamma, col_idcs,
+        );
+        return (fi, thr, gain, lmask, rmask, None, None);
     }
-
-    let feature_idcs: Vec<usize> = match col_idcs {
-        Some(ref indices) => indices.to_vec(),
-        None => (0..n_features).collect(),
-    };
-
-    let stride = (n_samples as f64 * eta).max(1.0) as usize;
-    let num_features_tried = feature_idcs.len();
 
     // Try the fast path: Parent bandwidth + dense kernel matrix
     let mut kernel_mat: Option<Vec<f64>> = None;
@@ -383,17 +382,32 @@ pub fn find_best_split_kde(
         }
     }
 
-    // Current node score
-    let current_score = if let Some(rs) = full_row_sums.as_ref() {
-        kde_full_nll_from_row_sums(rs)
+    // Current node score (now full_row_sums is defined)
+    let current_score_base = if let Some(rs) = full_row_sums.as_ref() {
+        if use_loo {
+            kde_full_nll_from_row_sums(rs)
+        } else {
+            kde_full_plugin_nll_from_row_sums(rs, k0)
+        }
     } else {
-        // Fallback: old pairwise-distance implementation
         let d2 = precompute_pairwise_d2(y);
-        kde_subset_nll(&full_indices, &d2, n_samples, parent_h, config.kernel, config.use_compact_support)
+        if use_loo {
+            kde_subset_nll(&full_indices, &d2, n_samples, parent_h, config.kernel, config.use_compact_support)
+        } else {
+            kde_subset_nll_plugin(&full_indices, &d2, n_samples, parent_h, config.kernel, config.use_compact_support)
+        }
     };
+    let current_score = kde_apply_score_correction(current_score_base, n_samples, score_corr);
 
     let best_results: Mutex<Option<BestKdeSplit>> = Mutex::new(None);
-    // Track best as a single, self-contained struct.
+
+    let feature_idcs: Vec<usize> = match col_idcs {
+        Some(ref indices) => indices.to_vec(),
+        None => (0..n_features).collect(),
+    };
+
+    let stride = (n_samples as f64 * eta).max(1.0) as usize;
+    let num_features_tried = feature_idcs.len();
 
     if let (Some(k_mat), Some(rs_total)) = (kernel_mat.as_ref(), full_row_sums.as_ref()) {
         // ================================================================
@@ -444,15 +458,22 @@ pub fn find_best_split_kde(
                     continue;
                 }
 
-                // KDE: treat min_child_weight as a count constraint (matches suff-stats path)
-                // if (left_n as f64) < min_child_weight || (right_n as f64) < min_child_weight {
-                //     continue;
-                // }
-
                 num_thresholds_tried += 1;
 
-                let left_score = kde_nll_from_row_sums(&sorted_indices[..=i], &sum_to_left);
-                let right_score = kde_nll_from_row_sums_right(&sorted_indices[i + 1..], &sum_to_left, rs_total);
+                // FFT(left_counts)
+                let left_score_base = if use_loo {
+                    kde_nll_from_row_sums(&sorted_indices[..=i], &sum_to_left)
+                } else {
+                    kde_plugin_nll_from_row_sums(&sorted_indices[..=i], &sum_to_left, k0)
+                };
+                let right_score_base = if use_loo {
+                    kde_nll_from_row_sums_right(&sorted_indices[i + 1..], &sum_to_left, rs_total)
+                } else {
+                    kde_plugin_nll_from_row_sums_right(&sorted_indices[i + 1..], &sum_to_left, rs_total, k0)
+                };
+                let left_score = kde_apply_score_correction(left_score_base, left_n, score_corr);
+                let right_score = kde_apply_score_correction(right_score_base, right_n, score_corr);
+
                 if !left_score.is_finite() || !right_score.is_finite() {
                     continue;
                 }
@@ -541,8 +562,18 @@ pub fn find_best_split_kde(
                     BandwidthPolicy::PerSplit => compute_bandwidth_for_indices(&base_kde, config, y, right_idx_slice),
                 };
 
-                let left_score = kde_subset_nll(left_idx_slice, &d2, n_samples, left_h, config.kernel, config.use_compact_support);
-                let right_score = kde_subset_nll(right_idx_slice, &d2, n_samples, right_h, config.kernel, config.use_compact_support);
+                let left_score_base = if use_loo {
+                    kde_subset_nll(left_idx_slice, &d2, n_samples, left_h, config.kernel, config.use_compact_support)
+                } else {
+                    kde_subset_nll_plugin(left_idx_slice, &d2, n_samples, left_h, config.kernel, config.use_compact_support)
+                };
+                let right_score_base = if use_loo {
+                    kde_subset_nll(right_idx_slice, &d2, n_samples, right_h, config.kernel, config.use_compact_support)
+                } else {
+                    kde_subset_nll_plugin(right_idx_slice, &d2, n_samples, right_h, config.kernel, config.use_compact_support)
+                };
+                let left_score = kde_apply_score_correction(left_score_base, left_n, score_corr);
+                let right_score = kde_apply_score_correction(right_score_base, right_n, score_corr);
 
                 let improvement = current_score - (left_score + right_score);
                 if improvement > local_best_gain {
@@ -606,8 +637,21 @@ pub fn find_best_split_kde(
         let right_h = compute_bandwidth_for_indices(&base_kde, config, y, right_indices);
 
         let d2 = precompute_pairwise_d2(y);
-        let left_score = kde_subset_nll(left_indices, &d2, n_samples, left_h, config.kernel, config.use_compact_support);
-        let right_score = kde_subset_nll(right_indices, &d2, n_samples, right_h, config.kernel, config.use_compact_support);
+        let left_n = left_indices.len();
+        let right_n = right_indices.len();
+
+        let left_score_base = if use_loo {
+            kde_subset_nll(left_indices, &d2, n_samples, left_h, config.kernel, config.use_compact_support)
+        } else {
+            kde_subset_nll_plugin(left_indices, &d2, n_samples, left_h, config.kernel, config.use_compact_support)
+        };
+        let right_score_base = if use_loo {
+            kde_subset_nll(right_indices, &d2, n_samples, right_h, config.kernel, config.use_compact_support)
+        } else {
+            kde_subset_nll_plugin(right_indices, &d2, n_samples, right_h, config.kernel, config.use_compact_support)
+        };
+        let left_score = kde_apply_score_correction(left_score_base, left_n, score_corr);
+        let right_score = kde_apply_score_correction(right_score_base, right_n, score_corr);
 
         if left_score.is_finite() && right_score.is_finite() {
             let mut refined_gain = current_score - (left_score + right_score);
@@ -625,6 +669,24 @@ const INV_SQRT_2PI: f64 = 0.3989422804014327; // 1/sqrt(2*pi)
 // Guardrail: dense n×n kernel matrix memory (f64) ~ 8*n*n bytes.
 const MAX_KERNEL_MATRIX_ELEMS: usize = 12_000_000; // ~96MB
 const GAUSSIAN_CUTOFF_STDDEVS: f64 = 4.0;
+
+/// Apply BIC/AIC score correction to raw NLL (LOO/plugin already accounted for)
+#[inline]
+fn kde_apply_score_correction(base_nll: f64, n: usize, score_corr: Option<&str>) -> f64 {
+    match score_corr {
+        None | Some("loo_cv") => base_nll,  // No additional penalty for plugin or LOO
+        Some("bic") => {
+            // BIC penalty: 0.5 * k * ln(n), with k=1 for KDE bandwidth
+            let n_f = n as f64;
+            base_nll + 0.5 * n_f.ln()
+        }
+        Some("aic") => {
+            // AIC penalty: k, with k=1 for KDE bandwidth
+            base_nll + 1.0
+        }
+        _ => base_nll,  // Unknown correction, no penalty
+    }
+}
 
 fn find_best_split_kde_fft(
     x: &ArrayView2<f64>,
@@ -699,17 +761,26 @@ fn find_best_split_kde_fft(
     let mut scratch_inv = c2r.make_scratch_vec();
     c2r.process_with_scratch(&mut total_spec, &mut total_conv, &mut scratch_inv)
         .expect("FFT inverse failed");
-    let norm = 1.0 / (fft_len as f64);
+
+    // FIX: Normalize by dx to get density, not probability mass per bin
+    let norm = 1.0 / ((fft_len as f64) * dx);
+
     for v in total_conv.iter_mut() {
         *v *= norm;
     }
 
+    let use_loo = config.score_correction.as_deref() == Some("loo_cv");
+    let score_corr = config.score_correction.as_deref();
+
     // Parent score (LOO-style): N * ln(N-1) - sum_i ln(sum_{j!=i} K(y_i,y_j))
-    let k0 = INV_SQRT_2PI / parent_h;
-    let current_score = kde_loo_nll_from_hist(&total_counts_bins, &total_conv[..n_bins], n_samples, k0);
-    if !current_score.is_finite() {
-        return (None, None, 0.0, None, None);
-    }
+    let k0 = kernel_self_density(config.kernel, parent_h);
+    let current_score_base = if use_loo {
+        kde_loo_nll_from_hist(&total_counts_bins, &total_conv[..n_bins], n_samples, k0)
+    } else {
+        kde_plugin_nll_from_hist(&total_counts_bins, &total_conv[..n_bins], n_samples, k0)
+    };
+    let current_score = kde_apply_score_correction(current_score_base, n_samples, score_corr);
+    if !current_score.is_finite() { return (None, None, 0.0, None, None); }
 
     let feature_idcs: Vec<usize> = match col_idcs {
         Some(ref indices) => indices.to_vec(),
@@ -785,23 +856,28 @@ fn find_best_split_kde_fft(
             }
 
             // Right conv = total_conv - left_conv (linearity)
-            let left_score = kde_loo_nll_from_hist(&left_counts_bins, &conv_left[..n_bins], left_n, k0);
-            if !left_score.is_finite() {
-                continue;
-            }
-
-            // Compute right NLL without allocating right arrays
-            let right_score = kde_loo_nll_from_hist_right(
-                &total_counts_bins,
-                &left_counts_bins,
-                &total_conv[..n_bins],
-                &conv_left[..n_bins],
-                right_n,
-                k0,
-            );
-            if !right_score.is_finite() {
-                continue;
-            }
+            let left_score_base = if use_loo {
+                kde_loo_nll_from_hist(&left_counts_bins, &conv_left[..n_bins], left_n, k0)
+            } else {
+                kde_plugin_nll_from_hist(&left_counts_bins, &conv_left[..n_bins], left_n, k0)
+            };
+            let right_score_base = if use_loo {
+                kde_loo_nll_from_hist_right(
+                    &total_counts_bins, &left_counts_bins,
+                    &total_conv[..n_bins], &conv_left[..n_bins],
+                    right_n, k0,
+                )
+            } else {
+                kde_plugin_nll_from_hist_right(
+                    &total_counts_bins, &left_counts_bins,
+                    &total_conv[..n_bins], &conv_left[..n_bins],
+                    right_n,
+                )
+            };
+            let left_score = kde_apply_score_correction(left_score_base, left_n, score_corr);
+            let right_score = kde_apply_score_correction(right_score_base, right_n, score_corr);
+            if !left_score.is_finite() { continue; }
+            if !right_score.is_finite() { continue; }
 
             let gain = current_score - (left_score + right_score);
             if gain > local_best_gain {
@@ -910,21 +986,21 @@ fn find_best_split_kde_fft(
 
             let mut conv_left_bins: Vec<f64> = vec![0.0; n_bins];
             convolve_bins(&left_counts_bins, left_h, &mut conv_left_bins);
-            let left_score = kde_loo_nll_from_hist(
-                &left_counts_bins,
-                &conv_left_bins,
-                left_n,
-                INV_SQRT_2PI / left_h,
-            );
+            let left_score_base = if use_loo {
+                kde_loo_nll_from_hist(&left_counts_bins, &conv_left_bins, left_n, INV_SQRT_2PI / left_h)
+            } else {
+                kde_plugin_nll_from_hist(&left_counts_bins, &conv_left_bins, left_n, INV_SQRT_2PI / left_h)
+            };
+            let left_score = kde_apply_score_correction(left_score_base, left_n, score_corr);
 
             let mut conv_right_bins: Vec<f64> = vec![0.0; n_bins];
             convolve_bins(&right_counts_bins, right_h, &mut conv_right_bins);
-            let right_score = kde_loo_nll_from_hist(
-                &right_counts_bins,
-                &conv_right_bins,
-                right_n,
-                INV_SQRT_2PI / right_h,
-            );
+            let right_score_base = if use_loo {
+                kde_loo_nll_from_hist(&right_counts_bins, &conv_right_bins, right_n, INV_SQRT_2PI / right_h)
+            } else {
+                kde_plugin_nll_from_hist(&right_counts_bins, &conv_right_bins, right_n, INV_SQRT_2PI / right_h)
+            };
+            let right_score = kde_apply_score_correction(right_score_base, right_n, score_corr);
 
             if left_score.is_finite() && right_score.is_finite() {
                 let mut refined_gain = current_score - (left_score + right_score);
@@ -1030,6 +1106,60 @@ fn kde_loo_nll_from_hist_right(
         sum_ln += c * s.ln();
     }
     (n_right as f64) * log_n1 - sum_ln
+}
+
+/// Plugin NLL from histogram: includes self-contribution, normalizes by n
+#[inline]
+fn kde_plugin_nll_from_hist(counts: &[f64], conv: &[f64], n: usize, k0: f64) -> f64 {
+    if n < 1 {
+        return f64::INFINITY;
+    }
+    let log_n = (n as f64).ln();
+    let mut sum_ln = 0.0f64;
+    for i in 0..counts.len() {
+        let c = counts[i];
+        if c <= 0.0 {
+            continue;
+        }
+        // Plugin: use full convolution INCLUDING self-contribution
+        // conv[i] already includes contributions from all points in the same bin
+        // For Gaussian, self-contribution density = k0 = 1/(h*sqrt(2*pi))
+        // But the histogram approximation means points in the same bin contribute
+        // So we just use conv[i] directly (it includes self via binning)
+        let s = conv[i];  // Already includes self-contribution via histogram
+        if !s.is_finite() || s <= 0.0 {
+            return f64::INFINITY;
+        }
+        sum_ln += c * s.ln();
+    }
+    (n as f64) * log_n - sum_ln
+}
+
+#[inline]
+fn kde_plugin_nll_from_hist_right(
+    total_counts: &[f64],
+    left_counts: &[f64],
+    total_conv: &[f64],
+    left_conv: &[f64],
+    n_right: usize,
+) -> f64 {
+    if n_right < 1 {
+        return f64::INFINITY;
+    }
+    let log_n = (n_right as f64).ln();
+    let mut sum_ln = 0.0f64;
+    for i in 0..total_counts.len() {
+        let c = total_counts[i] - left_counts[i];
+        if c <= 0.0 {
+            continue;
+        }
+        let s = total_conv[i] - left_conv[i];
+        if !s.is_finite() || s <= 0.0 {
+            return f64::INFINITY;
+        }
+        sum_ln += c * s.ln();
+    }
+    (n_right as f64) * log_n - sum_ln
 }
 
 fn try_precompute_kernel_matrix(
@@ -1149,6 +1279,67 @@ fn kde_full_nll_from_row_sums(row_sums: &[f64]) -> f64 {
     (n as f64) * log_n1 - sum_ln
 }
 
+// Plugin NLL: includes self-contribution, normalizes by n (not n-1)
+/// sum_to_left[i] = sum_{j in Left, j != i} K[i,j] (does NOT include diagonal)
+/// We add k0 for each point in the subset
+#[inline]
+fn kde_plugin_nll_from_row_sums(indices: &[usize], sum_to_left: &[f64], k0: f64) -> f64 {
+    let m = indices.len();
+    if m < 1 {
+        return f64::INFINITY;
+    }
+    let log_m = (m as f64).ln();
+    let mut sum_ln = 0.0f64;
+    for &idx in indices {
+        // Add self-contribution k0 since sum_to_left excludes diagonal
+        let s = sum_to_left[idx] + k0;
+        if s <= 0.0 || !s.is_finite() {
+            return f64::INFINITY;
+        }
+        sum_ln += s.ln();
+    }
+    (m as f64) * log_m - sum_ln
+}
+
+#[inline]
+fn kde_plugin_nll_from_row_sums_right(indices: &[usize], sum_to_left: &[f64], rs_total: &[f64], k0: f64) -> f64 {
+    let m = indices.len();
+    if m < 1 {
+        return f64::INFINITY;
+    }
+    let log_m = (m as f64).ln();
+    let mut sum_ln = 0.0f64;
+    for &idx in indices {
+        // Right child: total - left, but for plugin we need self-contribution
+        // The row_sums already include self for points that ARE in left;
+        // for points in right, we need to add k0 (self-kernel)
+        let s = rs_total[idx] - sum_to_left[idx] + k0;  // Add back self-contribution
+        if s <= 0.0 || !s.is_finite() {
+            return f64::INFINITY;
+        }
+        sum_ln += s.ln();
+    }
+    (m as f64) * log_m - sum_ln
+}
+
+#[inline]
+fn kde_full_plugin_nll_from_row_sums(row_sums: &[f64], k0: f64) -> f64 {
+    let n = row_sums.len();
+    if n < 1 {
+        return f64::INFINITY;
+    }
+    let log_n = (n as f64).ln();
+    let mut sum_ln = 0.0f64;
+    for &s in row_sums {
+        let s_with_self = s + k0;  // Add self-contribution
+        if s_with_self <= 0.0 || !s_with_self.is_finite() {
+            return f64::INFINITY;
+        }
+        sum_ln += s_with_self.ln();
+    }
+    (n as f64) * log_n - sum_ln
+}
+
 fn precompute_pairwise_d2(y: &ArrayView1<f64>) -> Vec<f64> {
     let n = y.len();
     let mut d2 = vec![0.0f64; n * n];
@@ -1229,11 +1420,7 @@ fn kde_subset_nll(
                     let u2 = dij2 * inv_h2;
                     if u2 <= 1.0 {
                         let one_minus = 1.0 - u2;
-                        if one_minus > 0.0 {
-                            log_norm + one_minus.ln()
-                        } else {
-                            f64::NEG_INFINITY
-                        }
+                        if one_minus > 0.0 { log_norm + one_minus.ln() } else { f64::NEG_INFINITY }
                     } else {
                         f64::NEG_INFINITY
                     }
@@ -1252,6 +1439,70 @@ fn kde_subset_nll(
             return f64::INFINITY;
         }
         let ll_i = max_val + sum_exp.ln() - log_m1;
+        total_ll += ll_i;
+    }
+
+    -total_ll
+}
+
+fn kde_subset_nll_plugin(
+    indices: &[usize],
+    d2: &[f64],
+    n_total: usize,
+    h: f64,
+    kernel: KernelType,
+    use_compact_support: bool,
+) -> f64 {
+    let m = indices.len();
+    if m < 1 {
+        return f64::INFINITY;
+    }
+    let inv_h2 = 1.0 / (h * h);
+    let cutoff2 = if use_compact_support { (GAUSSIAN_CUTOFF_STDDEVS * h).powi(2) } else { f64::INFINITY };
+    let log_norm = match kernel {
+        KernelType::Gaussian => {
+            const LOG_2PI: f64 = 1.8378770664093453;
+            -0.5 * LOG_2PI - h.ln()
+        }
+        KernelType::Epanechnikov => 0.75f64.ln() - h.ln(),
+    };
+
+    let log_m = (m as f64).ln();
+    let mut total_ll = 0.0f64;
+
+    for &i in indices {
+        let mut max_val = f64::NEG_INFINITY;
+        let mut sum_exp = 0.0f64;
+
+        for &j in indices {
+            let dij2 = d2[i * n_total + j];
+            let v = match kernel {
+                KernelType::Gaussian => {
+                    if dij2 > cutoff2 { f64::NEG_INFINITY } else { log_norm - 0.5 * dij2 * inv_h2 }
+                }
+                KernelType::Epanechnikov => {
+                    let u2 = dij2 * inv_h2;
+                    if u2 <= 1.0 {
+                        let one_minus = 1.0 - u2;
+                        if one_minus > 0.0 { log_norm + one_minus.ln() } else { f64::NEG_INFINITY }
+                    } else {
+                        f64::NEG_INFINITY
+                    }
+                }
+            };
+
+            if v > max_val {
+                sum_exp = sum_exp * (max_val - v).exp() + 1.0;
+                max_val = v;
+            } else {
+                sum_exp += (v - max_val).exp();
+            }
+        }
+
+        if max_val == f64::NEG_INFINITY {
+            return f64::INFINITY;
+        }
+        let ll_i = max_val + sum_exp.ln() - log_m;
         total_ll += ll_i;
     }
 
