@@ -39,6 +39,7 @@ class BDFTree:
         `min_child_weight` : int or float
             Minimum sum of instance weight (hessian) needed in a child
         """
+        self.root = BDFNode(distribution=distribution, depth=0, random_state=random_state)
         self.distribution = distribution
         self.reg_lambda = reg_lambda
         self.reg_gamma = reg_gamma
@@ -63,7 +64,6 @@ class BDFTree:
         # node can be split simply by considering NLL reduction and including reg_gamma; no need for a queue.
         # TODO: Implement separate fit functions given reg_lambda == 0 and reg_lambda > 0.
         # Create root node
-        self.root = BDFNode(distribution=self.distribution, depth=0, random_state=self.random_state)
         self.root.estimate_posterior(y)
 
         # Only try splitting if we have enough samples

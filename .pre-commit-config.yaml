@@ -29,8 +29,13 @@ repos:
 
   - repo: local
     hooks:
-      - id: pyright
-        name: pyright
-        entry: pyright
+      # - id: pyright
+      #   name: pyright
+      #   entry: pyright
+      #   language: system
+      #   types: [python]
+      - id: ty
+        name: ty
+        entry: ty check src compiled --ignore unresolved-import
         language: system
         types: [python]

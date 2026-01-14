@@ -105,7 +105,7 @@ class FrequentistStudentT(BDFDistribution):
     def _sample_posterior_params(
         self,
         params: dict[str, float],
-        size: int,
+        size: int | tuple[int, int] = 1,
         random_state: int = RANDOM_SEED,
     ) -> np.ndarray:
         mu = params["mu"]

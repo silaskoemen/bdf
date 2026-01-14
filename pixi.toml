@@ -18,6 +18,8 @@ clas = "PYTHONPATH=src python -m benchmarks.calc_plot_classification_metrics"
 perf = "PYTHONPATH=src python -m benchmarks.performance"
 prior-clas = "PYTHONPATH=src python -m benchmarks.effect_prior_clas"
 label-noise-clas = "PYTHONPATH=src python -m benchmarks.label_noise_clas"
+sample-size = "PYTHONPATH=src python -m benchmarks.effect_sample_size"
+noise-features = "PYTHONPATH=src python -m benchmarks.effect_noise_features"
 
 [feature.bench-models.tasks]
 bench-models = "PYTHONPATH=src python -m benchmarks.run"
@@ -56,6 +58,7 @@ ruff = "*"
 black = "*"
 isort = "*"
 pyright = "*"
+ty = ">=0.0.11,<0.0.12"
 
 [feature.lint.tasks]
 lint = "pre-commit run --all-files"

@@ -138,7 +138,7 @@ class SHASHBase(BDFDistribution):
             * np.exp(-0.5 * s_epsilon_delta(z, posterior_epsilon, posterior_delta) ** 2)
         )
 
-    def nll(self, data: np.ndarray) -> float:
+    def nll(self, data: np.ndarray, params: dict | None = None) -> float:
         """Compute the negative log-likelihood of the data given the distribution.
 
         Args

@@ -1,5 +1,5 @@
 import warnings
-from typing import cast
+from typing import Literal, cast
 
 import numpy as np
 import pandas as pd
@@ -19,9 +19,9 @@ class BDFModel(BaseEstimator, RegressorMixin):
     def __init__(
         self,
         dist: str = "NormalMuNormal",
-        params: dict = {"mu_mu": "auto", "sigma_mu": 10.0},
+        params: dict = {"mu_mu": "auto", "sigma_mu": "auto", "sigma_mu_auto_scale": 1.0},
         n_trees: int = 50,
-        reg_lambda: float = 0.001,
+        reg_lambda: float = 0.0,
         reg_gamma: float = 0.1,
         reg_nu: float = 0.01,
         max_depth: int = 50,
@@ -36,7 +36,8 @@ class BDFModel(BaseEstimator, RegressorMixin):
         verbose: int = 0,
         random_state: int = RANDOM_SEED,
     ):
-        """Initialize the BDFRegressor with prior parameters.
+        """
+        Initialize the BDFRegressor with prior parameters.
         Args
         ----
         `data_dist` : str | BDFDistribution.BDFDistribution, optional
@@ -152,7 +153,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
         mean_y, std_y = np.mean(y), np.std(y)
         if std_y == 0:
             raise ValueError("Standard deviation of y is zero, cannot standardize.")
-        standardized_y = (y - mean_y) / std_y  # type: ignore
+        standardized_y = (y - mean_y) / std_y
         self.y_mean, self.y_std = mean_y, std_y
         return standardized_y
 
@@ -182,7 +183,21 @@ class BDFModel(BaseEstimator, RegressorMixin):
         indices = self.rng.choice(pooled_samples.shape[1], size=n_samples, replace=False)
         return pooled_samples[:, indices]
 
-    def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
+    def predict(
+        self,
+        X: np.ndarray | pd.DataFrame,
+        method: Literal[
+            "mean",  # mean of means
+            "median",  # median of pooled samples
+            "var",  # mean of variances
+            "var-samples",  # variance of pooled samples
+            "interval",  # one or more intervals at confidence levels
+            "quantile",  # one or more quantiles
+            "samples",  # pooled samples
+            "params",  # distribution parameters from each tree
+        ] = "mean",
+        method_params: dict | None = None,
+    ) -> np.ndarray:
         """
         Predicts the mean for each observation in X.
 
@@ -190,7 +205,19 @@ class BDFModel(BaseEstimator, RegressorMixin):
         choose prediction. Also, mean should be possible from pooled samples with
         `mean-samples` method.
         """
-        return self.predict_mean(X)
+        match method:
+            case "mean":
+                return self.predict_mean(X)
+            case "median":
+                return self.predict_median(X)
+            case "var":
+                return self.predict_variance(X)
+            case "samples":
+                return self.predict_samples(X, method_params.get("n_samples", 1) if method_params else 1)
+            case "params":
+                return self.predict_params(X)
+            case _:
+                raise ValueError(f"Unknown prediction method: {method}")
 
     def predict_mean(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
         """
@@ -290,7 +317,7 @@ class BDFModel(BaseEstimator, RegressorMixin):
     def plot_tree(self, tree_index: int = 0, figsize: tuple[int, int] = (20, 16), dpi: int = 300):
         import io
 
-        import graphviz  # type: ignore
+        import graphviz
         import matplotlib.image as mpimg
         import matplotlib.pyplot as plt
 
@@ -473,14 +500,14 @@ class BDFModel(BaseEstimator, RegressorMixin):
 
         if isinstance(X, pd.DataFrame):
             if hasattr(self, "feature_names"):
-                if not all(col in X.columns for col in self.feature_names):  # type: ignore
+                if not all(col in X.columns for col in self.feature_names):
                     raise ValueError("X must contain all feature names used during fitting")
                 if not all(col in self.feature_names for col in X.columns):
                     warnings.warn(
                         "X contains additional columns not seen during fitting. "
                         "Prediction continues only with columns seen during fitting."
                     )
-                X = X[self.feature_names].values  # type: ignore
+                X = X[self.feature_names].values
             else:
                 raise ValueError(
                     "X is a DataFrame but no feature names were stored during fitting. "
@@ -562,11 +589,11 @@ class BDFModel(BaseEstimator, RegressorMixin):
     ) -> tuple[np.ndarray, np.ndarray]:
         """Validate the input for fitting."""
         if isinstance(X, pd.DataFrame):
-            self.feature_names = X.columns  # type: ignore
-            X = X.values  # type: ignore
+            self.feature_names = X.columns
+            X = X.values
             self.n_features_in_ = X.shape[1]
         if isinstance(y, pd.Series):
-            y = y.to_numpy().astype(np.float64)  # type: ignore
+            y = y.to_numpy().astype(np.float64)
         assert (
             X.shape[0] == y.shape[0]
         ), f"Number of samples in X ({X.shape[0]}) must match number of samples in y ({y.shape[0]})"
@@ -668,7 +695,7 @@ class BDFClassifier(BDFModel, ClassifierMixin):
     target validation and the `predict_proba` method.
     """
 
-    def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False):
+    def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False, standardize_y: bool = False):
         """Fit the BDFClassifier to the training data.
         Args
         ----
@@ -687,9 +714,8 @@ class BDFClassifier(BDFModel, ClassifierMixin):
         true_class_preds = self.predict_mean(X)
         return np.vstack([1 - true_class_preds, true_class_preds]).T
 
-    def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
-        proba = self.predict_proba(X)
-        return np.argmax(proba, axis=1)
+    def predict(self, X: np.ndarray | pd.DataFrame, method: Literal["mean", "var"] = "mean") -> np.ndarray:
+        return (super().predict(X, method=method) >= 0.5).astype(int)
 
     # def _validate_targets(self, y: np.ndarray):
     #     """Validation function to check whether targets are allowed under the

@@ -8,7 +8,7 @@ from bdf.tree_classes.bdf_regressor import BDFRegressor
 
 def test_tree_building():
     """Test tree building process"""
-    X, y = make_regression(n_samples=100, n_features=5, random_state=42)  # type: ignore
+    X, y = make_regression(n_samples=100, n_features=5, random_state=42)
 
     # Create regressor with limited depth
     regressor = BDFRegressor(dist="normal", n_trees=1, max_depth=3, params={"mean": y.mean(), "std": y.std()})
@@ -28,7 +28,7 @@ def test_tree_building():
 
 def test_forest_ensemble():
     """Test forest ensemble predictions"""
-    X, y = make_regression(n_samples=100, n_features=5, random_state=42)  # type: ignore
+    X, y = make_regression(n_samples=100, n_features=5, random_state=42)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # Train with different tree counts
@@ -53,7 +53,7 @@ def test_forest_ensemble():
 
 def test_distribution_specific_methods():
     """Test distribution-specific functionality"""
-    X, y = make_regression(n_samples=100, n_features=5, random_state=42)  # type: ignore
+    X, y = make_regression(n_samples=100, n_features=5, random_state=42)
 
     # For normal_normal, we should be able to get predictive variance
     regressor = BDFRegressor(dist="normal", n_trees=10, params={"mean": y.mean(), "std": y.std()})

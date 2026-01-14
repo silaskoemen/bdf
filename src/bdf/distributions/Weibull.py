@@ -136,7 +136,7 @@ class FrequentistWeibull(BDFDistribution):
         return 2
 
     def _sample_posterior_params(
-        self, params: dict[str, float], size: int = 1, random_state: int = RANDOM_SEED
+        self, params: dict[str, float], size: int | tuple[int, int] = 1, random_state: int = RANDOM_SEED
     ) -> np.ndarray:
         """Sample from fitted Weibull."""
         k = params["k"]
@@ -244,7 +244,7 @@ class NormalMeanWeibull(BDFDistribution):
         return 2
 
     def _sample_posterior_params(
-        self, params: dict[str, float], size: int = 1, random_state: int = RANDOM_SEED
+        self, params: dict[str, float], size: int | tuple[int, int] = 1, random_state: int = RANDOM_SEED
     ) -> np.ndarray:
         k = params["k"]
         lam = params["lambda"]

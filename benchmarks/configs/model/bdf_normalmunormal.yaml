@@ -10,7 +10,7 @@ compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonn
 fixed_init_kwargs:
   dist: NormalMuNormal
   random_state: 1234
-  max_depth: 50
+  # max_depth: 50
 
 tunable_init_kwargs:
   n_trees:
@@ -20,16 +20,18 @@ tunable_init_kwargs:
   reg_lambda:
     type: float
     low: 0.00001
-    high: 100.0
+    high: 1.0
     log: true
   reg_gamma:
     type: float
-    low: 0.0
+    low: 0.0001
     high: 1.0
+    log: true
   reg_nu:
     type: float
-    low: 0.0
+    low: 0.0001
     high: 1.0
+    log: true
   min_samples_leaf:
     type: int
     low: 5
@@ -38,10 +40,10 @@ tunable_init_kwargs:
   #   type: int
   #   low: 10
   #   high: 30
-  min_samples_split:
-    type: int
-    low: 10
-    high: 100
+  # min_samples_split:
+  #   type: int
+  #   low: 10
+  #   high: 100
   subsample:
     type: float
     low: 0.5
@@ -57,14 +59,16 @@ tunable_init_kwargs:
     log: true
 
 tunable_params:
-  sigma_mu:
+  sigma_mu_auto_scale:
     type: float
-    low: 0.1
-    high: 150.0
+    low: 0.01
+    high: 10.0
+    log: true
   score_method:
     type: categorical
     categories: [nll, nle]
 
 fixed_params:
   mu_mu: 'auto'  # Set prior mean based on data
+  sigma_mu: 'auto'  # Set prior std based on data
   score_correction: bic  # Bayesian information criterion for score correction if 'nll' is used

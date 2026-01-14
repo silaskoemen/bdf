@@ -120,7 +120,7 @@ class BDFDistribution(ABC, Generic[P]):
     # VALIDATION & SERIALIZATION
     # ============================================================================
     @classmethod
-    def resolve_auto_params(cls, key: str, y: np.ndarray) -> Any:
+    def resolve_auto_params(cls, key: str, data: np.ndarray, params: dict[str, Any] | None = None) -> Any:
         """Resolve 'auto' parameters based on data.
 
         Override in subclasses to implement distribution-specific auto-parameter logic.
@@ -208,7 +208,7 @@ class BDFDistribution(ABC, Generic[P]):
 
     @abstractmethod
     def _sample_posterior_params(
-        self, params: dict[str, float], size: int | tuple[int, int], random_state: int
+        self, params: dict[str, Any], size: int | tuple[int, int], random_state: int
     ) -> np.ndarray:
         """Sample from the posterior distribution using provided parameters (REQUIRED)."""
         pass
