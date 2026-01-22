@@ -252,7 +252,7 @@ def tune_model(
     try:
         optuna.delete_study(study_name=study_name, storage=storage_name)
     except KeyError:
-        pass
+        logger.debug(f"No existing study named '{study_name}' found in storage '{storage_name}'; nothing to delete.")
     except Exception as e:
         logger.warning(f"Could not delete existing study: {e}")
 
