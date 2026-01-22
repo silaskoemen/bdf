@@ -14,4 +14,4 @@ class ModelFactory:
             case "BDFClassifier":
                 return BDFClassifier
             case _:
-                raise ValueError(f"Model class name '{cfg.name}' not recognized.")  # type: ignore[reportUnboundVariable]
+                raise ValueError(f"Model class name '{cfg.class_name}' not recognized.")  # type: ignore[reportUnboundVariable]

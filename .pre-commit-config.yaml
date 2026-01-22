@@ -36,6 +36,7 @@ repos:
       #   types: [python]
       - id: ty
         name: ty
-        entry: ty check src compiled --ignore unresolved-import
+        entry: ty check src compiled benchmarks --ignore unresolved-import
         language: system
         types: [python]
+        exclude: ^(examples|tests)/

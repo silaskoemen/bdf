@@ -22,8 +22,8 @@ def main():
     breast_cancer_wisconsin_original = fetch_ucirepo(id=15)
 
     # data (as pandas dataframes)
-    X = breast_cancer_wisconsin_original.data.features  # type: ignore[attr-defined]
-    y = breast_cancer_wisconsin_original.data.targets["Class"]  # type: ignore[attr-defined]
+    X = breast_cancer_wisconsin_original.data.features
+    y = breast_cancer_wisconsin_original.data.targets["Class"]
     y = (y == 4).astype(int)  # convert to binary: benign (2) -> 0, malignant (4) -> 1
 
     breast_cancer_df = _join_drop_na(X, y)
@@ -35,8 +35,8 @@ def main():
     # Load concrete strength dataset
     logger.info("Downloading and saving concrete strength dataset...")
     concrete_data = fetch_ucirepo(id=165)
-    X_concrete = concrete_data.data.features  # type: ignore[attr-defined]
-    y_concrete = concrete_data.data.targets["Concrete compressive strength"]  # type: ignore[attr-defined]
+    X_concrete = concrete_data.data.features
+    y_concrete = concrete_data.data.targets["Concrete compressive strength"]
 
     concrete_df = _join_drop_na(X_concrete, y_concrete)
     concrete_df.to_csv("./data/raw/concrete_strength.csv", index=False)
@@ -45,8 +45,8 @@ def main():
     # Load energy efficiency dataset
     logger.info("Downloading and saving energy efficiency dataset...")
     energy_data = fetch_ucirepo(id=242)
-    X_energy = energy_data.data.features  # type: ignore[attr-defined]
-    y_energy = energy_data.data.targets["Y1"]  # type: ignore[attr-defined]
+    X_energy = energy_data.data.features
+    y_energy = energy_data.data.targets["Y1"]
 
     energy_df = _join_drop_na(X_energy, y_energy)
     energy_df.to_csv("./data/raw/energy_efficiency.csv", index=False)
@@ -55,8 +55,8 @@ def main():
     # Load combined cycle power plant dataset
     logger.info("Downloading and saving combined cycle power plant dataset...")
     power_plant_data = fetch_ucirepo(id=294)
-    X_power = power_plant_data.data.features  # type: ignore[attr-defined]
-    y_power = power_plant_data.data.targets["PE"]  # type: ignore[attr-defined]
+    X_power = power_plant_data.data.features
+    y_power = power_plant_data.data.targets["PE"]
     power_plant_df = _join_drop_na(X_power, y_power)
     power_plant_df.to_csv("./data/raw/combined_cycle_power_plant.csv", index=False)
     logger.success("Saved combined cycle power plant dataset to ./data/raw/combined_cycle_power_plant.csv")
@@ -64,8 +64,8 @@ def main():
     # Load superconductor dataset
     logger.info("Downloading and saving superconductor dataset...")
     superconductor_data = fetch_ucirepo(id=464)
-    X_super = superconductor_data.data.features  # type: ignore[attr-defined]
-    y_super = superconductor_data.data.targets["critical_temp"]  # type: ignore[attr-defined]
+    X_super = superconductor_data.data.features
+    y_super = superconductor_data.data.targets["critical_temp"]
     superconductor_df = _join_drop_na(X_super, y_super)
     superconductor_df.to_csv("./data/raw/superconductor.csv", index=False)
     logger.success("Saved superconductor dataset to ./data/raw/superconductor.csv")
@@ -73,8 +73,8 @@ def main():
     # Load bike sharing dataset
     logger.info("Downloading and saving bike sharing dataset...")
     bike_data = fetch_ucirepo(id=275)
-    X_bike = bike_data.data.features  # type: ignore[attr-defined]
-    y_bike = bike_data.data.targets["cnt"]  # type: ignore[attr-defined]
+    X_bike = bike_data.data.features
+    y_bike = bike_data.data.targets["cnt"]
     bike_df = _join_drop_na(X_bike, y_bike)
     bike_df.to_csv("./data/raw/bike_sharing.csv", index=False)
     logger.success("Saved bike sharing dataset to ./data/raw/bike_sharing.csv")

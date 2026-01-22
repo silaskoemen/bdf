@@ -172,13 +172,6 @@ def available_regression_datasets() -> Iterator[tuple[DatasetMetadata, pd.DataFr
 # ===========================================================
 
 
-def _load_breast_cancer():
-    data = pd.read_csv("data/raw/breast_cancer.csv")
-    X = data.drop(columns=["diagnosis", "id", "Unnamed: 32"])
-    y = (data["diagnosis"] == "M").astype(int)  # Malignant = 1, Benign = 0, convert to int
-    return X, y, "binary"
-
-
 def _load_breast_cancer_wisconsin():
     data = pd.read_csv("data/raw/breast_cancer_wisconsin.csv", header=0)
     X = data.drop("Class", axis=1)
@@ -220,16 +213,22 @@ def _load_titanic():
 
 
 CLASSIFICATION_DATASET_REGISTRY: dict[str, Callable] = {
-    "breast_cancer": _load_breast_cancer,
+    # "breast_cancer": _load_breast_cancer,
     # "iris": _load_iris,
     # "wine_quality_classification": _load_wine_quality_classification,
     "boston_housing_classification": _load_boston_housing_classification,
     "titanic": _load_titanic,
-    # "breast_cancer_wisconsin": _load_breast_cancer_wisconsin,
+    "breast_cancer_wisconsin": _load_breast_cancer_wisconsin,
 }
 
 
 def available_classification_datasets() -> Iterator[tuple[DatasetMetadata, pd.DataFrame, pd.Series]]:
     for name, load_fct in CLASSIFICATION_DATASET_REGISTRY.items():
         X, y, target_domain = load_fct()
-        yield DatasetMetadata(name=name, target_domain=TargetDomain(target_domain)), X, y
+        yield (
+            DatasetMetadata(
+                name=name, target_domain=TargetDomain(target_domain), n_samples=X.shape[0], n_features=X.shape[1]
+            ),
+            X,
+            y,
+        )

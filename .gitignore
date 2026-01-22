@@ -29,6 +29,7 @@ multirun/
 outputs/figures/
 
 outputs/
+**/optuna/
 
 .pixi/
 .local/
@@ -40,3 +41,6 @@ outputs/
 catboost_info/
 
 examples/
+
+.claude/
+CLAUDE.md

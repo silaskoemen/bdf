@@ -1,0 +1,31 @@
+name: knnkde
+target_type: regression
+class_name: KNNKDE
+probabilistic: true
+
+compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+
+fixed_init_kwargs: {}
+
+tunable_init_kwargs:
+  n_neighbors:
+    type: int
+    low: 1
+    high: 200
+  bandwidth:
+    type: categorical
+    categories: [scott, silverman]
+  weights:
+    type: categorical
+    categories: [uniform, distance]
+  algorithm:
+    type: categorical
+    categories: [auto, ball_tree, kd_tree, brute]
+  leaf_size:
+    type: int
+    low: 10
+    high: 100
+  p:
+    type: int
+    low: 1
+    high: 2

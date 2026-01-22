@@ -27,6 +27,8 @@ class NormalMeanPseudoAlphaSkewNormalParams(BDFDistributionParams):
         Prior mean for the data mean (used in Normal-like posterior update for location).
     sigma_mu : float
         Prior standard deviation for the data mean.
+    sigma_mu_auto_scale : float
+        Scale factor for automatic sigma_mu if 'auto' is used. Multiplied by sample std.
     prior_alpha : float
         Prior mean for skewness parameter alpha (shrinkage target).
     m_alpha : float
@@ -36,6 +38,12 @@ class NormalMeanPseudoAlphaSkewNormalParams(BDFDistributionParams):
     # Prior hyperparameters
     mu_mu: float = Field(default=0.0, description="Prior mean for data mean μ")
     sigma_mu: float = Field(default=1.0, gt=0, description="Prior std for data mean μ")
+    sigma_mu_auto_scale: float = Field(
+        default=1.0,
+        gt=0,
+        description="Scale factor for automatic sigma_mu if 'auto' is used. Resolved upon fit, discarded from final params.",
+        exclude=True,
+    )
     prior_alpha: float = Field(default=0.0, description="Prior mean (shrinkage target) for skewness α")
     m_alpha: float = Field(default=10.0, gt=0, description="Prior strength for α shrinkage")
 
@@ -67,15 +75,23 @@ class NormalMeanNormalGammaSkewNormalParams(BDFDistributionParams):
         Prior mean for the data mean.
     sigma_mu : float
         Prior standard deviation for the data mean.
+    sigma_mu_auto_scale : float
+        Scale factor for automatic sigma_mu if 'auto' is used. Multiplied by sample std.
     mu_gamma : float
         Prior mean for skewness parameter gamma.
     sigma_gamma : float
-        Prior standard deviation for skewness parameter gamma.
+        Prior standard deviation for skewness parameter gamma (skewness is scale-free, no auto-scale needed).
     """
 
     # Prior hyperparameters
     mu_mu: float = Field(default=0.0, description="Prior mean for data mean μ")
     sigma_mu: float = Field(default=1.0, gt=0, description="Prior std for data mean μ")
+    sigma_mu_auto_scale: float = Field(
+        default=1.0,
+        gt=0,
+        description="Scale factor for automatic sigma_mu if 'auto' is used. Resolved upon fit, discarded from final params.",
+        exclude=True,
+    )
     mu_gamma: float = Field(default=0.0, description="Prior mean for skewness γ")
     sigma_gamma: float = Field(default=0.5, gt=0, description="Prior std for skewness γ")
 
@@ -107,15 +123,23 @@ class NormalXiNormalAlphaSkewNormalMAPParams(BDFDistributionParams):
         Prior mean for location parameter xi.
     sigma_xi : float
         Prior standard deviation for location parameter xi.
+    sigma_xi_auto_scale : float
+        Scale factor for automatic sigma_xi if 'auto' is used. Multiplied by sample std.
     mu_alpha : float
         Prior mean for skewness parameter alpha.
     sigma_alpha : float
-        Prior standard deviation for skewness parameter alpha.
+        Prior standard deviation for skewness parameter alpha (alpha is scale-free, no auto-scale needed).
     """
 
     # Prior hyperparameters
     mu_xi: float = Field(default=0.0, description="Prior mean for location ξ")
     sigma_xi: float = Field(default=1.0, gt=0, description="Prior std for location ξ")
+    sigma_xi_auto_scale: float = Field(
+        default=1.0,
+        gt=0,
+        description="Scale factor for automatic sigma_xi if 'auto' is used. Resolved upon fit, discarded from final params.",
+        exclude=True,
+    )
     mu_alpha: float = Field(default=0.0, description="Prior mean for skewness α")
     sigma_alpha: float = Field(default=5.0, gt=0, description="Prior std for skewness α")
 
@@ -297,14 +321,23 @@ class NormalMeanPseudoAlphaSkewNormal(BDFDistribution[NormalMeanPseudoAlphaSkewN
         return float(omega**2 * (1 - 2 * delta**2 / np.pi))
 
     @classmethod
-    def resolve_auto_params(cls, key: str, data: np.ndarray) -> Any:
+    def resolve_auto_params(cls, key: str, data: np.ndarray, params: dict[str, Any] | None = None) -> Any:
         """Resolve 'auto' parameters based on data.
 
-        For NormalMuNormal:
+        For NormalMeanPseudoAlphaSkewNormal:
         - 'mu_mu': Use sample mean
+        - 'sigma_mu': Use sample std * sigma_mu_auto_scale
         """
         if key == "mu_mu":
             return float(np.mean(data))
+        elif key == "sigma_mu":
+            assert params is not None, "'params' must be provided to resolve 'sigma_mu' automatically."
+            assert (
+                "sigma_mu_auto_scale" in params
+            ), "'sigma_mu_auto_scale' must be defined in params to resolve 'sigma_mu' automatically."
+            sample_std = np.std(data, ddof=1)
+            scale = params["sigma_mu_auto_scale"]
+            return float(sample_std * scale)
         else:
             raise ValueError(f"Unknown parameter '{key}' for auto resolution in {cls.__name__}")
 
@@ -470,6 +503,27 @@ class NormalMeanNormalGammaSkewNormal(BDFDistribution[NormalMeanNormalGammaSkewN
 
         delta = alpha / np.sqrt(1 + alpha**2)
         return float(omega**2 * (1 - 2 * delta**2 / np.pi))
+
+    @classmethod
+    def resolve_auto_params(cls, key: str, data: np.ndarray, params: dict[str, Any] | None = None) -> Any:
+        """Resolve 'auto' parameters based on data.
+
+        For NormalMeanNormalGammaSkewNormal:
+        - 'mu_mu': Use sample mean
+        - 'sigma_mu': Use sample std * sigma_mu_auto_scale
+        """
+        if key == "mu_mu":
+            return float(np.mean(data))
+        elif key == "sigma_mu":
+            assert params is not None, "'params' must be provided to resolve 'sigma_mu' automatically."
+            assert (
+                "sigma_mu_auto_scale" in params
+            ), "'sigma_mu_auto_scale' must be defined in params to resolve 'sigma_mu' automatically."
+            sample_std = np.std(data, ddof=1)
+            scale = params["sigma_mu_auto_scale"]
+            return float(sample_std * scale)
+        else:
+            raise ValueError(f"Unknown parameter '{key}' for auto resolution in {cls.__name__}")
 
 
 class NormalXiNormalAlphaSkewNormalMAP(BDFDistribution[NormalXiNormalAlphaSkewNormalMAPParams]):
@@ -645,3 +699,24 @@ class NormalXiNormalAlphaSkewNormalMAP(BDFDistribution[NormalXiNormalAlphaSkewNo
 
         delta = alpha / np.sqrt(1 + alpha**2)
         return float(omega**2 * (1 - 2 * delta**2 / np.pi))
+
+    @classmethod
+    def resolve_auto_params(cls, key: str, data: np.ndarray, params: dict[str, Any] | None = None) -> Any:
+        """Resolve 'auto' parameters based on data.
+
+        For NormalXiNormalAlphaSkewNormalMAP:
+        - 'mu_xi': Use sample mean
+        - 'sigma_xi': Use sample std * sigma_xi_auto_scale
+        """
+        if key == "mu_xi":
+            return float(np.mean(data))
+        elif key == "sigma_xi":
+            assert params is not None, "'params' must be provided to resolve 'sigma_xi' automatically."
+            assert (
+                "sigma_xi_auto_scale" in params
+            ), "'sigma_xi_auto_scale' must be defined in params to resolve 'sigma_xi' automatically."
+            sample_std = np.std(data, ddof=1)
+            scale = params["sigma_xi_auto_scale"]
+            return float(sample_std * scale)
+        else:
+            raise ValueError(f"Unknown parameter '{key}' for auto resolution in {cls.__name__}")

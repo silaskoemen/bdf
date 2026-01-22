@@ -8,21 +8,24 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-from treeffuser import Treeffuser
 
 from .wrappers import (
+    KNNKDE,
     BARTRegressorWrapper,
+    BayesianRidgeWrapper,
     CalibratedRFWrapper,
     CatBoostUncertaintyWrapper,
+    ConformalizedLGBMWrapper,
     DeepEnsembleWrapper,
     GPClassifierWrapper,
     GPRegressorWrapper,
     LGBMQuantileRegressorWrapper,
-    MapieQuantileRegressorWrapper,
     NGBClassifierWrapper,
     NGBRegressorWrapper,
     TreeffuserWrapper,
 )
+
+# from treeffuser import Treeffuser
 
 
 class ModelFactory:
@@ -51,8 +54,8 @@ class ModelFactory:
                 return CatBoostUncertaintyWrapper
             case "DeepEnsembleRegressor":
                 return DeepEnsembleWrapper
-            case "MapieQuantileRegressor":
-                return MapieQuantileRegressorWrapper
+            case "BayesianRidgeRegressor":
+                return BayesianRidgeWrapper
             case "LogisticRegression":
                 return LogisticRegression
             case "LinearRegression":
@@ -73,5 +76,9 @@ class ModelFactory:
                 return BARTRegressorWrapper
             case "Treeffuser":
                 return TreeffuserWrapper
+            case "KNNKDE":
+                return KNNKDE
+            case "ConformalizedLGBM":
+                return ConformalizedLGBMWrapper
             case _:
                 raise ValueError(f"Model class name '{cfg.name}' not recognized.")  # type: ignore[reportUnboundVariable]

@@ -230,7 +230,7 @@ class KDE(BDFDistribution[K]):
             raise ValueError("KDE requires at least 2 observations.")
         return arr
 
-    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:  # type: ignore[override]
+    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
         """Mean of KDE is sample mean."""
         if params is None:
             if data is None:
@@ -240,7 +240,7 @@ class KDE(BDFDistribution[K]):
         return float(np.mean(params["data"]))
 
     def get_posterior_variance(
-        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None  # type: ignore[override]
+        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
     ) -> float:
         """Variance of KDE = sample variance + kernel variance."""
         if params is None:

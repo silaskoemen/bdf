@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 import warnings
 from typing import Literal
 
@@ -5,7 +6,6 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from catboost import CatBoostRegressor
-from mapie.regression import SplitConformalRegressor
 from ngboost import NGBClassifier, NGBRegressor
 from ngboost.distns import Bernoulli, Exponential, LogNormal, Normal, Poisson
 from ngboost.scores import LogScore
@@ -20,6 +20,9 @@ from sklearn.linear_model import BayesianRidge
 from sklearn.model_selection import train_test_split as TTS
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPRegressor
+
+# Type alias for prediction type
+PredictionType = Literal["samples", "quantiles"]
 
 
 def configure_kernel(kernel_comb: str) -> Ker:
@@ -48,10 +51,13 @@ def configure_kernel(kernel_comb: str) -> Ker:
 
 
 class GPRegressorWrapper(GaussianProcessRegressor):
-    def __init__(self, kernel_comb="RBF", random_state=None, normalize_y=True, **kwargs):
+    PREDICTION_TYPE: PredictionType = "samples"
+
+    def __init__(self, kernel_comb="RBF", random_state=None, normalize_y=True, max_samples=1000, **kwargs):
         self.kernel_comb = kernel_comb  # Store the string representation
         self.normalize_y = normalize_y
         self.random_state = random_state
+        self.max_samples = max_samples
         self.kwargs = kwargs
 
         # Configure the actual kernel object
@@ -62,6 +68,12 @@ class GPRegressorWrapper(GaussianProcessRegressor):
         super().__init__(kernel=kernel_obj, normalize_y=normalize_y, random_state=random_state, **init_kwargs)
 
     def fit(self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series):
+        n_samples = len(X)
+        if n_samples > self.max_samples:
+            raise ValueError(
+                f"GP training data too large ({n_samples} > {self.max_samples}). "
+                f"Gaussian processes scale poorly beyond ~1000 samples due to O(n³) complexity."
+            )
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=ConvergenceWarning)
             super().fit(X, y)
@@ -83,7 +95,7 @@ class GPRegressorWrapper(GaussianProcessRegressor):
             end_idx = min(start_idx + batch_size, n_obs)
             X_batch = X[start_idx:end_idx]
 
-            y_mean, y_std = self.predict(X_batch, return_std=True)
+            y_mean, y_std = self.predict(X_batch, return_std=True)  # pyright: ignore[reportAssignmentType]
             y_std = np.maximum(y_std, 1e-10)
 
             samples[start_idx:end_idx] = np.random.normal(
@@ -94,9 +106,10 @@ class GPRegressorWrapper(GaussianProcessRegressor):
 
 
 class GPClassifierWrapper(GaussianProcessClassifier):
-    def __init__(self, kernel_comb="RBF", random_state=None, **kwargs):
+    def __init__(self, kernel_comb="RBF", random_state=None, max_samples=1000, **kwargs):
         self.kernel_comb = kernel_comb
         self.random_state = random_state
+        self.max_samples = max_samples
         self.kwargs = kwargs
 
         # Configure the actual kernel object
@@ -106,7 +119,14 @@ class GPClassifierWrapper(GaussianProcessClassifier):
         super().__init__(kernel=kernel_obj, random_state=random_state, **kwargs)
 
     def fit(self, X: np.ndarray, y: np.ndarray):
+        n_samples = len(X)
+        if n_samples > self.max_samples:
+            raise ValueError(
+                f"GP training data too large ({n_samples} > {self.max_samples}). "
+                f"Gaussian processes scale poorly beyond ~1000 samples due to O(n³) complexity."
+            )
         super().fit(X, y)
+        return self
 
 
 # =============================================================================
@@ -184,15 +204,19 @@ LogScore.grad = _patched_grad
 NGBOOST_TO_SCIPY = {
     "Normal": lambda params, n_samples: stats.norm.rvs(
         loc=params["loc"], scale=params["scale"], size=(n_samples, len(params["loc"]))
-    ).T,
+    ).T,  # pyright: ignore[reportAttributeAccessIssue]
     "LogNormal": lambda params, n_samples: stats.lognorm.rvs(
         s=params["s"], scale=params["scale"], size=(n_samples, len(params["s"]))
-    ).T,
+    ).T,  # pyright: ignore[reportAttributeAccessIssue]
     "Exponential": lambda params, n_samples: stats.expon.rvs(
         scale=params["scale"], size=(n_samples, len(params["scale"]))
-    ).T,
-    "Poisson": lambda params, n_samples: stats.poisson.rvs(mu=params["mu"], size=(n_samples, len(params["mu"]))).T,
-    "Bernoulli": lambda params, n_samples: stats.bernoulli.rvs(p=params["p1"], size=(n_samples, len(params["p1"]))).T,
+    ).T,  # pyright: ignore[reportAttributeAccessIssue]
+    "Poisson": lambda params, n_samples: stats.poisson.rvs(
+        mu=params["mu"], size=(n_samples, len(params["mu"]))
+    ).T,  # pyright: ignore[reportAttributeAccessIssue]
+    "Bernoulli": lambda params, n_samples: stats.bernoulli.rvs(
+        p=params["p1"], size=(n_samples, len(params["p1"]))
+    ).T,  # pyright: ignore[reportAttributeAccessIssue]
 }
 
 
@@ -219,6 +243,8 @@ class NGBRegressorWrapper(NGBRegressor):
     Y["Event"] = E.astype(np.bool_)
     ```
     """
+
+    PREDICTION_TYPE: PredictionType = "samples"
 
     def __init__(
         self,
@@ -256,7 +282,8 @@ class NGBRegressorWrapper(NGBRegressor):
         )
 
     def fit(self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series, **kwargs):
-        X_np, y_np = X.values if hasattr(X, "values") else X, y.values if hasattr(y, "values") else y
+        X_np = X.values if hasattr(X, "values") else X  # pyright: ignore[reportAttributeAccessIssue]
+        y_np = y.values if hasattr(y, "values") else y  # pyright: ignore[reportAttributeAccessIssue]
 
         if y_np.ndim > 1:
             y_np = y_np.ravel()
@@ -264,7 +291,7 @@ class NGBRegressorWrapper(NGBRegressor):
         return self
 
     def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
-        X_np = X.values if hasattr(X, "values") else X
+        X_np = X.values if hasattr(X, "values") else X  # pyright: ignore[reportAttributeAccessIssue]
         preds = super().predict(X_np)
         preds[np.isinf(preds)] = np.finfo(np.float64).max  # sklearn raises error on inf
         preds[np.isneginf(preds)] = np.finfo(np.float64).min
@@ -276,7 +303,7 @@ class NGBRegressorWrapper(NGBRegressor):
         Returns:
             np.ndarray of shape (n_observations, n_samples)
         """
-        X_np = X.values if hasattr(X, "values") else X
+        X_np = X.values if hasattr(X, "values") else X  # pyright: ignore[reportAttributeAccessIssue]
         y_dists = self.pred_dist(X_np)
         params = y_dists.params
 
@@ -326,7 +353,8 @@ class NGBClassifierWrapper(NGBClassifier):
         )
 
     def fit(self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series, **kwargs):
-        X_np, y_np = X.values if hasattr(X, "values") else X, y.values if hasattr(y, "values") else y
+        X_np = X.values if hasattr(X, "values") else X  # pyright: ignore[reportAttributeAccessIssue]
+        y_np = y.values if hasattr(y, "values") else y  # pyright: ignore[reportAttributeAccessIssue]
 
         # Ensure y is 1D integer array for classification
         if y_np.ndim > 1:
@@ -344,7 +372,7 @@ class NGBClassifierWrapper(NGBClassifier):
         Returns:
             np.ndarray of shape (n_observations, n_samples)
         """
-        X_np = X.values if hasattr(X, "values") else X
+        X_np = X.values if hasattr(X, "values") else X  # pyright: ignore[reportAttributeAccessIssue]
         y_dists = self.pred_dist(X_np)
         params = y_dists.params
 
@@ -362,6 +390,7 @@ class NGBClassifierWrapper(NGBClassifier):
 class LGBMQuantileRegressorWrapper:
     """LightGBM wrapper that trains multiple quantile regressors for probabilistic predictions."""
 
+    PREDICTION_TYPE: PredictionType = "quantiles"
     DEFAULT_QUANTILES = (0.025, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.975)
 
     def __init__(
@@ -446,30 +475,6 @@ class LGBMQuantileRegressorWrapper:
 
         return predictions
 
-    def predict_samples(self, X: np.ndarray | pd.DataFrame, n_samples: int) -> np.ndarray:
-        """Generate samples by interpolating between predicted quantiles.
-
-        Returns:
-            np.ndarray of shape (n_observations, n_samples)
-        """
-
-        # Get quantile predictions: shape (n_obs, n_quantiles)
-        quantile_preds = self.predict_quantiles(X)
-
-        sorted_quantiles = np.array(sorted(self.quantiles))
-
-        # Generate samples by interpolating
-        samples = np.empty((X.shape[0], n_samples))
-
-        # Generate uniform random quantile levels
-        random_quantiles = np.random.uniform(0, 1, size=(X.shape[0], n_samples))
-
-        for i in range(X.shape[0]):
-            # Interpolate: for each random quantile, find the corresponding value
-            samples[i] = np.interp(random_quantiles[i], sorted_quantiles, quantile_preds[i])
-
-        return samples
-
     # sklearn-compatible interface
     def get_params(self, deep=True):
         return {
@@ -493,6 +498,8 @@ class LGBMQuantileRegressorWrapper:
 
 
 class CatBoostUncertaintyWrapper(CatBoostRegressor):
+    PREDICTION_TYPE: PredictionType = "samples"
+
     def __init__(self, **kwargs):
         # Force the loss function to be probabilistic
         super().__init__(**kwargs)
@@ -522,7 +529,9 @@ class CatBoostUncertaintyWrapper(CatBoostRegressor):
 
 
 class DeepEnsembleWrapper(BaseEstimator, RegressorMixin):
-    def __init__(self, n_estimators=5, hidden_layers=2, hidden_size=100, random_state=None, max_iter=200, **kwargs):
+    PREDICTION_TYPE: PredictionType = "samples"
+
+    def __init__(self, n_estimators=5, hidden_layers=2, hidden_size=100, random_state=1234, max_iter=200, **kwargs):
         self.n_estimators = n_estimators
         self.hidden_layers = hidden_layers
         self.hidden_size = hidden_size
@@ -570,13 +579,21 @@ class DeepEnsembleWrapper(BaseEstimator, RegressorMixin):
 
 
 class BayesianRidgeWrapper(BayesianRidge):
+    PREDICTION_TYPE: PredictionType = "samples"
+
+    def __init__(self, random_state=None, **kwargs):
+        # Store random_state before calling super().__init__
+        # BayesianRidge doesn't accept random_state, but sklearn expects it as an attribute
+        self.random_state = random_state
+        super().__init__(**kwargs)
+
     def predict_samples(self, X, n_samples=100) -> np.ndarray:
         # BayesianRidge returns mean and std
-        mean, std = self.predict(X, return_std=True)  # type: ignore[returnedValue]
+        mean, std = self.predict(X, return_std=True)
         mean = np.asarray(mean, dtype=float)
         std = np.asarray(std, dtype=float)
 
-        rng = np.random.default_rng(self.random_state)  # type: ignore[attr-defined]
+        rng = np.random.default_rng(self.random_state)
         # Sample from Normal(mean, std) -> shape (n_obs, n_samples)
         return rng.normal(
             loc=mean[:, None],
@@ -586,6 +603,7 @@ class BayesianRidgeWrapper(BayesianRidge):
 
 
 class QuantileForestWrapper(BaseEstimator, RegressorMixin):
+    PREDICTION_TYPE: PredictionType = "quantiles"
     """
     Wrapper for Quantile Regression Forests.
     Requires: pip install quantile-forest
@@ -612,34 +630,12 @@ class QuantileForestWrapper(BaseEstimator, RegressorMixin):
         return self
 
     def predict(self, X):
-        return self.model_.predict(X, quantiles=0.5)
+        return self.model_.predict(X, quantiles=0.5)  # pyright: ignore[reportOptionalMemberAccess]
 
-    def predict_samples(self, X, n_samples=100):
-        # Predict quantiles
+    def predict_quantiles(self, X) -> np.ndarray:
+        """Returns shape (n_obs, n_quantiles)"""
         sorted_quantiles = sorted(self.quantiles)
-        # shape: (n_samples, n_quantiles)
-        quantile_preds = self.model_.predict(X, quantiles=sorted_quantiles)
-
-        # Interpolate samples (Inverse Transform Sampling approximation)
-        n_obs = X.shape[0]
-        samples = np.empty((n_obs, n_samples))
-
-        # Vectorized interpolation is tricky, looping is safer for now
-        # We treat the predicted quantiles as the CDF
-        random_u = np.random.uniform(0, 1, size=(n_obs, n_samples))
-
-        # Add 0 and 1 bounds for interpolation
-        # We assume the distribution doesn't extend much beyond the 1st and 99th quantile
-        # A robust way is to use the min/max of the predicted quantiles as bounds
-
-        x_points = np.array(sorted_quantiles)
-
-        for i in range(n_obs):
-            # y_points are the predicted values for the quantiles
-            y_points = quantile_preds[i]
-            samples[i] = np.interp(random_u[i], x_points, y_points)
-
-        return samples
+        return self.model_.predict(X, quantiles=sorted_quantiles)  # pyright: ignore[reportOptionalMemberAccess]
 
 
 class ProbabilisticKNNWrapper(KNeighborsRegressor):
@@ -647,6 +643,8 @@ class ProbabilisticKNNWrapper(KNeighborsRegressor):
     Probabilistic KNN: Uses the y-values of the k-nearest neighbors
     as the empirical predictive distribution.
     """
+
+    PREDICTION_TYPE: PredictionType = "samples"
 
     def __init__(self, n_neighbors=50, **kwargs):
         super().__init__(n_neighbors=n_neighbors, **kwargs)
@@ -664,12 +662,14 @@ class ProbabilisticKNNWrapper(KNeighborsRegressor):
 
         # Retrieve the y values of these neighbors
         # shape: (n_obs, n_neighbors)
-        neighbor_values = self.y_train_[neigh_ind]
+        neighbor_values = self.y_train_[neigh_ind]  # pyright: ignore[reportOptionalSubscript]
 
         # Resample from these neighbors to get exactly n_samples
         # If n_neighbors > n_samples, we downsample. If <, we upsample (bootstrap).
 
-        idx = np.random.randint(0, self.n_neighbors, size=(X.shape[0], n_samples))
+        idx = np.random.randint(
+            0, self.n_neighbors, size=(X.shape[0], n_samples)  # pyright: ignore[reportAttributeAccessIssue]
+        )
         samples = np.take_along_axis(neighbor_values, idx, axis=1)
 
         # Add tiny jitter to avoid identical samples
@@ -678,77 +678,120 @@ class ProbabilisticKNNWrapper(KNeighborsRegressor):
         return samples
 
 
-class MapieQuantileRegressorWrapper(RegressorMixin):
+class KNNKDE(BaseEstimator, RegressorMixin):
     """
-    Wrapper for MapieQuantileRegressor to provide predict_samples method.
+    KNN with KDE-based sampling from neighbors.
     """
 
-    DEFAULT_CONFIDENCE_LEVELS = (0.025, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.975)
+    PREDICTION_TYPE: PredictionType = "samples"
 
-    def __init__(self, **kwargs):
+    def __init__(self, n_neighbors=50, bandwidth="scott", **kwargs):
+        self.n_neighbors = n_neighbors
+        self.bandwidth = bandwidth
         self.kwargs = kwargs
-        self.confidence_levels = self.DEFAULT_CONFIDENCE_LEVELS
-        self.estimator = RandomForestRegressor(**kwargs)
-        self.mapie = SplitConformalRegressor(self.estimator, confidence_level=self.confidence_levels, prefit=False)
+        self.knn_ = KNeighborsRegressor(n_neighbors=n_neighbors, **kwargs)
+        self.y_train_ = None
 
     def fit(self, X, y):
-        X_train, X_calib, y_train, y_calib = TTS(
-            X, y, test_size=0.2, random_state=self.kwargs.get("random_state", 1234)
-        )
-        self.mapie.fit(X_train, y_train).conformalize(X_calib, y_calib)
+        self.knn_.fit(X, y)
+        self.y_train_ = np.array(y)
         return self
 
-    def get_params(self, deep=True):
-        return self.kwargs
+    def predict(self, X):
+        return self.knn_.predict(X)
+
+    def predict_samples(self, X, n_samples=100):
+        # Find indices of k nearest neighbors
+        neigh_ind = self.knn_.kneighbors(X, return_distance=False)
+
+        neighbor_values = self.y_train_[neigh_ind]  # pyright: ignore[reportOptionalSubscript]
+
+        n_obs = X.shape[0]
+        samples = np.empty((n_obs, n_samples))
+
+        for i in range(n_obs):
+            kde = stats.gaussian_kde(neighbor_values[i], bw_method=self.bandwidth)
+            samples[i] = kde.resample(n_samples).flatten()
+
+        return samples
+
+
+class ConformalizedLGBMWrapper(RegressorMixin, BaseEstimator):
+    """
+    Split Conformal Prediction wrapper for LightGBM with proper probabilistic sampling.
+
+    Implements the algorithm from "A Gentle Introduction to Conformal Prediction and
+    Distribution-Free Uncertainty Quantification" (Angelopoulos & Bates, 2022).
+
+    For prediction at a new point x:
+    - Point prediction: f(x) from base model
+    - Distribution: f(x) + R, where R is sampled from calibration residuals
+
+    This provides valid finite-sample marginal coverage under exchangeability.
+    """
+
+    PREDICTION_TYPE: PredictionType = "samples"
+
+    def __init__(self, **lgbm_kwargs):
+        self.lgbm_kwargs = lgbm_kwargs
+
+    def fit(self, X, y):
+        # Split data for conformal prediction
+        X_train, X_calib, y_train, y_calib = TTS(
+            X, y, test_size=0.2, random_state=self.lgbm_kwargs.get("random_state", 1234)
+        )
+
+        # Create and fit base estimator
+        self.estimator_ = lgb.LGBMRegressor(**self.lgbm_kwargs)
+
+        # Fit on training set
+        self.estimator_.fit(X_train, y_train)
+
+        # Compute residuals on calibration set
+        y_calib_pred = self.estimator_.predict(X_calib)
+        self.residuals_ = y_calib - y_calib_pred
+
+        # Store for reproducibility
+        self.n_calib_ = len(self.residuals_)
+
+        return self
 
     def predict(self, X):
-        return self.mapie.predict(X)
+        """Point prediction (mean of predictive distribution)."""
+        return self.estimator_.predict(X)
 
     def predict_samples(self, X: np.ndarray | pd.DataFrame, n_samples: int) -> np.ndarray:
         """
-        Generate samples by interpolating between the lower and upper bounds of all conformal intervals.
+        Generate samples from the conformal predictive distribution.
 
+        For each test point x, the predictive distribution is:
+            Y_new | X=x ~ f(x) + R
+        where R is uniformly sampled from calibration residuals.
+
+        This is the exact conformal predictive distribution (no interpolation/approximation).
+
+        Args:
+            X: Test inputs of shape (n_test, n_features)
+            n_samples: Number of samples to generate per test point
         Returns:
-            np.ndarray of shape (n_observations, n_samples)
+            samples: Array of shape (n_test, n_samples)
         """
-        # Get intervals: shape (n_obs, 2, n_intervals)
-        _, intervals = self.mapie.predict_interval(X)
 
-        # The confidence_levels correspond to central intervals, e.g. 0.9 -> (0.05, 0.95)
-        # For each interval, compute the lower and upper quantile
-        lower_quantiles = [(1 - c) / 2 for c in self.confidence_levels]
-        upper_quantiles = [1 - (1 - c) / 2 for c in self.confidence_levels]
+        # Get point predictions
+        y_pred = self.estimator_.predict(X)
+        n_test = len(y_pred)
 
-        # Combine and sort all quantile levels
-        all_quantiles = np.array(sorted(set(lower_quantiles + upper_quantiles)))
+        # Sample residuals with replacement
+        # Shape: (n_test, n_samples)
+        rng = np.random.default_rng(self.lgbm_kwargs.get("random_state", None))
+        residual_samples = rng.choice(
+            self.residuals_,
+            size=(n_test, n_samples),
+            replace=True,
+        )
 
-        # For each observation, collect the corresponding lower and upper bounds
-        n_obs = X.shape[0]
-        n_q = len(all_quantiles)
-        quantile_preds = np.empty((n_obs, n_q))
-
-        # Map quantile levels to interval indices
-        quantile_to_interval = {q: i for i, q in enumerate(lower_quantiles)}
-        quantile_to_interval.update({q: i for i, q in enumerate(upper_quantiles)})
-
-        for i in range(n_obs):
-            # For each quantile, pick the corresponding lower or upper bound
-            for j, q in enumerate(all_quantiles):
-                if q in quantile_to_interval:
-                    idx = quantile_to_interval[q]
-                    if q in lower_quantiles:
-                        quantile_preds[i, j] = intervals[i, 0, idx]
-                    else:
-                        quantile_preds[i, j] = intervals[i, 1, idx]
-                else:
-                    # Should not happen, but just in case
-                    quantile_preds[i, j] = np.nan
-
-        # Now interpolate as in the LightGBM wrapper
-        samples = np.empty((n_obs, n_samples))
-        random_quantiles = np.random.uniform(0, 1, size=(n_obs, n_samples))
-        for i in range(n_obs):
-            samples[i] = np.interp(random_quantiles[i], all_quantiles, quantile_preds[i])
+        # Conformal predictive distribution: f(x) + sampled_residual
+        samples = y_pred[:, np.newaxis] + residual_samples
 
         return samples
 
@@ -805,6 +848,8 @@ class BARTRegressorWrapper(BaseEstimator, RegressorMixin):
     - predict_samples(X, n_samples): samples from posterior predictive
     """
 
+    PREDICTION_TYPE: PredictionType = "samples"
+
     def __init__(
         self,
         m=50,
@@ -838,9 +883,11 @@ class BARTRegressorWrapper(BaseEstimator, RegressorMixin):
 
             if not hasattr(_np, "testing") or not hasattr(_np.testing, "Tester"):
                 try:
-                    from numpy.testing._private import Tester as _Tester  # new NumPy layout
+                    from numpy.testing._private import (
+                        Tester as _Tester,  # pyright: ignore[reportAttributeAccessIssue] # new NumPy layout
+                    )
 
-                    _np.testing.Tester = _Tester
+                    _np.testing.Tester = _Tester  # pyright: ignore[reportAttributeAccessIssue]
                 except Exception:
 
                     class Tester:  # fallback no-op minimal shim
@@ -853,7 +900,7 @@ class BARTRegressorWrapper(BaseEstimator, RegressorMixin):
                         def test(self, *args, **kwargs):
                             return None
 
-                    _np.testing.Tester = Tester
+                    _np.testing.Tester = Tester  # pyright: ignore[reportAttributeAccessIssue]
 
             import pymc as pm
         except Exception as e:
@@ -890,7 +937,7 @@ class BARTRegressorWrapper(BaseEstimator, RegressorMixin):
         import pymc as pm
 
         with self._model:
-            self.X_bart.set_value(X)
+            self.X_bart.set_value(X)  # pyright: ignore[reportOptionalMemberAccess]
             pred_samples = pm.sample_posterior_predictive(
                 self._trace, random_seed=1234, predictions=True, var_names=["y_obs"]
             ).predictions
@@ -924,6 +971,8 @@ class TreeffuserWrapper(BaseEstimator, RegressorMixin):
     dict-like args to avoid in-place mutations.
     """
 
+    PREDICTION_TYPE: PredictionType = "samples"
+
     def __init__(self, **init_kwargs):
         self.init_kwargs = dict(init_kwargs)
         for k, v in self.init_kwargs.items():
@@ -948,12 +997,14 @@ class TreeffuserWrapper(BaseEstimator, RegressorMixin):
 
     def predict(self, X):
         X = X.values if hasattr(X, "values") else X
-        return self.model_.predict(X)
+        return self.model_.predict(X)  # pyright: ignore[reportOptionalMemberAccess]
 
     def predict_samples(self, X, n_samples=100):
         X = X.values if hasattr(X, "values") else X
         # TODO: add n_steps as parameter when tuning on crps
-        return self.model_.sample(X, n_samples=n_samples, seed=1234, n_steps=50).T
+        return self.model_.sample(  # pyright: ignore[reportOptionalMemberAccess]
+            X, n_samples=n_samples, seed=1234, n_steps=50
+        ).T
 
     def get_params(self, deep=True):
         return dict(self.init_kwargs)

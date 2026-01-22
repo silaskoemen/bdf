@@ -72,6 +72,7 @@ omegaconf = "*"
 hydra-core = "<1.4.0"
 optuna = "*"
 tqdm = "*"
+rich = "*"
 scoringrules = "*"
 polars = ">=1.36.1,<2"
 ucimlrepo = ">=0.0.7,<0.0.8"
@@ -84,7 +85,6 @@ xgboost = "*"
 ngboost = ">=0.3.6,<0.4"
 catboost = ">=1.2.8,<2"
 quantile-forest = ">=1.4.1,<2"
-mapie = ">=1.2.0,<2"
 # drf impossible to install: ERROR: Could not find a version that satisfies the requirement rpy2 (from drf) (from versions: none)
 # ERROR: No matching distribution found for rpy2
 

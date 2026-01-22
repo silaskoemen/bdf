@@ -1,4 +1,4 @@
-name: mq_reg
+name: confrf
 target_type: regression
 class_name: MapieQuantileRegressor
 probabilistic: true

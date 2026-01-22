@@ -398,7 +398,8 @@ class DirichletMeanMultinomial(BDFDistribution):
             rng = np.random.default_rng(random_state)
 
             samples = np.empty(size, dtype=int)
-            for i in range(n_samples := size if isinstance(size, int) else np.prod(size)):
+            n_samples = size if isinstance(size, int) else np.prod(size)
+            for i in range(n_samples):
                 p_sample = rng.dirichlet(alpha_post)
                 samples[i] = rng.choice(self.n_categories, p=p_sample)
 

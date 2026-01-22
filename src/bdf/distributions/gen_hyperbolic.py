@@ -269,9 +269,7 @@ class FrequentistGenHyperbolic(BDFDistribution):
             return float(params["mu"])
 
         # Use scipy's builtin moment calculation
-        return float(
-            genhyperbolic.mean(params["p"], params["a"], params["b"], loc=params["mu"], scale=params["delta"])  # type: ignore
-        )
+        return float(genhyperbolic.mean(params["p"], params["a"], params["b"], loc=params["mu"], scale=params["delta"]))
 
     def get_posterior_variance(
         self,
@@ -290,7 +288,7 @@ class FrequentistGenHyperbolic(BDFDistribution):
             return float(np.inf)
 
         return float(
-            genhyperbolic.var(params["p"], params["a"], params["b"], loc=params["mu"], scale=params["delta"])  # type: ignore
+            genhyperbolic.var(params["p"], params["a"], params["b"], loc=params["mu"], scale=params["delta"])
         )  # pyright: ignore[reportArgumentType]
 
     # ========================================================================
