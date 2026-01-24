@@ -1,7 +1,7 @@
 from loguru import logger
 
-from .pipeline.orchestrators import Orchestrator
-from .pipeline.utils import setup_logging
+from .pipeline.orchestrators import CustomOrchestrator
+from .utils.benchmark_utils import setup_logging
 
 if __name__ == "__main__":
     import hydra
@@ -12,7 +12,7 @@ if __name__ == "__main__":
         setup_logging(cfg.logging)
         logger.info("🚀 Starting benchmark run")
         logger.debug(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
-        orchestrator = Orchestrator(cfg)
+        orchestrator = CustomOrchestrator(cfg)
         results = orchestrator.run()
         logger.success("🏁 Benchmark run completed")
         logger.debug(f"Final results:\n{results}")

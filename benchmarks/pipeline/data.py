@@ -28,9 +28,16 @@ class TargetDomain(Enum):
 class DatasetMetadata:
     name: str
     target_domain: TargetDomain
+    n_samples: int
+    n_features: int
 
     def to_dict(self) -> dict:
-        return {"name": self.name, "target_domain": self.target_domain.value}
+        return {
+            "name": self.name,
+            "target_domain": self.target_domain.value,
+            "n_samples": self.n_samples,
+            "n_features": self.n_features,
+        }
 
 
 # ===========================================================
@@ -90,12 +97,60 @@ def _load_wine_quality():
     return X, y, "positive_integer"
 
 
+def _load_kin8nm():
+    data = pd.read_csv("data/raw/kin8nm.csv")
+    X = data.drop("y", axis=1)
+    y = data["y"]
+    return X, y, "positive_real"
+
+
+def _load_concrete_strength():
+    data = pd.read_csv("data/raw/concrete_strength.csv")
+    X = data.drop("Concrete compressive strength", axis=1)
+    y = data["Concrete compressive strength"]
+    return X, y, "positive_real"
+
+
+def _load_energy_efficiency():
+    data = pd.read_csv("data/raw/energy_efficiency.csv")
+    X = data.drop("Y1", axis=1)
+    y = data["Y1"]
+    return X, y, "positive_real"
+
+
+def _load_combined_cycle_power_plant():
+    data = pd.read_csv("data/raw/combined_cycle_power_plant.csv")
+    X = data.drop("PE", axis=1)
+    y = data["PE"]
+    return X, y, "positive_real"
+
+
+def _load_superconductor():
+    data = pd.read_csv("data/raw/superconductor.csv")
+    X = data.drop("critical_temp", axis=1)
+    y = data["critical_temp"]
+    return X, y, "positive_real"
+
+
+def _load_bike_sharing():
+    data = pd.read_csv("data/raw/bike_sharing.csv").drop(columns=["dteday"])
+    X = data.drop("cnt", axis=1)
+    y = data["cnt"]
+    return X, y, "positive_integer"
+
+
 # Registry of name - load functions for datasets
 REGRESSION_DATASET_REGISTRY: dict[str, Callable] = {
     "abalone_age": _load_abalone_age,
+    "bike_sharing": _load_bike_sharing,
     "boston_housing": _load_boston_housing,
+    "combined_cycle_power_plant": _load_combined_cycle_power_plant,
+    "concrete_strength": _load_concrete_strength,
+    "energy_efficiency": _load_energy_efficiency,
+    "kin8nm": _load_kin8nm,
     "parkinsons_updrs": _load_parkinsons_updrs,
     "realestate": _load_realestate,
+    "superconductor": _load_superconductor,
     "wine_quality": _load_wine_quality,
 }
 
@@ -103,7 +158,13 @@ REGRESSION_DATASET_REGISTRY: dict[str, Callable] = {
 def available_regression_datasets() -> Iterator[tuple[DatasetMetadata, pd.DataFrame, pd.Series]]:
     for name, load_fct in REGRESSION_DATASET_REGISTRY.items():
         X, y, target_domain = load_fct()
-        yield DatasetMetadata(name=name, target_domain=TargetDomain(target_domain)), X, y
+        yield (
+            DatasetMetadata(
+                name=name, target_domain=TargetDomain(target_domain), n_samples=X.shape[0], n_features=X.shape[1]
+            ),
+            X,
+            y,
+        )
 
 
 # ===========================================================
@@ -111,10 +172,10 @@ def available_regression_datasets() -> Iterator[tuple[DatasetMetadata, pd.DataFr
 # ===========================================================
 
 
-def _load_breast_cancer():
-    data = pd.read_csv("data/raw/breast_cancer.csv")
-    X = data.drop(columns=["diagnosis", "id", "Unnamed: 32"])
-    y = (data["diagnosis"] == "M").astype(int)  # Malignant = 1, Benign = 0, convert to int
+def _load_breast_cancer_wisconsin():
+    data = pd.read_csv("data/raw/breast_cancer_wisconsin.csv", header=0)
+    X = data.drop("Class", axis=1)
+    y = data["Class"]
     return X, y, "binary"
 
 
@@ -152,15 +213,22 @@ def _load_titanic():
 
 
 CLASSIFICATION_DATASET_REGISTRY: dict[str, Callable] = {
-    "breast_cancer": _load_breast_cancer,
+    # "breast_cancer": _load_breast_cancer,
     # "iris": _load_iris,
     # "wine_quality_classification": _load_wine_quality_classification,
     "boston_housing_classification": _load_boston_housing_classification,
     "titanic": _load_titanic,
+    "breast_cancer_wisconsin": _load_breast_cancer_wisconsin,
 }
 
 
 def available_classification_datasets() -> Iterator[tuple[DatasetMetadata, pd.DataFrame, pd.Series]]:
     for name, load_fct in CLASSIFICATION_DATASET_REGISTRY.items():
         X, y, target_domain = load_fct()
-        yield DatasetMetadata(name=name, target_domain=TargetDomain(target_domain)), X, y
+        yield (
+            DatasetMetadata(
+                name=name, target_domain=TargetDomain(target_domain), n_samples=X.shape[0], n_features=X.shape[1]
+            ),
+            X,
+            y,
+        )

@@ -43,13 +43,13 @@ if __name__ == "__main__":
     # Compute average RMSE rank
     avg_rank_df = average_rmse_rank(df)
     # Plot
-    plot_average_rmse_rank(avg_rank_df, save_path=Path("benchmarks/plots/regression_avg_rmse_rank.png"))
+    plot_average_rmse_rank(avg_rank_df, save_path="benchmarks/plots/regression_avg_rmse_rank.png")
 
     # Compute relative-to-best RMSE per dataset and model, plot model average
     from .utils.plotting import plot_rel_to_best
 
     rel_to_best_df = rel_to_best(df, metric="rmse")
-    plot_rel_to_best(rel_to_best_df, metric="rmse", save_path=Path("benchmarks/plots/regression_rel_to_best_rmse.png"))
+    plot_rel_to_best(rel_to_best_df, metric="rmse", save_path="benchmarks/plots/regression_rel_to_best_rmse.png")
 
     # Now for probabilistic models and CRPS
     df = load_all_results(JSON_ROOT, models=PROB_MODELS)
@@ -58,9 +58,7 @@ if __name__ == "__main__":
     # Plot relative-to-best CRPS per dataset and model, plot model average
     rel_to_best_crps_df = rel_to_best(df, metric="crps")
     print(rel_to_best_crps_df)
-    plot_rel_to_best(
-        rel_to_best_crps_df, metric="crps", save_path=Path("benchmarks/plots/regression_rel_to_best_crps.png")
-    )
+    plot_rel_to_best(rel_to_best_crps_df, metric="crps", save_path="benchmarks/plots/regression_rel_to_best_crps.png")
 
     # Calculate rel to best WIS and DSS if available, print for table in paper
     rel_to_best_wis_df = rel_to_best(df, metric="weighted_interval_score")
@@ -79,7 +77,7 @@ if __name__ == "__main__":
         df,
         models=PROB_MODELS,
         datasets=DATASETS,
-        save_path=Path("benchmarks/plots/regression_pica_pit.png"),
+        save_path="benchmarks/plots/regression_pica_pit.png",
     )
 
     from .utils.plotting import plot_coverage_vs_interval_score_grid
@@ -88,5 +86,5 @@ if __name__ == "__main__":
         df,
         datasets=DATASETS,
         models=PROB_MODELS,
-        save_path=Path("benchmarks/plots/regression_coverage_vs_interval_score.png"),
+        save_path="benchmarks/plots/regression_coverage_vs_interval_score.png",
     )

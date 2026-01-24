@@ -2,7 +2,7 @@
 
 name: bdf_normalmeanpseudoalphaskewnormal
 target_type: regression
-class_name: BDFModel
+class_name: BDFRegressor
 probabilistic: true
 
 compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
@@ -18,21 +18,31 @@ tunable_init_kwargs:
     high: 200
   reg_lambda:
     type: float
+    low: 0.00001
+    high: 1.0
+    log: true
+  reg_gamma:
+    type: float
     low: 0.0001
-    high: 10.0
+    high: 1.0
+    log: true
+  reg_nu:
+    type: float
+    low: 0.0001
+    high: 1.0
     log: true
   min_samples_leaf:
     type: int
     low: 5
     high: 50
-  max_depth:
-    type: int
-    low: 10
-    high: 50
-  min_samples_split:
-    type: int
-    low: 10
-    high: 100
+  # max_depth:
+  #   type: int
+  #   low: 10
+  #   high: 30
+  # min_samples_split:
+  #   type: int
+  #   low: 10
+  #   high: 100
   subsample:
     type: float
     low: 0.5
@@ -48,10 +58,11 @@ tunable_init_kwargs:
     log: true
 
 tunable_params:
-  sigma_mu:
+  sigma_mu_auto_scale:
     type: float
-    low: 0.1
-    high: 150.0
+    low: 0.01
+    high: 10.0
+    log: true
   m_alpha:
     type: int
     low: 1
@@ -59,6 +70,7 @@ tunable_params:
 
 fixed_params:
   mu_mu: auto  # Set prior mean based on data
+  sigma_mu: auto
   prior_alpha: 0.0  # Prior mean for alpha parameter
   score_method: nll  # Scoring method for parameter tuning
   score_correction: bic  # Score correction method

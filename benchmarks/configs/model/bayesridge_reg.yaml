@@ -1,0 +1,38 @@
+name: bayesridge_reg
+target_type: regression
+class_name: BayesianRidgeRegressor
+probabilistic: true
+
+compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+
+fixed_init_kwargs:
+  compute_score: false  # Skip scoring for faster training
+
+tunable_init_kwargs:
+  max_iter:
+    type: int
+    low: 100
+    high: 500
+  alpha_1:
+    type: float
+    low: 1.0e-7
+    high: 1.0e-4
+    log: true
+  alpha_2:
+    type: float
+    low: 1.0e-7
+    high: 1.0e-4
+    log: true
+  lambda_1:
+    type: float
+    low: 1.0e-7
+    high: 1.0e-4
+    log: true
+  lambda_2:
+    type: float
+    low: 1.0e-7
+    high: 1.0e-4
+    log: true
+  fit_intercept:
+    type: categorical
+    categories: [true, false]

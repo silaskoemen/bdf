@@ -18,6 +18,7 @@ from typing import ClassVar, Literal
 
 import numpy as np
 from pydantic import Field
+from scipy.special import digamma, polygamma
 from scipy.stats import nbinom
 
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
@@ -104,11 +105,11 @@ class FrequentistNegativeBinomial(BDFDistribution):
 
     def _estimate_params_mle(self, data: np.ndarray) -> dict[str, float]:
         mean = float(np.mean(data))
-        var = self._ensure_overdispersion(mean, np.var(data, ddof=1))
+        var = self._ensure_overdispersion(mean, float(np.var(data, ddof=1)))
         r = (mean**2) / (var - mean)  # MoM init
         for _ in range(5):
-            grad = np.sum(np.digamma(data + r) - np.digamma(r)) + len(data) * np.log(r / (r + mean))
-            hess = np.sum(np.polygamma(1, data + r) - np.polygamma(1, r)) + len(data) * (1 / r - 1 / (r + mean))
+            grad = np.sum(digamma(data + r) - digamma(r)) + len(data) * np.log(r / (r + mean))
+            hess = np.sum(polygamma(1, data + r) - polygamma(1, r)) + len(data) * (1 / r - 1 / (r + mean))
             delta = grad / (hess + 1e-12)
             r = np.maximum(r - delta, 1e-6)
             if abs(delta) < 1e-6:
@@ -118,7 +119,7 @@ class FrequentistNegativeBinomial(BDFDistribution):
 
     def _estimate_params_mom(self, data: np.ndarray) -> dict[str, float]:
         mean = float(np.mean(data))
-        var = self._ensure_overdispersion(mean, np.var(data, ddof=1))
+        var = self._ensure_overdispersion(mean, float(np.var(data, ddof=1)))
         p = mean / var
         r = (mean**2) / (var - mean)
         return {"r": float(np.maximum(r, 1e-6)), "p": float(np.clip(p, 1e-6, 1 - 1e-6))}
@@ -135,7 +136,7 @@ class FrequentistNegativeBinomial(BDFDistribution):
         return 2
 
     def _sample_posterior_params(
-        self, params: dict[str, float], size: int = 1, random_state: int = RANDOM_SEED
+        self, params: dict[str, float], size: int | tuple[int, int] = 1, random_state: int = RANDOM_SEED
     ) -> np.ndarray:
         """Sample from fitted Negative Binomial."""
         r = params["r"]
@@ -255,7 +256,7 @@ class NormalMeanNegativeBinomial(BDFDistribution):
         return 2
 
     def _sample_posterior_params(
-        self, params: dict[str, float], size: int = 1, random_state: int = RANDOM_SEED
+        self, params: dict[str, float], size: int | tuple[int, int] = 1, random_state: int = RANDOM_SEED
     ) -> np.ndarray:
         """Sample from fitted Negative Binomial."""
         r = params["r"]

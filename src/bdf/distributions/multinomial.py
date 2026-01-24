@@ -187,7 +187,9 @@ class DirichletAlphaMultinomial(BDFDistribution):
         """Number of free parameters: K - 1 (probabilities sum to 1)."""
         return self.n_categories - 1
 
-    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
+    def _sample_posterior_params(
+        self, params: dict[str, float], size: int | tuple[int, int], random_state: int
+    ) -> np.ndarray:
         """Sample from posterior predictive (Dirichlet-Multinomial).
 
         If use_posterior_predictive=True:
@@ -204,13 +206,14 @@ class DirichletAlphaMultinomial(BDFDistribution):
 
             # Sample from Dirichlet-Multinomial (equivalent to sampling p then y)
             samples = np.empty(size, dtype=int)
-            for i in range(size):
+            n_samples = size if isinstance(size, int) else np.prod(size)
+            for i in range(n_samples):
                 # Sample probabilities from posterior Dirichlet
                 p_sample = rng.dirichlet(alpha_post)
                 # Sample category from Categorical(p_sample)
                 samples[i] = rng.choice(self.n_categories, p=p_sample)
 
-            return samples
+            return samples.reshape(size)
         else:
             # Plug-in: Categorical(p_post)
             probs_post = np.array(params["posterior_probs"])
@@ -265,8 +268,8 @@ class DirichletAlphaMultinomial(BDFDistribution):
 
         probs_post = np.array(params["posterior_probs"])
         # Entropy (use as variance proxy for categorical)
-        entropy = -np.sum(probs_post * np.log(probs_post + 1e-10))
-        return float(entropy)
+        entropy = -float(np.sum(probs_post * np.log(probs_post + 1e-10)))
+        return entropy
 
     # ========================================================================
     # OPTIONAL METHODS (OVERRIDE FOR EFFICIENCY)
@@ -386,18 +389,21 @@ class DirichletMeanMultinomial(BDFDistribution):
     def _num_parameters(self) -> int:
         return self.n_categories - 1
 
-    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
+    def _sample_posterior_params(
+        self, params: dict[str, float], size: int | tuple[int, ...], random_state: int
+    ) -> np.ndarray:
         """Sample from posterior predictive or plug-in."""
         if self.params.use_posterior_predictive:
             alpha_post = np.array(params["posterior_alpha"])
             rng = np.random.default_rng(random_state)
 
             samples = np.empty(size, dtype=int)
-            for i in range(size):
+            n_samples = size if isinstance(size, int) else np.prod(size)
+            for i in range(n_samples):
                 p_sample = rng.dirichlet(alpha_post)
                 samples[i] = rng.choice(self.n_categories, p=p_sample)
 
-            return samples
+            return samples.reshape(size)
         else:
             probs_post = np.array(params["posterior_probs"])
             rng = np.random.default_rng(random_state)
@@ -440,8 +446,8 @@ class DirichletMeanMultinomial(BDFDistribution):
             params = self.calc_posterior_params(data)
 
         probs_post = np.array(params["posterior_probs"])
-        entropy = -np.sum(probs_post * np.log(probs_post + 1e-10))
-        return float(entropy)
+        entropy = -float(np.sum(probs_post * np.log(probs_post + 1e-10)))
+        return entropy
 
     # ========================================================================
     # OPTIONAL METHODS

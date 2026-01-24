@@ -1,0 +1,226 @@
+datasets:
+  boston_housing_classification:
+    best_params:
+      kernel_comb: RBF*Matern
+    fitting_time: 1.7312410407596164
+    metadata:
+      n_features: 13
+      n_samples: 394
+      name: boston_housing_classification
+      target_domain: binary
+    metrics:
+      accuracy:
+        mean: 0.8532763532763533
+        std: 0.051631151894716405
+      auroc:
+        mean: 0.9287262006251775
+        std: 0.03534191090839104
+      brier:
+        mean: 0.10149055812618633
+        std: 0.02807746868452677
+      calibration_curve:
+        bin_counts:
+        - 111
+        - 35
+        - 19
+        - 19
+        - 27
+        - 14
+        - 18
+        - 20
+        - 32
+        - 59
+        prob_pred:
+        - 0.035106326647564856
+        - 0.14073070767771176
+        - 0.24700326411670845
+        - 0.34528599639619384
+        - 0.4343062440150491
+        - 0.5374031352967008
+        - 0.6433332824043781
+        - 0.738760203107077
+        - 0.8574432031733856
+        - 0.9563085487848512
+        prob_true:
+        - 0.05405405405405406
+        - 0.05714285714285714
+        - 0.3157894736842105
+        - 0.21052631578947367
+        - 0.37037037037037035
+        - 0.35714285714285715
+        - 0.5555555555555556
+        - 0.8
+        - 0.90625
+        - 1.0
+      ece:
+        mean: 0.12154881398818738
+        std: 0.018382394320071375
+      f1:
+        mean: 0.8213870311217035
+        std: 0.060302208691778145
+      log_loss:
+        mean: 0.33328168622610105
+        std: 0.07341224500439278
+      precision:
+        mean: 0.8390613652868555
+        std: 0.08641409077768258
+      recall:
+        mean: 0.8108660130718954
+        std: 0.07532750627032356
+    tuning_time_seconds: 62.12987518310547
+  breast_cancer_wisconsin:
+    best_params:
+      kernel_comb: RBF+RQ
+    fitting_time: 3.697881751590305
+    metadata:
+      n_features: 9
+      n_samples: 683
+      name: breast_cancer_wisconsin
+      target_domain: binary
+    metrics:
+      accuracy:
+        mean: 0.9756086009282942
+        std: 0.01817813325568372
+      auroc:
+        mean: 0.9962367231087038
+        std: 0.00333107967697728
+      brier:
+        mean: 0.022492669053383426
+        std: 0.008106795074113953
+      calibration_curve:
+        bin_counts:
+        - 378
+        - 5
+        - 5
+        - 5
+        - 7
+        - 6
+        - 6
+        - 11
+        - 31
+        - 160
+        prob_pred:
+        - 0.010483109957335944
+        - 0.14784482889378978
+        - 0.2327172031464329
+        - 0.3373658477865945
+        - 0.4419059301361626
+        - 0.5647480484717349
+        - 0.651819026146787
+        - 0.7649078535574332
+        - 0.8547909899220391
+        - 0.9645612353156487
+        prob_true:
+        - 0.0026455026455026454
+        - 0.0
+        - 0.4
+        - 0.4
+        - 0.42857142857142855
+        - 1.0
+        - 1.0
+        - 0.7272727272727273
+        - 0.967741935483871
+        - 0.98125
+      ece:
+        mean: 0.048074117682163964
+        std: 0.009144360424121114
+      f1:
+        mean: 0.9647967014948645
+        std: 0.026522727762792624
+      log_loss:
+        mean: 0.08701251402497001
+        std: 0.019541056870184117
+      precision:
+        mean: 0.9680691530691531
+        std: 0.03177633667064903
+      recall:
+        mean: 0.9625603864734299
+        std: 0.036979011817378914
+    tuning_time_seconds: 140.17004108428955
+  titanic:
+    best_params:
+      kernel_comb: RBF+Matern
+    fitting_time: 5.211136261622111
+    metadata:
+      n_features: 6
+      n_samples: 714
+      name: titanic
+      target_domain: binary
+    metrics:
+      accuracy:
+        mean: 0.529038428099461
+        std: 0.1721660574289185
+      auroc:
+        mean: 0.7078650135987746
+        std: 0.1789460945477612
+      brier:
+        mean: 0.4471056309875794
+        std: 0.20606742536778258
+      calibration_curve:
+        bin_counts:
+        - 25
+        - 41
+        - 18
+        - 28
+        - 15
+        - 12
+        - 16
+        - 15
+        - 21
+        - 451
+        prob_pred:
+        - 0.07346910291526002
+        - 0.14913624240116627
+        - 0.25417641738683805
+        - 0.34183040459682396
+        - 0.4497041128051395
+        - 0.5475731766739479
+        - 0.6351300325659412
+        - 0.7653854895671316
+        - 0.8688340534123535
+        - 0.996713604258141
+        prob_true:
+        - 0.04
+        - 0.14634146341463414
+        - 0.2222222222222222
+        - 0.17857142857142858
+        - 0.5333333333333333
+        - 0.4166666666666667
+        - 0.5625
+        - 0.6666666666666666
+        - 0.8095238095238095
+        - 0.43458980044345896
+      ece:
+        mean: 0.4331998510063642
+        std: 0.22635702905881294
+      f1:
+        mean: 0.62515484985031
+        std: 0.06699754716341294
+      log_loss:
+        mean: 6.389135477247008
+        std: 4.621431665433293
+      precision:
+        mean: 0.516175638828221
+        std: 0.1588839152558706
+      recall:
+        mean: 0.9080459770114943
+        std: 0.14539207632958068
+    tuning_time_seconds: 276.9705777168274
+model_config:
+  class_name: GaussianProcessClassifier
+  compatible_target_domains:
+  - binary
+  fixed_init_kwargs:
+    random_state: 1234
+  name: gp_clas
+  probabilistic: true
+  target_type: classification
+  tunable_init_kwargs:
+    kernel_comb:
+      categories:
+      - RBF
+      - RBF+RQ
+      - RBF*RQ
+      - RBF+Matern
+      - RBF*Matern
+      type: categorical

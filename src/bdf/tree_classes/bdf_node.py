@@ -21,7 +21,7 @@ class BDFNode:
         if params is not None:
             self.posterior_params: dict = params
         else:
-            self.posterior_params: dict = self.distribution.calc_posterior_params(y)  # type: ignore
+            self.posterior_params: dict = self.distribution.calc_posterior_params(y)
 
     def predict_variance(self) -> float:
         """Return the posterior variance of the node's distribution."""
@@ -59,12 +59,12 @@ class BDFNode:
         self.best_threshold = threshold
 
         # Create left and right nodes
-        self.left_node = BDFNode(distribution=self.distribution, depth=self.depth + 1, random_state=self.random_state)  # type: ignore
-        self.right_node = BDFNode(distribution=self.distribution, depth=self.depth + 1, random_state=self.random_state)  # type: ignore
+        self.left_node = BDFNode(distribution=self.distribution, depth=self.depth + 1, random_state=self.random_state)
+        self.right_node = BDFNode(distribution=self.distribution, depth=self.depth + 1, random_state=self.random_state)
 
         # Estimate posterior for left and right nodes
-        self.left_node.estimate_posterior(y[left_idx], params=left_params)  # type: ignore
-        self.right_node.estimate_posterior(y[right_idx], params=right_params)  # type: ignore
+        self.left_node.estimate_posterior(y[left_idx], params=left_params)
+        self.right_node.estimate_posterior(y[right_idx], params=right_params)
 
     def find_best_split(
         self,
@@ -108,7 +108,7 @@ class BDFNode:
         """
         try:
             # Import and use the Rust implementation
-            import bdf_rs  # type: ignore[import-untyped]
+            import bdf_rs
 
             # Create distribution spec with native and fallback options
             dist_spec = self.distribution.to_rust_spec()
@@ -451,15 +451,15 @@ class BDFNode:
                 best_left_indices = feat_best_left_indices
                 best_right_indices = feat_best_right_indices
 
-        if best_feature is None or best_threshold is None:
+        if best_feature is None or best_threshold is None or best_left_indices is None or best_right_indices is None:
             return None, None, 0.0, None, None, None, None
 
         return (
             best_feature,
             best_threshold,
             best_loss_reduction,
-            best_left_indices,  # type: ignore[return-value]
-            best_right_indices,  # type: ignore[return-value]
+            best_left_indices,
+            best_right_indices,
             None,
             None,
         )

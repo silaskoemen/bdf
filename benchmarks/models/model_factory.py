@@ -9,21 +9,32 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
+<<<<<<< HEAD:benchmarks/models/factory.py
 from bdf.tree_classes.bdf_regressor import BDFModel
 
 from .wrappers import (  # BARTRegressor,
+    KNNKDE,
+    BARTRegressorWrapper,
+    BayesianRidgeWrapper,
     CalibratedRFWrapper,
     CatBoostUncertaintyWrapper,
+    ConformalizedLGBMWrapper,
     DeepEnsembleWrapper,
     GPClassifierWrapper,
     GPRegressorWrapper,
     LGBMQuantileRegressorWrapper,
-    MapieQuantileRegressorWrapper,
     NGBClassifierWrapper,
     NGBRegressorWrapper,
+    TreeffuserWrapper,
+    .wrappers,
+    =======,
+    >>>>>>>,
+    from,
+    import,
+    orchestrator_refactor:benchmarks/models/model_factory.py,
 )
 
-# from ngboost import NGBoostClassifier, ...
+# from treeffuser import Treeffuser
 
 
 class ModelFactory:
@@ -38,8 +49,6 @@ class ModelFactory:
                 return RandomForestClassifier
             case "RandomForestRegressor":
                 return RandomForestRegressor
-            case "BDFModel":
-                return BDFModel
             case "GaussianProcessRegressor":
                 return GPRegressorWrapper
             case "GaussianProcessClassifier":
@@ -54,8 +63,8 @@ class ModelFactory:
                 return CatBoostUncertaintyWrapper
             case "DeepEnsembleRegressor":
                 return DeepEnsembleWrapper
-            case "MapieQuantileRegressor":
-                return MapieQuantileRegressorWrapper
+            case "BayesianRidgeRegressor":
+                return BayesianRidgeWrapper
             case "LogisticRegression":
                 return LogisticRegression
             case "LinearRegression":
@@ -70,9 +79,22 @@ class ModelFactory:
                 return DecisionTreeRegressor
             case "CalibratedRandomForestClassifier":
                 return CalibratedRFWrapper
+<<<<<<< HEAD:benchmarks/models/factory.py
             # case "RandomForestQuantileRegressor":
             #     return RandomForestQuantileRegressor
             # case "BARTRegressor":
             #     return BARTRegressor
+=======
+            case "RandomForestQuantileRegressor":
+                return RandomForestQuantileRegressor
+            case "BARTRegressor":
+                return BARTRegressorWrapper
+            case "Treeffuser":
+                return TreeffuserWrapper
+            case "KNNKDE":
+                return KNNKDE
+            case "ConformalizedLGBM":
+                return ConformalizedLGBMWrapper
+>>>>>>> orchestrator_refactor:benchmarks/models/model_factory.py
             case _:
                 raise ValueError(f"Model class name '{cfg.name}' not recognized.")  # type: ignore[reportUnboundVariable]

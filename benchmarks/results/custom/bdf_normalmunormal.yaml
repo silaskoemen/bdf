@@ -1,0 +1,160 @@
+datasets:
+  abalone_age:
+    best_params:
+      colsample: 0.7230124804903139
+      eta: 0.008068430249765316
+      min_samples_leaf: 7
+      n_trees: 163
+      reg_gamma: 0.0035987134756365344
+      reg_lambda: 0.005814292172831377
+      reg_nu: 0.031187247703274846
+      score_method: nll
+      sigma_mu_auto_scale: 3.9923949813638244
+      subsample: 0.9067721659702395
+    fitting_time: 5.26965316136678
+    metadata:
+      n_features: 9
+      n_samples: 4177
+      name: abalone_age
+      target_domain: positive_integer
+    metrics:
+      ci_width_50:
+        mean: 2.3558528709891657
+        std: 0.03454568102647983
+      ci_width_90:
+        mean: 6.476082803531841
+        std: 0.0942756341599665
+      ci_width_div_sigma_50:
+        mean: 0.737101692384413
+        std: 0.03993244262667733
+      ci_width_div_sigma_90:
+        mean: 2.0267850800105625
+        std: 0.1198489366353112
+      coverage_50:
+        mean: 0.4950572237584733
+        std: 0.02466498706603168
+      coverage_90:
+        mean: 0.9146035643574455
+        std: 0.010411599550918265
+      coverage_95:
+        mean: 0.9608918925465688
+        std: 0.013165697354485922
+      crps:
+        mean: 1.0594900135101744
+        std: 0.06048743484956963
+      dawid_sebastiani_score:
+        mean: .nan
+        std: .nan
+      interval_score_50:
+        mean: 4.765325964471483
+        std: 0.2772895184664071
+      interval_score_90:
+        mean: 8.50610076864563
+        std: 0.5500421422089291
+      interval_score_95:
+        mean: 10.244997079111545
+        std: 0.6742880488544027
+      mae:
+        mean: 1.492716820398871
+        std: 0.08138950475453398
+      mape:
+        mean: 14.799488881797913
+        std: 0.47954576049598485
+      mse:
+        mean: 4.520017449992562
+        std: 0.6193474389003866
+      pica:
+        mean: 0.013150892364258506
+        std: 0.0058555590026396495
+      pit_ks_statistic:
+        mean: .nan
+        std: .nan
+      quantile_loss_50:
+        mean: 0.7329631367049454
+        std: 0.04194793812701405
+      quantile_loss_90:
+        mean: 0.4203130226349331
+        std: 0.03165684165159349
+      quantile_loss_95:
+        mean: 0.2686973511895001
+        std: 0.021247436100597105
+      r2:
+        mean: 0.5610182732528525
+        std: 0.03190302822137227
+      rmse:
+        mean: 2.120704248089281
+        std: 0.15043584057211287
+      sharpness:
+        mean: 2.0474484605994294
+        std: 0.02918630569557816
+      weighted_interval_score:
+        mean: 0.5415505737867229
+        std: 0.031488563119897665
+    tuning_time_seconds: 252.29642486572266
+model_config:
+  class_name: BDFRegressor
+  compatible_target_domains:
+  - real
+  - positive_real
+  - nonnegative_real
+  - integer
+  - nonnegative_integer
+  - positive_integer
+  fixed_init_kwargs:
+    dist: NormalMuNormal
+    random_state: 1234
+  fixed_params:
+    mu_mu: auto
+    score_correction: bic
+    sigma_mu: auto
+  name: bdf_normalmunormal
+  probabilistic: true
+  target_type: regression
+  tunable_init_kwargs:
+    colsample:
+      high: 1.0
+      low: 0.5
+      type: float
+    eta:
+      high: 0.1
+      log: true
+      low: 0.001
+      type: float
+    min_samples_leaf:
+      high: 50
+      low: 5
+      type: int
+    n_trees:
+      high: 200
+      low: 5
+      type: int
+    reg_gamma:
+      high: 1.0
+      log: true
+      low: 0.0001
+      type: float
+    reg_lambda:
+      high: 1.0
+      log: true
+      low: 1.0e-05
+      type: float
+    reg_nu:
+      high: 1.0
+      log: true
+      low: 0.0001
+      type: float
+    subsample:
+      high: 1.0
+      low: 0.5
+      type: float
+  tunable_params:
+    score_method:
+      categories:
+      - nll
+      - nle
+      type: categorical
+    sigma_mu_auto_scale:
+      high: 10.0
+      log: true
+      low: 0.01
+      type: float

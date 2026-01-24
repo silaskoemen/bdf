@@ -28,9 +28,9 @@ class DistributionManager:
                 leaf_cls = registry[leaf_name]
             except KeyError as exc:
                 raise ValueError(f"Unknown component '{exc.args[0]}' for {dist}") from None
-            base = base_cls(params=params.get("dist_params", {}) if params else {})  # type: ignore | params is dict, will be converted in class
+            base = base_cls(params=params.get("dist_params", {}) if params else {})
             leaf = leaf_cls(
-                params=params.get("kde_params", {}) if params else {},  # type: ignore
+                params=params.get("kde_params", {}) if params else {},
             )
             return KDL(dist=base, kde=leaf, params=params or {})  # type: ignore
 
@@ -43,8 +43,8 @@ class DistributionManager:
         # on keys with value 'auto' and data y
         for key, value in params.items():
             if value == "auto":
-                params[key] = DistClass.resolve_auto_params(key, y)
-        return DistClass(params=params)  # type: ignore
+                params[key] = DistClass.resolve_auto_params(key, y, params)
+        return DistClass(params=params)
 
     @classmethod
     def to_rust_spec(cls, distribution: BDFDistribution) -> dict[str, Any]:

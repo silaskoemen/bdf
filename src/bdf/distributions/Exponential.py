@@ -145,7 +145,9 @@ class GammaABLambdaExponential(BDFDistribution[GammaABLambdaExponentialParams]):
         """Only λ is estimated."""
         return 1
 
-    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
+    def _sample_posterior_params(
+        self, params: dict[str, float], size: int | tuple[int, int], random_state: int
+    ) -> np.ndarray:
         """Sample from posterior predictive (Lomax distribution).
 
         If use_posterior_predictive=True:
@@ -342,7 +344,9 @@ class GammaMVLambdaExponential(BDFDistribution[GammaMVLambdaExponentialParams]):
     def _num_parameters(self) -> int:
         return 1
 
-    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
+    def _sample_posterior_params(
+        self, params: dict[str, float], size: int | tuple[int, int], random_state: int
+    ) -> np.ndarray:
         """Sample from posterior predictive or plug-in."""
         if self.params.use_posterior_predictive:
             alpha_post = params["posterior_alpha"]

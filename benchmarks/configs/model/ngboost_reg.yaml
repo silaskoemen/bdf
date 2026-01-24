@@ -9,11 +9,12 @@ compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonn
 fixed_init_kwargs:
   random_state: 1234
   verbose: false
+  # dist_name: Normal
 
 tunable_init_kwargs:
   dist_name:
     type: categorical
-    categories: [Normal, LogNormal, Exponential]
+    categories: [Normal, Exponential]
   n_estimators:
     type: int
     low: 25

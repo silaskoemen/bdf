@@ -1,0 +1,66 @@
+name: treeffuser
+target_type: regression
+class_name: Treeffuser
+probabilistic: true
+
+compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+
+fixed_init_kwargs:
+  seed: 1234
+  verbose: 0
+  n_jobs: -1
+  extra_lightgbm_params:
+    verbosity: -1
+
+tunable_init_kwargs:
+  n_repeats:
+    type: int
+    low: 5
+    high: 100
+    log: true
+  n_estimators:
+    type: int
+    low: 25
+    high: 500
+  early_stopping_rounds:
+    type: int
+    low: 0
+    high: 50
+  eval_percent:
+    type: float
+    low: 0.01
+    high: 0.3
+  num_leaves:
+    type: int
+    low: 8
+    high: 256
+  max_depth:
+    type: int
+    low: 3
+    high: 20
+  learning_rate:
+    type: float
+    low: 0.01
+    high: 0.3
+  max_bin:
+    type: int
+    low: 16
+    high: 256
+  min_child_samples:
+    type: int
+    low: 5
+    high: 200
+  subsample:
+    type: float
+    low: 0.5
+    high: 1.0
+  subsample_freq:
+    type: int
+    low: 0
+    high: 10
+  sde_name:
+    type: categorical
+    categories: [vesde, vpsde, sub-vpsde]
+  sde_initialize_from_data:
+    type: categorical
+    categories: [true, false]

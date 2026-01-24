@@ -117,7 +117,9 @@ def test_rust_python_split_equivalence():
     node = BDFNode(distribution=dist)
 
     # Use Python implementation
-    py_feature_idx, py_threshold, py_loss, py_left, py_right = node._find_best_split_python(X, y, 1, 0.0, None)
+    py_feature_idx, py_threshold, py_loss, py_left, py_right, py_left_params, py_right_params = (
+        node._find_best_split_python(X, y, 1, 0.0, None)
+    )
 
     # Use Rust implementation
     rust_spec = DistributionManager.to_rust_spec(dist)

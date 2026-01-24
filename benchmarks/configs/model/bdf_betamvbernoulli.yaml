@@ -2,7 +2,7 @@
 
 name: bdf_betamvbernoulli
 target_type: classification
-class_name: BDFModel
+class_name: BDFClassifier
 probabilistic: true
 
 compatible_target_domains: [binary]

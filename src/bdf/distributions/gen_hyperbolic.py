@@ -230,7 +230,7 @@ class FrequentistGenHyperbolic(BDFDistribution):
     def _sample_posterior_params(
         self,
         params: dict[str, float],
-        size: int,
+        size: int | tuple[int, ...] = 1,
         random_state: int = RANDOM_SEED,
     ) -> np.ndarray:
         """Sample from fitted GenHyperbolic."""
@@ -269,9 +269,7 @@ class FrequentistGenHyperbolic(BDFDistribution):
             return float(params["mu"])
 
         # Use scipy's builtin moment calculation
-        return float(
-            genhyperbolic.mean(params["p"], params["a"], params["b"], loc=params["mu"], scale=params["delta"])
-        )  # pyright: ignore[reportArgumentType]
+        return float(genhyperbolic.mean(params["p"], params["a"], params["b"], loc=params["mu"], scale=params["delta"]))
 
     def get_posterior_variance(
         self,

@@ -1,0 +1,1013 @@
+datasets:
+  abalone_age:
+    best_params:
+      alpha_1: 9.489053108152383e-05
+      alpha_2: 1.8323069341270367e-05
+      fit_intercept: true
+      lambda_1: 1.6484064677919498e-06
+      lambda_2: 1.1876583200745608e-05
+      max_iter: 355
+    fitting_time: 0.0027035607231987845
+    metadata:
+      n_features: 9
+      n_samples: 4177
+      name: abalone_age
+      target_domain: positive_integer
+    metrics:
+      ci_width_50:
+        mean: 2.989591492619925
+        std: 0.022579195278035556
+      ci_width_90:
+        mean: 7.289134388339527
+        std: 0.055284800274203294
+      ci_width_div_sigma_50:
+        mean: 0.9361782598468937
+        std: 0.06327018597651607
+      ci_width_div_sigma_90:
+        mean: 2.282586169248067
+        std: 0.15451478361290955
+      coverage_50:
+        mean: 0.6092000402867499
+        std: 0.02353733320366887
+      coverage_90:
+        mean: 0.9145991022174287
+        std: 0.017061960196946682
+      coverage_95:
+        mean: 0.9380125883344361
+        std: 0.011596727077424568
+      crps:
+        mean: 1.176426370912771
+        std: 0.06571625096208546
+      dawid_sebastiani_score:
+        mean: 2.576105494910371
+        std: 0.13080578133531323
+      interval_score_50:
+        mean: 5.287210124998062
+        std: 0.2922948131122599
+      interval_score_90:
+        mean: 10.374503301712977
+        std: 0.7677787265071976
+      interval_score_95:
+        mean: 12.826358591781762
+        std: 1.2589170421384956
+      mae:
+        mean: 1.5819601326369392
+        std: 0.08482033632600444
+      mape:
+        mean: 15.951032958065404
+        std: 0.6220397373702024
+      mse:
+        mean: 4.883872137426335
+        std: 0.7187757418285595
+      pica:
+        mean: 0.0392963598286708
+        std: 0.008352276903070065
+      pit_ks_statistic:
+        mean: 0.11132831865289268
+        std: 0.018569240956586405
+      quantile_loss_50:
+        mean: 0.790878404694849
+        std: 0.04216862499382654
+      quantile_loss_90:
+        mean: 0.4776333080044481
+        std: 0.04006694775982142
+      quantile_loss_95:
+        mean: 0.31297421812180626
+        std: 0.032395031634547475
+      r2:
+        mean: 0.5264383480789637
+        std: 0.03562478738518716
+      rmse:
+        mean: 2.2034777644285053
+        std: 0.16899076630245602
+      sharpness:
+        mean: 2.217033559613501
+        std: 0.016524613459339307
+      weighted_interval_score:
+        mean: 0.6247561589981984
+        std: 0.042241412573323166
+    tuning_time_seconds: 1.9420621395111084
+  bike_sharing:
+    best_params:
+      alpha_1: 3.022098251864684e-05
+      alpha_2: 1.662371425385125e-05
+      fit_intercept: false
+      lambda_1: 6.095573345394163e-07
+      lambda_2: 3.728475888299076e-06
+      max_iter: 499
+    fitting_time: 0.013804250293307833
+    metadata:
+      n_features: 12
+      n_samples: 17379
+      name: bike_sharing
+      target_domain: positive_integer
+    metrics:
+      ci_width_50:
+        mean: 191.46188009290302
+        std: 0.4956481997855618
+      ci_width_90:
+        mean: 466.71007215577146
+        std: 1.0608414810783005
+      ci_width_div_sigma_50:
+        mean: 1.0568997523656511
+        std: 0.020689708853483216
+      ci_width_div_sigma_90:
+        mean: 2.5762983625659825
+        std: 0.04957783583929076
+      coverage_50:
+        mean: 0.5651185488311917
+        std: 0.013977929369568822
+      coverage_90:
+        mean: 0.9143922408389735
+        std: 0.005221321630493141
+      coverage_95:
+        mean: 0.9451446981124951
+        std: 0.005372434805864559
+      crps:
+        mean: 77.23972141131877
+        std: 1.5172020619013364
+      dawid_sebastiani_score:
+        mean: 10.912477692508633
+        std: 0.04355183150672554
+      interval_score_50:
+        mean: 346.55807690509084
+        std: 7.02757517616012
+      interval_score_90:
+        mean: 647.0302678221059
+        std: 17.83463953691509
+      interval_score_95:
+        mean: 793.9163242653813
+        std: 29.459540391702497
+      mae:
+        mean: 105.97440895301972
+        std: 2.0557936121013443
+      mape:
+        mean: 339.4056301487651
+        std: 27.579410070292354
+      mse:
+        mean: 20165.417150966223
+        std: 880.6664259274559
+      pica:
+        mean: 0.026904063615784662
+        std: 0.0033967024080716816
+      pit_ks_statistic:
+        mean: 0.10854829146717387
+        std: 0.011603833844163145
+      quantile_loss_50:
+        mean: 52.99459634777756
+        std: 1.0277370754198691
+      quantile_loss_90:
+        mean: 31.69932853402062
+        std: 0.9183688945951836
+      quantile_loss_95:
+        mean: 20.464453791826273
+        std: 0.8291967651901809
+      r2:
+        mean: 0.3858644796813826
+        std: 0.011736291873934341
+      rmse:
+        mean: 141.97133687563613
+        std: 3.0913842709804307
+      sharpness:
+        mean: 141.94739171478545
+        std: 0.3441933074319226
+      weighted_interval_score:
+        mean: 40.224042698729654
+        std: 0.9425329819121383
+    tuning_time_seconds: 2.6569340229034424
+  boston_housing:
+    best_params:
+      alpha_1: 9.208608958202909e-07
+      alpha_2: 4.517789042494955e-06
+      fit_intercept: false
+      lambda_1: 2.9971968187683077e-07
+      lambda_2: 2.704575087140891e-07
+      max_iter: 320
+    fitting_time: 0.0010561678144666883
+    metadata:
+      n_features: 13
+      n_samples: 394
+      name: boston_housing
+      target_domain: positive_real
+    metrics:
+      ci_width_50:
+        mean: 6.393942969058994
+        std: 0.1954684620252066
+      ci_width_90:
+        mean: 15.559425882123517
+        std: 0.46770098785507985
+      ci_width_div_sigma_50:
+        mean: 0.6922141316782697
+        std: 0.0883404155892524
+      ci_width_div_sigma_90:
+        mean: 1.6842412377229445
+        std: 0.2127815097984412
+      coverage_50:
+        mean: 0.6358262108262108
+        std: 0.07960452488687078
+      coverage_90:
+        mean: 0.9237891737891738
+        std: 0.03398906369467237
+      coverage_95:
+        mean: 0.95491452991453
+        std: 0.03336208490461221
+      crps:
+        mean: 2.5324491137166003
+        std: 0.4320276973682759
+      dawid_sebastiani_score:
+        mean: 4.250072753530646
+        std: 0.5364143695355834
+      interval_score_50:
+        mean: 11.470309142301328
+        std: 1.80053455919356
+      interval_score_90:
+        mean: 23.64732062209632
+        std: 6.308190609610795
+      interval_score_95:
+        mean: 31.123958864551735
+        std: 11.478110431729828
+      mae:
+        mean: 3.3059271488712474
+        std: 0.5963399868189602
+      mape:
+        mean: 17.137139071924484
+        std: 4.113767980942834
+      mse:
+        mean: 25.201506001632897
+        std: 11.441123776789123
+      pica:
+        mean: 0.052970085470085464
+        std: 0.024129885237938676
+      pit_ks_statistic:
+        mean: 0.19753276353276353
+        std: 0.03885249687812436
+      quantile_loss_50:
+        mean: 1.652311904011499
+        std: 0.30060668049925476
+      quantile_loss_90:
+        mean: 1.0628200149438405
+        std: 0.2953263737485702
+      quantile_loss_95:
+        mean: 0.7265063873485164
+        std: 0.3080777919928349
+      r2:
+        mean: 0.6982383219347982
+        std: 0.13696289365196518
+      rmse:
+        mean: 4.89199446894545
+        std: 1.1268966755830025
+      sharpness:
+        mean: 4.734093599499936
+        std: 0.14080202739881992
+      weighted_interval_score:
+        mean: 1.4083902224118083
+        std: 0.3194093046908629
+    tuning_time_seconds: 1.498495101928711
+  combined_cycle_power_plant:
+    best_params:
+      alpha_1: 1.6832310154915516e-07
+      alpha_2: 1.2778268753495926e-06
+      fit_intercept: false
+      lambda_1: 6.301157076762005e-05
+      lambda_2: 8.997760513084473e-06
+      max_iter: 346
+    fitting_time: 0.0016998449961344402
+    metadata:
+      n_features: 4
+      n_samples: 9568
+      name: combined_cycle_power_plant
+      target_domain: positive_real
+    metrics:
+      ci_width_50:
+        mean: 6.813869419649809
+        std: 0.01438169736650705
+      ci_width_90:
+        mean: 16.610649854958567
+        std: 0.038867853310703686
+      ci_width_div_sigma_50:
+        mean: 0.39917625066890466
+        std: 0.0069880497258911775
+      ci_width_div_sigma_90:
+        mean: 0.9731035903929537
+        std: 0.017257051119748783
+      coverage_50:
+        mean: 0.48891198815452164
+        std: 0.01796463071341081
+      coverage_90:
+        mean: 0.9173162879698733
+        std: 0.005716115693197348
+      coverage_95:
+        mean: 0.9616780511312325
+        std: 0.005479048964825019
+      crps:
+        mean: 2.8208277949676885
+        std: 0.05305103810821212
+      dawid_sebastiani_score:
+        mean: 4.23738070753449
+        std: 0.042107638917480886
+      interval_score_50:
+        mean: 12.687154755183775
+        std: 0.22432428748393424
+      interval_score_90:
+        mean: 20.433552220921726
+        std: 0.5153839669232002
+      interval_score_95:
+        mean: 23.77366981130994
+        std: 0.8693092234809233
+      mae:
+        mean: 4.020816902214602
+        std: 0.08361897810341692
+      mape:
+        mean: 0.8834520964677824
+        std: 0.018417682115786458
+      mse:
+        mean: 25.455274951942997
+        std: 1.0633171052839292
+      pica:
+        mean: 0.011343303261376652
+        std: 0.0030001511096435177
+      pit_ks_statistic:
+        mean: 0.03346265686733151
+        std: 0.011729116866755582
+      quantile_loss_50:
+        mean: 2.0099538663946865
+        std: 0.04220972580641249
+      quantile_loss_90:
+        mean: 0.8736323994309659
+        std: 0.024684938853368102
+      quantile_loss_95:
+        mean: 0.5066310021638321
+        std: 0.015611171148182893
+      r2:
+        mean: 0.9124933439342029
+        std: 0.005189025148310949
+      rmse:
+        mean: 5.044218384027458
+        std: 0.10552651885862553
+      sharpness:
+        mean: 5.0516944584142
+        std: 0.011536338521239684
+      weighted_interval_score:
+        mean: 1.3897891419890023
+        std: 0.02861247392018017
+    tuning_time_seconds: 1.5563011169433594
+  concrete_strength:
+    best_params:
+      alpha_1: 7.350659626187656e-06
+      alpha_2: 2.0567581032456054e-06
+      fit_intercept: false
+      lambda_1: 2.270260804070161e-05
+      lambda_2: 2.187396054161325e-05
+      max_iter: 176
+    fitting_time: 0.0011520915561252171
+    metadata:
+      n_features: 8
+      n_samples: 1030
+      name: concrete_strength
+      target_domain: positive_real
+    metrics:
+      ci_width_50:
+        mean: 14.089900516383022
+        std: 0.09178493163980568
+      ci_width_90:
+        mean: 34.318730020636934
+        std: 0.180686657570712
+      ci_width_div_sigma_50:
+        mean: 0.8450519200060134
+        std: 0.0497147711637942
+      ci_width_div_sigma_90:
+        mean: 2.0582363558290475
+        std: 0.11978465773810913
+      coverage_50:
+        mean: 0.5329018338727077
+        std: 0.03528679014842744
+      coverage_90:
+        mean: 0.8921251348435815
+        std: 0.022628022614242793
+      coverage_95:
+        mean: 0.9439050701186624
+        std: 0.021358133628072623
+      crps:
+        mean: 5.881258373106784
+        std: 0.25085440663468545
+      dawid_sebastiani_score:
+        mean: 5.695436021143059
+        std: 0.09064366799508124
+      interval_score_50:
+        mean: 26.480171539670472
+        std: 1.1200438117627058
+      interval_score_90:
+        mean: 44.30670126536122
+        std: 3.132085513274747
+      interval_score_95:
+        mean: 50.227676403132804
+        std: 4.567549094206357
+      mae:
+        mean: 8.278828979198963
+        std: 0.331586203509817
+      mape:
+        mean: 31.989755399430262
+        std: 3.4719705148826803
+      mse:
+        mean: 109.51514638564952
+        std: 9.989298822975215
+      pica:
+        mean: 0.019529845379359943
+        std: 0.007277133626520892
+      pit_ks_statistic:
+        mean: 0.07724940668824165
+        std: 0.037955639677793564
+      quantile_loss_50:
+        mean: 4.140449569197454
+        std: 0.16813228439675904
+      quantile_loss_90:
+        mean: 1.7735247624822195
+        std: 0.11074689191461613
+      quantile_loss_95:
+        mean: 1.0326206180487842
+        std: 0.06776184760200214
+      r2:
+        mean: 0.5992748188638832
+        std: 0.0737959347368878
+      rmse:
+        mean: 10.454078105934695
+        std: 0.47686197234244315
+      sharpness:
+        mean: 10.440918166939602
+        std: 0.05949360163571826
+      weighted_interval_score:
+        mean: 2.9168210517893676
+        std: 0.1426194326402031
+    tuning_time_seconds: 1.2356090545654297
+  energy_efficiency:
+    best_params:
+      alpha_1: 2.9166955851242105e-07
+      alpha_2: 1.0447684829153542e-05
+      fit_intercept: false
+      lambda_1: 5.9852912785629276e-05
+      lambda_2: 9.84105774648323e-05
+      max_iter: 362
+    fitting_time: 0.0010289351145426433
+    metadata:
+      n_features: 8
+      n_samples: 768
+      name: energy_efficiency
+      target_domain: positive_real
+    metrics:
+      ci_width_50:
+        mean: 4.019679640668957
+        std: 0.04156310354609722
+      ci_width_90:
+        mean: 9.809593088267569
+        std: 0.09709924047385944
+      ci_width_div_sigma_50:
+        mean: 0.3990000949282917
+        std: 0.012247398343760067
+      ci_width_div_sigma_90:
+        mean: 0.9736823459661816
+        std: 0.028644427543901757
+      coverage_50:
+        mean: 0.6351864509759246
+        std: 0.05295388925186799
+      coverage_90:
+        mean: 0.846567175514544
+        std: 0.031337893320406415
+      coverage_95:
+        mean: 0.8986291486291486
+        std: 0.03660857863942114
+      crps:
+        mean: 1.643782628624555
+        std: 0.14237673785562066
+      dawid_sebastiani_score:
+        mean: 3.2017750998947916
+        std: 0.17854919042054831
+      interval_score_50:
+        mean: 7.464528271697549
+        std: 0.6291384255723346
+      interval_score_90:
+        mean: 14.312183665996132
+        std: 1.6440264978364525
+      interval_score_95:
+        mean: 15.838031022143838
+        std: 2.3104472988478157
+      mae:
+        mean: 2.1688571816761386
+        std: 0.1987298806559925
+      mape:
+        mean: 10.49355891600739
+        std: 0.9314131293838607
+      mse:
+        mean: 9.016280317059467
+        std: 1.5713144906373615
+      pica:
+        mean: 0.05078586618060302
+        std: 0.011715093020376724
+      pit_ks_statistic:
+        mean: 0.11720399483557381
+        std: 0.02150243095542885
+      quantile_loss_50:
+        mean: 1.085896961016984
+        std: 0.10081642318130345
+      quantile_loss_90:
+        mean: 0.5969041366688901
+        std: 0.06400728364084732
+      quantile_loss_95:
+        mean: 0.3725897610136226
+        std: 0.049395420358954764
+      r2:
+        mean: 0.9099078992388451
+        std: 0.016189055372574618
+      rmse:
+        mean: 2.992088667246082
+        std: 0.2523603066986418
+      sharpness:
+        mean: 2.9824491693048043
+        std: 0.029164495542018287
+      weighted_interval_score:
+        mean: 0.8516992922639464
+        std: 0.07830066761273072
+    tuning_time_seconds: 1.2435247898101807
+  kin8nm:
+    best_params:
+      alpha_1: 1.350064042311753e-05
+      alpha_2: 1.2084056048618175e-07
+      fit_intercept: true
+      lambda_1: 2.428418277747094e-07
+      lambda_2: 4.79068322966281e-05
+      max_iter: 157
+    fitting_time: 0.003712601131863064
+    metadata:
+      n_features: 8
+      n_samples: 8192
+      name: kin8nm
+      target_domain: positive_real
+    metrics:
+      ci_width_50:
+        mean: 0.27249594327961574
+        std: 0.0006842389887227166
+      ci_width_90:
+        mean: 0.6642329924454442
+        std: 0.00171597006752765
+      ci_width_div_sigma_50:
+        mean: 1.0359103754595695
+        std: 0.0321453319155026
+      ci_width_div_sigma_90:
+        mean: 2.525131232105956
+        std: 0.07865113714247825
+      coverage_50:
+        mean: 0.48399247545589
+        std: 0.010981420747335342
+      coverage_90:
+        mean: 0.9065389744251533
+        std: 0.011171051665469577
+      coverage_95:
+        mean: 0.9518457303010148
+        std: 0.007184625256576701
+      crps:
+        mean: 0.11397570068334002
+        std: 0.002386109921488503
+      dawid_sebastiani_score:
+        mean: -2.200107646759124
+        std: 0.04127823885175336
+      interval_score_50:
+        mean: 0.5128961955372163
+        std: 0.010827922720402517
+      interval_score_90:
+        mean: 0.830032306183631
+        std: 0.021837370837250646
+      interval_score_95:
+        mean: 0.9511628618015998
+        std: 0.027106108644249158
+      mae:
+        mean: 0.16209429997541688
+        std: 0.003496027784323232
+      mape:
+        mean: 31.90066082709903
+        std: 1.9208763205280124
+      mse:
+        mean: 0.04074108706496795
+        std: 0.0017223077555800204
+      pica:
+        mean: 0.008905519101996065
+        std: 0.0028404257138619792
+      pit_ks_statistic:
+        mean: 0.05819992058528643
+        std: 0.011957183280289743
+      quantile_loss_50:
+        mean: 0.08104073752426011
+        std: 0.0017327317197966365
+      quantile_loss_90:
+        mean: 0.030877215360578174
+        std: 0.0006625120293942193
+      quantile_loss_95:
+        mean: 0.01807881524569245
+        std: 0.0004650105475996787
+      r2:
+        mean: 0.41068429944121826
+        std: 0.03251365253053638
+      rmse:
+        mean: 0.2017981982166387
+        std: 0.004309786710052555
+      sharpness:
+        mean: 0.20204724268797267
+        std: 0.0004976048259470833
+      weighted_interval_score:
+        mean: 0.055990114673883234
+        std: 0.0011854334021052652
+    tuning_time_seconds: 1.4597339630126953
+  parkinsons_updrs:
+    best_params:
+      alpha_1: 5.503999018515198e-07
+      alpha_2: 3.2034194342234732e-06
+      fit_intercept: true
+      lambda_1: 8.136765175126048e-07
+      lambda_2: 3.0451628305589848e-05
+      max_iter: 162
+    fitting_time: 0.005028565724690755
+    metadata:
+      n_features: 19
+      n_samples: 5875
+      name: parkinsons_updrs
+      target_domain: positive_real
+    metrics:
+      ci_width_50:
+        mean: 13.90784267522185
+        std: 0.05386102682050873
+      ci_width_90:
+        mean: 33.908977667261226
+        std: 0.15535433069949092
+      ci_width_div_sigma_50:
+        mean: 1.298254198005209
+        std: 0.04785661627050391
+      ci_width_div_sigma_90:
+        mean: 3.165370349857117
+        std: 0.1188532544639446
+      coverage_50:
+        mean: 0.4616894647315674
+        std: 0.020308674754392624
+      coverage_90:
+        mean: 0.9275496683625184
+        std: 0.019582415406768874
+      coverage_95:
+        mean: 0.9530888448508308
+        std: 0.010483032616118463
+      crps:
+        mean: 5.5630313455761815
+        std: 0.2201014228279246
+      dawid_sebastiani_score:
+        mean: 5.568439489876878
+        std: 0.07244603548463165
+      interval_score_50:
+        mean: 24.694011141830654
+        std: 1.0550822275869167
+      interval_score_90:
+        mean: 40.723620492372106
+        std: 1.4595373204987863
+      interval_score_95:
+        mean: 46.055125078423345
+        std: 1.2946774848419442
+      mae:
+        mean: 8.078933252296597
+        std: 0.29543542629096264
+      mape:
+        mean: 35.135042412519745
+        std: 2.0899083413905064
+      mse:
+        mean: 95.66665003789673
+        std: 7.7021124015843725
+      pica:
+        mean: 0.024916008993035022
+        std: 0.004302395373641456
+      pit_ks_statistic:
+        mean: 0.07252159886479673
+        std: 0.01735697593131057
+      quantile_loss_50:
+        mean: 4.040998031745205
+        std: 0.1485790534571322
+      quantile_loss_90:
+        mean: 1.8155403019860468
+        std: 0.10587101822253416
+      quantile_loss_95:
+        mean: 1.0932441715691341
+        std: 0.059816354270529684
+      r2:
+        mean: 0.1684892638525002
+        std: 0.019539168359125957
+      rmse:
+        mean: 9.773177055650914
+        std: 0.38943584426098815
+      sharpness:
+        mean: 10.312986559956531
+        std: 0.044671770369363664
+      weighted_interval_score:
+        mean: 2.713749045631302
+        std: 0.10087278824716288
+    tuning_time_seconds: 1.6868233680725098
+  realestate:
+    best_params:
+      alpha_1: 1.6735821647275895e-06
+      alpha_2: 8.275339088346819e-07
+      fit_intercept: false
+      lambda_1: 3.5182437255007575e-05
+      lambda_2: 2.9991686369093177e-07
+      max_iter: 489
+    fitting_time: 0.0009227063920762804
+    metadata:
+      n_features: 6
+      n_samples: 414
+      name: realestate
+      target_domain: positive_real
+    metrics:
+      ci_width_50:
+        mean: 12.6434475022113
+        std: 0.16995789199375907
+      ci_width_90:
+        mean: 30.824214155752443
+        std: 0.39416013592804955
+      ci_width_div_sigma_50:
+        mean: 0.974074897245309
+        std: 0.11175838731160366
+      ci_width_div_sigma_90:
+        mean: 2.3748181707520772
+        std: 0.27305013713467674
+      coverage_50:
+        mean: 0.628790811717641
+        std: 0.059777371655313834
+      coverage_90:
+        mean: 0.9382500967866823
+        std: 0.039313983042310804
+      coverage_95:
+        mean: 0.9570912375790424
+        std: 0.029278180210546834
+      crps:
+        mean: 4.6710523609745955
+        std: 0.5510611874584208
+      dawid_sebastiani_score:
+        mean: 5.322351873853318
+        std: 0.2555356528528843
+      interval_score_50:
+        mean: 20.917114827364802
+        std: 2.3101341781696894
+      interval_score_90:
+        mean: 40.210312021896236
+        std: 6.888095574896474
+      interval_score_95:
+        mean: 49.606080179192055
+        std: 11.339740802973054
+      mae:
+        mean: 6.3759044311358934
+        std: 0.8115439737680945
+      mape:
+        mean: 20.385089639654623
+        std: 5.816613816241479
+      mse:
+        mean: 73.60479717589345
+        std: 22.05406136219613
+      pica:
+        mean: 0.052832516023572924
+        std: 0.012655648872242593
+      pit_ks_statistic:
+        mean: 0.15070189701897022
+        std: 0.0346094355251427
+      quantile_loss_50:
+        mean: 3.191251731027802
+        std: 0.40890711441759336
+      quantile_loss_90:
+        mean: 1.7678167746573004
+        std: 0.3684198758585141
+      quantile_loss_95:
+        mean: 1.15631317749414
+        std: 0.3067073237164306
+      r2:
+        mean: 0.5724945284455826
+        std: 0.05525529195267324
+      rmse:
+        mean: 8.489732167393175
+        std: 1.2366264196688852
+      sharpness:
+        mean: 9.377142115608343
+        std: 0.12307523056453269
+      weighted_interval_score:
+        mean: 2.4543033313763454
+        std: 0.35093648713801023
+    tuning_time_seconds: 1.2989919185638428
+  superconductor:
+    best_params:
+      alpha_1: 7.1763585438309085e-06
+      alpha_2: 1.2807507043864785e-06
+      fit_intercept: true
+      lambda_1: 1.0445991619982476e-07
+      lambda_2: 7.4535508856515485e-06
+      max_iter: 238
+    fitting_time: 0.08021328184339735
+    metadata:
+      n_features: 81
+      n_samples: 21263
+      name: superconductor
+      target_domain: positive_real
+    metrics:
+      ci_width_50:
+        mean: 24.814330462398075
+        std: 0.048887597025370974
+      ci_width_90:
+        mean: 60.50089436346879
+        std: 0.12008323377692953
+      ci_width_div_sigma_50:
+        mean: 0.7263727932923438
+        std: 0.010030012971517137
+      ci_width_div_sigma_90:
+        mean: 1.771002552553359
+        std: 0.02457311988691586
+      coverage_50:
+        mean: 0.578648228029188
+        std: 0.013859248834118137
+      coverage_90:
+        mean: 0.9112667845397286
+        std: 0.005030749402811125
+      coverage_95:
+        mean: 0.9533341156810141
+        std: 0.002996233830854552
+      crps:
+        mean: 9.749326322280648
+        std: 0.16594045282717884
+      dawid_sebastiani_score:
+        mean: 6.746963218743742
+        std: 0.03348921139410639
+      interval_score_50:
+        mean: 44.20013547157817
+        std: 0.7358982845778803
+      interval_score_90:
+        mean: 77.25454693363203
+        std: 1.191626460686544
+      interval_score_95:
+        mean: 90.6050578453121
+        std: 2.074107178367049
+      mae:
+        mean: 13.357204398804043
+        std: 0.2782061356739976
+      mape:
+        mean: 1377.3736692345333
+        std: 547.6506499700577
+      mse:
+        mean: 311.8727635831366
+        std: 11.320172433107897
+      pica:
+        mean: 0.021432979324283872
+        std: 0.0037719602699869386
+      pit_ks_statistic:
+        mean: 0.05859833131923034
+        std: 0.007653332669995434
+      quantile_loss_50:
+        mean: 6.679707101972332
+        std: 0.13927159935567693
+      quantile_loss_90:
+        mean: 2.9344242459616305
+        std: 0.06298056937461032
+      quantile_loss_95:
+        mean: 1.7161227673038761
+        std: 0.05571618421289701
+      r2:
+        mean: 0.7327063641980907
+        std: 0.009274133943244427
+      rmse:
+        mean: 17.65698873563853
+        std: 0.32173338755967695
+      sharpness:
+        mean: 18.400366820451055
+        std: 0.03667506561655128
+      weighted_interval_score:
+        mean: 4.951065002964307
+        std: 0.07911388609951504
+    tuning_time_seconds: 5.122779846191406
+  wine_quality:
+    best_params:
+      alpha_1: 1.667686670108626e-06
+      alpha_2: 3.360219223048167e-07
+      fit_intercept: false
+      lambda_1: 7.459681444518888e-05
+      lambda_2: 1.739385390807067e-06
+      max_iter: 474
+    fitting_time: 0.0024819903903537327
+    metadata:
+      n_features: 11
+      n_samples: 4898
+      name: wine_quality
+      target_domain: positive_integer
+    metrics:
+      ci_width_50:
+        mean: 1.0216976375163573
+        std: 0.004923123695867569
+      ci_width_90:
+        mean: 2.490947804635392
+        std: 0.01206717275068485
+      ci_width_div_sigma_50:
+        mean: 1.1589876469701181
+        std: 0.0277149185868735
+      ci_width_div_sigma_90:
+        mean: 2.825670018706007
+        std: 0.06770194907839516
+      coverage_50:
+        mean: 0.5276787743045412
+        std: 0.026381742701494744
+      coverage_90:
+        mean: 0.9022276940769491
+        std: 0.012607556380232792
+      coverage_95:
+        mean: 0.9460113425056458
+        std: 0.008754926570199424
+      crps:
+        mean: 0.4180740860230953
+        std: 0.015628549781545337
+      dawid_sebastiani_score:
+        mean: 0.43446414786690557
+        std: 0.08172585240225362
+      interval_score_50:
+        mean: 1.8681671558298747
+        std: 0.06481950568573659
+      interval_score_90:
+        mean: 3.2861839959059624
+        std: 0.17926873002418908
+      interval_score_95:
+        mean: 3.8451587871653174
+        std: 0.2750701627648112
+      mae:
+        mean: 0.5868591233739173
+        std: 0.02386668348645335
+      mape:
+        mean: 10.327837370136404
+        std: 0.535315373657341
+      mse:
+        mean: 0.567738098421897
+        std: 0.047570119502163145
+      pica:
+        mean: 0.01652562342819426
+        std: 0.006239728248721821
+      pit_ks_statistic:
+        mean: 0.05516283590464134
+        std: 0.015534430172573088
+      quantile_loss_50:
+        mean: 0.29358555269106545
+        std: 0.01193191777914594
+      quantile_loss_90:
+        mean: 0.1401657619045676
+        std: 0.006675828029765973
+      quantile_loss_95:
+        mean: 0.08506556536825917
+        std: 0.005274495795251594
+      r2:
+        mean: 0.26967932091177865
+        std: 0.04238868484855437
+      rmse:
+        mean: 0.7528122335091101
+        std: 0.03180942471850169
+      sharpness:
+        mean: 0.7576004408679687
+        std: 0.0036477095109482037
+      weighted_interval_score:
+        mean: 0.21107270705175207
+        std: 0.009099627522808126
+    tuning_time_seconds: 1.5074808597564697
+model_config:
+  class_name: BayesianRidgeRegressor
+  compatible_target_domains:
+  - real
+  - positive_real
+  - nonnegative_real
+  - integer
+  - nonnegative_integer
+  - positive_integer
+  fixed_init_kwargs:
+    compute_score: false
+  name: bayesridge_reg
+  probabilistic: true
+  target_type: regression
+  tunable_init_kwargs:
+    alpha_1:
+      high: 0.0001
+      log: true
+      low: 1.0e-07
+      type: float
+    alpha_2:
+      high: 0.0001
+      log: true
+      low: 1.0e-07
+      type: float
+    fit_intercept:
+      categories:
+      - true
+      - false
+      type: categorical
+    lambda_1:
+      high: 0.0001
+      log: true
+      low: 1.0e-07
+      type: float
+    lambda_2:
+      high: 0.0001
+      log: true
+      low: 1.0e-07
+      type: float
+    max_iter:
+      high: 500
+      low: 100
+      type: int

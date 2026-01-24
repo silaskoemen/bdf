@@ -13,6 +13,3 @@ tunable_init_kwargs:
   kernel_comb:
     type: categorical
     categories: [RBF, RBF+RQ, RBF*RQ, RBF+Matern, RBF*Matern]
-  normalize_y:
-    type: categorical
-    categories: [true, false]
