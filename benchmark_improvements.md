@@ -13,18 +13,6 @@ Only 11 regression + 3 classification datasets:
 Fix: Add diverse datasets including synthetic ones to validate
 calibration.
 
-# 📊 Methodological Issues
-
-## No Ablation Studies
-
-Missing: Dedicated scripts to isolate BDF component contributions:
-- Effect of regularization (lambda, gamma, nu)
-- Effect of distribution choice (KDE vs Normal vs other)
-- Effect of number of trees
-- Effect of Bayesian priors
-
-Fix: Create systematic ablation experiments.
-
 ## No Dataset Characteristics Analysis
 
 File: benchmarks/pipeline/data.py:27-40
