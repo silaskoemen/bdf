@@ -20,6 +20,7 @@ prior-clas = "PYTHONPATH=src python -m benchmarks.effect_prior_clas"
 label-noise-clas = "PYTHONPATH=src python -m benchmarks.label_noise_clas"
 sample-size = "PYTHONPATH=src python -m benchmarks.effect_sample_size"
 noise-features = "PYTHONPATH=src python -m benchmarks.effect_noise_features"
+synth = "PYTHONPATH=src python -m benchmarks.synthetic_dgp_benchmark"
 
 [feature.bench-models.tasks]
 bench-models = "PYTHONPATH=src python -m benchmarks.run"

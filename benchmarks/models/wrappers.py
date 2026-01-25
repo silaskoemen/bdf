@@ -736,9 +736,14 @@ class ConformalizedLGBMWrapper(RegressorMixin, BaseEstimator):
         self.lgbm_kwargs = lgbm_kwargs
 
     def fit(self, X, y):
+        # Convert to numpy to ensure consistent feature handling
+        X_np = X.values if hasattr(X, "values") else np.asarray(X)
+        y_np = y.values if hasattr(y, "values") else np.asarray(y)
+        y_np = y_np.ravel()
+
         # Split data for conformal prediction
         X_train, X_calib, y_train, y_calib = TTS(
-            X, y, test_size=0.2, random_state=self.lgbm_kwargs.get("random_state", 1234)
+            X_np, y_np, test_size=0.2, random_state=self.lgbm_kwargs.get("random_state", 1234)
         )
 
         # Create and fit base estimator
@@ -758,7 +763,8 @@ class ConformalizedLGBMWrapper(RegressorMixin, BaseEstimator):
 
     def predict(self, X):
         """Point prediction (mean of predictive distribution)."""
-        return self.estimator_.predict(X)
+        X_np = X.values if hasattr(X, "values") else np.asarray(X)
+        return self.estimator_.predict(X_np)
 
     def predict_samples(self, X: np.ndarray | pd.DataFrame, n_samples: int) -> np.ndarray:
         """
@@ -777,8 +783,11 @@ class ConformalizedLGBMWrapper(RegressorMixin, BaseEstimator):
             samples: Array of shape (n_test, n_samples)
         """
 
+        # Convert to numpy
+        X_np = X.values if hasattr(X, "values") else np.asarray(X)
+
         # Get point predictions
-        y_pred = self.estimator_.predict(X)
+        y_pred = self.estimator_.predict(X_np)
         n_test = len(y_pred)
 
         # Sample residuals with replacement

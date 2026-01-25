@@ -30,6 +30,9 @@ multirun/
 
 outputs/figures/
 
+**/*.png
+benchmarks/plots/
+
 outputs/
 **/optuna/
 
