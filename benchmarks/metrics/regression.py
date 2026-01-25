@@ -9,6 +9,11 @@ from sklearn import metrics
 # Type alias for prediction type
 PredictionType = Literal["samples", "quantiles"]
 
+# Standard percentile levels needed across metrics (0-100 scale)
+# Derived from: 50% interval (25, 75), 90% interval (5, 95), 95% interval (2.5, 97.5)
+# Plus median (50) and levels needed by pica/wis
+STANDARD_PERCENTILES = [0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0, 75.0, 80.0, 90.0, 95.0, 97.5, 99.0, 99.5]
+
 
 @dataclass
 class MetricSpec:
@@ -59,11 +64,34 @@ def get_quantile_index(quantile_levels: np.ndarray, target: float, tolerance: fl
     return int(matches[0])
 
 
+def precompute_percentiles(
+    y_pred_samples: np.ndarray, percentiles: list[float] | None = None
+) -> dict[float, np.ndarray]:
+    """Pre-compute multiple percentiles at once from sample predictions.
+
+    Args:
+        y_pred_samples: Sample predictions of shape (n_obs, n_samples)
+        percentiles: List of percentiles to compute (0-100 scale). Defaults to STANDARD_PERCENTILES.
+
+    Returns:
+        Dict mapping percentile level (0-100) to arrays of shape (n_obs,)
+    """
+    if percentiles is None:
+        percentiles = STANDARD_PERCENTILES
+
+    # Compute all percentiles in one vectorized call
+    percentile_arrays = np.percentile(y_pred_samples, percentiles, axis=1)
+
+    # Return as dict for easy lookup
+    return {p: percentile_arrays[i] for i, p in enumerate(percentiles)}
+
+
 def get_percentile_from_prediction(
     y_pred: np.ndarray,
     percentile: float,
     prediction_type: PredictionType,
     quantile_levels: np.ndarray | None = None,
+    precomputed: dict[float, np.ndarray] | None = None,
 ) -> np.ndarray:
     """Extract a percentile from either samples or quantile predictions.
 
@@ -72,10 +100,15 @@ def get_percentile_from_prediction(
         percentile: Percentile to extract (0-100 scale)
         prediction_type: Either "samples" or "quantiles"
         quantile_levels: Quantile levels (0-1 scale) if prediction_type is "quantiles"
+        precomputed: Optional dict of pre-computed percentiles (from precompute_percentiles)
 
     Returns:
         Array of shape (n_obs,) with the requested percentile for each observation
     """
+    # Use pre-computed if available (samples only)
+    if precomputed is not None and percentile in precomputed:
+        return precomputed[percentile]
+
     if prediction_type == "samples":
         return np.percentile(y_pred, percentile, axis=1)
     else:  # quantiles
@@ -128,7 +161,11 @@ def _safe_mape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
 
 def quantile_loss(
-    y_true: np.ndarray, y_pred: np.ndarray, quantile: float, quantile_levels: np.ndarray | None = None
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    quantile: float,
+    quantile_levels: np.ndarray | None = None,
+    precomputed: dict[float, np.ndarray] | None = None,
 ) -> float:
     """Compute the quantile loss for a specific quantile.
 
@@ -143,8 +180,12 @@ def quantile_loss(
         idx = get_quantile_index(quantile_levels, quantile)
         y_pred_quantile = y_pred[:, idx]
     else:
-        # Sample-based calculation
-        y_pred_quantile = np.percentile(y_pred, quantile * 100, axis=1)
+        # Sample-based calculation - use pre-computed if available
+        percentile = quantile * 100
+        if precomputed and percentile in precomputed:
+            y_pred_quantile = precomputed[percentile]
+        else:
+            y_pred_quantile = np.percentile(y_pred, percentile, axis=1)
 
     errors = y_true - y_pred_quantile
     loss = np.maximum(quantile * errors, (quantile - 1) * errors)
@@ -302,6 +343,7 @@ def pica(
     y_pred: np.ndarray,
     levels=[0.5, 0.8, 0.9, 0.95, 0.975, 0.99],
     quantile_levels: np.ndarray | None = None,
+    precomputed: dict[float, np.ndarray] | None = None,
 ) -> float:
     """Prediction Interval Coverage Accuracy (PICA).
 
@@ -337,9 +379,15 @@ def pica(
             lower_bound = y_pred[:, lower_idx]
             upper_bound = y_pred[:, upper_idx]
         else:
-            # Sample-based calculation
-            lower_bound = np.percentile(y_pred, lower_q * 100, axis=1)
-            upper_bound = np.percentile(y_pred, upper_q * 100, axis=1)
+            # Sample-based calculation - use pre-computed if available
+            lower_p = lower_q * 100
+            upper_p = upper_q * 100
+            if precomputed and lower_p in precomputed and upper_p in precomputed:
+                lower_bound = precomputed[lower_p]
+                upper_bound = precomputed[upper_p]
+            else:
+                lower_bound = np.percentile(y_pred, lower_p, axis=1)
+                upper_bound = np.percentile(y_pred, upper_p, axis=1)
 
         empirical_coverage = np.mean((y_true >= lower_bound) & (y_true <= upper_bound))
         total_deviation += abs(empirical_coverage - level)
@@ -347,7 +395,12 @@ def pica(
     return total_deviation / n_levels
 
 
-def coverage_90(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -> float:
+def coverage_90(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    quantile_levels: np.ndarray | None = None,
+    precomputed: dict[float, np.ndarray] | None = None,
+) -> float:
     """Compute the 90% prediction interval coverage.
 
     Works with both samples and quantiles. For quantiles, requires levels 0.05 and 0.95.
@@ -363,15 +416,24 @@ def coverage_90(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.ndar
         lower_bound = y_pred[:, lower_idx]
         upper_bound = y_pred[:, upper_idx]
     else:
-        # Sample-based calculation
-        lower_bound = np.percentile(y_pred, 5, axis=1)
-        upper_bound = np.percentile(y_pred, 95, axis=1)
+        # Sample-based calculation - use pre-computed if available
+        if precomputed and 5.0 in precomputed and 95.0 in precomputed:
+            lower_bound = precomputed[5.0]
+            upper_bound = precomputed[95.0]
+        else:
+            lower_bound = np.percentile(y_pred, 5, axis=1)
+            upper_bound = np.percentile(y_pred, 95, axis=1)
 
     coverage = np.mean((y_true >= lower_bound) & (y_true <= upper_bound))
     return float(coverage)
 
 
-def coverage_50(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -> float:
+def coverage_50(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    quantile_levels: np.ndarray | None = None,
+    precomputed: dict[float, np.ndarray] | None = None,
+) -> float:
     """Compute the 50% prediction interval coverage.
 
     Works with both samples and quantiles. For quantiles, requires levels 0.25 and 0.75.
@@ -387,15 +449,24 @@ def coverage_50(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.ndar
         lower_bound = y_pred[:, lower_idx]
         upper_bound = y_pred[:, upper_idx]
     else:
-        # Sample-based calculation
-        lower_bound = np.percentile(y_pred, 25, axis=1)
-        upper_bound = np.percentile(y_pred, 75, axis=1)
+        # Sample-based calculation - use pre-computed if available
+        if precomputed and 25.0 in precomputed and 75.0 in precomputed:
+            lower_bound = precomputed[25.0]
+            upper_bound = precomputed[75.0]
+        else:
+            lower_bound = np.percentile(y_pred, 25, axis=1)
+            upper_bound = np.percentile(y_pred, 75, axis=1)
 
     coverage = np.mean((y_true >= lower_bound) & (y_true <= upper_bound))
     return float(coverage)
 
 
-def coverage_95(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -> float:
+def coverage_95(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    quantile_levels: np.ndarray | None = None,
+    precomputed: dict[float, np.ndarray] | None = None,
+) -> float:
     """Compute the 95% prediction interval coverage.
 
     Works with both samples and quantiles. For quantiles, requires levels 0.025 and 0.975.
@@ -411,9 +482,13 @@ def coverage_95(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.ndar
         lower_bound = y_pred[:, lower_idx]
         upper_bound = y_pred[:, upper_idx]
     else:
-        # Sample-based calculation
-        lower_bound = np.percentile(y_pred, 2.5, axis=1)
-        upper_bound = np.percentile(y_pred, 97.5, axis=1)
+        # Sample-based calculation - use pre-computed if available
+        if precomputed and 2.5 in precomputed and 97.5 in precomputed:
+            lower_bound = precomputed[2.5]
+            upper_bound = precomputed[97.5]
+        else:
+            lower_bound = np.percentile(y_pred, 2.5, axis=1)
+            upper_bound = np.percentile(y_pred, 97.5, axis=1)
 
     coverage = np.mean((y_true >= lower_bound) & (y_true <= upper_bound))
     return float(coverage)
@@ -421,7 +496,11 @@ def coverage_95(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.ndar
 
 # TODO: Return underpred/overpred/spread to plot decomposition
 def interval_score_samples(
-    y_true: np.ndarray, y_pred: np.ndarray, alpha: float = 0.05, quantile_levels: np.ndarray | None = None
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    alpha: float = 0.05,
+    quantile_levels: np.ndarray | None = None,
+    precomputed: dict[float, np.ndarray] | None = None,
 ) -> np.ndarray:
     """Compute interval score.
 
@@ -443,9 +522,15 @@ def interval_score_samples(
         lower = y_pred[:, lower_idx]
         upper = y_pred[:, upper_idx]
     else:
-        # Sample-based calculation
-        lower = np.percentile(y_pred, lower_q * 100, axis=1)
-        upper = np.percentile(y_pred, upper_q * 100, axis=1)
+        # Sample-based calculation - use pre-computed if available
+        lower_p = lower_q * 100
+        upper_p = upper_q * 100
+        if precomputed and lower_p in precomputed and upper_p in precomputed:
+            lower = precomputed[lower_p]
+            upper = precomputed[upper_p]
+        else:
+            lower = np.percentile(y_pred, lower_p, axis=1)
+            upper = np.percentile(y_pred, upper_p, axis=1)
 
     width = upper - lower
     # If y_true is larger than upper, underprediction; if smaller than lower, overprediction
@@ -469,7 +554,12 @@ def pit_ks_statistic(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np
     return float(ks)
 
 
-def weighted_interval_score(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -> float:
+def weighted_interval_score(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    quantile_levels: np.ndarray | None = None,
+    precomputed: dict[float, np.ndarray] | None = None,
+) -> float:
     """Compute weighted interval score.
 
     Works with both samples and quantiles. For quantiles, requires 0.5 (median) and
@@ -493,12 +583,15 @@ def weighted_interval_score(y_true: np.ndarray, y_pred: np.ndarray, quantile_lev
         median_idx = get_quantile_index(quantile_levels, 0.5)
         median = y_pred[:, median_idx]
     else:
-        # Sample-based calculation
-        median = np.median(y_pred, axis=1)
+        # Sample-based calculation - use pre-computed if available
+        if precomputed and 50.0 in precomputed:
+            median = precomputed[50.0]
+        else:
+            median = np.median(y_pred, axis=1)
 
     wis_terms = 0.5 * np.abs(y_true - median)
     for alpha in alphas:
-        wis_terms += (alpha / 2.0) * interval_score_samples(y_true, y_pred, alpha, quantile_levels)
+        wis_terms += (alpha / 2.0) * interval_score_samples(y_true, y_pred, alpha, quantile_levels, precomputed)
 
     return float(np.mean(wis_terms) / (len(alphas) + 0.5))
 
@@ -509,10 +602,11 @@ REG_POINT_METRICS = {
     "rmse": _safe_rmse,
     "r2": metrics.r2_score,
     # "msle": metrics.mean_squared_log_error,
-    "mape": _safe_mape,
+    # "mape": _safe_mape,
 }
 
 REG_PROB_METRICS = {
+    # MAIN METRICS
     "crps": MetricSpec(
         func=crps_wrapper,
         accepts=("samples", "quantiles"),
@@ -521,6 +615,7 @@ REG_PROB_METRICS = {
         func=pica,
         accepts=("samples", "quantiles"),
     ),
+    # COVERAGES
     "coverage_50": MetricSpec(
         func=coverage_50,
         accepts=("samples", "quantiles"),
@@ -533,21 +628,22 @@ REG_PROB_METRICS = {
         func=coverage_95,
         accepts=("samples", "quantiles"),
     ),
+    # INTERVAL SCORES
     "interval_score_50": MetricSpec(
-        func=lambda y_true, y_pred, quantile_levels=None: np.mean(
-            interval_score_samples(y_true, y_pred, alpha=0.5, quantile_levels=quantile_levels)
+        func=lambda y_true, y_pred, quantile_levels=None, precomputed=None: np.mean(
+            interval_score_samples(y_true, y_pred, alpha=0.5, quantile_levels=quantile_levels, precomputed=precomputed)
         ),
         accepts=("samples", "quantiles"),
     ),
     "interval_score_90": MetricSpec(
-        func=lambda y_true, y_pred, quantile_levels=None: np.mean(
-            interval_score_samples(y_true, y_pred, alpha=0.1, quantile_levels=quantile_levels)
+        func=lambda y_true, y_pred, quantile_levels=None, precomputed=None: np.mean(
+            interval_score_samples(y_true, y_pred, alpha=0.1, quantile_levels=quantile_levels, precomputed=precomputed)
         ),
         accepts=("samples", "quantiles"),
     ),
     "interval_score_95": MetricSpec(
-        func=lambda y_true, y_pred, quantile_levels=None: np.mean(
-            interval_score_samples(y_true, y_pred, alpha=0.05, quantile_levels=quantile_levels)
+        func=lambda y_true, y_pred, quantile_levels=None, precomputed=None: np.mean(
+            interval_score_samples(y_true, y_pred, alpha=0.05, quantile_levels=quantile_levels, precomputed=precomputed)
         ),
         accepts=("samples", "quantiles"),
     ),
@@ -555,9 +651,10 @@ REG_PROB_METRICS = {
         func=weighted_interval_score,
         accepts=("samples", "quantiles"),
     ),
+    # ADDITIONAL METRICS
     "sharpness": MetricSpec(
         func=lambda _, y_pred, quantile_levels=None: sharpness(y_pred, quantile_levels=quantile_levels),
-        accepts=("samples",),
+        accepts=("samples", "quantiles"),
     ),
     "ci_width_50": MetricSpec(
         func=lambda _, y_pred, quantile_levels=None: ci_width_50(y_pred, quantile_levels=quantile_levels),
@@ -567,36 +664,36 @@ REG_PROB_METRICS = {
         func=lambda _, y_pred, quantile_levels=None: ci_width_90(y_pred, quantile_levels=quantile_levels),
         accepts=("samples", "quantiles"),
     ),
-    "ci_width_div_sigma_50": MetricSpec(
-        func=ci_width_div_sigma_50,
-        accepts=("samples", "quantiles"),
-    ),
-    "ci_width_div_sigma_90": MetricSpec(
-        func=ci_width_div_sigma_90,
-        accepts=("samples", "quantiles"),
-    ),
+    # "ci_width_div_sigma_50": MetricSpec(
+    #     func=ci_width_div_sigma_50,
+    #     accepts=("samples", "quantiles"),
+    # ),
+    # "ci_width_div_sigma_90": MetricSpec(
+    #     func=ci_width_div_sigma_90,
+    #     accepts=("samples", "quantiles"),
+    # ),
     "pit_ks_statistic": MetricSpec(
         func=pit_ks_statistic,
         accepts=("samples",),
     ),
-    "quantile_loss_50": MetricSpec(
-        func=lambda y_true, y_pred, quantile_levels=None: quantile_loss(
-            y_true, y_pred, 0.5, quantile_levels=quantile_levels
-        ),
-        accepts=("samples", "quantiles"),
-    ),
-    "quantile_loss_90": MetricSpec(
-        func=lambda y_true, y_pred, quantile_levels=None: quantile_loss(
-            y_true, y_pred, 0.9, quantile_levels=quantile_levels
-        ),
-        accepts=("samples", "quantiles"),
-    ),
-    "quantile_loss_95": MetricSpec(
-        func=lambda y_true, y_pred, quantile_levels=None: quantile_loss(
-            y_true, y_pred, 0.95, quantile_levels=quantile_levels
-        ),
-        accepts=("samples", "quantiles"),
-    ),
+    # "quantile_loss_50": MetricSpec(
+    #     func=lambda y_true, y_pred, quantile_levels=None, precomputed=None: quantile_loss(
+    #         y_true, y_pred, 0.5, quantile_levels=quantile_levels, precomputed=precomputed
+    #     ),
+    #     accepts=("samples", "quantiles"),
+    # ),
+    # "quantile_loss_90": MetricSpec(
+    #     func=lambda y_true, y_pred, quantile_levels=None, precomputed=None: quantile_loss(
+    #         y_true, y_pred, 0.9, quantile_levels=quantile_levels, precomputed=precomputed
+    #     ),
+    #     accepts=("samples", "quantiles"),
+    # ),
+    # "quantile_loss_95": MetricSpec(
+    #     func=lambda y_true, y_pred, quantile_levels=None, precomputed=None: quantile_loss(
+    #         y_true, y_pred, 0.95, quantile_levels=quantile_levels, precomputed=precomputed
+    #     ),
+    #     accepts=("samples", "quantiles"),
+    # ),
     "dawid_sebastiani_score": MetricSpec(
         func=dawid_sebastiani_score,
         accepts=("samples",),

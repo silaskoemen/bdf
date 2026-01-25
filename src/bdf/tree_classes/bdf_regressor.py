@@ -13,8 +13,13 @@ from bdf.utils.constants import RANDOM_SEED
 from .utils import _fit_single_tree
 
 
-class BDFModel(BaseEstimator, RegressorMixin):
-    """BDFModel class for Bayesian Distributional Forests."""
+class BDFModel(BaseEstimator):
+    """BDFModel class for Bayesian Distributional Forests.
+
+    Base class for both BDFRegressor and BDFClassifier containing all shared
+    functionality. Does not inherit from RegressorMixin or ClassifierMixin
+    since it serves as a base for both task types.
+    """
 
     def __init__(
         self,
@@ -189,42 +194,6 @@ class BDFModel(BaseEstimator, RegressorMixin):
         indices = self.rng.choice(pooled_samples.shape[1], size=n_samples, replace=False)
         return pooled_samples[:, indices]
 
-    def predict(
-        self,
-        X: np.ndarray | pd.DataFrame,
-        method: Literal[
-            "mean",  # mean of means
-            "median",  # median of pooled samples
-            "var",  # mean of variances
-            "var-samples",  # variance of pooled samples
-            "interval",  # one or more intervals at confidence levels
-            "quantile",  # one or more quantiles
-            "samples",  # pooled samples
-            "params",  # distribution parameters from each tree
-        ] = "mean",
-        method_params: dict | None = None,
-    ) -> np.ndarray:
-        """
-        Predicts the mean for each observation in X.
-
-        NOTE: This should be a wrapper for all methods, taking keyword `method` to
-        choose prediction. Also, mean should be possible from pooled samples with
-        `mean-samples` method.
-        """
-        match method:
-            case "mean":
-                return self.predict_mean(X)
-            case "median":
-                return self.predict_median(X)
-            case "var":
-                return self.predict_variance(X)
-            case "samples":
-                return self.predict_samples(X, method_params.get("n_samples", 1) if method_params else 1)
-            case "params":
-                return self.predict_params(X)
-            case _:
-                raise ValueError(f"Unknown prediction method: {method}")
-
     def predict_mean(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
         """
         Predicts the mean for each observation in X.
@@ -251,23 +220,50 @@ class BDFModel(BaseEstimator, RegressorMixin):
 
         return self._unstandardize_y(weighted_mean)
 
-    def predict_median(self, X: np.ndarray | pd.DataFrame, sample_size: int = 1000) -> np.ndarray:
+    def predict_median(self, X: np.ndarray | pd.DataFrame, n_samples: int = 1000) -> np.ndarray:
         """
         Predicts the median for each observation in X by pooling samples from all trees.
+
+        Args
+        ----
+        X : np.ndarray | pd.DataFrame
+            Input features for prediction.
+        n_samples : int, optional
+            Number of samples to pool for computing the median. Default is 1000.
+
+        Returns
+        -------
+        np.ndarray
+            Median predictions of shape (n_samples,).
         """
         X_validated = self._validate_prediction_input(X)
-        pooled_samples = self._get_pooled_samples(X_validated, sample_size)
+        pooled_samples = self._get_pooled_samples(X_validated, n_samples)
         median = np.median(pooled_samples, axis=1)
         return self._unstandardize_y(median)
 
     def predict_quantiles(
-        self, X: np.ndarray | pd.DataFrame, q: float | list[float], sample_size: int = 1000
+        self, X: np.ndarray | pd.DataFrame, q: float | list[float], n_samples: int = 1000
     ) -> np.ndarray:
         """
         Predicts quantiles for each observation in X by pooling samples from all trees.
+
+        Args
+        ----
+        X : np.ndarray | pd.DataFrame
+            Input features for prediction.
+        q : float | list[float]
+            Quantile(s) to compute. Must be between 0 and 1.
+        n_samples : int, optional
+            Number of samples to pool for computing quantiles. Default is 1000.
+
+        Returns
+        -------
+        np.ndarray
+            Quantile predictions. Shape is (n_obs,) for single quantile or
+            (n_obs, n_quantiles) for multiple quantiles.
         """
         X_validated = self._validate_prediction_input(X)
-        pooled_samples = self._get_pooled_samples(X_validated, sample_size)
+        pooled_samples = self._get_pooled_samples(X_validated, n_samples)
         quantiles = np.quantile(pooled_samples, q=q, axis=1)
         # If multiple quantiles are requested, the result has shape (n_quantiles, n_obs)
         # We want (n_obs, n_quantiles) to be consistent with other predictors
@@ -302,6 +298,18 @@ class BDFModel(BaseEstimator, RegressorMixin):
     def predict_samples(self, X: np.ndarray | pd.DataFrame, n_samples: int = 1) -> np.ndarray:
         """
         Draws samples from the predictive distribution for each observation in X.
+
+        Args
+        ----
+        X : np.ndarray | pd.DataFrame
+            Input features for prediction.
+        n_samples : int, optional
+            Number of samples to draw from the predictive distribution. Default is 1.
+
+        Returns
+        -------
+        np.ndarray
+            Samples from the predictive distribution of shape (n_obs, n_samples).
         """
         X_validated = self._validate_prediction_input(X)
         pooled_samples = self._get_pooled_samples(X_validated, n_samples)
@@ -480,14 +488,10 @@ class BDFModel(BaseEstimator, RegressorMixin):
             isinstance(n_jobs, int) and n_jobs != 0
         ), f"n_jobs must be a non-zero integer, got {n_jobs} of type {type(n_jobs)}"
         assert isinstance(bootstrap, bool), f"bootstrap must be a boolean, got {bootstrap} of type {type(bootstrap)}"
-<<<<<<< HEAD
         assert (
             isinstance(verbose, int) and verbose >= -1
         ), f"verbose must be an integer >= -1, got {verbose} of type {type(verbose)}"
         self.verbose = verbose
-=======
-        assert isinstance(verbose, int) and verbose >= -1
->>>>>>> orchestrator_refactor
         self.bootstrap = bootstrap
         self.random_state = random_state
         self.eta = eta
@@ -698,38 +702,138 @@ class BDFModel(BaseEstimator, RegressorMixin):
 
 
 class BDFRegressor(BDFModel, RegressorMixin):
-    """Alias for BDFModel to maintain backward compatibility."""
+    """BDF Regressor for regression tasks with continuous targets.
 
-    pass
+    Provides sklearn-compatible interface with flexible prediction methods
+    for uncertainty quantification.
+    """
+
+    def predict(
+        self,
+        X: np.ndarray | pd.DataFrame,
+        method: Literal[
+            "mean",  # mean of means
+            "median",  # median of pooled samples
+            "var",  # mean of variances
+            "var-samples",  # variance of pooled samples
+            "interval",  # one or more intervals at confidence levels
+            "quantile",  # one or more quantiles
+            "samples",  # pooled samples
+            "params",  # distribution parameters from each tree
+        ] = "mean",
+        method_params: dict | None = None,
+    ) -> np.ndarray:
+        """
+        Flexible prediction method supporting multiple prediction types.
+
+        Args
+        ----
+        X : np.ndarray | pd.DataFrame
+            Input features for prediction.
+        method : str, optional
+            Prediction method to use. Default is "mean".
+            - "mean": Mean of posterior means from each tree
+            - "median": Median of pooled samples
+            - "var": Variance via Law of Total Variance
+            - "samples": Pooled samples from posterior predictive
+            - "params": Distribution parameters from each tree
+        method_params : dict | None, optional
+            Additional parameters for the chosen method.
+            For "samples", use {"n_samples": int}.
+
+        Returns
+        -------
+        np.ndarray
+            Predictions according to the specified method.
+        """
+        match method:
+            case "mean":
+                return self.predict_mean(X)
+            case "median":
+                return self.predict_median(X)
+            case "var":
+                return self.predict_variance(X)
+            case "samples":
+                return self.predict_samples(X, method_params.get("n_samples", 1) if method_params else 1)
+            case "params":
+                return self.predict_params(X)
+            case _:
+                raise ValueError(f"Unknown prediction method: {method}")
 
 
 class BDFClassifier(BDFModel, ClassifierMixin):
-    """BDFClassifier class for Bayesian Distributional Forests for classification tasks.
-    Uses the same functionality under the hood but allows different standardization, input checks,
-    target validation and the `predict_proba` method.
+    """BDF Classifier for binary classification tasks.
+
+    Provides sklearn-compatible interface with predict() returning class labels
+    and predict_proba() returning class probabilities. All underlying predict_XXX
+    methods operate on the probability of the positive class (class 1).
     """
 
-    def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False, standardize_y: bool = False):
+    def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False):
         """Fit the BDFClassifier to the training data.
+
         Args
         ----
-        `X` : np.ndarray | pd.DataFrame
+        X : np.ndarray | pd.DataFrame
             Training data features.
-        `y` : np.ndarray | pd.Series
-            Training data target values.
+        y : np.ndarray | pd.Series
+            Binary target values (0 or 1). Will be validated to ensure all
+            values are in {0, 1}.
+        verbose : bool, optional
+            Whether to print training progress. Default is False.
+
+        Raises
+        ------
+        ValueError
+            If targets contain values other than 0 and 1.
         """
-        # Ensure targets are integers for classification
-        # if not np.issubdtype(y.dtype, np.integer):
-        #     raise ValueError("Targets for BDFClassifier must be of integer type representing class labels.")
-        super().fit(X, y, verbose=verbose)
+        # Validate binary targets before fitting
+        if isinstance(y, pd.Series):
+            y_check = y.to_numpy()
+        else:
+            y_check = y
+
+        unique_values = np.unique(y_check)
+        if not np.all(np.isin(unique_values, [0, 1])):
+            raise ValueError(
+                f"BDFClassifier requires binary targets with values in {{0, 1}}. "
+                f"Found unique values: {unique_values}"
+            )
+
+        # Never standardize targets for classification
+        super().fit(X, y, verbose=verbose, standardize_y=False)
 
     def predict_proba(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
-        # Also stack columns for [n_obs, n_classes]
-        true_class_preds = self.predict_mean(X)
-        return np.vstack([1 - true_class_preds, true_class_preds]).T
+        """Predict class probabilities for X.
 
-    def predict(self, X: np.ndarray | pd.DataFrame, method: Literal["mean", "var"] = "mean") -> np.ndarray:
-        return (super().predict(X, method=method) >= 0.5).astype(int)
+        Args
+        ----
+        X : np.ndarray | pd.DataFrame
+            Input features for prediction.
+
+        Returns
+        -------
+        np.ndarray
+            Array of shape (n_samples, 2) with probabilities for each class.
+            Column 0 is P(y=0), column 1 is P(y=1).
+        """
+        p1 = self.predict_mean(X)
+        return np.vstack([1 - p1, p1]).T
+
+    def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
+        """Predict class labels for X.
+
+        Args
+        ----
+        X : np.ndarray | pd.DataFrame
+            Input features for prediction.
+
+        Returns
+        -------
+        np.ndarray
+            Predicted class labels (0 or 1) of shape (n_samples,).
+        """
+        return (self.predict_mean(X) >= 0.5).astype(int)
 
     # def _validate_targets(self, y: np.ndarray):
     #     """Validation function to check whether targets are allowed under the

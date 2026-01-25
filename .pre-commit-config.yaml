@@ -40,3 +40,7 @@ repos:
         language: system
         types: [python]
         exclude: ^(examples|tests)/
+      - id: check-merge-conflict
+        name: check-merge-conflict
+        entry: '^(<<<<<<< |======= |>>>>>>> |=======$)'
+        language: pygrep

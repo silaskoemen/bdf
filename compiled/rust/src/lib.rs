@@ -122,6 +122,12 @@ fn find_best_split(
             .and_then(|v| v.extract::<Option<String>>().ok())
             .flatten();
 
+        // Top-k refinement: when using parent bandwidth, refine top-k candidates with child bandwidths
+        let parent_bw_refine_top_k: usize = distribution_spec.get_item("parent_bw_refine_top_k")
+            .and_then(|v| v.extract::<usize>().ok())
+            .unwrap_or(1)
+            .max(1);
+
         let kde_config = splitter::KdeSplitConfig {
             kernel,
             bandwidth_rule,
@@ -136,6 +142,7 @@ fn find_best_split(
             fft_grid_max,
             fft_grid_points,
             score_correction,
+            parent_bw_refine_top_k,
         };
 
         splitter::find_best_split_kde(

@@ -48,6 +48,8 @@ pub struct KdeSplitConfig {
     pub fft_grid_points: Option<usize>,
     // Score correction method (None = plugin, "loo_cv" = LOO-CV)
     pub score_correction: Option<String>,
+    // Top-k refinement: number of parent-bandwidth splits to refine with child bandwidths
+    pub parent_bw_refine_top_k: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -56,6 +58,64 @@ struct BestKdeSplit {
     threshold: f64,
     gain: f64,
     thresholds_tried: usize,
+}
+
+/// Thread-safe container for tracking top-k split candidates.
+/// Uses a min-heap approach: maintains k candidates, evicting the worst when full.
+#[derive(Debug, Default)]
+struct TopKCandidates {
+    candidates: Vec<BestKdeSplit>,
+    k: usize,
+}
+
+impl TopKCandidates {
+    fn new(k: usize) -> Self {
+        Self {
+            candidates: Vec::with_capacity(k),
+            k: k.max(1),
+        }
+    }
+
+    /// Try to insert a candidate. Returns true if inserted (i.e., in top-k).
+    fn try_insert(&mut self, candidate: BestKdeSplit) -> bool {
+        if candidate.gain <= 0.0 {
+            return false;
+        }
+
+        if self.candidates.len() < self.k {
+            // Not yet full, just insert
+            self.candidates.push(candidate);
+            return true;
+        }
+
+        // Find the minimum gain in current candidates
+        let (min_idx, min_gain) = self.candidates.iter()
+            .enumerate()
+            .map(|(i, c)| (i, c.gain))
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal))
+            .unwrap();
+
+        if candidate.gain > min_gain {
+            // Replace the worst candidate
+            self.candidates[min_idx] = candidate;
+            return true;
+        }
+
+        false
+    }
+
+    /// Merge another TopKCandidates into this one (for combining parallel results).
+    fn merge(&mut self, other: TopKCandidates) {
+        for cand in other.candidates {
+            self.try_insert(cand);
+        }
+    }
+
+    /// Get all candidates sorted by gain (descending).
+    fn into_sorted(mut self) -> Vec<BestKdeSplit> {
+        self.candidates.sort_by(|a, b| b.gain.partial_cmp(&a.gain).unwrap_or(Ordering::Equal));
+        self.candidates
+    }
 }
 
 #[inline]
@@ -399,7 +459,8 @@ pub fn find_best_split_kde(
     };
     let current_score = kde_apply_score_correction(current_score_base, n_samples, score_corr);
 
-    let best_results: Mutex<Option<BestKdeSplit>> = Mutex::new(None);
+    let top_k = config.parent_bw_refine_top_k.max(1);
+    let best_results: Mutex<TopKCandidates> = Mutex::new(TopKCandidates::new(top_k));
 
     let feature_idcs: Vec<usize> = match col_idcs {
         Some(ref indices) => indices.to_vec(),
@@ -496,10 +557,8 @@ pub fn find_best_split_kde(
                     gain: local_best_gain,
                     thresholds_tried: num_thresholds_tried,
                 };
-                let mut best = best_results.lock().unwrap();
-                if best.as_ref().map_or(true, |b| cand.gain > b.gain) {
-                    *best = Some(cand);
-                }
+                let mut top_k_results = best_results.lock().unwrap();
+                top_k_results.try_insert(cand);
             }
         });
     } else {
@@ -593,24 +652,87 @@ pub fn find_best_split_kde(
                     gain: local_best_gain,
                     thresholds_tried: num_thresholds_tried,
                 };
-                let mut best = best_results.lock().unwrap();
-                if best.as_ref().map_or(true, |b| cand.gain > b.gain) {
-                    *best = Some(cand);
-                }
+                let mut top_k_results = best_results.lock().unwrap();
+                top_k_results.try_insert(cand);
             }
         });
     }
 
-    // Extract
-    let best = best_results.lock().unwrap().clone();
-    let Some(best) = best else {
+    // Extract top-k candidates (sorted by gain descending)
+    let top_k_candidates = std::mem::take(&mut *best_results.lock().unwrap()).into_sorted();
+    if top_k_candidates.is_empty() {
+        return (None, None, 0.0, None, None, None, None);
+    }
+
+    // Top-k refinement: refine all k candidates with per-child bandwidth, pick the best.
+    // For PerSplit policy, scores are already accurate; for Parent policy, we refine.
+    let d2 = if matches!(config.bandwidth_policy, BandwidthPolicy::Parent) {
+        Some(precompute_pairwise_d2(y))
+    } else {
+        None
+    };
+
+    let mut best_refined: Option<(usize, f64, f64)> = None; // (candidate_idx, threshold, refined_gain)
+
+    for (cand_idx, cand) in top_k_candidates.iter().enumerate() {
+        let column = x.slice(s![.., cand.feature_idx]);
+        let sorted_indices = sort_indices_by_feature(&column);
+        let Some(split_idx) = split_idx_from_threshold(&column, &sorted_indices, cand.threshold) else {
+            continue;
+        };
+
+        let left_indices = &sorted_indices[..=split_idx];
+        let right_indices = &sorted_indices[split_idx + 1..];
+
+        let refined_gain = if matches!(config.bandwidth_policy, BandwidthPolicy::Parent) {
+            // Refine with per-child bandwidths
+            let left_h = compute_bandwidth_for_indices(&base_kde, config, y, left_indices);
+            let right_h = compute_bandwidth_for_indices(&base_kde, config, y, right_indices);
+
+            let d2_ref = d2.as_ref().unwrap();
+            let left_n = left_indices.len();
+            let right_n = right_indices.len();
+
+            let left_score_base = if use_loo {
+                kde_subset_nll(left_indices, d2_ref, n_samples, left_h, config.kernel, config.use_compact_support)
+            } else {
+                kde_subset_nll_plugin(left_indices, d2_ref, n_samples, left_h, config.kernel, config.use_compact_support)
+            };
+            let right_score_base = if use_loo {
+                kde_subset_nll(right_indices, d2_ref, n_samples, right_h, config.kernel, config.use_compact_support)
+            } else {
+                kde_subset_nll_plugin(right_indices, d2_ref, n_samples, right_h, config.kernel, config.use_compact_support)
+            };
+            let left_score = kde_apply_score_correction(left_score_base, left_n, score_corr);
+            let right_score = kde_apply_score_correction(right_score_base, right_n, score_corr);
+
+            if !left_score.is_finite() || !right_score.is_finite() {
+                continue;
+            }
+
+            let mut gain = current_score - (left_score + right_score);
+            if (reg_gamma > 0.0) && (cand.thresholds_tried > 0) {
+                gain -= reg_gamma * ((num_features_tried as f64).ln() + (cand.thresholds_tried as f64).ln());
+            }
+            gain
+        } else {
+            // PerSplit: score is already accurate
+            cand.gain
+        };
+
+        if best_refined.as_ref().map_or(true, |b| refined_gain > b.2) {
+            best_refined = Some((cand_idx, cand.threshold, refined_gain));
+        }
+    }
+
+    let Some((best_cand_idx, threshold, final_gain)) = best_refined else {
         return (None, None, 0.0, None, None, None, None);
     };
 
-    // Reconstruct masks
-    let feature_idx = best.feature_idx;
-    let threshold = best.threshold;
+    let best_cand = &top_k_candidates[best_cand_idx];
+    let feature_idx = best_cand.feature_idx;
 
+    // Reconstruct masks for the winning split
     let column = x.slice(s![.., feature_idx]);
     let sorted_indices = sort_indices_by_feature(&column);
     let Some(split_idx) = split_idx_from_threshold(&column, &sorted_indices, threshold) else {
@@ -624,42 +746,6 @@ pub fn find_best_split_kde(
     }
     for k in (split_idx + 1)..n_samples {
         right_mask[sorted_indices[k]] = true;
-    }
-
-    // Refinement: re-score winning split with per-child bandwidth (top-K=1).
-    // This keeps the returned gain comparable vs penalties/regularization.
-    let mut final_gain = best.gain;
-    if matches!(config.bandwidth_policy, BandwidthPolicy::Parent) {
-        let left_indices = &sorted_indices[..=split_idx];
-        let right_indices = &sorted_indices[split_idx + 1..];
-
-        let left_h = compute_bandwidth_for_indices(&base_kde, config, y, left_indices);
-        let right_h = compute_bandwidth_for_indices(&base_kde, config, y, right_indices);
-
-        let d2 = precompute_pairwise_d2(y);
-        let left_n = left_indices.len();
-        let right_n = right_indices.len();
-
-        let left_score_base = if use_loo {
-            kde_subset_nll(left_indices, &d2, n_samples, left_h, config.kernel, config.use_compact_support)
-        } else {
-            kde_subset_nll_plugin(left_indices, &d2, n_samples, left_h, config.kernel, config.use_compact_support)
-        };
-        let right_score_base = if use_loo {
-            kde_subset_nll(right_indices, &d2, n_samples, right_h, config.kernel, config.use_compact_support)
-        } else {
-            kde_subset_nll_plugin(right_indices, &d2, n_samples, right_h, config.kernel, config.use_compact_support)
-        };
-        let left_score = kde_apply_score_correction(left_score_base, left_n, score_corr);
-        let right_score = kde_apply_score_correction(right_score_base, right_n, score_corr);
-
-        if left_score.is_finite() && right_score.is_finite() {
-            let mut refined_gain = current_score - (left_score + right_score);
-            if (reg_gamma > 0.0) && (best.thresholds_tried > 0) {
-                refined_gain -= reg_gamma * ((num_features_tried as f64).ln() + (best.thresholds_tried as f64).ln());
-            }
-            final_gain = refined_gain;
-        }
     }
 
     (Some(feature_idx), Some(threshold), final_gain, Some(left_mask), Some(right_mask), None, None)
@@ -789,8 +875,9 @@ fn find_best_split_kde_fft(
     let stride = (n_samples as f64 * eta).max(1.0) as usize;
     let num_features_tried = feature_idcs.len().max(1);
 
-    // Track best (don’t store split_idx; we can derive it from threshold at the end)
-    let best_results: Mutex<Option<BestKdeSplit>> = Mutex::new(None);
+    // Track top-k candidates for refinement
+    let top_k = config.parent_bw_refine_top_k.max(1);
+    let best_results: Mutex<TopKCandidates> = Mutex::new(TopKCandidates::new(top_k));
 
     feature_idcs.par_iter().for_each(|&feature_idx| {
         let column = x.slice(s![.., feature_idx]);
@@ -897,26 +984,126 @@ fn find_best_split_kde_fft(
                 gain: local_best_gain,
                 thresholds_tried: num_thresholds_tried,
             };
-            let mut best = best_results.lock().unwrap();
-            if best.as_ref().map_or(true, |b| cand.gain > b.gain) {
-                *best = Some(cand);
-            }
+            let mut top_k_results = best_results.lock().unwrap();
+            top_k_results.try_insert(cand);
         }
     });
 
-    let best = best_results.lock().unwrap().clone();
-    let Some(best) = best else {
+    // Extract top-k candidates (sorted by gain descending)
+    let top_k_candidates = std::mem::take(&mut *best_results.lock().unwrap()).into_sorted();
+    if top_k_candidates.is_empty() {
+        return (None, None, 0.0, None, None);
+    }
+
+    // Top-k refinement: refine all k candidates with per-child bandwidth, pick the best.
+    // FFT-based refinement uses histogram convolution for efficiency.
+    let mut best_refined: Option<(usize, f64, f64)> = None; // (candidate_idx, threshold, refined_gain)
+
+    // Reusable FFT buffers for refinement
+    let mut gauss_mult_child: Vec<f64> = vec![0.0; spec_len];
+    let mut fft_in_refine: Vec<f64> = vec![0.0; fft_len];
+    let mut spec_refine: Vec<Complex64> = r2c.make_output_vec();
+    let mut scratch_fwd_refine = r2c.make_scratch_vec();
+    let mut conv_refine: Vec<f64> = c2r.make_output_vec();
+    let mut scratch_inv_refine = c2r.make_scratch_vec();
+
+    let mut convolve_bins = |counts: &[f64], h: f64, out_bins: &mut [f64]| {
+        for k in 0..spec_len {
+            let omega = 2.0 * PI * (k as f64) / ldx;
+            let a = h * omega;
+            gauss_mult_child[k] = (-0.5 * a * a).exp();
+        }
+        fft_in_refine.fill(0.0);
+        fft_in_refine[..n_bins].copy_from_slice(counts);
+        r2c.process_with_scratch(&mut fft_in_refine, &mut spec_refine, &mut scratch_fwd_refine)
+            .expect("FFT forward failed");
+        for (z, &m) in spec_refine.iter_mut().zip(gauss_mult_child.iter()) {
+            *z *= m;
+        }
+        c2r.process_with_scratch(&mut spec_refine, &mut conv_refine, &mut scratch_inv_refine)
+            .expect("FFT inverse failed");
+        for v in conv_refine.iter_mut() {
+            *v *= norm;
+        }
+        out_bins.copy_from_slice(&conv_refine[..n_bins]);
+    };
+
+    for (cand_idx, cand) in top_k_candidates.iter().enumerate() {
+        let column = x.slice(s![.., cand.feature_idx]);
+        let sorted_indices = sort_indices_by_feature(&column);
+        let Some(split_idx) = split_idx_from_threshold(&column, &sorted_indices, cand.threshold) else {
+            continue;
+        };
+
+        let left_indices = &sorted_indices[..=split_idx];
+        let right_indices = &sorted_indices[split_idx + 1..];
+
+        // Compute per-child bandwidths
+        let left_h = compute_bandwidth_for_indices(&base_kde, config, y, left_indices);
+        let right_h = compute_bandwidth_for_indices(&base_kde, config, y, right_indices);
+
+        if !left_h.is_finite() || left_h <= 0.0 || !right_h.is_finite() || right_h <= 0.0 {
+            continue;
+        }
+
+        let left_n = left_indices.len();
+        let right_n = right_indices.len();
+
+        // Build child histograms on the same grid
+        let mut left_counts_bins: Vec<f64> = vec![0.0; n_bins];
+        for &idx in left_indices {
+            left_counts_bins[y_bins[idx]] += 1.0;
+        }
+        let mut right_counts_bins: Vec<f64> = vec![0.0; n_bins];
+        for b in 0..n_bins {
+            right_counts_bins[b] = total_counts_bins[b] - left_counts_bins[b];
+        }
+
+        // Convolve and score left child
+        let mut conv_left_bins: Vec<f64> = vec![0.0; n_bins];
+        convolve_bins(&left_counts_bins, left_h, &mut conv_left_bins);
+        let left_score_base = if use_loo {
+            kde_loo_nll_from_hist(&left_counts_bins, &conv_left_bins, left_n, INV_SQRT_2PI / left_h)
+        } else {
+            kde_plugin_nll_from_hist(&left_counts_bins, &conv_left_bins, left_n, INV_SQRT_2PI / left_h)
+        };
+        let left_score = kde_apply_score_correction(left_score_base, left_n, score_corr);
+
+        // Convolve and score right child
+        let mut conv_right_bins: Vec<f64> = vec![0.0; n_bins];
+        convolve_bins(&right_counts_bins, right_h, &mut conv_right_bins);
+        let right_score_base = if use_loo {
+            kde_loo_nll_from_hist(&right_counts_bins, &conv_right_bins, right_n, INV_SQRT_2PI / right_h)
+        } else {
+            kde_plugin_nll_from_hist(&right_counts_bins, &conv_right_bins, right_n, INV_SQRT_2PI / right_h)
+        };
+        let right_score = kde_apply_score_correction(right_score_base, right_n, score_corr);
+
+        if !left_score.is_finite() || !right_score.is_finite() {
+            continue;
+        }
+
+        let mut refined_gain = current_score - (left_score + right_score);
+        if (reg_gamma > 0.0) && (cand.thresholds_tried > 0) {
+            refined_gain -= reg_gamma
+                * ((num_features_tried as f64).ln() + (cand.thresholds_tried as f64).ln());
+        }
+
+        if best_refined.as_ref().map_or(true, |b| refined_gain > b.2) {
+            best_refined = Some((cand_idx, cand.threshold, refined_gain));
+        }
+    }
+
+    let Some((best_cand_idx, threshold, final_gain)) = best_refined else {
         return (None, None, 0.0, None, None);
     };
 
-    // Reconstruct masks
-    let feature_idx = best.feature_idx;
-    let threshold = best.threshold;
+    let best_cand = &top_k_candidates[best_cand_idx];
+    let feature_idx = best_cand.feature_idx;
 
+    // Reconstruct masks for the winning split
     let column = x.slice(s![.., feature_idx]);
     let sorted_indices = sort_indices_by_feature(&column);
-
-    // let split_idx = (0..n_samples).find(|&i| x[[i, feature_idx]] > threshold).unwrap_or(n_samples - 1);
     let Some(split_idx) = split_idx_from_threshold(&column, &sorted_indices, threshold) else {
         return (None, None, 0.0, None, None);
     };
@@ -928,90 +1115,6 @@ fn find_best_split_kde_fft(
     }
     for k in (split_idx + 1)..n_samples {
         right_mask[sorted_indices[k]] = true;
-    }
-
-    // Refinement: re-score winning split with per-child bandwidth (top-K=1),
-    // matching the non-FFT winner-only refinement convention.
-    let mut final_gain = best.gain;
-    if matches!(config.bandwidth_policy, BandwidthPolicy::Parent) {
-        let left_indices = &sorted_indices[..=split_idx];
-        let right_indices = &sorted_indices[split_idx + 1..];
-
-        let left_h = compute_bandwidth_for_indices(&base_kde, config, y, left_indices);
-        let right_h = compute_bandwidth_for_indices(&base_kde, config, y, right_indices);
-
-        if left_h.is_finite() && left_h > 0.0 && right_h.is_finite() && right_h > 0.0 {
-            let left_n = left_indices.len();
-            let right_n = right_indices.len();
-
-            // Build child histograms on the same grid
-            let mut left_counts_bins: Vec<f64> = vec![0.0; n_bins];
-            for &idx in left_indices {
-                left_counts_bins[y_bins[idx]] += 1.0;
-            }
-            let mut right_counts_bins: Vec<f64> = vec![0.0; n_bins];
-            for b in 0..n_bins {
-                right_counts_bins[b] = total_counts_bins[b] - left_counts_bins[b];
-            }
-
-            // Convolve histograms with Gaussian kernel at the requested bandwidth.
-            // (Two extra FFTs total; still O(n log n) overhead for refinement.)
-            let mut gauss_mult_child: Vec<f64> = vec![0.0; spec_len];
-            let mut fft_in: Vec<f64> = vec![0.0; fft_len];
-            let mut spec: Vec<Complex64> = r2c.make_output_vec();
-            let mut scratch_fwd_local = r2c.make_scratch_vec();
-            let mut conv: Vec<f64> = c2r.make_output_vec();
-            let mut scratch_inv_local = c2r.make_scratch_vec();
-
-            let mut convolve_bins = |counts: &[f64], h: f64, out_bins: &mut [f64]| {
-                for k in 0..spec_len {
-                    let omega = 2.0 * PI * (k as f64) / ldx;
-                    let a = h * omega;
-                    gauss_mult_child[k] = (-0.5 * a * a).exp();
-                }
-                fft_in.fill(0.0);
-                fft_in[..n_bins].copy_from_slice(counts);
-                r2c.process_with_scratch(&mut fft_in, &mut spec, &mut scratch_fwd_local)
-                    .expect("FFT forward failed");
-                for (z, &m) in spec.iter_mut().zip(gauss_mult_child.iter()) {
-                    *z *= m;
-                }
-                c2r.process_with_scratch(&mut spec, &mut conv, &mut scratch_inv_local)
-                    .expect("FFT inverse failed");
-                for v in conv.iter_mut() {
-                    *v *= norm;
-                }
-                out_bins.copy_from_slice(&conv[..n_bins]);
-            };
-
-            let mut conv_left_bins: Vec<f64> = vec![0.0; n_bins];
-            convolve_bins(&left_counts_bins, left_h, &mut conv_left_bins);
-            let left_score_base = if use_loo {
-                kde_loo_nll_from_hist(&left_counts_bins, &conv_left_bins, left_n, INV_SQRT_2PI / left_h)
-            } else {
-                kde_plugin_nll_from_hist(&left_counts_bins, &conv_left_bins, left_n, INV_SQRT_2PI / left_h)
-            };
-            let left_score = kde_apply_score_correction(left_score_base, left_n, score_corr);
-
-            let mut conv_right_bins: Vec<f64> = vec![0.0; n_bins];
-            convolve_bins(&right_counts_bins, right_h, &mut conv_right_bins);
-            let right_score_base = if use_loo {
-                kde_loo_nll_from_hist(&right_counts_bins, &conv_right_bins, right_n, INV_SQRT_2PI / right_h)
-            } else {
-                kde_plugin_nll_from_hist(&right_counts_bins, &conv_right_bins, right_n, INV_SQRT_2PI / right_h)
-            };
-            let right_score = kde_apply_score_correction(right_score_base, right_n, score_corr);
-
-            if left_score.is_finite() && right_score.is_finite() {
-                let mut refined_gain = current_score - (left_score + right_score);
-                if (reg_gamma > 0.0) && (best.thresholds_tried > 0) {
-                    refined_gain -= reg_gamma
-                        * ((num_features_tried as f64).ln()
-                            + (best.thresholds_tried as f64).ln());
-                }
-                final_gain = refined_gain;
-            }
-        }
     }
 
     (Some(feature_idx), Some(threshold), final_gain, Some(left_mask), Some(right_mask))

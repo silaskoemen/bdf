@@ -1,16 +1,12 @@
 # Main config for regression tests
 defaults:
   - _self_
-<<<<<<< HEAD
   - model: bdf_kde  # Model config to use
-=======
-  - model: bdf_normalmunormal  # Model config to use
->>>>>>> orchestrator_refactor
 
 seed: 1234  # Random seed for splitting, cv and tuning
 n_splits: 10  # Number of CV splits, fold 0 is always used for tuning
 n_trials: 50  # Number of optuna trials per dataset
-sample_size: 5000  # Number of samples of predictive distribution to draw for prob. metrics
+sample_size: 1000  # Number of samples of predictive distribution to draw for prob. metrics
 
 # Tuning configuration
 tuning_metric: crps  # Metric to optimize during tuning: "mse", "crps"

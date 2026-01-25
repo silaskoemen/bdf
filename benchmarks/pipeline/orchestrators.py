@@ -1,5 +1,7 @@
 import json
 import os
+import subprocess
+from datetime import datetime, timezone
 from time import time
 from typing import Callable, Literal
 
@@ -19,7 +21,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from ..metrics.classification import CLAS_POINT_METRICS, CLAS_PROB_METRICS, compute_calibration_curve
-from ..metrics.regression import REG_POINT_METRICS, REG_PROB_METRICS
+from ..metrics.regression import REG_POINT_METRICS, REG_PROB_METRICS, precompute_percentiles
 from ..pipeline.data import DatasetMetadata, available_classification_datasets, available_regression_datasets
 from ..utils.benchmark_utils import LogTransformTransformer
 
@@ -62,6 +64,24 @@ def _aggregate_calibration_curves(curves: list[dict]) -> dict:
         "prob_pred": [float(x) if not np.isnan(x) else None for x in avg_prob_pred],
         "bin_counts": [int(x) for x in total_counts],
     }
+
+
+def _get_git_commit_hash() -> str | None:
+    """Get the current git commit hash."""
+    try:
+        result = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True, timeout=5)
+        return result.stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+
+
+def _is_git_dirty() -> bool:
+    """Check if there are uncommitted changes in the git repository."""
+    try:
+        result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=True, timeout=5)
+        return bool(result.stdout.strip())
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        return False
 
 
 # Type alias for prediction type
@@ -147,7 +167,7 @@ class BaseOrchestrator:
 
         # Add calibration curve for classification
         if not do_reg:
-            metric_dict["calibration_curve"] = None
+            metric_dict["calibration_curve"] = None  # pyright: ignore[reportArgumentType]
 
         # Add probabilistic metrics if model is probabilistic
         if self.model_cfg.probabilistic and proba_metrics:
@@ -227,17 +247,29 @@ class BaseOrchestrator:
                         y_pred_native = pipeline.inverse_transform(y_pred_native)
                     y_pred_samples = pipeline.inverse_transform(y_pred_samples)
 
+                # Pre-compute percentiles from samples to avoid redundant calculations
+                precomputed_percentiles = precompute_percentiles(y_pred_samples)
+
                 # Route each metric to appropriate prediction format
                 for m, spec in proba_metrics.items():
                     if status_callback:
                         status_callback(f"🎲 {m}")
                     try:
                         if prediction_type in spec.accepts:
-                            # Native format works - pass quantile_levels to all metrics
-                            metric_dict[m] = float(spec(y, y_pred_native, quantile_levels=quantile_levels))
+                            # Native format works - pass quantile_levels and precomputed to all metrics
+                            metric_dict[m] = float(
+                                spec(
+                                    y,
+                                    y_pred_native,
+                                    quantile_levels=quantile_levels,
+                                    precomputed=precomputed_percentiles,
+                                )
+                            )
                         else:
-                            # Need samples, use converted version (quantile_levels=None for samples)
-                            metric_dict[m] = float(spec(y, y_pred_samples, quantile_levels=None))
+                            # Need samples, use converted version with precomputed percentiles
+                            metric_dict[m] = float(
+                                spec(y, y_pred_samples, quantile_levels=None, precomputed=precomputed_percentiles)
+                            )
                     except Exception as e:
                         logger.error(f"❌ Prob metric {m} failed: {e}")
                         metric_dict[m] = float("nan")
@@ -257,13 +289,34 @@ class CustomOrchestrator(BaseOrchestrator):
         # Set global random seed for reproducibility
         np.random.seed(self.cfg.seed)  # type: ignore[attr-defined]
 
+        # Collect provenance metadata
+        git_commit = _get_git_commit_hash()
+        git_dirty = _is_git_dirty()
+        timestamp = datetime.now(timezone.utc).isoformat()
+
+        # Warn if running with uncommitted changes
+        if git_dirty:
+            logger.warning(
+                "⚠️  Running benchmarks with uncommitted changes! "
+                "Results may not be fully reproducible. Commit changes before benchmarking."
+            )
+
         if self.model_cfg.class_name.startswith("BDF"):
             from ..models.bdf_factory import ModelFactory
         else:
             from ..models.model_factory import ModelFactory
         model_cls = ModelFactory.get(self.model_cfg)
         logger.success(f"⚙ Loaded model class {model_cls.__name__}")
-        results = {"model_config": OmegaConf.to_container(self.model_cfg, resolve=True), "datasets": {}}
+
+        results = {
+            "model_config": OmegaConf.to_container(self.model_cfg, resolve=True),
+            "metadata": {
+                "timestamp": timestamp,
+                "git_commit": git_commit,
+                "git_dirty": git_dirty,
+            },
+            "datasets": {},
+        }
 
         dataset_iterator = (
             available_regression_datasets if self.target_type == "regression" else available_classification_datasets
@@ -316,8 +369,8 @@ class CustomOrchestrator(BaseOrchestrator):
                 task = progress.add_task(f"Evaluating {metadata.name}", total=len(eval_splits))
 
                 for fold_idx, (train_idx, test_idx) in enumerate(eval_splits, start=1):
-                    # Evaluate on test set with seed reset
-                    np.random.seed(self.cfg.seed)  # type: ignore[attr-defined]
+                    # Evaluate on test set with fold-specific seed for proper variance estimation
+                    np.random.seed(self.cfg.seed + fold_idx)  # type: ignore[attr-defined]
                     progress.update(task, description=f"Fold {fold_idx}: Fitting")
                     best_model = model_cls(**self.model_cfg.fixed_init_kwargs, **self.tuned_init_kwargs)
 
@@ -342,7 +395,7 @@ class CustomOrchestrator(BaseOrchestrator):
 
                     progress.advance(task)
 
-            # Aggregate metrics across folds (mean & std)
+            # Store raw fold values (post-hoc analysis computes mean/std/etc.)
             if fold_metrics:
                 aggregated = {}
                 for m in fold_metrics[0].keys():
@@ -352,12 +405,9 @@ class CustomOrchestrator(BaseOrchestrator):
                             [fold[m] for fold in fold_metrics if fold.get(m) is not None]
                         )
                     else:
-                        # Scalar metrics: mean & std
+                        # Scalar metrics: store raw fold values for statistical testing
                         values = [fold[m] for fold in fold_metrics if m in fold and not np.isnan(fold[m])]
-                        aggregated[m] = {
-                            "mean": float(np.mean(values)) if values else float("nan"),
-                            "std": float(np.std(values)) if values else float("nan"),
-                        }
+                        aggregated[m] = [float(v) for v in values] if values else []
                 results["datasets"][metadata.name]["metrics"] = aggregated
                 logger.info(f"✅ Finished {metadata.name} with aggregated metrics")
             else:
@@ -433,7 +483,7 @@ class CustomOrchestrator(BaseOrchestrator):
                     return log_loss(y_test, y_pred)
 
                 # Regression: support configurable tuning metric
-                tuning_metric = getattr(self.cfg, "tuning_metric", "mse")
+                tuning_metric = getattr(self.cfg, "tuning_metric")  # fail fast
 
                 if tuning_metric == "mse":
                     y_pred = model.predict(X_test)

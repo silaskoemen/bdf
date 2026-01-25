@@ -1,0 +1,28 @@
+name: gaussian_de
+class_name: GaussianDeepEnsemble
+target_type: regression
+
+probabilistic: true
+compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+
+fixed_init_kwargs:
+  random_state: 1234
+  early_stopping_patience: 10
+  learning_rate: 3e-4
+
+tunable_init_kwargs:
+  hidden_layer_dim:
+    type: categorical
+    categories: [64, 100, 128, 256]
+  max_epochs:
+    type: int
+    low: 50
+    high: 200
+  val_fraction:
+    type: float
+    low: 0.1
+    high: 0.3
+  n_estimators:
+    type: int
+    low: 3
+    high: 10

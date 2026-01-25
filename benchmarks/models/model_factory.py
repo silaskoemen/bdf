@@ -3,14 +3,10 @@ from typing import Any
 from lightgbm import LGBMClassifier, LGBMRegressor
 from omegaconf import OmegaConf
 from quantile_forest import RandomForestQuantileRegressor
-from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-
-<<<<<<< HEAD:benchmarks/models/factory.py
-from bdf.tree_classes.bdf_regressor import BDFModel
 
 from .wrappers import (  # BARTRegressor,
     KNNKDE,
@@ -19,19 +15,15 @@ from .wrappers import (  # BARTRegressor,
     CalibratedRFWrapper,
     CatBoostUncertaintyWrapper,
     ConformalizedLGBMWrapper,
+    ConformalizedRFWrapper,
     DeepEnsembleWrapper,
+    GaussianDeepEnsembleWrapper,
     GPClassifierWrapper,
     GPRegressorWrapper,
     LGBMQuantileRegressorWrapper,
     NGBClassifierWrapper,
     NGBRegressorWrapper,
     TreeffuserWrapper,
-    .wrappers,
-    =======,
-    >>>>>>>,
-    from,
-    import,
-    orchestrator_refactor:benchmarks/models/model_factory.py,
 )
 
 # from treeffuser import Treeffuser
@@ -79,12 +71,6 @@ class ModelFactory:
                 return DecisionTreeRegressor
             case "CalibratedRandomForestClassifier":
                 return CalibratedRFWrapper
-<<<<<<< HEAD:benchmarks/models/factory.py
-            # case "RandomForestQuantileRegressor":
-            #     return RandomForestQuantileRegressor
-            # case "BARTRegressor":
-            #     return BARTRegressor
-=======
             case "RandomForestQuantileRegressor":
                 return RandomForestQuantileRegressor
             case "BARTRegressor":
@@ -95,6 +81,9 @@ class ModelFactory:
                 return KNNKDE
             case "ConformalizedLGBM":
                 return ConformalizedLGBMWrapper
->>>>>>> orchestrator_refactor:benchmarks/models/model_factory.py
+            case "ConformalizedRF":
+                return ConformalizedRFWrapper
+            case "GaussianDeepEnsemble":
+                return GaussianDeepEnsembleWrapper
             case _:
                 raise ValueError(f"Model class name '{cfg.name}' not recognized.")  # type: ignore[reportUnboundVariable]

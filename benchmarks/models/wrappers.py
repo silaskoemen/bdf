@@ -589,7 +589,7 @@ class BayesianRidgeWrapper(BayesianRidge):
 
     def predict_samples(self, X, n_samples=100) -> np.ndarray:
         # BayesianRidge returns mean and std
-        mean, std = self.predict(X, return_std=True)
+        mean, std = self.predict(X, return_std=True)  # pyright: ignore[reportGeneralTypeIssues]
         mean = np.asarray(mean, dtype=float)
         std = np.asarray(std, dtype=float)
 
@@ -784,6 +784,86 @@ class ConformalizedLGBMWrapper(RegressorMixin, BaseEstimator):
         # Sample residuals with replacement
         # Shape: (n_test, n_samples)
         rng = np.random.default_rng(self.lgbm_kwargs.get("random_state", None))
+        residual_samples = rng.choice(
+            self.residuals_,
+            size=(n_test, n_samples),
+            replace=True,
+        )
+
+        # Conformal predictive distribution: f(x) + sampled_residual
+        samples = y_pred[:, np.newaxis] + residual_samples
+
+        return samples
+
+
+class ConformalizedRFWrapper(RegressorMixin, BaseEstimator):
+    """
+    Split Conformal Prediction wrapper for RandomForestRegressor with proper probabilistic sampling.
+
+    Implements the algorithm from "A Gentle Introduction to Conformal Prediction and
+    Distribution-Free Uncertainty Quantification" (Angelopoulos & Bates, 2022).
+
+    For prediction at a new point x:
+    - Point prediction: f(x) from base model
+    - Distribution: f(x) + R, where R is sampled from calibration residuals
+
+    This provides valid finite-sample marginal coverage under exchangeability.
+    """
+
+    PREDICTION_TYPE: PredictionType = "samples"
+
+    def __init__(self, **rf_kwargs):
+        self.rf_kwargs = rf_kwargs
+
+    def fit(self, X, y):
+        # Split data for conformal prediction
+        X_train, X_calib, y_train, y_calib = TTS(
+            X, y, test_size=0.2, random_state=self.rf_kwargs.get("random_state", 1234)
+        )
+
+        # Create and fit base estimator
+        self.estimator_ = RandomForestRegressor(**self.rf_kwargs)
+
+        # Fit on training set
+        self.estimator_.fit(X_train, y_train)
+
+        # Compute residuals on calibration set
+        y_calib_pred = self.estimator_.predict(X_calib)
+        self.residuals_ = y_calib - y_calib_pred
+
+        # Store for reproducibility
+        self.n_calib_ = len(self.residuals_)
+
+        return self
+
+    def predict(self, X):
+        """Point prediction (mean of predictive distribution)."""
+        return self.estimator_.predict(X)
+
+    def predict_samples(self, X: np.ndarray | pd.DataFrame, n_samples: int) -> np.ndarray:
+        """
+        Generate samples from the conformal predictive distribution.
+
+        For each test point x, the predictive distribution is:
+            Y_new | X=x ~ f(x) + R
+        where R is uniformly sampled from calibration residuals.
+
+        This is the exact conformal predictive distribution (no interpolation/approximation).
+
+        Args:
+            X: Test inputs of shape (n_test, n_features)
+            n_samples: Number of samples to generate per test point
+        Returns:
+            samples: Array of shape (n_test, n_samples)
+        """
+
+        # Get point predictions
+        y_pred = self.estimator_.predict(X)
+        n_test = len(y_pred)
+
+        # Sample residuals with replacement
+        # Shape: (n_test, n_samples)
+        rng = np.random.default_rng(self.rf_kwargs.get("random_state", None))
         residual_samples = rng.choice(
             self.residuals_,
             size=(n_test, n_samples),
@@ -1013,4 +1093,301 @@ class TreeffuserWrapper(BaseEstimator, RegressorMixin):
         self.init_kwargs.update(params)
         for k, v in params.items():
             setattr(self, k, v)
+        return self
+
+
+# =============================================================================
+# Deep Ensemble with Gaussian Output Heads (Lakshminarayanan et al., 2017)
+# =============================================================================
+
+
+class GaussianDeepEnsembleWrapper(BaseEstimator, RegressorMixin):
+    """
+    Deep Ensemble with Gaussian output heads (Lakshminarayanan et al., 2017).
+
+    Each network outputs (mu, log_var) and is trained with Gaussian NLL loss.
+    The predictive distribution is a mixture of Gaussians.
+
+    Args:
+        n_estimators: Number of ensemble members
+        hidden_layer_sizes: Tuple of hidden layer sizes, e.g. (100, 100)
+        max_epochs: Maximum training epochs per network
+        learning_rate: Adam learning rate
+        batch_size: Mini-batch size
+        early_stopping_patience: Stop if val loss doesn't improve for this many epochs
+        val_fraction: Fraction of training data for early stopping validation
+        min_var: Minimum variance (numerical stability)
+        random_state: Random seed for reproducibility
+    """
+
+    PREDICTION_TYPE: PredictionType = "samples"
+
+    def __init__(
+        self,
+        n_estimators: int = 5,
+        hidden_layer_dim: int = 100,
+        max_epochs: int = 500,
+        learning_rate: float = 1e-3,
+        batch_size: int = 64,
+        early_stopping_patience: int = 20,
+        val_fraction: float = 0.1,
+        min_var: float = 1e-6,
+        random_state: int | None = None,
+    ):
+        self.n_estimators = n_estimators
+        self.hidden_layer_dim = hidden_layer_dim
+        self.max_epochs = max_epochs
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.early_stopping_patience = early_stopping_patience
+        self.val_fraction = val_fraction
+        self.min_var = min_var
+        self.random_state = random_state
+
+        self.networks_: list = []
+        self.input_dim_: int | None = None
+        self.X_mean_: np.ndarray | None = None
+        self.X_std_: np.ndarray | None = None
+        self.y_mean_: float | None = None
+        self.y_std_: float | None = None
+
+    def _build_network(self, input_dim: int, seed: int):
+        """Build a single Gaussian MLP."""
+        import torch
+        import torch.nn as nn
+
+        torch.manual_seed(seed)
+
+        layers = []
+        in_features = input_dim
+
+        for _ in range(2):  # Two hidden layers
+            layers.append(nn.Linear(in_features, self.hidden_layer_dim))
+            layers.append(nn.ReLU())
+            in_features = self.hidden_layer_dim
+
+        # Output layer: 2 outputs (mu, log_var)
+        layers.append(nn.Linear(in_features, 2))
+
+        return nn.Sequential(*layers)
+
+    def _gaussian_nll_loss(self, y_true, mu, log_var):
+        """Gaussian negative log-likelihood loss."""
+        import torch
+
+        var = torch.exp(log_var) + self.min_var
+        nll = 0.5 * (torch.log(var) + (y_true - mu) ** 2 / var)
+        return nll.mean()
+
+    def _train_single_network(self, X: np.ndarray, y: np.ndarray, seed: int):
+        """Train a single network with early stopping."""
+        import torch
+        import torch.nn as nn
+        from torch.utils.data import DataLoader, TensorDataset
+
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+
+        # Train/val split for early stopping
+        n_samples = len(X)
+        n_val = max(1, int(n_samples * self.val_fraction))
+        indices = np.random.permutation(n_samples)
+        val_idx, train_idx = indices[:n_val], indices[n_val:]
+
+        X_train, X_val = X[train_idx], X[val_idx]
+        y_train, y_val = y[train_idx], y[val_idx]
+
+        # Convert to tensors
+        X_train_t = torch.tensor(X_train, dtype=torch.float32)
+        y_train_t = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1)
+        X_val_t = torch.tensor(X_val, dtype=torch.float32)
+        y_val_t = torch.tensor(y_val, dtype=torch.float32).unsqueeze(1)
+
+        # DataLoader
+        train_ds = TensorDataset(X_train_t, y_train_t)
+        train_loader = DataLoader(train_ds, batch_size=self.batch_size, shuffle=True)
+
+        # Build network
+        network = self._build_network(X.shape[1], seed)
+        optimizer = torch.optim.Adam(network.parameters(), lr=self.learning_rate)
+
+        # Early stopping state
+        best_val_loss = float("inf")
+        best_state = None
+        patience_counter = 0
+
+        for epoch in range(self.max_epochs):
+            # Training
+            network.train()
+            for X_batch, y_batch in train_loader:
+                optimizer.zero_grad()
+                out = network(X_batch)
+                mu, log_var = out[:, 0:1], out[:, 1:2]
+                loss = self._gaussian_nll_loss(y_batch, mu, log_var)
+                loss.backward()
+                optimizer.step()
+
+            # Validation
+            network.eval()
+            with torch.no_grad():
+                out_val = network(X_val_t)
+                mu_val, log_var_val = out_val[:, 0:1], out_val[:, 1:2]
+                val_loss = self._gaussian_nll_loss(y_val_t, mu_val, log_var_val).item()
+
+            # Early stopping check
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                best_state = {k: v.clone() for k, v in network.state_dict().items()}
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                if patience_counter >= self.early_stopping_patience:
+                    break
+
+        # Restore best weights
+        if best_state is not None:
+            network.load_state_dict(best_state)
+
+        network.eval()
+        return network
+
+    def fit(self, X, y):
+        """Fit the ensemble of Gaussian networks."""
+        import torch
+
+        X_np = X.values if hasattr(X, "values") else np.asarray(X)
+        y_np = y.values if hasattr(y, "values") else np.asarray(y)
+        y_np = y_np.ravel()
+
+        # Standardize inputs and outputs for stable training
+        self.X_mean_ = X_np.mean(axis=0)
+        self.X_std_ = X_np.std(axis=0) + 1e-8
+        self.y_mean_ = y_np.mean()
+        self.y_std_ = y_np.std() + 1e-8
+
+        X_scaled = (X_np - self.X_mean_) / self.X_std_
+        y_scaled = (y_np - self.y_mean_) / self.y_std_
+
+        self.input_dim_ = X_scaled.shape[1]
+
+        # Train each ensemble member with different seed
+        base_seed = self.random_state if self.random_state is not None else 0
+        self.networks_ = []
+
+        for i in range(self.n_estimators):
+            seed = base_seed + i * 1000  # Different seed per network
+            network = self._train_single_network(X_scaled, y_scaled, seed)
+            self.networks_.append(network)
+
+        return self
+
+    def _predict_params(self, X) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Get mean and variance from each ensemble member.
+
+        Returns:
+            mus: shape (n_estimators, n_obs)
+            vars: shape (n_estimators, n_obs)
+        """
+        import torch
+
+        X_np = X.values if hasattr(X, "values") else np.asarray(X)
+        X_scaled = (X_np - self.X_mean_) / self.X_std_
+        X_t = torch.tensor(X_scaled, dtype=torch.float32)
+
+        mus = []
+        vars_ = []
+
+        for network in self.networks_:
+            network.eval()
+            with torch.no_grad():
+                out = network(X_t)
+                mu = out[:, 0].numpy()
+                log_var = out[:, 1].numpy()
+                var = np.exp(log_var) + self.min_var
+
+            # Un-standardize
+            mu_orig = mu * self.y_std_ + self.y_mean_
+            var_orig = var * (self.y_std_**2)
+
+            mus.append(mu_orig)
+            vars_.append(var_orig)
+
+        return np.array(mus), np.array(vars_)
+
+    def predict(self, X) -> np.ndarray:
+        """
+        Point prediction: mean of the Gaussian mixture.
+
+        For a mixture of Gaussians with equal weights:
+            E[Y] = (1/M) * sum_m mu_m
+        """
+        mus, _ = self._predict_params(X)
+        return mus.mean(axis=0)
+
+    def predict_samples(self, X, n_samples: int = 100) -> np.ndarray:
+        """
+        Sample from the predictive mixture of Gaussians.
+
+        Algorithm:
+        1. For each sample, uniformly pick an ensemble member
+        2. Sample from that member's Gaussian(mu_m, var_m)
+
+        Returns:
+            samples: shape (n_obs, n_samples)
+        """
+        mus, vars_ = self._predict_params(X)  # (M, n_obs), (M, n_obs)
+        n_obs = mus.shape[1]
+
+        rng = np.random.default_rng(self.random_state)
+
+        # Sample which ensemble member to use for each (obs, sample)
+        member_idx = rng.integers(0, self.n_estimators, size=(n_obs, n_samples))
+
+        # Gather the corresponding mu and var
+        # mus/vars_ are (M, n_obs), we need (n_obs, n_samples)
+        mus_selected = np.take_along_axis(mus.T, member_idx, axis=1)  # (n_obs, M)
+        vars_selected = np.take_along_axis(vars_.T, member_idx, axis=1)  # (n_obs, M)
+
+        # Sample from Gaussian
+        samples = rng.normal(loc=mus_selected, scale=np.sqrt(vars_selected))
+
+        return samples
+
+    def predict_mean_and_var(self, X) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Analytical mean and variance of the mixture.
+
+        For equal-weight mixture:
+            E[Y] = (1/M) sum_m mu_m
+            Var[Y] = (1/M) sum_m (var_m + mu_m^2) - E[Y]^2
+                   = mean(var) + mean(mu^2) - mean(mu)^2
+                   = mean(var) + var(mu)  [law of total variance]
+        """
+        mus, vars_ = self._predict_params(X)
+
+        mean = mus.mean(axis=0)
+        # Total variance = E[Var] + Var[E] (law of total variance)
+        epistemic_var = mus.var(axis=0)  # variance of means (epistemic)
+        aleatoric_var = vars_.mean(axis=0)  # mean of variances (aleatoric)
+        total_var = epistemic_var + aleatoric_var
+
+        return mean, total_var
+
+    def get_params(self, deep=True):
+        return {
+            "n_estimators": self.n_estimators,
+            "hidden_layer_dim": self.hidden_layer_dim,
+            "max_epochs": self.max_epochs,
+            "learning_rate": self.learning_rate,
+            "batch_size": self.batch_size,
+            "early_stopping_patience": self.early_stopping_patience,
+            "val_fraction": self.val_fraction,
+            "min_var": self.min_var,
+            "random_state": self.random_state,
+        }
+
+    def set_params(self, **params):
+        for key, value in params.items():
+            setattr(self, key, value)
         return self

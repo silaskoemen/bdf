@@ -1,6 +1,6 @@
 name: confrf
 target_type: regression
-class_name: MapieQuantileRegressor
+class_name: ConformalizedRF
 probabilistic: true
 
 compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]

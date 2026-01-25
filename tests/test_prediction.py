@@ -76,8 +76,8 @@ def test_predict_variance(fitted_model, regression_data):
 def test_predict_median(fitted_model, regression_data):
     """Test the predict_median method."""
     X, _ = regression_data
-    sample_size = 500
-    medians = fitted_model.predict_median(X, sample_size=sample_size)
+    n_samples = 500
+    medians = fitted_model.predict_median(X, n_samples=n_samples)
 
     # Test shape and type
     assert medians.shape == (N_SAMPLES,)
@@ -85,7 +85,7 @@ def test_predict_median(fitted_model, regression_data):
 
     # Manually verify for the first observation
     first_obs = X[[0], :]
-    manual_samples = fitted_model._get_pooled_samples(first_obs, sample_size=sample_size)
+    manual_samples = fitted_model._get_pooled_samples(first_obs, n_samples=n_samples)
     manual_median = np.median(manual_samples)
     manual_median_unstandardized = fitted_model._unstandardize_y(manual_median)
 
@@ -95,23 +95,23 @@ def test_predict_median(fitted_model, regression_data):
 def test_predict_quantiles(fitted_model, regression_data):
     """Test the predict_quantiles method for single and multiple quantiles."""
     X, _ = regression_data
-    sample_size = 500
+    n_samples = 500
 
     # Test single quantile
     q_single = 0.75
-    quantiles_single = fitted_model.predict_quantiles(X, q=q_single, sample_size=sample_size)
+    quantiles_single = fitted_model.predict_quantiles(X, q=q_single, n_samples=n_samples)
     assert quantiles_single.shape == (N_SAMPLES,)
     assert quantiles_single.dtype == np.float64
 
     # Test multiple quantiles
     q_multi = [0.25, 0.5, 0.75]
-    quantiles_multi = fitted_model.predict_quantiles(X, q=q_multi, sample_size=sample_size)
+    quantiles_multi = fitted_model.predict_quantiles(X, q=q_multi, n_samples=n_samples)
     assert quantiles_multi.shape == (N_SAMPLES, len(q_multi))
     assert quantiles_multi.dtype == np.float64
 
     # Manually verify for the first observation
     first_obs = X[[0], :]
-    manual_samples = fitted_model._get_pooled_samples(first_obs, sample_size=sample_size)
+    manual_samples = fitted_model._get_pooled_samples(first_obs, n_samples=n_samples)
     manual_quantiles = np.quantile(manual_samples, q=q_multi)
     manual_quantiles_unstandardized = fitted_model._unstandardize_y(manual_quantiles)
 
@@ -121,10 +121,10 @@ def test_predict_quantiles(fitted_model, regression_data):
 def test_predict_samples(fitted_model, regression_data):
     """Test the predict_samples method for correct shape and type."""
     X, _ = regression_data
-    sample_size = 50
-    samples = fitted_model.predict_samples(X, sample_size=sample_size)
+    n_samples = 50
+    samples = fitted_model.predict_samples(X, n_samples=n_samples)
 
-    assert samples.shape == (N_SAMPLES, sample_size)
+    assert samples.shape == (N_SAMPLES, n_samples)
     assert samples.dtype == np.float64
 
 
@@ -137,9 +137,9 @@ def test_predict_params(fitted_model, regression_data):
     assert params.shape == (N_SAMPLES, N_TREES)
     # Each element should be a dictionary
     assert isinstance(params[0, 0], dict)
-    # Check for expected keys (for normal_normal distribution)
+    # Check for expected keys (for NormalMuNormal distribution)
     assert "posterior_mu" in params[0, 0]
-    assert "posterior_sigma" in params[0, 0]
+    assert "posterior_sigma_mu" in params[0, 0]
 
 
 def test_predict_weighted_mean(fitted_model, regression_data):

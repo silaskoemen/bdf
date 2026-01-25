@@ -95,6 +95,16 @@ class KDEParams(BDFDistributionParams):
         default=False,
         description="If true: Epanechnikov uses exact compact support; Gaussian uses an approximate cutoff (Rust split scoring).",
     )
+    parent_bw_refine_top_k: int = Field(
+        default=1,
+        ge=1,
+        le=50,
+        description=(
+            "When using bandwidth_policy='parent', the top-k splits (under parent bandwidth) "
+            "are refined with per-child bandwidths, and the best refined split is selected. "
+            "k=1 is efficient and usually sufficient; k=3-5 provides a safety margin."
+        ),
+    )
 
     # model_config = {"extra": "forbid"}
     @model_validator(mode="after")

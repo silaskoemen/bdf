@@ -10,12 +10,7 @@ compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonn
 fixed_init_kwargs:
   dist: NormalMuNormal
   random_state: 1234
-<<<<<<< HEAD
-  max_depth: 50
-  verbose: 1
-=======
   # max_depth: 50
->>>>>>> orchestrator_refactor
 
 tunable_init_kwargs:
   n_trees:

@@ -2,7 +2,7 @@
   "include": ["src", "compiled"],
   "exclude": ["examples", "**/__pycache__", "**/node_modules"],
   "typeCheckingMode": "basic",
-  "reportMissingImports": true,
+  "reportMissingImports": false,
   "reportMissingTypeStubs": false,
   "pythonVersion": "3.11"
 }

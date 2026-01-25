@@ -2,7 +2,7 @@
 
 name: bdf_kde
 target_type: regression
-class_name: BDFModel
+class_name: BDFRegressor
 probabilistic: true
 
 compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
@@ -10,13 +10,13 @@ compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonn
 fixed_init_kwargs:
   dist: KDE
   random_state: 1234
-  verbose: 1
+  verbose: 0
 
 tunable_init_kwargs:
   n_trees:
     type: int
     low: 15
-    high: 200
+    high: 100
   reg_lambda:
     type: float
     low: 0.00001
@@ -43,7 +43,7 @@ tunable_init_kwargs:
   # min_samples_split:
   #   type: int
   #   low: 10
-  #   high: 200
+  #   high: 100
   subsample:
     type: float
     low: 0.5
@@ -62,9 +62,9 @@ tunable_params:
   bandwidth:
     type: categorical
     categories: [scott, silverman]
-  kernel:
-    type: categorical
-    categories: [gaussian, epanechnikov]
+  # kernel:
+  #   type: categorical
+  #   categories: [gaussian, epanechnikov]
   score_correction:
     type: categorical
     categories: [loo_cv, bic, null]
@@ -74,7 +74,8 @@ tunable_params:
 
 fixed_params:
   # score_correction: null  # could use bic too
-  # kernel: gaussian
+  kernel: gaussian
+  parent_bw_refine_top_k: 3 # number of top splits to refine with child-specific bandwidth for final scores
   score_cv_folds: 3
   kde_backend: switch
   bandwidth_policy: parent
