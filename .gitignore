@@ -30,6 +30,8 @@ multirun/
 
 outputs/figures/
 
+.hypothesis/
+
 **/*.png
 benchmarks/plots/
 

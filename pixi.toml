@@ -21,6 +21,14 @@ label-noise-clas = "PYTHONPATH=src python -m benchmarks.label_noise_clas"
 sample-size = "PYTHONPATH=src python -m benchmarks.effect_sample_size"
 noise-features = "PYTHONPATH=src python -m benchmarks.effect_noise_features"
 synth = "PYTHONPATH=src python -m benchmarks.synthetic_dgp_benchmark"
+complexity = "PYTHONPATH=src python -m benchmarks.complexity_analysis"
+effect-params = "PYTHONPATH=src python -m benchmarks.effect_bdf_params both"
+effect-params-reg = "PYTHONPATH=src python -m benchmarks.effect_bdf_params regression"
+effect-params-clas = "PYTHONPATH=src python -m benchmarks.effect_bdf_params classification"
+scoring-study = "PYTHONPATH=src python -m benchmarks.scoring_method_study"
+scoring-study-reg = "PYTHONPATH=src python -m benchmarks.scoring_method_study regression"
+scoring-study-clas = "PYTHONPATH=src python -m benchmarks.scoring_method_study classification"
+scoring-study-quick = "PYTHONPATH=src python -m benchmarks.scoring_method_study --quick"
 
 [feature.bench-models.tasks]
 bench-models = "PYTHONPATH=src python -m benchmarks.run"
@@ -49,6 +57,7 @@ python-graphviz = "*"
 [feature.test.dependencies]
 pytest = ">=7.0"
 pytest-cov = "*"
+hypothesis = ">=6.0"
 
 [feature.test.tasks]
 test = "pytest"

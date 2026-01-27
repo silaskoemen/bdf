@@ -347,7 +347,7 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
         // MAP estimates for plug-in
         // Mode of InvGamma(alpha, beta) is beta / (alpha + 1)
         // alpha = nu/2, beta = nu*phi/2
-        let mut map_sigma2 = post_phi * (post_nu - 2.0) / post_nu;
+        let mut map_sigma2 = post_phi * post_nu / (post_nu - 2.0);
         if post_nu <= 2.0 {
             map_sigma2 = post_phi / post_nu;  // fall back to mean
         }
@@ -401,35 +401,34 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
     }
 
     fn nle(&self, data: &ArrayView1<f64>) -> Option<f64> {
+        // Murphy MLAPP eq 4.127: Normal-Inverse-Gamma marginal likelihood
+        // log p(D) = -n/2·log(2π) + 1/2·log(κ₀/κₙ) + logΓ(αₙ) - logΓ(α₀)
+        //          + α₀·log(β₀) - αₙ·log(βₙ)
+        // where α = ν/2, β = νφ/2
         let n = data.len() as f64;
         if n == 0.0 { return Some(0.0); }
 
         let sample_mean = data.mean().unwrap();
         let ssd: f64 = data.iter().map(|&x| (x - sample_mean).powi(2)).sum();
 
-        let post_n = self.n_mu + n;
-        let post_nu = self.n_mu + n;
+        // Posterior parameters
+        let kappa_n = self.n_mu + n;  // κₙ = κ₀ + n
+        let nu_n = self.nu_sigma + n;  // νₙ = ν₀ + n
+        let interaction = (self.n_mu * n / kappa_n) * (sample_mean - self.mu_mu).powi(2);
 
-        // Correct calculation of Beta_n (post_sum_sq / 2)
-        // Beta_0 = nu_0 * phi_0 / 2
-        let beta_0 = self.nu_sigma * self.phi_sigma / 2.0;
-        // interaction = (n * n0 / (n + n0)) * (y_bar - mu_0)^2
-        let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
-        let beta_n = beta_0 + 0.5 * ssd + 0.5 * interaction;
-
-        let alpha_0 = self.n_mu / 2.0;
-        let alpha_n = post_nu / 2.0;
-
-        // Log Evidence Formula for Normal-Gamma:
-        // -0.5 * n * log(2pi) + 0.5 * log(n0 / nn) + log_gamma(alpha_n) - log_gamma(alpha_0) + alpha_0 * log(beta_0) - alpha_n * log(beta_n)
+        // Beta parameters (using Murphy's parameterization: β = νφ/2)
+        let alpha_0 = self.nu_sigma / 2.0;  // α₀ = ν₀/2
+        let alpha_n = nu_n / 2.0;            // αₙ = νₙ/2
+        let beta_0 = self.nu_sigma * self.phi_sigma / 2.0;  // β₀ = ν₀φ₀/2
+        let beta_n = beta_0 + 0.5 * ssd + 0.5 * interaction; // βₙ = β₀ + S/2 + interaction/2
 
         let log_ev = -0.5 * n * (2.0 * PI).ln()
-            + 0.5 * (self.n_mu.ln() - post_n.ln())
+            + 0.5 * (self.n_mu.ln() - kappa_n.ln())
             + lgamma(alpha_n) - lgamma(alpha_0)
             + alpha_0 * beta_0.ln()
             - alpha_n * beta_n.ln();
 
-        Some(-log_ev)
+        Some(-log_ev)  // NLE = negative log evidence
     }
 
     fn nle_suff_stats(&self, stats: &SufficientStats) -> Option<f64> {
@@ -441,7 +440,7 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
         let ssd = ss_diff;
 
         let post_n = self.n_mu + n;
-        let post_nu = self.n_mu + n;
+        let post_nu = self.nu_sigma + n;
 
         let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
 
@@ -470,10 +469,10 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
         let ssd: f64 = data.iter().map(|&x| (x - sample_mean).powi(2)).sum();
 
         let post_n = self.n_mu + n;
-        let post_nu = self.n_mu + n;
+        let post_nu = self.nu_sigma + n;
         let post_mu = (self.n_mu * self.mu_mu + n * sample_mean) / post_n;
 
-        let prior_sum_sq = self.n_mu * self.phi_sigma;
+        let prior_sum_sq = self.nu_sigma * self.phi_sigma;
         let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
         let post_sum_sq = prior_sum_sq + ssd + interaction;
         let post_phi = post_sum_sq / post_nu;
@@ -499,7 +498,7 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
             nll
         } else {
             let map_sigma2 = if post_nu > 2.0 {
-                post_phi * (post_nu - 2.0) / post_nu
+                post_phi * post_nu / (post_nu - 2.0)
             } else {
                 post_phi / post_nu
             };
@@ -525,10 +524,10 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
         let ssd: f64 = train.iter().map(|&x| (x - sample_mean).powi(2)).sum();
 
         let post_n = self.n_mu + n;
-        let post_nu = self.n_mu + n;
+        let post_nu = self.nu_sigma + n;
         let post_mu = (self.n_mu * self.mu_mu + n * sample_mean) / post_n;
 
-        let prior_sum_sq = self.n_mu * self.phi_sigma;
+        let prior_sum_sq = self.nu_sigma * self.phi_sigma;
         let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
         let post_sum_sq = prior_sum_sq + ssd + interaction;
         let post_phi = post_sum_sq / post_nu;
@@ -555,7 +554,7 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
             nll
         } else {
             let map_sigma2 = if post_nu > 2.0 {
-                post_phi * (post_nu - 2.0) / post_nu
+                post_phi * post_nu / (post_nu - 2.0)
             } else {
                 post_phi / post_nu
             };
@@ -580,10 +579,10 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
         let ssd = stats.sum_sq - n * sample_mean.powi(2);
 
         let post_n = self.n_mu + n;
-        let post_nu = self.n_mu + n;
+        let post_nu = self.nu_sigma + n;
         let post_mu = (self.n_mu * self.mu_mu + n * sample_mean) / post_n;
 
-        let prior_sum_sq = self.n_mu * self.phi_sigma;
+        let prior_sum_sq = self.nu_sigma * self.phi_sigma;
         let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
         let post_sum_sq = prior_sum_sq + ssd + interaction;
         let post_phi = post_sum_sq / post_nu;
@@ -596,7 +595,7 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
         } else {
             // Plug-in Normal NLL IS compatible with sufficient stats
             let map_sigma2 = if post_nu > 2.0 {
-                post_phi * (post_nu - 2.0) / post_nu
+                post_phi * post_nu / (post_nu - 2.0)
             } else {
                 post_phi / post_nu
             };

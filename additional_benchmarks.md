@@ -30,7 +30,10 @@ Critical Gaps for JMLR
   - Metric: KL divergence or Wasserstein distance to true distribution (where known)
 
   ---
-  4. Scoring Method Comparison (MEDIUM-HIGH PRIORITY)
+  4. Scoring Method Comparison (MEDIUM-HIGH PRIORITY) -> OR just add param ablation study for Classification too -> nle
+  likely more impactful.
+
+  Add betaMVBernoulli auto mean and auto scale (although var is constrained here too) s.t. params comparable to NormalMuNormal.
 
   Not systematically tested. This is a key methodological contribution.
 
@@ -41,30 +44,6 @@ Critical Gaps for JMLR
     - Misspecified models (wrong distribution assumption)
   - Show when NLE outperforms NLL+BIC and vice versa
   - Include aic, bic, loo_cv, kfold_cv in comparison
-
-  ---
-  6. Computational Complexity Analysis (MEDIUM PRIORITY)
-
-  Basic timing exists, but no formal analysis.
-
-  Plan:
-  - Theoretical complexity: State O(n × d × n_trees × ...)
-  - Empirical scaling:
-    - Fix d, vary n: log-log plot of fit time vs n (find slope)
-    - Fix n, vary d: log-log plot of fit time vs d
-    - Vary n_trees: linear scaling verification
-  - Memory profiling: Peak memory vs (n, d)
-  - Comparison: Wall-clock time vs RF, NGBoost, BART, GP at matched accuracy
-
-prompt:
-Let's add a rigorous complexity analysis (run time) for my BDF. I       
-already note tuning and fit times versus comparison models, meaning     
-I can easily compare final fit times of tuned models, but an            
-analysis comparing effect of d, n and n_trees might make sense to       
-do (see additional_benchmarks.md point 6.). I assume it's fine to       
-use NormalMuNormal distribution at default values (or tune for each     
-setting??) and have a clear json result, markdown table and             
-comparison plots. Evaluate
 
   ---
   7. Calibration Deep-Dive (MEDIUM PRIORITY)

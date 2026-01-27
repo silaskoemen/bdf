@@ -325,6 +325,7 @@ class NormalMuNormal(BDFDistribution[NormalMuNormalParams]):
             raise ValueError(f"Unknown parameter '{key}' for auto resolution in {cls.__name__}")
 
 
+# TODO: Check neg log evidence calculation, differs python/Rust, unclear which is correct
 class NormalMuInvGammaSigmaNormal(BDFDistribution[NormalMuInvGammaSigmaNormalParams]):
     """Normal-Inverse-Gamma conjugate model (μ and σ² both unknown).
 
