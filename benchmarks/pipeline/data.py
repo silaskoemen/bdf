@@ -5,10 +5,9 @@ for benchmarking purposes. Includes loading of datasets in pandas format, as wel
 and possible variable transformations to ensure compatibility with the benchmarking pipeline.
 """
 
-import os
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Iterator, Literal
+from typing import Callable, Iterator
 
 import pandas as pd
 

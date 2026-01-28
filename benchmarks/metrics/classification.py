@@ -2,7 +2,6 @@ from typing import Callable
 
 import numpy as np
 from sklearn import metrics
-from sklearn.calibration import calibration_curve
 
 
 def custom_brier(y_true: np.ndarray, y_prob: np.ndarray) -> float:

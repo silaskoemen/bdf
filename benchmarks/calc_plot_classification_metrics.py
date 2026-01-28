@@ -1,7 +1,7 @@
 # Create point metrics plots for regression benchmarks
 from pathlib import Path
 
-from .utils.aggregate_results import average_rmse_rank, load_all_results, rel_to_best
+from .utils.aggregate_results import load_all_results, rel_to_best
 
 JSON_ROOT = Path("benchmarks/results/custom/")
 

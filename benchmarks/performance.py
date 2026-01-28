@@ -16,8 +16,6 @@ from sklearn.ensemble import RandomForestRegressor
 
 from bdf.tree_classes.bdf_regressor import BDFModel
 
-from .models.wrappers import NGBRegressorWrapper
-
 N_REPS = 5
 SEED = 1234
 models = [BDFModel, RandomForestRegressor, LGBMRegressor]  # , NGBRegressorWrapper]

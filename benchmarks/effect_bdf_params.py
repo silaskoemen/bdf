@@ -20,7 +20,6 @@ Generates publication-quality plots and summary tables.
 """
 
 import json
-import os
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -33,7 +32,6 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
-from matplotlib.ticker import MaxNLocator
 from scipy import stats
 from sklearn.datasets import (
     make_circles,
@@ -52,8 +50,6 @@ from benchmarks.metrics.classification import CLAS_POINT_METRICS
 from benchmarks.metrics.regression import (
     REG_POINT_METRICS,
     REG_PROB_METRICS,
-    coverage_90,
-    crps_wrapper,
     precompute_percentiles,
 )
 
@@ -647,7 +643,7 @@ def run_full_classification_ablation_study(n_seeds: int = N_SEEDS) -> dict[str, 
 
     # Run scoring method ablation
     scoring_results = run_classification_scoring_ablation(n_seeds)
-    scoring_results.save(clas_results_dir / f"ablation_scoring.json")
+    scoring_results.save(clas_results_dir / "ablation_scoring.json")
     all_results["scoring"] = scoring_results
 
     return all_results
@@ -951,7 +947,7 @@ def plot_heatmap_summary(
         ax=ax,
         cbar_kws={"label": f"% Change in {metric.upper()} from Default"},
     )
-    ax.set_title(f"Parameter Sensitivity Summary\n(negative = improvement over default)")
+    ax.set_title("Parameter Sensitivity Summary\n(negative = improvement over default)")
     ax.set_xlabel("Parameter")
     ax.set_ylabel("DGP")
 
@@ -1130,7 +1126,7 @@ def run_full_ablation_study(n_seeds: int = N_SEEDS) -> dict[str, AblationResults
 
     # Run scoring method ablation
     scoring_results = run_scoring_ablation(n_seeds)
-    scoring_results.save(RESULTS_DIR / f"ablation_scoring.json")
+    scoring_results.save(RESULTS_DIR / "ablation_scoring.json")
     all_results["scoring"] = scoring_results
 
     return all_results
@@ -1328,12 +1324,12 @@ def main(task_type: str = "both"):
     logger.info("=" * 60)
 
     if task_type in ("regression", "both"):
-        reg_results = run_regression_ablation()
+        _ = run_regression_ablation()
         logger.info(f"\nRegression results saved to: {RESULTS_DIR}")
         logger.info(f"Regression plots saved to: {PLOTS_DIR}")
 
     if task_type in ("classification", "both"):
-        clas_results = run_classification_ablation()
+        _ = run_classification_ablation()
         logger.info(f"\nClassification results saved to: {RESULTS_DIR / 'classification'}")
         logger.info(f"Classification plots saved to: {PLOTS_DIR / 'classification'}")
 

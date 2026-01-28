@@ -15,8 +15,6 @@ from typing import Optional
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.gridspec import GridSpec
-from scipy.stats import gaussian_kde
 
 from benchmarks.pipeline.synthetic_dgps import SyntheticDataset
 
@@ -246,7 +244,6 @@ def plot_dgp_comparison_table(
     """
     dgp_names = list(results_dict.keys())
     n_dgps = len(dgp_names)
-    n_models = len(models)
     n_metrics = len(metrics)
 
     fig, axes = plt.subplots(n_metrics, n_dgps, figsize=(3 * n_dgps, 2 * n_metrics))

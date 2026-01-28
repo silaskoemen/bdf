@@ -1,4 +1,3 @@
-import json
 import os
 import subprocess
 from datetime import datetime, timezone
@@ -15,8 +14,6 @@ from optuna.samplers import TPESampler
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn
 from sklearn.metrics import log_loss, make_scorer, mean_squared_error
 from sklearn.model_selection import KFold, StratifiedKFold
-from sklearn.model_selection import cross_val_score as CVS
-from sklearn.model_selection import train_test_split as TTS
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 

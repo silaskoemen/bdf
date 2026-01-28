@@ -2,10 +2,8 @@
 of the Bernoulli mean on accuracy, precision, recall, auroc, f1 and log loss.
 """
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import seaborn as sns
 from sklearn.metrics import accuracy_score, f1_score, log_loss, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import train_test_split as TTS

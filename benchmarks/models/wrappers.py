@@ -1191,7 +1191,6 @@ class GaussianDeepEnsembleWrapper(BaseEstimator, RegressorMixin):
     def _train_single_network(self, X: np.ndarray, y: np.ndarray, seed: int):
         """Train a single network with early stopping."""
         import torch
-        import torch.nn as nn
         from torch.utils.data import DataLoader, TensorDataset
 
         torch.manual_seed(seed)
@@ -1262,7 +1261,6 @@ class GaussianDeepEnsembleWrapper(BaseEstimator, RegressorMixin):
 
     def fit(self, X, y):
         """Fit the ensemble of Gaussian networks."""
-        import torch
 
         X_np = X.values if hasattr(X, "values") else np.asarray(X)
         y_np = y.values if hasattr(y, "values") else np.asarray(y)

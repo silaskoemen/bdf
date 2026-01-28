@@ -12,7 +12,6 @@ import pytest
 
 from benchmarks.pipeline.synthetic_dgps import (
     DGP_REGISTRY,
-    DGPType,
     SyntheticDataset,
     generate_bimodal_mixture,
     generate_heavy_tailed,

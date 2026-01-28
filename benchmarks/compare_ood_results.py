@@ -20,7 +20,6 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
-from scipy import stats
 
 # =============================================================================
 # Configuration
@@ -247,7 +246,7 @@ def save_tables(df: pd.DataFrame, output_dir: Path):
             f.write("# Uncertainty Ratio (OOD / Overlap)\n\n")
             f.write("Ratio > 1 means model increases uncertainty in OOD regions (desirable).\n\n")
             f.write(ratio_table.to_markdown())
-        logger.info(f"Saved uncertainty ratio table")
+        logger.info("Saved uncertainty ratio table")
 
     # 5. Model rankings
     ranking_table = generate_ranking_table(df, metric="crps", region="ood")

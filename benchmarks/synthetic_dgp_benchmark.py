@@ -24,7 +24,6 @@ from typing import Any, Optional
 import numpy as np
 import optuna
 from loguru import logger
-from matplotlib.style import available
 from optuna.samplers import TPESampler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -32,14 +31,10 @@ from sklearn.model_selection import KFold
 from tqdm import tqdm
 
 from .metrics.regression import (
-    coverage_50,
-    coverage_90,
-    coverage_95,
     crps_wrapper,
     interval_score_samples,
     pica,
     pit_ks_statistic,
-    precompute_percentiles,
     quantile_loss,
 )
 from .pipeline.synthetic_dgps import DGP_REGISTRY, SyntheticDataset

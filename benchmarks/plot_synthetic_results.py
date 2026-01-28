@@ -71,14 +71,14 @@ def load_dgp_results(dgp_name: str) -> dict | None:
 
     # Only one type exists - return it
     if full_results is None:
-        logger.info(f"  Using core-only results")
+        logger.info("  Using core-only results")
         return core_results
     if core_results is None:
-        logger.info(f"  Using full results only")
+        logger.info("  Using full results only")
         return full_results
 
     # Both exist - merge them
-    logger.info(f"  Merging full and core results")
+    logger.info("  Merging full and core results")
     merged = dict(full_results)  # Start with full results
 
     # Merge models from core into full

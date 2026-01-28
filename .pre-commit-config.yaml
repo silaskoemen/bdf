@@ -25,7 +25,7 @@ repos:
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-        files: ^(src|compiled)/.*\.py$
+        files: ^(src|benchmarks)/.*\.py$
 
   - repo: local
     hooks:

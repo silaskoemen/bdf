@@ -168,18 +168,18 @@ def plot_pica_and_pit(
     for ax in axes:
         if not ax.get_visible():
             continue
-        h, l = ax.get_legend_handles_labels()
+        h, lab = ax.get_legend_handles_labels()
         handles.extend(h)
-        labels.extend(l)
+        labels.extend(lab)
 
     # dedupe legend entries while preserving order
     seen = set()
     dedup_h, dedup_l = [], []
-    for h, l in zip(handles, labels):
-        if l not in seen:
-            seen.add(l)
+    for h, lab in zip(handles, labels):
+        if lab not in seen:
+            seen.add(lab)
             dedup_h.append(h)
-            dedup_l.append(l)
+            dedup_l.append(lab)
     if dedup_h:
         fig.legend(dedup_h, dedup_l, loc="lower center", ncol=min(len(dedup_l), 6), bbox_to_anchor=(0.5, -0.03))
 
@@ -301,18 +301,18 @@ def plot_auroc_and_ece(
     for ax in axes:
         if not ax.get_visible():
             continue
-        h, l = ax.get_legend_handles_labels()
+        h, lab = ax.get_legend_handles_labels()
         handles.extend(h)
-        labels.extend(l)
+        labels.extend(lab)
 
     # dedupe legend entries while preserving order
     seen = set()
     dedup_h, dedup_l = [], []
-    for h, l in zip(handles, labels):
-        if l not in seen:
-            seen.add(l)
+    for h, lab in zip(handles, labels):
+        if lab not in seen:
+            seen.add(lab)
             dedup_h.append(h)
-            dedup_l.append(l)
+            dedup_l.append(lab)
     if dedup_h:
         fig.legend(dedup_h, dedup_l, loc="lower center", ncol=min(len(dedup_l), 6), bbox_to_anchor=(0.5, -0.03))
 

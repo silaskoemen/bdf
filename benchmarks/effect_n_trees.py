@@ -269,7 +269,7 @@ def run_experiment_for_dataset(dataset_name: str, results: dict[str, Any]) -> di
         logger.info(f"  🌲 n_trees = {n_trees}")
 
         # Tune hyperparameters on fold 0
-        logger.info(f"    Tuning hyperparameters...")
+        logger.info("    Tuning hyperparameters...")
         best_init_kwargs, best_params = tune_hyperparameters(X_train, y_train, X_val, y_val, n_trees, dataset_name)
 
         # Evaluate on folds 1-9
