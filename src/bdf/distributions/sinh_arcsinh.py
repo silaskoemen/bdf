@@ -82,20 +82,29 @@ class SHASHBase(BDFDistribution):
     def calc_posterior_params(self, data):
         raise NotImplementedError("Subclass must implement calc_posterior_params.")
 
-    def log_likelihood(self, data: np.ndarray) -> np.ndarray:
+    def log_likelihood(self, data: np.ndarray, params: dict | None = None) -> np.ndarray:
         """Compute the log-likelihood of the data given the distribution.
 
         Args
         ----
         `data` : np.ndarray
             The data to compute the log-likelihood for.
+        `params` : dict | None
+            Optional pre-computed posterior parameters.
 
         Returns
         -------
         np.ndarray
             A numpy array containing the log-likelihood values for each data point.
         """
-        posterior_mu, posterior_sigma, posterior_epsilon, posterior_delta = self.calc_posterior_params(data)
+        if params is None:
+            params = self.calc_posterior_params(data)
+        posterior_mu, posterior_sigma, posterior_epsilon, posterior_delta = (
+            params["posterior_mu"],
+            params["posterior_sigma"],
+            params["posterior_epsilon"],
+            params["posterior_delta"],
+        )
         if posterior_sigma <= 0 or posterior_delta <= 0:
             raise ValueError("Scale sigma and tailweight delta must be positive.")
 
@@ -110,20 +119,29 @@ class SHASHBase(BDFDistribution):
             - 0.5 * s_epsilon_delta(z, posterior_epsilon, posterior_delta) ** 2
         )
 
-    def likelihood(self, data: np.ndarray) -> np.ndarray:
+    def likelihood(self, data: np.ndarray, params: dict | None = None) -> np.ndarray:
         """Compute the likelihood of the data given the distribution.
 
         Args
         ----
         `data` : np.ndarray
             The data to compute the likelihood for.
+        `params` : dict | None
+            Optional pre-computed posterior parameters.
 
         Returns
         -------
         np.ndarray
             A numpy array containing the likelihood values for each data point.
         """
-        posterior_mu, posterior_sigma, posterior_epsilon, posterior_delta = self.calc_posterior_params(data)
+        if params is None:
+            params = self.calc_posterior_params(data)
+        posterior_mu, posterior_sigma, posterior_epsilon, posterior_delta = (
+            params["posterior_mu"],
+            params["posterior_sigma"],
+            params["posterior_epsilon"],
+            params["posterior_delta"],
+        )
         if posterior_sigma <= 0 or posterior_delta <= 0:
             raise ValueError("Scale sigma and tailweight delta must be positive.")
 
@@ -188,9 +206,7 @@ class SHASHBase(BDFDistribution):
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
 
-    def _sample_posterior_params(
-        self, params: dict[str, float], *, size: int = 1, random_state: int = RANDOM_SEED
-    ) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution given parameters.
 
         Args

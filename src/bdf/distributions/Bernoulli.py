@@ -481,10 +481,10 @@ class BetaMVBernoulli(BDFDistribution[BetaMVBernoulliParams]):
         return np.array(beta_dist.rvs(a=self.alpha_p, b=self.beta_p, size=size, random_state=rng))
 
     @classmethod
-    def resolve_auto_params(cls, key: str, y: np.ndarray) -> Any:
-        """Resolve 'auto' parameters based on data y."""
+    def resolve_auto_params(cls, key: str, data: np.ndarray, params: dict[str, Any] | None = None) -> Any:
+        """Resolve 'auto' parameters based on data."""
         if key == "mean_p":
             # Set prior mean to empirical mean of data
-            return float(np.mean(y))
+            return float(np.mean(data))
         else:
             raise ValueError(f"Cannot resolve 'auto' for unknown parameter '{key}'")

@@ -6,6 +6,7 @@ nu in terms of observed quantities is mu * (1 - mu) / var - 1.
 """
 
 import warnings
+from typing import Any
 
 import numpy as np
 from pydantic import Field
@@ -69,7 +70,7 @@ class NormalMuBeta(BDFDistribution):
             Degrees of freedom for variance calculation, default is 1 (sample standard deviation).
         """
         if isinstance(params, dict):
-            params = NormalMuBetaParams.model_validate(params)  # type: ignore
+            params = NormalMuBetaParams.model_validate(params)
         assert isinstance(
             params, NormalMuBetaParams
         ), "params must be an instance of NormalNormalParams after possible conversion from dict."
@@ -78,9 +79,7 @@ class NormalMuBeta(BDFDistribution):
         self.sigma_zero = params.sigma_zero
         self.var_ddof = var_ddof  # Degrees of freedom for sample variance calculation
 
-    def calc_posterior_params(
-        self, data: np.ndarray, return_dict: bool = True, eps: float = 1e-5
-    ) -> dict[str, float] | tuple[float, float]:
+    def calc_posterior_params(self, data: np.ndarray, eps: float = 1e-5) -> dict[str, Any]:
         """Calculate posterior parameters based on the data.
 
         Args
@@ -92,8 +91,8 @@ class NormalMuBeta(BDFDistribution):
 
         Returns
         -------
-        tuple[float, float]
-            A tuple containing the posterior mean and posterior standard deviation.
+        dict[str, float]
+            Dictionary containing 'mu' and 'nu' posterior parameters.
         """
         n = data.shape[0]
         sample_mean = np.mean(data)
@@ -102,69 +101,69 @@ class NormalMuBeta(BDFDistribution):
             (n / (sample_std**2 + eps)) + (1 / (self.sigma_zero**2 + eps))
         )
         nu = mu * (1 - mu) / (sample_std**2 + eps) - 1
-        if return_dict:
-            return {"mu": mu, "nu": nu}
-        else:
-            return mu, nu
+        return {"mu": mu, "nu": nu}
 
-    def get_alpha_beta(self, posterior_params: dict[str, float] | tuple[float, float]) -> tuple[float, float]:
+    def get_alpha_beta(self, posterior_params: dict[str, float]) -> tuple[float, float]:
         """Get the alpha and beta parameters from the posterior parameters.
 
         Args
         ----
-        `posterior_params` : dict or tuple
-            Posterior parameters containing 'mu' and 'nu' or a tuple of (mu, nu).
+        `posterior_params` : dict
+            Posterior parameters containing 'mu' and 'nu'.
 
         Returns
         -------
         tuple[float, float]
             A tuple containing the alpha and beta parameters.
         """
-        if isinstance(posterior_params, dict):
-            mu = posterior_params["mu"]
-            nu = posterior_params["nu"]
-        else:
-            mu, nu = posterior_params
+        mu = posterior_params["mu"]
+        nu = posterior_params["nu"]
 
         alpha = mu * nu
         beta = (1 - mu) * nu
         return alpha, beta
 
-    def likelihood(self, data: np.ndarray) -> np.ndarray:
+    def likelihood(self, data: np.ndarray, params: dict | None = None) -> np.ndarray:
         """Calculate the likelihood of the data given the distribution parameters.
 
         Args
         ----
         `data` : np.ndarray
             The data to calculate the likelihood for.
+        `params` : dict | None
+            Optional pre-computed posterior parameters.
 
         Returns
         -------
         np.ndarray
             The likelihood of the data.
         """
-        posterior_params = self.calc_posterior_params(data)
-        alpha, beta = self.get_alpha_beta(posterior_params)
+        if params is None:
+            params = self.calc_posterior_params(data)
+        alpha, beta = self.get_alpha_beta(params)
         return beta_dist.pdf(data, a=alpha, b=beta)
 
-    def log_likelihood(self, data: np.ndarray) -> np.ndarray:
+    def log_likelihood(self, data: np.ndarray, params: dict | None = None) -> np.ndarray:
         """Calculate the log likelihood of the data given the distribution parameters.
 
         Args
         ----
         `data` : np.ndarray
             The data to calculate the log likelihood for.
+        `params` : dict | None
+            Optional pre-computed posterior parameters.
 
         Returns
         -------
         np.ndarray
             The log likelihood of the data.
         """
-        posterior_params = self.calc_posterior_params(data)
-        alpha, beta = self.get_alpha_beta(posterior_params)
+        if params is None:
+            params = self.calc_posterior_params(data)
+        alpha, beta = self.get_alpha_beta(params)
         return beta_dist.logpdf(data, a=alpha, b=beta)
 
-    def nll(self, data: np.ndarray) -> float:
+    def nll(self, data: np.ndarray, params: dict | None = None) -> float:
         """Calculate the negative log likelihood of the data given the distribution parameters.
 
         Args
@@ -195,13 +194,13 @@ class NormalMuBeta(BDFDistribution):
         if params is not None:
             return self._sample_posterior_params(params, size=size, random_state=random_state)
         elif data is not None:
-            return self._sample_posterior_data(data, size=size, random_state=random_state)  # type: ignore
+            return self._sample_posterior_data(data, size=size, random_state=random_state)
         else:  # This case should not happen due to the initial check but is required for type safety
             raise ValueError(
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
 
-    def _sample_posterior_params(self, params: dict[str, float], *, size: int = 1, random_state: int) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution using provided parameters.
 
         Args
@@ -220,7 +219,7 @@ class NormalMuBeta(BDFDistribution):
         assert params["mu"] > 0 and params["nu"] > 0, "Both 'mu' and 'nu' must be greater than 0"
         alpha, beta = self.get_alpha_beta(params)
         # Sample from the beta distribution using the calculated alpha and beta
-        return beta_dist.rvs(a=alpha, b=beta, size=size, random_state=random_state)  # type: ignore
+        return beta_dist.rvs(a=alpha, b=beta, size=size, random_state=random_state)
 
     def _sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
         """Sample from the posterior distribution using the data.
@@ -237,9 +236,9 @@ class NormalMuBeta(BDFDistribution):
         np.ndarray
             Samples drawn from the posterior distribution based on the data.
         """
-        mu, nu = self.calc_posterior_params(data)
-        alpha, beta = self.get_alpha_beta((mu, nu))  # type: ignore
-        return beta_dist.rvs(a=alpha, b=beta, size=size, random_state=random_state)  # type: ignore
+        params = self.calc_posterior_params(data)
+        alpha, beta = self.get_alpha_beta(params)
+        return beta_dist.rvs(a=alpha, b=beta, size=size, random_state=random_state)
 
     def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
         """Get the posterior mean of the distribution.
@@ -259,8 +258,8 @@ class NormalMuBeta(BDFDistribution):
         if params is not None:
             return params["mu"]
         elif data is not None:
-            mu, _ = self.calc_posterior_params(data)
-            return mu  # type: ignore
+            posterior = self.calc_posterior_params(data)
+            return posterior["mu"]
         else:
             raise ValueError("Either 'data' or 'params' must be provided to get the posterior mean.")
 
@@ -282,14 +281,13 @@ class NormalMuBeta(BDFDistribution):
             The posterior standard deviation of the distribution.
         """
         if params is not None:
-            return params["mu"] / (params["nu"] ** 2) / (params["nu"] + 1)  # type: ignore
+            return params["mu"] / (params["nu"] ** 2) / (params["nu"] + 1)
         elif data is not None:
-            mu, nu = self.calc_posterior_params(data)
-            return mu / (nu**2) / (nu + 1)  # type: ignore
+            posterior = self.calc_posterior_params(data)
+            return posterior["mu"] / (posterior["nu"] ** 2) / (posterior["nu"] + 1)
         else:
             raise ValueError("Either 'data' or 'params' must be provided to get the posterior standard deviation.")
 
     def get_posterior_params(self, data: np.ndarray) -> dict:
         """Get the posterior parameters of the distribution."""
-        mu, nu = self.calc_posterior_params(data)
-        return {"mu": mu, "nu": nu}
+        return self.calc_posterior_params(data)

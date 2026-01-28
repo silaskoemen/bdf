@@ -191,7 +191,8 @@ def generate_ranking_table(df: pd.DataFrame, metric: str = "crps", region: str =
 
     # For each (dgp, shift), find the best model
     rankings = []
-    for (dgp, shift), group in df.groupby(["dgp", "shift"]):
+    for key, group in df.groupby(["dgp", "shift"]):
+        dgp, shift = key  # type: ignore
         group_sorted = group.sort_values(col_name)
         best_model = group_sorted.iloc[0]["model"]
         best_value = group_sorted.iloc[0][col_name]

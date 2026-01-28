@@ -16,7 +16,6 @@ from scipy.special import gamma
 from scipy.stats import weibull_min
 
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
-from bdf.utils.constants import RANDOM_SEED
 
 # ============================================================================
 # PARAMS CLASSES
@@ -135,9 +134,7 @@ class FrequentistWeibull(BDFDistribution):
     def _num_parameters(self) -> int:
         return 2
 
-    def _sample_posterior_params(
-        self, params: dict[str, float], size: int | tuple[int, int] = 1, random_state: int = RANDOM_SEED
-    ) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from fitted Weibull."""
         k = params["k"]
         lam = params["lambda"]
@@ -243,9 +240,7 @@ class NormalMeanWeibull(BDFDistribution):
     def _num_parameters(self) -> int:
         return 2
 
-    def _sample_posterior_params(
-        self, params: dict[str, float], size: int | tuple[int, int] = 1, random_state: int = RANDOM_SEED
-    ) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         k = params["k"]
         lam = params["lambda"]
         return np.array(weibull_min.rvs(c=k, scale=lam, size=size, random_state=random_state))

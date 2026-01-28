@@ -188,7 +188,7 @@ class BDFDistribution(ABC, Generic[P]):
     # ============================================================================
 
     @abstractmethod
-    def calc_posterior_params(self, data: np.ndarray) -> dict[str, float]:
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, Any]:
         """Calculate posterior parameters from data (REQUIRED)."""
         pass
 
@@ -207,10 +207,11 @@ class BDFDistribution(ABC, Generic[P]):
         pass
 
     @abstractmethod
-    def _sample_posterior_params(
-        self, params: dict[str, Any], size: int | tuple[int, int], random_state: int
-    ) -> np.ndarray:
-        """Sample from the posterior distribution using provided parameters (REQUIRED)."""
+    def _sample_posterior_params(self, params: dict[str, Any], size: int, random_state: int) -> np.ndarray:
+        """Sample from the posterior distribution using provided parameters (REQUIRED).
+
+        Returns a 1D array of `size` i.i.d. samples from the posterior.
+        """
         pass
 
     @abstractmethod
@@ -299,10 +300,13 @@ class BDFDistribution(ABC, Generic[P]):
         *,
         data: np.ndarray | None = None,
         params: dict[str, float] | None = None,
-        size: int | tuple[int, int] = 1,
+        size: int = 1,
         random_state: int = RANDOM_SEED,
     ) -> np.ndarray:
-        """Sample from posterior (CONCRETE)."""
+        """Sample from posterior (CONCRETE).
+
+        Returns a 1D array of `size` i.i.d. samples from the posterior.
+        """
         if params is None and data is None:
             raise ValueError("Provide either 'data' or 'params'")
         if params is None:

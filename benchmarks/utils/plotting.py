@@ -36,12 +36,12 @@ def plot_average_rmse_rank(avg_rank_df, save_path: str | None = None) -> None:
     plt.close(fig)
 
 
-def plot_rel_to_best(rel_to_best_df, metric: str, save_path: Path | None = None) -> None:
+def plot_rel_to_best(rel_to_best_df, metric: str, save_path: str | Path | None = None) -> None:
     """Plot relative-to-best RMSE for regression models.
 
     Args:
         rel_to_best_df: DataFrame with columns 'model' and f'rel_to_best_{metric}'.
-        save_path: Optional path to save the plot.
+        save_path: Optional path to save the plot (str or Path).
     """
     fig, ax = plt.subplots()
     ax.bar(rel_to_best_df["model"], rel_to_best_df[f"rel_to_best_{metric}"], color="limegreen")

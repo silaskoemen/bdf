@@ -36,10 +36,10 @@ repos:
       #   types: [python]
       - id: ty
         name: ty
-        entry: ty check src compiled benchmarks --ignore unresolved-import
+        entry: ty check src --ignore unresolved-import
         language: system
         types: [python]
-        exclude: ^(examples|tests)/
+        exclude: ^(examples|tests|benchmarks)/
       - id: check-merge-conflict
         name: check-merge-conflict
         entry: '^(<<<<<<< |======= |>>>>>>> |=======$)'

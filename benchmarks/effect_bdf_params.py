@@ -352,7 +352,7 @@ def run_single_experiment(
     X_train, X_test, y_train, y_test = generate_data(dgp_name, seed)
 
     # Build model kwargs
-    model_kwargs = DEFAULT_PARAMS.copy()
+    model_kwargs: dict[str, int | float] = DEFAULT_PARAMS.copy()
     model_kwargs["random_state"] = seed
 
     # Override the ablated parameter
@@ -433,7 +433,7 @@ def run_single_classification_experiment(
     X_train, X_test, y_train, y_test = generate_classification_data(dgp_name, seed)
 
     # Build model kwargs
-    model_kwargs = DEFAULT_PARAMS.copy()
+    model_kwargs: dict[str, int | float] = DEFAULT_PARAMS.copy()
     model_kwargs["random_state"] = seed
 
     # Override the ablated parameter

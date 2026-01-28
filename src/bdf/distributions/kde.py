@@ -221,7 +221,7 @@ class KDE(BDFDistribution[K]):
         return 1
 
     def _sample_posterior_params(
-        self, params: dict[str, float | np.ndarray], size: int | tuple[int, ...], random_state: int
+        self, params: dict[str, float | np.ndarray], size: int, random_state: int
     ) -> np.ndarray:
         """Sample from KDE distribution."""
         data = np.asarray(params["data"], dtype=float).ravel()

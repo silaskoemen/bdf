@@ -30,7 +30,7 @@ class DirichletCategorical(BDFDistribution):
             raise ValueError("Prior parameters 'alpha' must be positive.")
         self.params = tuple(self.prior_alpha)
 
-    def calc_posterior_params(self, data: np.ndarray) -> np.ndarray:
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, Any]:
         """Calculate posterior parameters based on the data.
 
         Args
@@ -40,9 +40,9 @@ class DirichletCategorical(BDFDistribution):
 
         Returns
         -------
-        np.ndarray
-            A numpy array containing the posterior alpha parameters for each category.
+        dict[str, Any]
+            Dictionary containing 'posterior_alpha' array for each category.
         """
         counts = np.bincount(data, minlength=len(self.prior_alpha))
         posterior_alpha = self.prior_alpha + counts
-        return posterior_alpha
+        return {"posterior_alpha": posterior_alpha}

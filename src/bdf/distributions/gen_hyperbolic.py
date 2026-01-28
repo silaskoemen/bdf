@@ -19,7 +19,6 @@ from scipy.optimize import minimize
 from scipy.stats import genhyperbolic
 
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
-from bdf.utils.constants import RANDOM_SEED
 
 # ============================================================================
 # POLYNOMIAL REGRESSION COEFFICIENTS FOR MOMENT-BASED INITIALIZATION
@@ -227,12 +226,7 @@ class FrequentistGenHyperbolic(BDFDistribution):
         """All 5 parameters estimated."""
         return 5
 
-    def _sample_posterior_params(
-        self,
-        params: dict[str, float],
-        size: int | tuple[int, ...] = 1,
-        random_state: int = RANDOM_SEED,
-    ) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from fitted GenHyperbolic."""
         p = params["p"]
         a = params["a"]

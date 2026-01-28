@@ -18,7 +18,7 @@ class DistributionManager:
         return BDFDistribution._registry
 
     @classmethod
-    def create_distribution(cls, dist: str, params: dict[str, Any], y: np.ndarray) -> BDFDistribution:
+    def create_distribution(cls, dist: str, params: dict[str, Any], y: np.ndarray | None = None) -> BDFDistribution:
         registry = cls._registry()
 
         if "+" in dist:
@@ -43,9 +43,16 @@ class DistributionManager:
         # on keys with value 'auto' and data y
         for key, value in params.items():
             if value == "auto":
+                if y is None:
+                    raise ValueError(f"Parameter '{key}' is set to 'auto' but no data (y) was provided")
                 params[key] = DistClass.resolve_auto_params(key, y, params)
         return DistClass(params=params)
 
     @classmethod
     def to_rust_spec(cls, distribution: BDFDistribution) -> dict[str, Any]:
         return distribution.to_rust_spec()
+
+    @classmethod
+    def from_rust_spec(cls, spec: dict[str, Any]) -> BDFDistribution:
+        """Create a distribution from a Rust spec dictionary."""
+        return BDFDistribution.from_spec(spec)

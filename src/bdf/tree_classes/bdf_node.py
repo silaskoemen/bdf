@@ -490,34 +490,45 @@ class BDFNode:
         return preds
 
     def predict_samples(self, X, size: int = 1) -> np.ndarray:
-        """Draw samples for each observation in X."""
+        """Draw samples for each observation in X.
+
+        Returns array of shape (n_obs, size) where each row contains `size` i.i.d. samples.
+        """
+        n_obs = X.shape[0]
+
         if self._is_leaf():
-            return self.distribution.sample_posterior(
-                size=(X.shape[0], size), params=self.posterior_params, random_state=self.random_state
+            # Sample flat and reshape - distribution returns 1D array
+            flat_samples = self.distribution.sample_posterior(
+                size=n_obs * size, params=self.posterior_params, random_state=self.random_state
             )
+            return flat_samples.reshape(n_obs, size)
 
         # Split indices based on the best feature/threshold
         left_mask = X[:, self.best_feature] <= self.best_threshold
         right_mask = ~left_mask
 
         # Allocate full-size output
-        preds = np.empty((X.shape[0], size), dtype=float)
+        preds = np.empty((n_obs, size), dtype=float)
 
         # Compute samples for left subset (or fall back to this node's samples)
         if self.left_node:
             preds[left_mask] = self.left_node.predict_samples(X[left_mask], size=size)
         else:
-            preds[left_mask] = self.distribution.sample_posterior(
-                size=(np.sum(left_mask), size), params=self.posterior_params, random_state=self.random_state
+            n_left = int(np.sum(left_mask))
+            flat_samples = self.distribution.sample_posterior(
+                size=n_left * size, params=self.posterior_params, random_state=self.random_state
             )
+            preds[left_mask] = flat_samples.reshape(n_left, size)
 
         # Compute samples for right subset (or fall back to this node's samples)
         if self.right_node:
             preds[right_mask] = self.right_node.predict_samples(X[right_mask], size=size)
         else:
-            preds[right_mask] = self.distribution.sample_posterior(
-                size=(np.sum(right_mask), size), params=self.posterior_params, random_state=self.random_state
+            n_right = int(np.sum(right_mask))
+            flat_samples = self.distribution.sample_posterior(
+                size=n_right * size, params=self.posterior_params, random_state=self.random_state
             )
+            preds[right_mask] = flat_samples.reshape(n_right, size)
 
         return preds
 

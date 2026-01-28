@@ -2,21 +2,15 @@
 ## Overall updates
 - [ ] Write tests for all distributions, expose nll from Rust & check parity
 - [ ] Suff stats for python splits as well?
-- [ ] Experiment with creation of candidate thresholds, currently `closest_observation`
 - [ ] Add allowed distributions to BDFRegressor and BDFClassifier docstrings, validate input
-- [ ] Try ty vs pyright as type checker
 - [ ] Allow numpy and pandas inputs
-- [ ] Correct readme
-- [ ] Parallelize predictions over trees, allow qties from all sampled vs params from trees
 
 ## BDFRegressor
 - [ ] Could use `t`, `skew-t`, `Weibull`, `NegBin`, `Skew-Normal`, `Gamma`, `Beta` distributions to appendix as commonly used distributions, some freq, some approx Bayesian
 - [ ] Could think about `HurdleDistribution` (like KDE) which wraps classification with positive values for zero-inflation - only use if benchmark datasets have this property
-- [ ] Implement KDE FFT for faster training and prediction
 
 ## BDFClassifier
 - [ ] Change multinomial to `DirichletCategorical`
-- [ ] Clean up `predict` vs `predict_proba` methods
 
 ## Future Improvements
 - [ ] Implement multivariate targets (e.g. MVN or independent univariate distributions, copula?)

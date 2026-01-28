@@ -22,7 +22,6 @@ from scipy.special import digamma, polygamma
 from scipy.stats import nbinom
 
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
-from bdf.utils.constants import RANDOM_SEED
 
 # ============================================================================
 # PARAMS CLASSES
@@ -135,9 +134,7 @@ class FrequentistNegativeBinomial(BDFDistribution):
         """r and p (2 parameters)."""
         return 2
 
-    def _sample_posterior_params(
-        self, params: dict[str, float], size: int | tuple[int, int] = 1, random_state: int = RANDOM_SEED
-    ) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from fitted Negative Binomial."""
         r = params["r"]
         p = params["p"]
@@ -255,9 +252,7 @@ class NormalMeanNegativeBinomial(BDFDistribution):
         """r and p (2 parameters)."""
         return 2
 
-    def _sample_posterior_params(
-        self, params: dict[str, float], size: int | tuple[int, int] = 1, random_state: int = RANDOM_SEED
-    ) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from fitted Negative Binomial."""
         r = params["r"]
         p = params["p"]

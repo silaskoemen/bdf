@@ -12,6 +12,7 @@ Leverages already implemented BDFDistribution classes, routes for split finding 
 - Could also always calculate both & use _dist for `nll` but actually return kde params, but seems inefficient
 """
 import warnings
+from typing import Any
 
 import numpy as np
 from pydantic import Field
@@ -68,45 +69,47 @@ class KDL(BDFDistribution[KDLParams]):
 
     # ============ SPLITTING PHASE (use parametric) ============
 
-    def nll(self, data: np.ndarray) -> float:
+    def nll(self, data: np.ndarray, params: dict | None = None) -> float:
         """Negative log-likelihood for split scoring."""
         if self.use_kde_for_splitting:
-            return self._kde.nll(data)
-        return self._dist.nll(data)
+            return self._kde.nll(data, params)
+        return self._dist.nll(data, params)
 
-    def log_likelihood(self, data: np.ndarray) -> np.ndarray:
+    def log_likelihood(self, data: np.ndarray, params: dict | None = None) -> np.ndarray:
         """Log-likelihood for split scoring."""
         if self.use_kde_for_splitting:
-            return self._kde.log_likelihood(data)
-        return self._dist.log_likelihood(data)
+            return self._kde.log_likelihood(data, params)
+        return self._dist.log_likelihood(data, params)
 
-    def likelihood(self, data: np.ndarray) -> np.ndarray:
+    def likelihood(self, data: np.ndarray, params: dict | None = None) -> np.ndarray:
         """Likelihood for split scoring."""
         if self.use_kde_for_splitting:
-            return self._kde.likelihood(data)
-        return self._dist.likelihood(data)
+            return self._kde.likelihood(data, params)
+        return self._dist.likelihood(data, params)
 
     # ============ LEAF PHASE (use KDE) ============
 
-    def calc_posterior_params(self, data: np.ndarray) -> dict | tuple:
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, Any]:
         """Leaf posterior: always returns KDE (data, bandwidth)."""
         return self._kde.calc_posterior_params(data)
 
-    def get_posterior_mean(self, data: np.ndarray) -> float:
+    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
         """Leaf mean from KDE."""
-        return self._kde.get_posterior_mean(data=data)
+        return self._kde.get_posterior_mean(data=data, params=params)
 
-    def get_posterior_variance(self, data: np.ndarray) -> float:
+    def get_posterior_variance(
+        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
+    ) -> float:
         """Leaf variance from KDE."""
-        return self._kde.get_posterior_variance(data=data)
+        return self._kde.get_posterior_variance(data=data, params=params)
 
-    def sample_prior(self, size: int) -> np.ndarray:
+    def sample_prior(self, size: int, random_state: int = RANDOM_SEED) -> np.ndarray:
         """Sample from the prior KDE using prior parameters."""
-        return self._kde.sample_prior(size)
+        return self._kde.sample_prior(size, random_state)
 
-    def _sample_posterior_params(self, params: dict, n_samples: int = 1) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict, size: int, random_state: int) -> np.ndarray:
         """Sample from KDE leaf posterior."""
-        return self._kde._sample_posterior_params(params, n_samples, random_state=RANDOM_SEED)
+        return self._kde._sample_posterior_params(params, size, random_state)
 
     def validate_targets(self, data: np.ndarray):
         """Validate targets using KDE rules (stricter: needs ≥2 samples)."""

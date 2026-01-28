@@ -273,9 +273,7 @@ class NormalMeanPseudoAlphaSkewNormal(BDFDistribution[NormalMeanPseudoAlphaSkewN
         """Skew-normal has 3 parameters: α, ξ, ω."""
         return 3
 
-    def _sample_posterior_params(
-        self, params: dict[str, float], size: int | tuple[int, int], random_state: int
-    ) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from the fitted skew-normal distribution."""
         alpha = params["posterior_alpha"]
         xi = params["posterior_xi"]
@@ -457,9 +455,7 @@ class NormalMeanNormalGammaSkewNormal(BDFDistribution[NormalMeanNormalGammaSkewN
         """Skew-normal has 3 parameters: α, ξ, ω."""
         return 3
 
-    def _sample_posterior_params(
-        self, params: dict[str, float], size: int | tuple[int, int], random_state: int
-    ) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from the fitted skew-normal distribution."""
         alpha = params["posterior_alpha"]
         xi = params["posterior_xi"]
@@ -653,9 +649,7 @@ class NormalXiNormalAlphaSkewNormalMAP(BDFDistribution[NormalXiNormalAlphaSkewNo
         """Skew-normal has 3 parameters: α, ξ, ω."""
         return 3
 
-    def _sample_posterior_params(
-        self, params: dict[str, float], size: int | tuple[int, int], random_state: int
-    ) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from the fitted skew-normal distribution."""
         alpha = params["posterior_alpha"]
         xi = params["posterior_xi"]

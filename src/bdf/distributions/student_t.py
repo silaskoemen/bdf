@@ -6,7 +6,6 @@ from pydantic import Field
 from scipy.stats import t as student_t
 
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
-from bdf.utils.constants import RANDOM_SEED
 
 # ============================================================================
 # PARAMS
@@ -102,12 +101,7 @@ class FrequentistStudentT(BDFDistribution):
         # μ, σ always estimated; ν only if df is None
         return 3 if self.df is None else 2
 
-    def _sample_posterior_params(
-        self,
-        params: dict[str, float],
-        size: int | tuple[int, int] = 1,
-        random_state: int = RANDOM_SEED,
-    ) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         mu = params["mu"]
         sigma = params["sigma"]
         df = params["df"]

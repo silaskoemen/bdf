@@ -180,9 +180,7 @@ class NormalMuNormal(BDFDistribution[NormalMuNormalParams]):
         """Only μ is estimated (σ known from data)."""
         return 1
 
-    def _sample_posterior_params(
-        self, params: dict[str, float], size: int | tuple[int, int], random_state: int
-    ) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from posterior predictive N(μ_post, σ_μ² + σ_data²)."""
         mu = params["posterior_mu"]
         sigma_mu = params["posterior_sigma_mu"]
@@ -401,9 +399,7 @@ class NormalMuInvGammaSigmaNormal(BDFDistribution[NormalMuInvGammaSigmaNormalPar
         """μ and σ² both estimated."""
         return 2
 
-    def _sample_posterior_params(
-        self, params: dict[str, float], size: int | tuple[int, int], random_state: int
-    ) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from Student's t posterior predictive."""
         mu = params["posterior_mu"]
         post_n = params["post_n"]

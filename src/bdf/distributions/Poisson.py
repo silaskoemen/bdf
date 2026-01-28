@@ -435,7 +435,7 @@ class GammaMVLambdaPoisson(BDFDistribution[GammaMVLambdaPoissonParams]):
         return np.array(gamma_dist.rvs(a=self.alpha_lambda, scale=1.0 / self.beta_lambda, size=size, random_state=rng))
 
     @classmethod
-    def resolve_auto_params(cls, key: str, data: np.ndarray) -> Any:
+    def resolve_auto_params(cls, key: str, data: np.ndarray, params: dict[str, Any] | None = None) -> Any:
         """Resolve 'auto' parameters based on data.
 
         For NormalMuNormal:

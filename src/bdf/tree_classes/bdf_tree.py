@@ -185,4 +185,3 @@ class BDFTree:
     def predict_samples(self, X: np.ndarray, n_samples: int = 1) -> np.ndarray:
         """Draw samples for each observation in X."""
         return self.root.predict_samples(X, n_samples)
-        return np.array([self._find_leaf_node(x).predict_samples(n_samples=n_samples) for x in X])

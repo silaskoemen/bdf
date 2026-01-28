@@ -85,8 +85,8 @@ class BDFModel(BaseEstimator):
             verbose=verbose,
         )
 
-    def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False, standardize_y: bool = False):
-        """Fit the BDFRegressor to the training data.
+    def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False):
+        """Fit the model to the training data.
         Args
         ----
         `X` : np.ndarray | pd.DataFrame
@@ -99,8 +99,6 @@ class BDFModel(BaseEstimator):
         np.random.seed(self.random_state)
         X, y = self._validate_fit_input(X, y)
         self.n_features_in_ = X.shape[1]
-        if standardize_y:
-            y = self._standardize_y(y.copy())
 
         # Optimization: Convert to Fortran order for faster column access in Rust
         if not np.isfortran(X):
@@ -708,6 +706,38 @@ class BDFRegressor(BDFModel, RegressorMixin):
     for uncertainty quantification.
     """
 
+    def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False, standardize_y: bool = False):
+        """Fit the BDFRegressor to the training data.
+
+        Args
+        ----
+        X : np.ndarray | pd.DataFrame
+            Training data features.
+        y : np.ndarray | pd.Series
+            Training data target values.
+        verbose : bool, optional
+            Whether to print training progress. Default is False.
+        standardize_y : bool, optional
+            Whether to standardize the target values. Default is False.
+
+        Returns
+        -------
+        self
+            Fitted regressor.
+        """
+        # Standardize y if requested (classification doesn't support this)
+        if standardize_y:
+            # Seed for reproducibility
+            self.rng = np.random.default_rng(self.random_state)
+            np.random.seed(self.random_state)
+            X, y = self._validate_fit_input(X, y)
+            y = self._standardize_y(y.copy())
+            # Call parent fit without standardize_y parameter
+            return super().fit(X, y, verbose=verbose)
+        else:
+            # Call parent fit directly
+            return super().fit(X, y, verbose=verbose)
+
     def predict(
         self,
         X: np.ndarray | pd.DataFrame,
@@ -800,8 +830,8 @@ class BDFClassifier(BDFModel, ClassifierMixin):
                 f"Found unique values: {unique_values}"
             )
 
-        # Never standardize targets for classification
-        super().fit(X, y, verbose=verbose, standardize_y=False)
+        # Call parent fit (classification never standardizes targets)
+        super().fit(X, y, verbose=verbose)
 
     def predict_proba(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
         """Predict class probabilities for X.

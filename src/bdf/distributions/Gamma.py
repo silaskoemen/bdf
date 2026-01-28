@@ -12,6 +12,7 @@ All implementations share the same likelihood/sampling logic through GammaBase.
 """
 
 import warnings
+from typing import Any
 
 import numpy as np
 from pydantic import Field
@@ -34,7 +35,7 @@ class GammaBase(BDFDistribution):
     """
 
     # Child classes MUST implement this method
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False):
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, Any]:
         raise NotImplementedError("Subclasses must implement calc_posterior_params")
 
     def _validate_targets(self, y: np.ndarray):
@@ -44,41 +45,45 @@ class GammaBase(BDFDistribution):
         if not np.all(np.isfinite(y)):
             raise ValueError("Targets must be finite for Gamma distribution.")
 
-    def log_likelihood(self, data: np.ndarray) -> np.ndarray:
+    def log_likelihood(self, data: np.ndarray, params: dict | None = None) -> np.ndarray:
         """Compute the log-likelihood of the data given the distribution.
 
         Args
         ----
         data : np.ndarray
             The data to compute the log-likelihood for.
+        params : dict | None
+            Optional pre-computed posterior parameters.
 
         Returns
         -------
         np.ndarray
             Log-likelihood values for each data point.
         """
-        alpha, beta = self.calc_posterior_params(data)
-        return gamma_dist.logpdf(data, a=alpha, scale=1 / beta)
+        if params is None:
+            params = self.calc_posterior_params(data)
+        return gamma_dist.logpdf(data, a=params["posterior_alpha"], scale=1 / params["posterior_beta"])
 
-    def likelihood(self, data: np.ndarray) -> np.ndarray:
+    def likelihood(self, data: np.ndarray, params: dict | None = None) -> np.ndarray:
         """Compute the likelihood of the data given the distribution.
 
         Args
         ----
         data : np.ndarray
             The data to compute the likelihood for.
+        params : dict | None
+            Optional pre-computed posterior parameters.
 
         Returns
         -------
         np.ndarray
             Likelihood values for each data point.
         """
-        params = self.calc_posterior_params(data)
-        alpha = params["alpha"]
-        beta = params["beta"]
-        return gamma_dist.pdf(data, a=alpha, scale=1 / beta)
+        if params is None:
+            params = self.calc_posterior_params(data)
+        return gamma_dist.pdf(data, a=params["posterior_alpha"], scale=1 / params["posterior_beta"])
 
-    def nll(self, data: np.ndarray) -> float:
+    def nll(self, data: np.ndarray, params: dict | None = None) -> float:
         """Compute the negative log-likelihood of the data.
 
         Args
@@ -130,7 +135,7 @@ class GammaBase(BDFDistribution):
                 "Either 'data' or 'params' must be provided to generate samples from the posterior distribution."
             )
 
-    def _sample_posterior_params(self, params: dict[str, float], *, size: int = 1, random_state: int) -> np.ndarray:
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from the posterior using provided parameters.
 
         Args
@@ -152,7 +157,7 @@ class GammaBase(BDFDistribution):
             raise ValueError("params must contain 'posterior_alpha' and 'posterior_beta' keys")
         if posterior_alpha <= 0 or posterior_beta <= 0:
             raise ValueError(f"posterior_alpha={posterior_alpha} and posterior_beta={posterior_beta} must be positive")
-        return gamma_dist.rvs(a=posterior_alpha, scale=1 / posterior_beta, size=size, random_state=random_state)  # type: ignore
+        return gamma_dist.rvs(a=posterior_alpha, scale=1 / posterior_beta, size=size, random_state=random_state)
 
     def _sample_posterior_data(self, data: np.ndarray, *, size: int = 1, random_state: int) -> np.ndarray:
         """Sample from the posterior using data.
@@ -193,7 +198,9 @@ class GammaBase(BDFDistribution):
             posterior_alpha = params["posterior_alpha"]
             posterior_beta = params["posterior_beta"]
         elif data is not None:
-            posterior_alpha, posterior_beta = self.calc_posterior_params(data)
+            post_params = self.calc_posterior_params(data)
+            posterior_alpha = post_params["posterior_alpha"]
+            posterior_beta = post_params["posterior_beta"]
         else:
             raise ValueError("Either 'data' or 'params' must be provided.")
         return posterior_alpha / posterior_beta
@@ -216,13 +223,15 @@ class GammaBase(BDFDistribution):
             The posterior variance.
         """
         if params is not None:
-            alpha = params["alpha"]
-            beta = params["beta"]
+            posterior_alpha = params["posterior_alpha"]
+            posterior_beta = params["posterior_beta"]
         elif data is not None:
-            alpha, beta = self.calc_posterior_params(data)
+            post_params = self.calc_posterior_params(data)
+            posterior_alpha = post_params["posterior_alpha"]
+            posterior_beta = post_params["posterior_beta"]
         else:
             raise ValueError("Either 'data' or 'params' must be provided.")
-        return alpha / (beta**2)
+        return posterior_alpha / (posterior_beta**2)
 
     def get_posterior_params(self, data: np.ndarray) -> dict:
         """Get the posterior parameters.
@@ -292,16 +301,14 @@ class GammaPseudoMean(GammaBase):
         self.prior_strength = params.prior_strength
         self.min_variance = params.min_variance
 
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | tuple | dict:
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, Any]:
         """Calculate posterior parameters with pseudo-prior regularization."""
         n = len(data)
 
         if n == 0:
             alpha_default = 2.0
             beta_default = alpha_default / self.prior_mean
-            if return_dict:
-                return {"alpha": alpha_default, "beta": beta_default, "posterior_mean": self.prior_mean}
-            return beta_default
+            return {"posterior_alpha": alpha_default, "posterior_beta": beta_default}
 
         sample_mean = float(np.mean(data))
         sample_var = float(np.var(data, ddof=1)) if n > 1 else self.min_variance
@@ -317,9 +324,7 @@ class GammaPseudoMean(GammaBase):
         # Calculate β to achieve regularized mean
         posterior_beta = alpha_est / posterior_mean
 
-        if return_dict:
-            return {"posterior_alpha": alpha_est, "posterior_beta": posterior_beta}
-        return alpha_est, posterior_beta
+        return {"posterior_alpha": alpha_est, "posterior_beta": posterior_beta}
 
 
 # =============================================================================
@@ -374,21 +379,14 @@ class GammaNormalMean(GammaBase):
         self.prior_variance = params.prior_variance
         self.min_variance = params.min_variance
 
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | dict | tuple:
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, Any]:
         """Calculate posterior parameters using Normal prior on the mean."""
         n = len(data)
 
         if n == 0:
             alpha_default = 2.0
             beta_default = alpha_default / self.prior_mean
-            if return_dict:
-                return {
-                    "alpha": alpha_default,
-                    "beta": beta_default,
-                    "posterior_mean": self.prior_mean,
-                    "posterior_variance_of_mean": self.prior_variance,
-                }
-            return beta_default
+            return {"posterior_alpha": alpha_default, "posterior_beta": beta_default}
 
         sample_mean = float(np.mean(data))
         sample_var = float(np.var(data, ddof=1)) if n > 1 else self.min_variance
@@ -409,12 +407,7 @@ class GammaNormalMean(GammaBase):
         # Calculate β for posterior mean
         beta_post = alpha_est / mean_post
 
-        if return_dict:
-            return {
-                "posterior_alpha": alpha_est,
-                "posterior_beta": beta_post,
-            }
-        return alpha_est, beta_post
+        return {"posterior_alpha": alpha_est, "posterior_beta": beta_post}
 
 
 # =============================================================================
@@ -448,12 +441,12 @@ class GammaMLE(GammaBase):
         super().__init__(params)
         self.min_variance = params.min_variance
 
-    def calc_posterior_params(self, data: np.ndarray, return_dict: bool = False) -> float | dict | tuple:
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, Any]:
         """Calculate MLE parameters using method of moments."""
         n = len(data)
 
         if n == 0:
-            return {"alpha": 1.0, "beta": 1.0} if return_dict else 1.0
+            return {"posterior_alpha": 1.0, "posterior_beta": 1.0}
 
         sample_mean = float(np.mean(data))
         sample_var = float(np.var(data, ddof=1)) if n > 1 else self.min_variance
@@ -464,6 +457,4 @@ class GammaMLE(GammaBase):
 
         alpha_mle = max(alpha_mle, 0.1)
 
-        if return_dict:
-            return {"posterior_alpha": alpha_mle, "posterior_beta": beta_mle}
-        return alpha_mle, beta_mle
+        return {"posterior_alpha": alpha_mle, "posterior_beta": beta_mle}
