@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "bdf"
 version = "0.1.0"
 description = "Bayesian Distributional Forest"
@@ -60,7 +60,7 @@ pytest-cov = "*"
 hypothesis = ">=6.0"
 
 [feature.test.tasks]
-test = "pytest"
+test = "pytest -v"
 
 [feature.lint.dependencies]
 pre-commit = "*"
@@ -137,8 +137,8 @@ default = { features = ["prod", "test", "lint", "dev-tools", "bench-tools"], sol
 # PROD: Minimal runtime check
 prod = { features = ["prod"], solve-group = "prod" }
 
-# TEST: CI/CD
-test = { features = ["test"], solve-group = "prod" }
+# TEST: CI/CD (includes prod dependencies for running tests)
+test = { features = ["prod", "test", "dev-tools"], solve-group = "prod" }
 
 # LINT: Isolated fast check, pyright requires base features
 lint = { features = ["lint"] }
