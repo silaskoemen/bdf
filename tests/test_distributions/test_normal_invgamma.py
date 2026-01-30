@@ -92,11 +92,11 @@ def reference_nig_posterior_params(
 def reference_nig_log_evidence(data: np.ndarray, mu_mu: float, n_mu: float, nu_sigma: float, phi_sigma: float) -> float:
     """Reference log evidence for Normal-Inverse-Gamma.
 
-    Matches the actual implementation parameterization:
-    log p(y) = -n/2 * log(2π) + 1/2 * log(n₀/nₙ) + log Γ(νₙ/2) - log Γ(ν₀/2)
-               + ν₀/2 * log(φ₀) - νₙ/2 * log(φₙ)
+    Uses Murphy MLAPP eq 4.127 parameterization:
+    log p(y) = -n/2 * log(2π) + 1/2 * log(κ₀/κₙ) + log Γ(αₙ) - log Γ(α₀)
+               + α₀ * log(β₀) - αₙ * log(βₙ)
 
-    Note: Uses phi_sigma and post_phi directly (not multiplied by nu/2).
+    where α = ν/2, β = νφ/2 (InvGamma rate parameterization).
     """
     n = len(data)
     if n == 0:
@@ -105,16 +105,18 @@ def reference_nig_log_evidence(data: np.ndarray, mu_mu: float, n_mu: float, nu_s
     post = reference_nig_posterior_params(data, mu_mu, n_mu, nu_sigma, phi_sigma)
     post_n = post["post_n"]
     post_nu = post["post_nu"]
-    post_phi = post["post_phi"]
+    post_phi = post["post_phi"]  # = nu_sigma * phi_sigma + ssd + interaction
 
     alpha_0 = nu_sigma / 2
     alpha_n = post_nu / 2
+    # Murphy's parameterization: β = νφ/2
+    beta_0 = nu_sigma * phi_sigma / 2
+    beta_n = post_phi / 2  # post_phi already includes the nu_sigma * phi_sigma term
 
     log_ev = -0.5 * n * np.log(2 * np.pi)
     log_ev += 0.5 * (np.log(n_mu) - np.log(post_n))
     log_ev += gammaln(alpha_n) - gammaln(alpha_0)
-    # Note: actual implementation uses phi_sigma and post_phi directly
-    log_ev += alpha_0 * np.log(phi_sigma) - alpha_n * np.log(post_phi)
+    log_ev += alpha_0 * np.log(beta_0) - alpha_n * np.log(beta_n)
 
     return log_ev
 

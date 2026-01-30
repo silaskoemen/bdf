@@ -323,7 +323,6 @@ class NormalMuNormal(BDFDistribution[NormalMuNormalParams]):
             raise ValueError(f"Unknown parameter '{key}' for auto resolution in {cls.__name__}")
 
 
-# TODO: Check neg log evidence calculation, differs python/Rust, unclear which is correct
 class NormalMuInvGammaSigmaNormal(BDFDistribution[NormalMuInvGammaSigmaNormalParams]):
     """Normal-Inverse-Gamma conjugate model (μ and σ² both unknown).
 
@@ -447,26 +446,36 @@ class NormalMuInvGammaSigmaNormal(BDFDistribution[NormalMuInvGammaSigmaNormalPar
     # ========================================================================
 
     def log_evidence(self, data: np.ndarray) -> float:
-        """Exact Bayesian evidence for Normal-Gamma conjugate."""
+        """Exact Bayesian evidence for Normal-Inverse-Gamma conjugate.
+
+        Uses Murphy MLAPP eq 4.127 parameterization:
+        log p(D) = -n/2·log(2π) + 1/2·log(κ₀/κₙ) + logΓ(αₙ) - logΓ(α₀)
+                   + α₀·log(β₀) - αₙ·log(βₙ)
+
+        where α = ν/2, β = νφ/2 (InvGamma rate parameterization).
+        """
         from scipy.special import gammaln
 
         n = data.shape[0]
         sample_mean = np.mean(data)
-        sample_var = np.var(data, ddof=1)
+        ssd = np.sum((data - sample_mean) ** 2)  # Sum of squared deviations
 
-        post_n = self.n_mu + n
-        post_nu = self.nu_sigma + n
-        post_phi = (
-            self.nu_sigma * self.phi_sigma
-            + (n - 1) * sample_var
-            + (n * self.n_mu / post_n) * (sample_mean - self.mu_mu) ** 2
-        )
+        # Posterior parameters
+        kappa_n = self.n_mu + n
+        nu_n = self.nu_sigma + n
+        interaction = (self.n_mu * n / kappa_n) * (sample_mean - self.mu_mu) ** 2
+
+        # Murphy's parameterization: α = ν/2, β = νφ/2
+        alpha_0 = self.nu_sigma / 2
+        alpha_n = nu_n / 2
+        beta_0 = self.nu_sigma * self.phi_sigma / 2
+        beta_n = beta_0 + ssd / 2 + interaction / 2
 
         log_ev = -0.5 * n * np.log(2 * np.pi)
-        log_ev += 0.5 * np.log(self.n_mu / post_n)
-        log_ev += gammaln(post_nu / 2) - gammaln(self.nu_sigma / 2)
-        log_ev += (self.nu_sigma / 2) * np.log(self.phi_sigma)
-        log_ev -= (post_nu / 2) * np.log(post_phi)
+        log_ev += 0.5 * np.log(self.n_mu / kappa_n)
+        log_ev += gammaln(alpha_n) - gammaln(alpha_0)
+        log_ev += alpha_0 * np.log(beta_0)
+        log_ev -= alpha_n * np.log(beta_n)
 
         return float(log_ev)
 

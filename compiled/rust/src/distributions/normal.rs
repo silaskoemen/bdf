@@ -449,19 +449,19 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
         let ss_diff = stats.sum_sq - n * sample_mean.powi(2);
         let ssd = ss_diff;
 
-        let post_n = self.n_mu + n;
-        let post_nu = self.nu_sigma + n;
+        let kappa_n = self.n_mu + n;
+        let nu_n = self.nu_sigma + n;
 
-        let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
+        let interaction = (self.n_mu * n / kappa_n) * (sample_mean - self.mu_mu).powi(2);
 
-        let beta_0 = self.n_mu * self.phi_sigma / 2.0;
+        // Murphy's parameterization: α = ν/2, β = νφ/2
+        let alpha_0 = self.nu_sigma / 2.0;
+        let alpha_n = nu_n / 2.0;
+        let beta_0 = self.nu_sigma * self.phi_sigma / 2.0;
         let beta_n = beta_0 + 0.5 * ssd + 0.5 * interaction;
 
-        let alpha_0 = self.n_mu / 2.0;
-        let alpha_n = post_nu / 2.0;
-
         let log_ev = -0.5 * n * (2.0 * PI).ln()
-            + 0.5 * (self.n_mu.ln() - post_n.ln())
+            + 0.5 * (self.n_mu.ln() - kappa_n.ln())
             + lgamma(alpha_n) - lgamma(alpha_0)
             + alpha_0 * beta_0.ln()
             - alpha_n * beta_n.ln();
