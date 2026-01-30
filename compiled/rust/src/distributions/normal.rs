@@ -62,15 +62,20 @@ impl DistributionPrimitives for NormalMuNormal {
             return params;
         }
         let sample_mean = data.mean().unwrap();
-        let sample_var = {
+        // Handle n=1 case: sample variance undefined, use small value (matches Python)
+        let sample_var_raw = if n > 1.0 {
             let sum_sq: f64 = data.iter().map(|&x| (x - sample_mean).powi(2)).sum();
             sum_sq / (n - 1.0)
+        } else {
+            1e-20  // Matches Python's (sample_std=1e-10)**2
         };
-        let sample_std = sample_var.sqrt().max(1e-10);
+        let sample_std = sample_var_raw.sqrt().max(1e-10);
+        // Python uses max(sample_std**2, 1e-10) for precision calculation
+        let sample_var_for_precision = sample_var_raw.max(1e-10);
 
         // Bayesian update
         let precision_prior = 1.0 / (self.sigma_mu * self.sigma_mu);
-        let precision_data = n / sample_var.max(1e-10);
+        let precision_data = n / sample_var_for_precision;
         let precision_posterior = precision_prior + precision_data;
 
         let posterior_mu = (precision_prior * self.mu_mu + precision_data * sample_mean)
@@ -101,10 +106,11 @@ impl DistributionPrimitives for NormalMuNormal {
         params: &HashMap<String, f64>) -> Option<Array1<f64>> {
         let mu = params["posterior_mu"];
         let sigma_mu = params["posterior_sigma_mu"];
-        let sample_std = params["sample_std"].max(1e-10);
+        let sample_std = params["sample_std"];
 
+        // Matches Python: pred_var = sigma_mu**2 + sample_std**2
         let pred_var = sigma_mu * sigma_mu + sample_std * sample_std;
-        let pred_std = pred_var.sqrt().max(1e-10);
+        let pred_std = pred_var.sqrt();
         let log_pred_std = pred_std.ln();
         const LOG_2PI: f64 = 1.8378770664093453;
 
@@ -139,7 +145,7 @@ impl DistributionPrimitives for NormalMuNormal {
             0.0
         };
 
-        Some(log_ev_mean + log_ev_residuals)
+        Some(-(log_ev_mean + log_ev_residuals))  // Return NLE (negative log evidence)
     }
 
     fn nle_suff_stats(&self, stats: &SufficientStats) -> Option<f64> {
@@ -166,30 +172,31 @@ impl DistributionPrimitives for NormalMuNormal {
             0.0
         };
 
-        Some(log_ev_mean + log_ev_residuals)
+        Some(-(log_ev_mean + log_ev_residuals))  // Return NLE (negative log evidence)
     }
 
     /// Optimized stack-based NLL calculation
     fn nll(&self, data: &ArrayView1<f64>, use_posterior_predictive: bool) -> f64 {
-        // ...existing code...
-        // (Keep existing implementation)
         let n = data.len() as f64;
         if n == 0.0 { return 0.0; }
-        // ... (rest of calc_nll) ...
         let sample_mean = data.mean().unwrap();
         let sum_sq: f64 = data.iter().map(|&x| (x - sample_mean).powi(2)).sum();
-        let sample_var = if n > 1.0 { sum_sq / (n - 1.0) } else { 1e-10 };
-        let sample_std = sample_var.sqrt();
+        // For n=1, use 1e-20 to match Python (sample_std=1e-10)
+        let sample_var_raw = if n > 1.0 { sum_sq / (n - 1.0) } else { 1e-20 };
+        let sample_std = sample_var_raw.sqrt().max(1e-10);
+        // Python uses max(sample_std**2, 1e-10) for precision calculation
+        let sample_var_for_precision = sample_var_raw.max(1e-10);
 
         let precision_prior = 1.0 / (self.sigma_mu * self.sigma_mu);
-        let precision_data = n / sample_var.max(1e-10);
+        let precision_data = n / sample_var_for_precision;
         let precision_posterior = precision_prior + precision_data;
 
         let posterior_mu = (precision_prior * self.mu_mu + precision_data * sample_mean) / precision_posterior;
         let posterior_sigma_mu = (1.0 / precision_posterior).sqrt();
 
         let (mu, sigma) = if use_posterior_predictive {
-            let pred_var = posterior_sigma_mu.powi(2) + sample_var;
+            // Python uses sample_std**2 for PP variance, NOT the floored sample_var
+            let pred_var = posterior_sigma_mu.powi(2) + sample_std.powi(2);
             (posterior_mu, pred_var.sqrt())
         } else {
             (posterior_mu, sample_std)
@@ -209,22 +216,23 @@ impl DistributionPrimitives for NormalMuNormal {
     fn nll_train_test(&self, train: &ArrayView1<f64>, test: &ArrayView1<f64>, use_posterior_predictive: bool) -> f64 {
         // 1. Train (calculate posterior params from train set)
         let n = train.len() as f64;
-        if n == 0.0 { return 0.0; } // Should probably return prior NLL, but 0 for now
+        if n == 0.0 { return 0.0; }
 
         let sample_mean = train.mean().unwrap();
         let sum_sq: f64 = train.iter().map(|&x| (x - sample_mean).powi(2)).sum();
-        let sample_var = if n > 1.0 { sum_sq / (n - 1.0) } else { 1e-10 };
-        let sample_std = sample_var.sqrt();
+        let sample_var_raw = if n > 1.0 { sum_sq / (n - 1.0) } else { 1e-20 };
+        let sample_std = sample_var_raw.sqrt().max(1e-10);
+        let sample_var_for_precision = sample_var_raw.max(1e-10);
 
         let precision_prior = 1.0 / (self.sigma_mu * self.sigma_mu);
-        let precision_data = n / sample_var.max(1e-10);
+        let precision_data = n / sample_var_for_precision;
         let precision_posterior = precision_prior + precision_data;
 
         let posterior_mu = (precision_prior * self.mu_mu + precision_data * sample_mean) / precision_posterior;
         let posterior_sigma_mu = (1.0 / precision_posterior).sqrt();
 
         let (mu, sigma) = if use_posterior_predictive {
-            let pred_var = posterior_sigma_mu.powi(2) + sample_var;
+            let pred_var = posterior_sigma_mu.powi(2) + sample_std.powi(2);
             (posterior_mu, pred_var.sqrt())
         } else {
             (posterior_mu, sample_std)
@@ -249,21 +257,23 @@ impl DistributionPrimitives for NormalMuNormal {
         let sample_mean = stats.sum / n;
         // variance = (sum_sq - n*mean^2) / (n-1)
         let ss_diff = stats.sum_sq - n * sample_mean.powi(2);
-        let sample_var = if n > 1.0 { ss_diff / (n - 1.0) } else { 1e-10 };
+        let sample_var_raw = if n > 1.0 { ss_diff / (n - 1.0) } else { 1e-20 };
+        let sample_std = sample_var_raw.sqrt().max(1e-10);
+        let sample_var_for_precision = sample_var_raw.max(1e-10);
 
         // Bayesian update (same as calc_posterior_params but on stack)
         let precision_prior = 1.0 / (self.sigma_mu * self.sigma_mu);
-        let precision_data = n / sample_var.max(1e-10);
+        let precision_data = n / sample_var_for_precision;
         let precision_posterior = precision_prior + precision_data;
 
         let posterior_mu = (precision_prior * self.mu_mu + precision_data * sample_mean) / precision_posterior;
         let posterior_sigma_mu = (1.0 / precision_posterior).sqrt();
 
         let (mu, sigma) = if use_posterior_predictive {
-            let pred_var = posterior_sigma_mu.powi(2) + sample_var;
+            let pred_var = posterior_sigma_mu.powi(2) + sample_std.powi(2);
             (posterior_mu, pred_var.sqrt())
         } else {
-            (posterior_mu, sample_var.sqrt())
+            (posterior_mu, sample_std)
         };
 
         let log_sigma = sigma.ln();

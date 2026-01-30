@@ -99,7 +99,7 @@ class TestGammaABLambdaExponential:
         assert dist.params == params
         # Assert `params` if used for distribution
 
-    @pytest.mark.parametrize("data", [get_small_data, get_large_data])
+    @pytest.mark.parametrize("data", ["get_small_data", "get_large_data"], indirect=True)
     def test_calc_posterior_params(self, get_alpha_beta, data):
         alpha_lambda, beta_lambda = get_alpha_beta
         params = GammaABLambdaExponentialParams(alpha_lambda=alpha_lambda, beta_lambda=beta_lambda)

@@ -13,7 +13,9 @@ def test_end_to_end_regression():
     X, y = make_regression(n_samples=200, n_features=10, random_state=42)  # type: ignore
 
     # Train model
-    regressor = BDFRegressor(dist="normal", params={"mean": 0, "std": 5}, n_trees=10, max_depth=5, min_samples_leaf=2)
+    regressor = BDFRegressor(
+        dist="NormalMuNormal", params={"mu_mu": 0, "sigma_mu": 5}, n_trees=10, max_depth=5, min_samples_leaf=2
+    )
     regressor.fit(X, y)
 
     # Make predictions
@@ -39,21 +41,21 @@ def test_end_to_end_regression():
 def test_distribution_parameters():
     """Test that distribution parameters are correctly passed through the system"""
     # Create a distribution with non-default parameters
-    dist = DistributionManager.create_distribution("normal", {"mean": 3.5, "std": 4.2})
+    dist = DistributionManager.create_distribution("NormalMuNormal", {"mu_mu": 3.5, "sigma_mu": 4.2})
 
     # Convert to Rust spec
     rust_spec = DistributionManager.to_rust_spec(dist)
 
     # Check parameters are preserved
-    assert rust_spec["prior_mean"] == 3.5
-    assert rust_spec["prior_std"] == 4.2
+    assert rust_spec["mu_mu"] == 3.5
+    assert rust_spec["sigma_mu"] == 4.2
 
     # Use in a simple split finding test
     X = np.random.rand(20, 2)
     y = np.random.rand(20)
 
-    # Call Rust function
-    result = bdf_rs.find_best_split(X, y, 1, 0.0, rust_spec, 0.1, None)  # type: ignore
+    # Call Rust function (updated signature: X, y, min_samples_leaf, min_child_weight, spec, eta, reg_gamma, col_idcs, split_gain_method)
+    result = bdf_rs.find_best_split(X, y, 1, 0.0, rust_spec, 0.1, 0.0, None, "map")  # type: ignore
 
     # Just check it runs without error - actual values tested elsewhere
     assert result is not None
@@ -66,8 +68,8 @@ def test_subsample_colsample():
 
     # Test with very low subsampling and column sampling
     regressor = BDFRegressor(
-        dist="normal",
-        params={"mean": 0, "std": 1},
+        dist="NormalMuNormal",
+        params={"mu_mu": 0, "sigma_mu": 1},
         subsample=0.5,  # Use only half the data per tree
         colsample=0.5,  # Use only half the features per tree
         n_trees=5,
@@ -99,7 +101,7 @@ def test_rust_python_nll_equivalence():
     std = 3.0
 
     # Calculate in Python
-    dist = DistributionManager.create_distribution("normal", {"mean": mean, "std": std})
+    dist = DistributionManager.create_distribution("NormalMuNormal", {"mu_mu": mean, "sigma_mu": std})
     py_nll = dist.nll(data)
 
     # Calculate in Rust
@@ -115,10 +117,11 @@ def collect_used_features(node, feature_set):
     if node is None:
         return
 
-    if node.feature_idx is not None:
-        feature_set.add(node.feature_idx)
+    # Use best_feature attribute (renamed from feature_idx)
+    if hasattr(node, "best_feature") and node.best_feature is not None:
+        feature_set.add(node.best_feature)
 
-    if node.left:
-        collect_used_features(node.left, feature_set)
-    if node.right:
-        collect_used_features(node.right, feature_set)
+    if node.left_node:
+        collect_used_features(node.left_node, feature_set)
+    if node.right_node:
+        collect_used_features(node.right_node, feature_set)

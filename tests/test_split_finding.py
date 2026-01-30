@@ -25,11 +25,11 @@ def test_split_finding_basic():
     # Step function response - clear split at x[0] = 4.5
     y = np.array([1.0, 1.0, 1.0, 1.0, 5.0, 5.0, 5.0, 5.0])
 
-    dist = DistributionManager.create_distribution("normal", {"mean": 0.0, "std": 1.0})
-    node = BDFNode(distribution=dist)
+    dist = DistributionManager.create_distribution("NormalMuNormal", {"mu_mu": 0.0, "sigma_mu": 1.0})
+    node = BDFNode(distribution=dist, depth=0, random_state=42)
 
     # Setting min_samples_leaf = 4 would prevent any valid split
-    feature_idx, threshold, loss, left_mask, right_mask = node._find_best_split_python(X, y, 1, 0.0, None)
+    feature_idx, threshold, loss, left_mask, right_mask, _, _ = node._find_best_split_python(X, y, 1, 0.0, None)
 
     # Should find the obvious split
     assert feature_idx == 0  # First feature
@@ -52,11 +52,11 @@ def test_min_samples_leaf_constraint():
 
     # Would naturally split at x[0] = 3.5
     y = np.array([1.0, 1.0, 1.0, 5.0, 5.0, 5.0])
-    dist = DistributionManager.create_distribution("normal", {"mean": 0.0, "std": 1.0})
-    node = BDFNode(distribution=dist)
+    dist = DistributionManager.create_distribution("NormalMuNormal", {"mu_mu": 0.0, "sigma_mu": 1.0})
+    node = BDFNode(distribution=dist, depth=0, random_state=42)
 
     # Setting min_samples_leaf = 4 would prevent any valid split
-    feature_idx, threshold, loss, left_mask, right_mask = node._find_best_split_python(X, y, 4, 0.0, None)
+    feature_idx, threshold, loss, left_mask, right_mask, _, _ = node._find_best_split_python(X, y, 4, 0.0, None)
 
     # Should not find a valid split
     assert feature_idx is None
@@ -76,11 +76,11 @@ def test_split_mask_correctness():
 
     y = np.array([1.0, 1.0, 2.0, 2.0])
 
-    dist = DistributionManager.create_distribution("normal", {"mean": 0.0, "std": 1.0})
-    node = BDFNode(distribution=dist)
+    dist = DistributionManager.create_distribution("NormalMuNormal", {"mu_mu": 0.0, "sigma_mu": 1.0})
+    node = BDFNode(distribution=dist, depth=0, random_state=42)
 
-    # Setting min_samples_leaf = 4 would prevent any valid split
-    feature_idx, threshold, loss, left_mask, right_mask = node._find_best_split_python(X, y, 4, 0.0, None)
+    # Use min_samples_leaf = 1 to allow splits (min_samples_leaf=4 would prevent any valid split with 4 samples)
+    feature_idx, threshold, loss, left_mask, right_mask, _, _ = node._find_best_split_python(X, y, 1, 0.0, None)
 
     # Check masks are boolean arrays
     assert left_mask.dtype == np.bool_  # type: ignore
@@ -113,8 +113,8 @@ def test_rust_python_split_equivalence():
     y = np.array([1.0, 1.0, 1.0, 2.0, 2.0, 2.0])
 
     # Python implementation
-    dist = DistributionManager.create_distribution("normal", {"mean": 0, "std": 1})
-    node = BDFNode(distribution=dist)
+    dist = DistributionManager.create_distribution("NormalMuNormal", {"mu_mu": 0.0, "sigma_mu": 1.0})
+    node = BDFNode(distribution=dist, depth=0, random_state=42)
 
     # Use Python implementation
     py_feature_idx, py_threshold, py_loss, py_left, py_right, py_left_params, py_right_params = (
@@ -123,8 +123,8 @@ def test_rust_python_split_equivalence():
 
     # Use Rust implementation
     rust_spec = DistributionManager.to_rust_spec(dist)
-    rust_feature_idx, rust_threshold, rust_loss, rust_left, rust_right = bdf_rs.find_best_split(  # type: ignore
-        X, y, 1, 0.0, rust_spec, 0.1, None
+    rust_feature_idx, rust_threshold, rust_loss, rust_left, rust_right, _, _ = bdf_rs.find_best_split(  # type: ignore
+        X, y, 1, 0.0, rust_spec, 0.1, 0.0, None, "map"
     )
 
     # Check results match

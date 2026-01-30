@@ -177,10 +177,11 @@ class BetaABBernoulli(BDFDistribution[BetaABBernoulliParams]):
         """
         prob_post = params["posterior_prob"]
 
-        # Bernoulli log-likelihood
-        # log p(y=1) = log(p), log p(y=0) = log(1-p)
-        log_p1 = np.log(prob_post + 1e-10)
-        log_p0 = np.log(1 - prob_post + 1e-10)
+        # Bernoulli log-likelihood with clamping (matches Rust for numerical stability)
+        # Clamp probability to avoid log(0) while maintaining precision
+        prob_clamped = np.clip(prob_post, 1e-10, 1.0 - 1e-10)
+        log_p1 = np.log(prob_clamped)
+        log_p0 = np.log(1.0 - prob_clamped)
 
         return np.where(data == 1, log_p1, log_p0)
 
@@ -313,12 +314,12 @@ class BetaABBernoulli(BDFDistribution[BetaABBernoulliParams]):
 
         ab_sum = alpha_post + beta_post
 
-        # Predictive probabilities
-        prob_1 = alpha_post / ab_sum
-        prob_0 = beta_post / ab_sum
+        # Predictive probabilities with clamping (matches Rust)
+        prob_1 = np.clip(alpha_post / ab_sum, 1e-10, 1.0 - 1e-10)
+        prob_0 = np.clip(beta_post / ab_sum, 1e-10, 1.0 - 1e-10)
 
-        log_prob_1 = np.log(prob_1 + 1e-10)
-        log_prob_0 = np.log(prob_0 + 1e-10)
+        log_prob_1 = np.log(prob_1)
+        log_prob_0 = np.log(prob_0)
 
         return np.where(data == 1, log_prob_1, log_prob_0)
 
@@ -388,8 +389,10 @@ class BetaMVBernoulli(BDFDistribution[BetaMVBernoulliParams]):
     def _plugin_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
         """Plug-in Bernoulli likelihood."""
         prob_post = params["posterior_prob"]
-        log_p1 = np.log(prob_post + 1e-10)
-        log_p0 = np.log(1 - prob_post + 1e-10)
+        # Clamp probability (matches Rust for numerical stability)
+        prob_clamped = np.clip(prob_post, 1e-10, 1.0 - 1e-10)
+        log_p1 = np.log(prob_clamped)
+        log_p0 = np.log(1.0 - prob_clamped)
         return np.where(data == 1, log_p1, log_p0)
 
     def _num_parameters(self) -> int:
@@ -467,11 +470,12 @@ class BetaMVBernoulli(BDFDistribution[BetaMVBernoulliParams]):
         beta_post = params["posterior_beta"]
 
         ab_sum = alpha_post + beta_post
-        prob_1 = alpha_post / ab_sum
-        prob_0 = beta_post / ab_sum
+        # Clamp probabilities (matches Rust)
+        prob_1 = np.clip(alpha_post / ab_sum, 1e-10, 1.0 - 1e-10)
+        prob_0 = np.clip(beta_post / ab_sum, 1e-10, 1.0 - 1e-10)
 
-        log_prob_1 = np.log(prob_1 + 1e-10)
-        log_prob_0 = np.log(prob_0 + 1e-10)
+        log_prob_1 = np.log(prob_1)
+        log_prob_0 = np.log(prob_0)
 
         return np.where(data == 1, log_prob_1, log_prob_0)
 

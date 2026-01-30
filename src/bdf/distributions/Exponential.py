@@ -98,10 +98,10 @@ class GammaABLambdaExponential(BDFDistribution[GammaABLambdaExponentialParams]):
     _has_fast_kfold_cv = False
     _supports_posterior_predictive = True
 
-    def __init__(self, params: GammaABLambdaExponentialParams):
+    def __init__(self, params: dict[str, Any] | GammaABLambdaExponentialParams):
         super().__init__(params)
-        self.alpha_lambda = params.alpha_lambda
-        self.beta_lambda = params.beta_lambda
+        self.alpha_lambda = self.params.alpha_lambda
+        self.beta_lambda = self.params.beta_lambda
 
     # ========================================================================
     # REQUIRED METHODS

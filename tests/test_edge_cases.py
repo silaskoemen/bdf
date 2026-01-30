@@ -10,7 +10,7 @@ def test_empty_dataset():
     X = np.array([], dtype=np.float64).reshape(0, 2)
     y = np.array([], dtype=np.float64)
 
-    regressor = BDFRegressor(dist="normal", params={"mean": 0.0, "std": 1.0})
+    regressor = BDFRegressor(dist="NormalMuNormal", params={"mu_mu": 0.0, "sigma_mu": 1.0})
 
     # Should raise ValueError for empty dataset
     with pytest.raises(ValueError):
@@ -22,7 +22,7 @@ def test_single_sample():
     X = np.array([[1.0, 2.0]])
     y = np.array([5.0])
 
-    regressor = BDFRegressor(dist="normal", params={"mean": 5.0, "std": 0.1})
+    regressor = BDFRegressor(dist="NormalMuNormal", params={"mu_mu": 5.0, "sigma_mu": 0.1})
 
     # Should fit without errors but not create any splits
     regressor.fit(X, y)
@@ -37,7 +37,7 @@ def test_constant_response():
     X = np.random.rand(100, 5)
     y = np.ones(100) * 3.0  # Constant response
 
-    regressor = BDFRegressor(dist="normal", max_depth=5, params={"mean": 3.0, "std": 0.1})
+    regressor = BDFRegressor(dist="NormalMuNormal", max_depth=5, params={"mu_mu": 3.0, "sigma_mu": 0.1})
     regressor.fit(X, y)
 
     # Predictions should all be close to 3.0
@@ -51,7 +51,7 @@ def test_nan_values():
     X[10, 2] = np.nan  # Add a NaN value
     y = np.random.rand(100)
 
-    regressor = BDFRegressor(dist="normal", params={"mean": y.mean(), "std": y.std()})
+    regressor = BDFRegressor(dist="NormalMuNormal", params={"mu_mu": y.mean(), "sigma_mu": y.std()})
 
     # Should handle NaNs without errors if we preprocess
     X_clean = np.nan_to_num(X)
@@ -70,7 +70,7 @@ def test_extreme_values():
     X = np.random.rand(100, 5)
     y = np.random.rand(100) * 1e9  # Very large values
 
-    regressor = BDFRegressor(dist="normal", params={"mean": y.mean(), "std": y.std()})
+    regressor = BDFRegressor(dist="NormalMuNormal", params={"mu_mu": y.mean(), "sigma_mu": y.std()})
 
     # Should handle large values without numerical issues
     regressor.fit(X, y)
@@ -85,7 +85,7 @@ def test_duplicate_features():
     X = np.hstack([X, X])  # Duplicate all features
     y = np.random.rand(100)
 
-    regressor = BDFRegressor(dist="normal", params={"mean": y.mean(), "std": y.std()})
+    regressor = BDFRegressor(dist="NormalMuNormal", params={"mu_mu": y.mean(), "sigma_mu": y.std()})
     regressor.fit(X, y)
 
     # Should still predict without errors
@@ -100,7 +100,7 @@ def test_imbalanced_split():
     y = np.ones(100)
     y[0] = 100.0
 
-    regressor = BDFRegressor(dist="normal", params={"mean": 0, "std": 5})
+    regressor = BDFRegressor(dist="NormalMuNormal", params={"mu_mu": 0, "sigma_mu": 5})
     regressor.fit(X, y)
 
     # Should be able to identify the extreme value

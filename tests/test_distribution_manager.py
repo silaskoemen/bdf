@@ -16,8 +16,8 @@ class TestDistributionManager:
 
         # Test default parameters
         normal_default = DistributionManager.create_distribution("NormalMuNormal", {})
-        assert normal_default.params["mu_mu"] == 0.0
-        assert normal_default.params["sigma_mu"] == 1.0
+        assert normal_default.params.mu_mu == 0.0
+        assert normal_default.params.sigma_mu == 1.0
 
         # Test invalid distribution name
         with pytest.raises(ValueError):
@@ -25,24 +25,25 @@ class TestDistributionManager:
 
     def test_to_rust_spec(self):
         """Test conversion to Rust spec dictionary"""
-        dist = DistributionManager.create_distribution("normal", {"mu_mu": 1.5, "sigma_mu": 2.5})
+        dist = DistributionManager.create_distribution("NormalMuNormal", {"mu_mu": 1.5, "sigma_mu": 2.5})
         rust_spec = DistributionManager.to_rust_spec(dist)
 
         assert rust_spec["dist_type"] == "NormalMuNormal"
-        assert rust_spec["prior_mu_mu"] == 1.5
-        assert rust_spec["prior_sigma_mu"] == 2.5
+        assert rust_spec["mu_mu"] == 1.5
+        assert rust_spec["sigma_mu"] == 2.5
 
         # Test with another distribution type (once implemented)
         # e.g., beta, bernoulli, etc.
 
     def test_from_rust_spec(self):
         """Test creation from Rust spec dictionary"""
-        rust_spec = {"dist_type": "NormalMuNormal", "prior_mu_mu": 3.0, "prior_sigma_mu": 4.0}
+        # from_spec expects params nested under "params" key
+        rust_spec = {"dist_type": "NormalMuNormal", "params": {"mu_mu": 3.0, "sigma_mu": 4.0}}
 
         dist = DistributionManager.from_rust_spec(rust_spec)
         assert isinstance(dist, NormalMuNormal)
-        assert dist.params["mu_mu"] == 3.0
-        assert dist.params["sigma_mu"] == 4.0
+        assert dist.params.mu_mu == 3.0
+        assert dist.params.sigma_mu == 4.0
 
     def test_nll_calculation(self):
         """Test NLL calculation for distributions"""
@@ -73,7 +74,7 @@ class TestDistributionManager:
 
     def test_distribution_sampling(self):
         """Test distribution sampling functionality"""
-        dist = DistributionManager.create_distribution("normal_normal", {"mu_mu": 0.0, "sigma_mu": 1.0})
+        dist = DistributionManager.create_distribution("NormalMuNormal", {"mu_mu": 0.0, "sigma_mu": 1.0})
         samples = dist.sample_prior(1000)
 
         # Basic sanity checks
