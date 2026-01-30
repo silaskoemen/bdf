@@ -193,11 +193,15 @@ def quantile_loss(
 
 
 def dawid_sebastiani_score(
-    y_true: np.ndarray, y_pred: np.ndarray, eps: float = 1e-6, quantile_levels: np.ndarray | None = None
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    eps: float = 1e-6,
+    quantile_levels: np.ndarray | None = None,
+    precomputed: dict[float, np.ndarray] | None = None,
 ) -> float:
     """Compute the Dawid-Sebastiani score for probabilistic regression predictions.
 
-    Note: Only works with samples, not quantiles. quantile_levels parameter is ignored.
+    Note: Only works with samples, not quantiles. quantile_levels and precomputed parameters are ignored.
     """
     means = np.mean(y_pred, axis=1)
     variances = np.var(y_pred, axis=1, ddof=1) + eps  # Add eps for numerical stability
@@ -215,13 +219,19 @@ def crps_quantile_wrapper(y_true: np.ndarray, y_pred: np.ndarray, quantile_level
     return float(np.mean(scoringrules.crps_quantile(y_true, y_pred, quantile_levels)))
 
 
-def crps_wrapper(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -> float:
+def crps_wrapper(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    quantile_levels: np.ndarray | None = None,
+    precomputed: dict[float, np.ndarray] | None = None,
+) -> float:
     """Unified CRPS wrapper that handles both samples and quantiles.
 
     Args:
         y_true: True values
         y_pred: Predictions (samples or quantiles)
         quantile_levels: Quantile levels if y_pred contains quantiles, None for samples
+        precomputed: Ignored (included for API consistency)
 
     Returns:
         Mean CRPS score
@@ -234,15 +244,19 @@ def crps_wrapper(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.nda
         return crps_ensemble_wrapper(y_true, y_pred)
 
 
-def sharpness(y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -> float:
+def sharpness(
+    y_pred: np.ndarray, quantile_levels: np.ndarray | None = None, precomputed: dict[float, np.ndarray] | None = None
+) -> float:
     """Compute sharpness as the average standard deviation of the predictive distributions.
 
-    Note: Only works with samples, not quantiles. quantile_levels parameter is ignored.
+    Note: Only works with samples, not quantiles. quantile_levels and precomputed parameters are ignored.
     """
     return np.mean(np.std(y_pred, ddof=1, axis=1))
 
 
-def ci_width_50(y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -> float:
+def ci_width_50(
+    y_pred: np.ndarray, quantile_levels: np.ndarray | None = None, precomputed: dict[float, np.ndarray] | None = None
+) -> float:
     """Compute the average width of the 50% prediction interval.
 
     Works with both samples and quantiles. For quantiles, requires levels 0.25 and 0.75.
@@ -258,11 +272,15 @@ def ci_width_50(y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -
         lower_bound = y_pred[:, lower_idx]
         upper_bound = y_pred[:, upper_idx]
     else:
-        # Sample-based calculation
-        lower_bound = np.percentile(y_pred, 25, axis=1)
-        upper_bound = np.percentile(y_pred, 75, axis=1)
+        # Sample-based calculation - use precomputed if available
+        if precomputed and 25.0 in precomputed and 75.0 in precomputed:
+            lower_bound = precomputed[25.0]
+            upper_bound = precomputed[75.0]
+        else:
+            lower_bound = np.percentile(y_pred, 25, axis=1)
+            upper_bound = np.percentile(y_pred, 75, axis=1)
 
-    return np.mean(upper_bound - lower_bound)
+    return float(np.mean(upper_bound - lower_bound))
 
 
 def ci_width_div_sigma_50(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -> float:
@@ -287,10 +305,12 @@ def ci_width_div_sigma_50(y_true: np.ndarray, y_pred: np.ndarray, quantile_level
 
     interval_width = upper_bound - lower_bound
     sigma = np.std(y_true, ddof=1)
-    return np.mean(interval_width / sigma)
+    return float(np.mean(interval_width / sigma))
 
 
-def ci_width_90(y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -> float:
+def ci_width_90(
+    y_pred: np.ndarray, quantile_levels: np.ndarray | None = None, precomputed: dict[float, np.ndarray] | None = None
+) -> float:
     """Compute the average width of the 90% prediction interval.
 
     Works with both samples and quantiles. For quantiles, requires levels 0.05 and 0.95.
@@ -306,11 +326,15 @@ def ci_width_90(y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -
         lower_bound = y_pred[:, lower_idx]
         upper_bound = y_pred[:, upper_idx]
     else:
-        # Sample-based calculation
-        lower_bound = np.percentile(y_pred, 5, axis=1)
-        upper_bound = np.percentile(y_pred, 95, axis=1)
+        # Sample-based calculation - use precomputed if available
+        if precomputed and 5.0 in precomputed and 95.0 in precomputed:
+            lower_bound = precomputed[5.0]
+            upper_bound = precomputed[95.0]
+        else:
+            lower_bound = np.percentile(y_pred, 5, axis=1)
+            upper_bound = np.percentile(y_pred, 95, axis=1)
 
-    return np.mean(upper_bound - lower_bound)
+    return float(np.mean(upper_bound - lower_bound))
 
 
 def ci_width_div_sigma_90(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -> float:
@@ -335,7 +359,7 @@ def ci_width_div_sigma_90(y_true: np.ndarray, y_pred: np.ndarray, quantile_level
 
     interval_width = upper_bound - lower_bound
     sigma = np.std(y_true, ddof=1)
-    return np.mean(interval_width / sigma)
+    return float(np.mean(interval_width / sigma))
 
 
 def pica(
@@ -540,10 +564,15 @@ def interval_score_samples(
     return width + penalty
 
 
-def pit_ks_statistic(y_true: np.ndarray, y_pred: np.ndarray, quantile_levels: np.ndarray | None = None) -> float:
+def pit_ks_statistic(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    quantile_levels: np.ndarray | None = None,
+    precomputed: dict[float, np.ndarray] | None = None,
+) -> float:
     """Compute the Kolmogorov-Smirnov statistic for the probability integral transform.
 
-    Note: Only works with samples, not quantiles. quantile_levels parameter is ignored.
+    Note: Only works with samples, not quantiles. quantile_levels and precomputed parameters are ignored.
     """
     y_true = np.asarray(y_true)
     pit = np.mean(y_pred <= y_true[:, None], axis=1)
@@ -653,15 +682,21 @@ REG_PROB_METRICS = {
     ),
     # ADDITIONAL METRICS
     "sharpness": MetricSpec(
-        func=lambda _, y_pred, quantile_levels=None: sharpness(y_pred, quantile_levels=quantile_levels),
+        func=lambda _, y_pred, quantile_levels=None, precomputed=None: sharpness(
+            y_pred, quantile_levels=quantile_levels
+        ),
         accepts=("samples", "quantiles"),
     ),
     "ci_width_50": MetricSpec(
-        func=lambda _, y_pred, quantile_levels=None: ci_width_50(y_pred, quantile_levels=quantile_levels),
+        func=lambda _, y_pred, quantile_levels=None, precomputed=None: ci_width_50(
+            y_pred, quantile_levels=quantile_levels
+        ),
         accepts=("samples", "quantiles"),
     ),
     "ci_width_90": MetricSpec(
-        func=lambda _, y_pred, quantile_levels=None: ci_width_90(y_pred, quantile_levels=quantile_levels),
+        func=lambda _, y_pred, quantile_levels=None, precomputed=None: ci_width_90(
+            y_pred, quantile_levels=quantile_levels
+        ),
         accepts=("samples", "quantiles"),
     ),
     # "ci_width_div_sigma_50": MetricSpec(

@@ -36,6 +36,11 @@ pub struct NormalMuNormal {
 }
 
 impl NormalMuNormal {
+    /// Create a new NormalMuNormal distribution with given prior parameters.
+    pub fn new(mu_mu: f64, sigma_mu: f64) -> Self {
+        Self { mu_mu, sigma_mu }
+    }
+
     pub fn from_spec(spec: &PyDict) -> PyResult<Self> {
         Ok(Self {
             mu_mu: spec.get_item("mu_mu").ok_or_else(|| pyo3::exceptions::PyValueError::new_err(
@@ -138,8 +143,8 @@ impl DistributionPrimitives for NormalMuNormal {
                           - 0.5 * (sample_mean - self.mu_mu).powi(2) / marginal_var;
 
         // The data terms relative to the sample mean (independent of Mu)
-        // Sum log N(x_i | x_bar, sample_var)
-        let log_ev_residuals = if n > 1.0 {
+        // When sample_var=0 (constant data), residuals are all zero → term vanishes
+        let log_ev_residuals = if n > 1.0 && sample_var > 0.0 {
              -0.5 * (n - 1.0) * (2.0 * PI * sample_var).ln() - 0.5 * (n - 1.0)
         } else {
             0.0
@@ -165,8 +170,8 @@ impl DistributionPrimitives for NormalMuNormal {
                           - 0.5 * (sample_mean - self.mu_mu).powi(2) / marginal_var;
 
         // The data terms relative to the sample mean (independent of Mu)
-        // Sum log N(x_i | x_bar, sample_var)
-        let log_ev_residuals = if n > 1.0 {
+        // When sample_var=0 (constant data), residuals are all zero → term vanishes
+        let log_ev_residuals = if n > 1.0 && sample_var > 0.0 {
              -0.5 * (n - 1.0) * (2.0 * PI * sample_var).ln() - 0.5 * (n - 1.0)
         } else {
             0.0

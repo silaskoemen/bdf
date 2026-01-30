@@ -9,7 +9,7 @@ if __name__ == "__main__":
 
     @hydra.main(config_path="./configs/", config_name="config", version_base="1.3")
     def main(cfg: OmegaConf) -> None:
-        setup_logging(cfg.logging)
+        setup_logging(getattr(cfg, "logging"))
         logger.info("🚀 Starting benchmark run")
         logger.debug(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
         orchestrator = CustomOrchestrator(cfg)

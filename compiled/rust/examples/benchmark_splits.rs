@@ -95,13 +95,13 @@ fn main() {
         // This is the hidden killer in the current implementation
         let left_y: Vec<f64> = y.iter()
             .zip(x.iter())
-            .filter(|(_, &val)| val <= thresh)
+            .filter(|&(_, &val)| val <= thresh)
             .map(|(&y_val, _)| y_val)
             .collect();
 
         let right_y: Vec<f64> = y.iter()
             .zip(x.iter())
-            .filter(|(_, &val)| val > thresh)
+            .filter(|&(_, &val)| val > thresh)
             .map(|(&y_val, _)| y_val)
             .collect();
 

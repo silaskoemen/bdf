@@ -227,18 +227,25 @@ class NormalMuNormal(BDFDistribution[NormalMuNormalParams]):
     # ========================================================================
 
     def log_evidence(self, data: np.ndarray) -> float:
-        """Exact Bayesian evidence for Normal-Normal conjugate.
+        """Empirical Bayes evidence for Normal with prior on μ, plug-in σ.
 
-        p(y | prior) = ∫ p(y | μ) p(μ) dμ
+        This is a hybrid approach:
+        - Prior: μ ~ N(μ₀, σ_μ²)
+        - Likelihood: yᵢ | μ ~ N(μ, σ²) with σ² estimated from data
 
-        Marginal distribution of sample mean: N(μ₀, σ²/n + σ_μ²)
-        Plus term for deviations from mean.
+        The log evidence decomposes as:
+            log p(y) = log p(ȳ | μ₀, σ_μ, σ̂) + log p(residuals | σ̂)
+
+        where σ̂ is the sample standard deviation.
+
+        Edge case: When σ̂ = 0 (constant data), all residuals are zero.
+        The residual term vanishes (log p(0|0,σ→0) → 0 in the limit).
         """
         n = data.shape[0]
         sample_mean = np.mean(data)
         sample_std = np.std(data, ddof=1)
 
-        # Marginal variance of sample mean
+        # Marginal variance of sample mean under prior
         marginal_var = (sample_std**2 / n) + self.sigma_mu**2
 
         # Log evidence for sample mean
@@ -246,7 +253,8 @@ class NormalMuNormal(BDFDistribution[NormalMuNormalParams]):
         log_ev -= 0.5 * (sample_mean - self.mu_mu) ** 2 / marginal_var
 
         # Log evidence for deviations from mean (independent of prior)
-        if n > 1:
+        # When sample_std=0 (constant data), residuals are all zero → term vanishes
+        if n > 1 and sample_std > 0:
             log_ev -= 0.5 * (n - 1) * (1 + np.log(2 * np.pi * sample_std**2))
 
         return float(log_ev)

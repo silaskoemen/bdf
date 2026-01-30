@@ -1643,3 +1643,301 @@ fn update_best(
         }
     }
 }
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndarray::{arr1, arr2, Array1};
+    use crate::distributions::normal::NormalMuNormal;
+    use crate::distributions::ScoringSpec;
+
+    /// Helper to create a test distribution
+    fn create_test_dist() -> NormalMuNormal {
+        NormalMuNormal::new(0.0, 1.0)
+    }
+
+    /// Helper to create a test scoring spec
+    fn create_test_scoring_spec() -> ScoringSpec {
+        ScoringSpec {
+            score_method: "nll".to_string(),
+            score_correction: None,
+            use_posterior_predictive: false,
+            num_parameters: 1,
+            score_cv_folds: 5,
+            score_cv_shuffle: false,
+            score_cv_seed: 42,
+        }
+    }
+
+    // =========================================================================
+    // Stride / Threshold Spacing Tests
+    // =========================================================================
+
+    #[test]
+    fn test_stride_calculation_eta_01() {
+        let n: usize = 100;
+        let eta: f64 = 0.1;
+        let stride = (n as f64 * eta).max(1.0) as usize;
+        assert_eq!(stride, 10);
+    }
+
+    #[test]
+    fn test_stride_calculation_eta_025() {
+        let n: usize = 100;
+        let eta: f64 = 0.025;
+        let stride = (n as f64 * eta).max(1.0) as usize;
+        assert_eq!(stride, 2);
+    }
+
+    #[test]
+    fn test_stride_minimum_is_one() {
+        let n: usize = 10;
+        let eta: f64 = 0.001;
+        let stride = (n as f64 * eta).max(1.0) as usize;
+        assert_eq!(stride, 1);
+    }
+
+    // =========================================================================
+    // Split Finding Behavior Tests
+    // =========================================================================
+
+    #[test]
+    fn test_clear_split_is_found() {
+
+        let x = arr2(&[
+            [1.0], [2.0], [3.0], [4.0],
+            [5.0], [6.0], [7.0], [8.0]
+        ]);
+        let y = arr1(&[1.0, 1.0, 1.0, 1.0, 5.0, 5.0, 5.0, 5.0]);
+
+        let dist = create_test_dist();
+        let spec = create_test_scoring_spec();
+
+        let (feat_idx, threshold, loss, left_mask, right_mask, _, _) = find_best_split(
+            &x.view(),
+            &y.view(),
+            1,
+            0.0,
+            &dist,
+            &spec,
+            0.1,
+            0.0,
+            None,
+            "map",
+        );
+
+        assert!(feat_idx.is_some(), "Should find feature index");
+        assert_eq!(feat_idx.unwrap(), 0);
+
+        let t = threshold.expect("Should find threshold");
+        assert!(t > 4.0 && t < 5.0, "Threshold {} should be between 4 and 5", t);
+
+        assert!(loss > 0.0, "Loss reduction should be positive");
+        assert!(left_mask.is_some());
+        assert!(right_mask.is_some());
+    }
+
+    #[test]
+    fn test_constant_feature_produces_no_split() {
+
+        let x = arr2(&[
+            [5.0], [5.0], [5.0], [5.0],
+            [5.0], [5.0], [5.0], [5.0]
+        ]);
+        let y = arr1(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+
+        let dist = create_test_dist();
+        let spec = create_test_scoring_spec();
+
+        let (feat_idx, threshold, _, _, _, _, _) = find_best_split(
+            &x.view(),
+            &y.view(),
+            1,
+            0.0,
+            &dist,
+            &spec,
+            0.1,
+            0.0,
+            None,
+            "map",
+        );
+
+        assert!(feat_idx.is_none(), "Constant feature should produce no split");
+        assert!(threshold.is_none());
+    }
+
+    #[test]
+    fn test_min_samples_leaf_prevents_split() {
+
+        let x = arr2(&[
+            [1.0], [2.0], [3.0], [4.0],
+            [5.0], [6.0], [7.0], [8.0]
+        ]);
+        let y = arr1(&[1.0, 1.0, 1.0, 1.0, 5.0, 5.0, 5.0, 5.0]);
+
+        let dist = create_test_dist();
+        let spec = create_test_scoring_spec();
+
+        let (feat_idx, threshold, _, _, _, _, _) = find_best_split(
+            &x.view(),
+            &y.view(),
+            5,  // min_samples_leaf - no valid split with 8 samples
+            0.0,
+            &dist,
+            &spec,
+            0.1,
+            0.0,
+            None,
+            "map",
+        );
+
+        assert!(feat_idx.is_none());
+        assert!(threshold.is_none());
+    }
+
+    #[test]
+    fn test_informative_feature_preferred() {
+
+        let x = arr2(&[
+            [1.0, 5.0], [2.0, 5.0], [3.0, 5.0], [4.0, 5.0],
+            [5.0, 5.0], [6.0, 5.0], [7.0, 5.0], [8.0, 5.0]
+        ]);
+        let y = arr1(&[1.0, 1.0, 1.0, 1.0, 5.0, 5.0, 5.0, 5.0]);
+
+        let dist = create_test_dist();
+        let spec = create_test_scoring_spec();
+
+        let (feat_idx, threshold, loss, _, _, _, _) = find_best_split(
+            &x.view(),
+            &y.view(),
+            1,
+            0.0,
+            &dist,
+            &spec,
+            0.1,
+            0.0,
+            None,
+            "map",
+        );
+
+        assert_eq!(feat_idx, Some(0), "Should split on informative feature 0");
+        assert!(threshold.is_some());
+        assert!(loss > 0.0);
+    }
+
+    #[test]
+    fn test_column_subsetting() {
+
+        let x = arr2(&[
+            [1.0, 5.0], [2.0, 5.0], [3.0, 5.0], [4.0, 5.0],
+            [5.0, 5.0], [6.0, 5.0], [7.0, 5.0], [8.0, 5.0]
+        ]);
+        let y = arr1(&[1.0, 1.0, 1.0, 1.0, 5.0, 5.0, 5.0, 5.0]);
+
+        let dist = create_test_dist();
+        let spec = create_test_scoring_spec();
+
+        // Only consider column 1 (constant)
+        let col_idcs = Array1::from(vec![1usize]);
+
+        let (feat_idx, threshold, _, _, _, _, _) = find_best_split(
+            &x.view(),
+            &y.view(),
+            1,
+            0.0,
+            &dist,
+            &spec,
+            0.1,
+            0.0,
+            Some(col_idcs),
+            "map",
+        );
+
+        assert!(feat_idx.is_none());
+        assert!(threshold.is_none());
+    }
+
+    #[test]
+    fn test_masks_are_complementary() {
+
+        let x = arr2(&[
+            [1.0], [2.0], [3.0], [4.0],
+            [5.0], [6.0], [7.0], [8.0]
+        ]);
+        let y = arr1(&[1.0, 1.0, 1.0, 1.0, 5.0, 5.0, 5.0, 5.0]);
+
+        let dist = create_test_dist();
+        let spec = create_test_scoring_spec();
+
+        let (_, _, _, left_mask, right_mask, _, _) = find_best_split(
+            &x.view(),
+            &y.view(),
+            1,
+            0.0,
+            &dist,
+            &spec,
+            0.1,
+            0.0,
+            None,
+            "map",
+        );
+
+        let left = left_mask.expect("Should have left mask");
+        let right = right_mask.expect("Should have right mask");
+
+        for i in 0..left.len() {
+            assert_eq!(left[i], !right[i], "Masks should be complementary at index {}", i);
+        }
+
+        let left_count: usize = left.iter().filter(|&&b| b).count();
+        let right_count: usize = right.iter().filter(|&&b| b).count();
+        assert_eq!(left_count + right_count, 8, "Masks should cover all samples");
+    }
+
+    // =========================================================================
+    // Sufficient Statistics Tests
+    // =========================================================================
+
+    #[test]
+    fn test_sufficient_stats_basic() {
+        let mut stats = SufficientStats::default();
+        let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+
+        for &val in &data {
+            stats.add(val, 2);
+        }
+
+        assert_eq!(stats.n, 5.0);
+        assert_eq!(stats.sum, 15.0);
+        assert!((stats.mean() - 3.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_sufficient_stats_remove() {
+        let mut stats = SufficientStats::default();
+        for val in [1.0, 2.0, 3.0, 4.0, 5.0] {
+            stats.add(val, 2);
+        }
+
+        stats.remove(5.0, 2);
+
+        assert_eq!(stats.n, 4.0);
+        assert_eq!(stats.sum, 10.0);
+        assert!((stats.mean() - 2.5).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_sufficient_stats_variance() {
+        let mut stats = SufficientStats::default();
+        for val in [1.0, 2.0, 3.0, 4.0, 5.0] {
+            stats.add(val, 2);
+        }
+
+        let var = stats.variance();
+        assert!((var - 2.5).abs() < 1e-10, "Variance should be 2.5, got {}", var);
+    }
+}

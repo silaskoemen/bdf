@@ -270,8 +270,8 @@ class BDFNode:
             # Per-feature log-sum-exp (Σ_c exp(delta_{j,c}))
             log_sum_exp = feat_M + np.log(feat_S)
 
-            # multiplicity m_j: choose tried_thresholds (proposed) or valid_splits (valid)
-            m_j = tried_thresholds if tried_thresholds > 0 else valid_splits
+            # multiplicity m_j: use valid_splits (matching Rust semantics)
+            m_j = valid_splits
 
             # Compute g_j (optionally tempered by reg_gamma)
             if reg_gamma != 1.0:
@@ -545,12 +545,25 @@ class BDFNode:
         Returns
         -------
         `thresholds` : np.ndarray
-            1D array of candidate thresholds
+            1D array of unique candidate thresholds (deduplicated).
+            Returns empty array for constant features.
         """
         if data.ndim != 1:
             raise ValueError("Data must be a 1D array of feature values.")
 
-        return np.quantile(data, np.linspace(0, 1, n_thresholds), method="closest_observation")
+        # Get unique sorted values to avoid duplicates from repeated data
+        unique_vals = np.unique(data)
+
+        # Constant feature → no valid split thresholds
+        if len(unique_vals) <= 1:
+            return np.array([])
+
+        # Generate quantiles from unique values
+        quantiles = np.linspace(0, 1, n_thresholds)
+        thresholds = np.quantile(unique_vals, quantiles, method="closest_observation")
+
+        # Deduplicate (quantile can still return duplicates at distribution edges)
+        return np.unique(thresholds)
 
     def count_nodes(self) -> int:
         """Count the total number of nodes in the subtree rooted at this node."""

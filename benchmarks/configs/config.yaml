@@ -5,7 +5,7 @@ defaults:
 
 seed: 1234  # Random seed for splitting, cv and tuning
 n_splits: 10  # Number of CV splits, fold 0 is always used for tuning
-n_trials: 50  # Number of optuna trials per dataset
+n_trials: 30  # Number of optuna trials per dataset
 sample_size: 1000  # Number of samples of predictive distribution to draw for prob. metrics
 
 # Tuning configuration
