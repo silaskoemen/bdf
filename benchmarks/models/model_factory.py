@@ -10,13 +10,12 @@ from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 from .wrappers import (  # BARTRegressor,
     KNNKDE,
-    BARTRegressorWrapper,
+    BARTPyRegressorWrapper,
     BayesianRidgeWrapper,
     CalibratedRFWrapper,
     CatBoostUncertaintyWrapper,
     ConformalizedLGBMWrapper,
     ConformalizedRFWrapper,
-    DeepEnsembleWrapper,
     GaussianDeepEnsembleWrapper,
     GPClassifierWrapper,
     GPRegressorWrapper,
@@ -53,8 +52,6 @@ class ModelFactory:
                 return LGBMQuantileRegressorWrapper
             case "CatBoostUncertaintyRegressor":
                 return CatBoostUncertaintyWrapper
-            case "DeepEnsembleRegressor":
-                return DeepEnsembleWrapper
             case "BayesianRidgeRegressor":
                 return BayesianRidgeWrapper
             case "LogisticRegression":
@@ -73,8 +70,8 @@ class ModelFactory:
                 return CalibratedRFWrapper
             case "RandomForestQuantileRegressor":
                 return RandomForestQuantileRegressor
-            case "BARTRegressor":
-                return BARTRegressorWrapper
+            case "BARTPyRegressor":
+                return BARTPyRegressorWrapper
             case "Treeffuser":
                 return TreeffuserWrapper
             case "KNNKDE":

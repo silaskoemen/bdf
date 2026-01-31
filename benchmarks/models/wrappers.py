@@ -19,7 +19,6 @@ from sklearn.gaussian_process.kernels import Kernel as Ker
 from sklearn.linear_model import BayesianRidge
 from sklearn.model_selection import train_test_split as TTS
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.neural_network import MLPRegressor
 
 # Type alias for prediction type
 PredictionType = Literal["samples", "quantiles"]
@@ -528,56 +527,6 @@ class CatBoostUncertaintyWrapper(CatBoostRegressor):
         return np.random.normal(loc=mean[:, np.newaxis], scale=std[:, np.newaxis], size=(X.shape[0], n_samples))
 
 
-class DeepEnsembleWrapper(BaseEstimator, RegressorMixin):
-    PREDICTION_TYPE: PredictionType = "samples"
-
-    def __init__(self, n_estimators=5, hidden_layers=2, hidden_size=100, random_state=1234, max_iter=200, **kwargs):
-        self.n_estimators = n_estimators
-        self.hidden_layers = hidden_layers
-        self.hidden_size = hidden_size
-        self.hidden_layer_sizes = tuple([self.hidden_size] * self.hidden_layers)
-        self.max_iter = max_iter
-        self.random_state = random_state
-        self.kwargs = {k: v for k, v in kwargs.items() if k != "hidden_layers" and k != "hidden_size"}
-        self.estimators_ = []
-
-    def fit(self, X, y):
-        self.estimators_ = []
-        for i in range(self.n_estimators):
-            # Each MLP gets a different seed
-            est = MLPRegressor(
-                hidden_layer_sizes=self.hidden_layer_sizes,
-                random_state=self.random_state + i,
-                max_iter=self.max_iter,
-                **self.kwargs,
-            )
-            est.fit(X, y)
-            self.estimators_.append(est)
-        return self
-
-    def predict(self, X):
-        # Mean of ensemble predictions
-        preds = np.array([est.predict(X) for est in self.estimators_])
-        return np.mean(preds, axis=0)
-
-    def predict_samples(self, X, n_samples=100):
-        # Sample by randomly selecting an estimator for each sample
-        # Or treat as Mixture of Gaussians with fixed variance (simplified)
-
-        # Approach: Empirical distribution of the ensemble
-        # Shape: (n_estimators, n_obs)
-        preds = np.array([est.predict(X) for est in self.estimators_])
-
-        # Resample from these predictions to get n_samples
-        # Shape: (n_obs, n_samples)
-        indices = np.random.randint(0, self.n_estimators, size=(X.shape[0], n_samples))
-        samples = np.take_along_axis(preds.T, indices, axis=1)
-
-        # Add small aleatoric noise (optional, but helps smoothing)
-        samples += np.random.normal(0, 1e-6, size=samples.shape)
-        return samples
-
-
 class BayesianRidgeWrapper(BayesianRidge):
     PREDICTION_TYPE: PredictionType = "samples"
 
@@ -636,46 +585,6 @@ class QuantileForestWrapper(BaseEstimator, RegressorMixin):
         """Returns shape (n_obs, n_quantiles)"""
         sorted_quantiles = sorted(self.quantiles)
         return self.model_.predict(X, quantiles=sorted_quantiles)  # pyright: ignore[reportOptionalMemberAccess]
-
-
-class ProbabilisticKNNWrapper(KNeighborsRegressor):
-    """
-    Probabilistic KNN: Uses the y-values of the k-nearest neighbors
-    as the empirical predictive distribution.
-    """
-
-    PREDICTION_TYPE: PredictionType = "samples"
-
-    def __init__(self, n_neighbors=50, **kwargs):
-        super().__init__(n_neighbors=n_neighbors, **kwargs)
-        self.y_train_ = None
-
-    def fit(self, X, y):
-        super().fit(X, y)
-        self.y_train_ = np.array(y)
-        return self
-
-    def predict_samples(self, X, n_samples=100):
-        # Find indices of k nearest neighbors
-        # neigh_ind: (n_obs, n_neighbors)
-        neigh_dist, neigh_ind = self.kneighbors(X)
-
-        # Retrieve the y values of these neighbors
-        # shape: (n_obs, n_neighbors)
-        neighbor_values = self.y_train_[neigh_ind]  # pyright: ignore[reportOptionalSubscript]
-
-        # Resample from these neighbors to get exactly n_samples
-        # If n_neighbors > n_samples, we downsample. If <, we upsample (bootstrap).
-
-        idx = np.random.randint(
-            0, self.n_neighbors, size=(X.shape[0], n_samples)  # pyright: ignore[reportAttributeAccessIssue]
-        )
-        samples = np.take_along_axis(neighbor_values, idx, axis=1)
-
-        # Add tiny jitter to avoid identical samples
-        samples += np.random.normal(0, 1e-6, size=samples.shape)
-
-        return samples
 
 
 class KNNKDE(BaseEstimator, RegressorMixin):
@@ -929,126 +838,61 @@ class CalibratedRFWrapper(BaseEstimator, ClassifierMixin):
         return self
 
 
-class BARTRegressorWrapper(BaseEstimator, RegressorMixin):
+class BARTPyRegressorWrapper(BaseEstimator, RegressorMixin):
     """
-    Wrapper around pymc3.pm.BART providing:
-    - fit(X, y): runs MCMC and stores trace
-    - predict(X): posterior predictive mean
-    - predict_samples(X, n_samples): samples from posterior predictive
+    Thin sklearn-compatible wrapper for the external BARTPyRegressor class.
+
+    Stores constructor args verbatim (so sklearn.clone works) and only
+    instantiates the real BARTPyRegressor inside fit(), using a deep-copy of
+    dict-like args to avoid in-place mutations.
     """
 
     PREDICTION_TYPE: PredictionType = "samples"
 
-    def __init__(
-        self,
-        m=50,
-        draws=500,
-        tune=500,
-        chains=2,
-        cores=1,
-        random_state=None,
-        sigma_prior_sd=1.0,
-        bart_alpha=0.95,
-        bart_beta=2.0,
-    ):
-        self.m = m
-        self.draws = draws
-        self.tune = tune
-        self.chains = chains
-        self.cores = cores
-        self.random_state = random_state
-        self.sigma_prior_sd = sigma_prior_sd
-        self.bart_alpha = bart_alpha
-        self.bart_beta = bart_beta
+    def __init__(self, **init_kwargs):
+        self.init_kwargs = dict(init_kwargs)
+        for k, v in self.init_kwargs.items():
+            setattr(self, k, v)
+        self.model_ = None
 
-        # set during fit
-        self._model = None
-        self._trace = None
-        self._X_shared = None
+    def fit(self, X, y, **fit_kwargs):
+        import copy
 
-    def fit(self, X, y):
-        try:
-            import numpy as _np
+        from bartpy.sklearnmodel import SklearnModel
 
-            if not hasattr(_np, "testing") or not hasattr(_np.testing, "Tester"):
-                try:
-                    from numpy.testing._private import (
-                        Tester as _Tester,  # pyright: ignore[reportAttributeAccessIssue] # new NumPy layout
-                    )
-
-                    _np.testing.Tester = _Tester  # pyright: ignore[reportAttributeAccessIssue]
-                except Exception:
-
-                    class Tester:  # fallback no-op minimal shim
-                        def __init__(self, *args, **kwargs):
-                            pass
-
-                        def run(self, *args, **kwargs):
-                            return None
-
-                        def test(self, *args, **kwargs):
-                            return None
-
-                    _np.testing.Tester = Tester  # pyright: ignore[reportAttributeAccessIssue]
-
-            import pymc as pm
-        except Exception as e:
-            raise ImportError("pymc3/theano required for BARTRegressorWrapper") from e
-
-        import pymc_bart as pmb
-
-        warnings.filterwarnings("ignore", category=FutureWarning, message="MutableData is deprecated")
-        X_np = X.values if hasattr(X, "values") else X
-        y_np = y.values if hasattr(y, "values") else y
-        X_np = np.asarray(X_np, dtype=float)
-        y_np = np.asarray(y_np, dtype=float)
-        with pm.Model() as model_oos_regression:
-            self.X_bart = pm.MutableData("X", X_np)
-            Y_bart = y_np
-            mu = pmb.BART("mu", self.X_bart, y_np, m=self.m, alpha=self.bart_alpha, beta=self.bart_beta)
-            sigma = pm.HalfNormal("sigma", sigma=self.sigma_prior_sd)
-            pm.Normal("y_obs", mu=mu, sigma=sigma, observed=Y_bart, shape=mu.shape)
-            idata_oos_regression = pm.sample(
-                self.draws,
-                random_seed=1234,
-                chains=self.chains,
-            )
-            # posterior_predictive_oos_regression_train = pm.sample_posterior_predictive(
-            #     trace=idata_oos_regression, random_seed=1234
-            # )
-        self._model = model_oos_regression
-        self._trace = idata_oos_regression
+        bart_kwargs = copy.deepcopy(self.init_kwargs)
+        self.model_ = SklearnModel(**bart_kwargs)
+        # Assume BARTPyRegressor implements .fit(X, y)
+        self.model_.fit(X, y, **fit_kwargs)
         return self
 
-    def predict_samples(self, X, n_samples: int) -> np.ndarray:
-        if self._model is None:
-            raise RuntimeError("Fit the model before calling predict_samples()")
-        import pymc as pm
+    def predict(self, X):
+        return self.model_.predict(X)  # pyright: ignore[reportOptionalMemberAccess]
 
-        with self._model:
-            self.X_bart.set_value(X)  # pyright: ignore[reportOptionalMemberAccess]
-            pred_samples = pm.sample_posterior_predictive(
-                self._trace, random_seed=1234, predictions=True, var_names=["y_obs"]
-            ).predictions
-        samples = pred_samples["y_obs"].to_numpy()
-        # print(f"Samples are: {samples} or type {type(samples)} and available methods {dir(samples)}")
-        # Has shape [n_chains, n_draws, n_obs], need to reshape to (n_obs, n_samples)
-        n_chains, n_draws, n_obs = samples.shape
-        samples = samples.reshape(-1, n_obs)  # shape (n_chains * n_draws, n_obs)
-        if samples.shape[0] > n_samples:
-            # Downsample
-            indices = np.random.choice(samples.shape[0], size=n_samples, replace=False)
-            samples = samples[indices]
-        elif samples.shape[0] < n_samples:
-            # Upsample with replacement
-            indices = np.random.choice(samples.shape[0], size=n_samples, replace=True)
-            samples = samples[indices]
-        return samples.T  # shape (n_obs, n_samples)
+    def predict_samples(self, X, n_samples=100):
+        """Generally NOT implemented in BARTPy; access internals directly."""
+        # unnormalize_y expects a numpy array, not a list
+        preds = np.array([x.predict(X) for x in self.model_._model_samples])  # (n_model_samples, n_obs)
+        arr = self.model_.data.y.unnormalize_y(
+            preds
+        ).T  # (n_obs, n_model_samples)  # pyright: ignore[reportOptionalMemberAccess]
+        # Could be less or more samples depending on 'fit' samples
+        # If more, downsample, if less, upsample with replacement
+        if arr.shape[1] >= n_samples:
+            return arr[:, :n_samples]
+        else:
+            rng = np.random.default_rng()
+            indices = rng.choice(arr.shape[1], size=n_samples, replace=True)
+            return arr[:, indices]
 
-    def predict(self, X) -> np.ndarray:
-        # use modest number of predictive samples and return posterior mean
-        samples = self.predict_samples(X, n_samples=200)
-        return np.mean(samples, axis=1)
+    def get_params(self, deep=True):
+        return dict(self.init_kwargs)
+
+    def set_params(self, **params):
+        self.init_kwargs.update(params)
+        for k, v in params.items():
+            setattr(self, k, v)
+        return self
 
 
 class TreeffuserWrapper(BaseEstimator, RegressorMixin):

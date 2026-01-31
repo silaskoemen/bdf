@@ -1,0 +1,135 @@
+datasets:
+  abalone_age:
+    best_params:
+      alpha: 0.8929173669921594
+      beta: 3.853487737892968
+      n_burn: 401
+      n_samples: 404
+      n_trees: 46
+      p_grow: 0.31807408422611333
+      p_prune: 0.32117140411447737
+      sigma_a: 0.006258876833294336
+      sigma_b: 0.004433504616170434
+    metadata:
+      n_features: 9
+      n_samples: 4177
+      name: abalone_age
+      target_domain: positive_integer
+    metrics:
+      ci_width_50: []
+      ci_width_90: []
+      coverage_curve:
+        empirical: {}
+        levels: []
+      crps: []
+      dawid_sebastiani_score: []
+      interval_score_50: []
+      interval_score_90: []
+      interval_score_95: []
+      mae: []
+      mse: []
+      pica: []
+      pit_histogram:
+        bin_counts: []
+        n_bins: 0
+        n_samples: 0
+      pit_ks_statistic: []
+      r2: []
+      rmse: []
+      sharpness: []
+      weighted_interval_score: []
+    tuning_time_seconds: 0.9441499710083008
+  bike_sharing:
+    best_params:
+      alpha: 0.8929173669921594
+      beta: 3.853487737892968
+      n_burn: 401
+      n_samples: 404
+      n_trees: 46
+      p_grow: 0.31807408422611333
+      p_prune: 0.32117140411447737
+      sigma_a: 0.006258876833294336
+      sigma_b: 0.004433504616170434
+    metadata:
+      n_features: 12
+      n_samples: 17379
+      name: bike_sharing
+      target_domain: positive_integer
+    metrics:
+      ci_width_50: []
+      ci_width_90: []
+      coverage_curve:
+        empirical: {}
+        levels: []
+      crps: []
+      dawid_sebastiani_score: []
+      interval_score_50: []
+      interval_score_90: []
+      interval_score_95: []
+      mae: []
+      mse: []
+      pica: []
+      pit_histogram:
+        bin_counts: []
+        n_bins: 0
+        n_samples: 0
+      pit_ks_statistic: []
+      r2: []
+      rmse: []
+      sharpness: []
+      weighted_interval_score: []
+    tuning_time_seconds: 0.9686040878295898
+metadata:
+  git_commit: eec47cb204ee6f4bdbaa9e66533e51c5b944b998
+  git_dirty: true
+  timestamp: '2026-01-31T15:34:02.200779+00:00'
+model_config:
+  class_name: BARTPyRegressor
+  compatible_target_domains:
+  - real
+  - positive_real
+  - nonnegative_real
+  - integer
+  - nonnegative_integer
+  - positive_integer
+  fixed_init_kwargs: {}
+  name: bartpy
+  probabilistic: true
+  target_type: regression
+  tunable_init_kwargs:
+    alpha:
+      high: 0.99
+      low: 0.5
+      type: float
+    beta:
+      high: 4.0
+      low: 0.5
+      type: float
+    n_burn:
+      high: 500
+      low: 50
+      type: int
+    n_samples:
+      high: 500
+      low: 50
+      type: int
+    n_trees:
+      high: 200
+      low: 10
+      type: int
+    p_grow:
+      high: 0.9
+      low: 0.1
+      type: float
+    p_prune:
+      high: 0.9
+      low: 0.1
+      type: float
+    sigma_a:
+      high: 0.01
+      low: 0.0001
+      type: float
+    sigma_b:
+      high: 0.01
+      low: 0.0001
+      type: float

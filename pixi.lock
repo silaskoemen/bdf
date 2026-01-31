@@ -336,6 +336,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
       - pypi: https://files.pythonhosted.org/packages/8f/aa/ba0014cc4659328dc818a28827be78e6d97312ab0cb98105a770924dc11e/absl_py-2.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f8/3b/821e761f0396f68ab1adfce343dcfdb19838bfa051cc38d1923ef282e1ec/arviz-0.23.0-py3-none-any.whl
+      - pypi: git+https://github.com/JakeColtman/bartpy.git#09e409e91dd1b9d44784c788c2d731dafb181eb0
       - pypi: https://files.pythonhosted.org/packages/2c/fc/1d7b80d0eb7b714984ce40efc78859c022cd930e402f599d8ca9e39c78a4/cachetools-6.2.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/88/39/799be3f2f0f38cc727ee3b4f1445fe6d5e4133064ec2e4115069418a5bb6/cloudpickle-3.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a5/9f/bffa3362895e5437d9d12e3bbd242f86d91af1d7cd26f6e14ebb6376581b/cons-0.4.7-py3-none-any.whl
@@ -375,6 +376,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/6c/a8/73851a2ffe3fae70b4b36d8060f1b69c1ceea3bf643ba0a63a923f8efc7d/pymc-5.19.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0c/68/9317f580d73718fe03823a8221d71f093266e4fb284423e8d0c8ceb52653/pymc_bart-0.9.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/63/3e/bde106034102e30bd8aeeca91b0b219eb46afec5ee98c4b1d41324cb0902/pytensor-2.26.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/46/1c/395a83ee7b2d2ad7a05b453872053d41449564477c81dc356f720b16eac4/sklearn-0.0.post12.tar.gz
       - pypi: https://files.pythonhosted.org/packages/a2/09/77d55d46fd61b4a135c444fc97158ef34a095e5681d0a6c10b75bf356191/sympy-1.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/12/5911ae3eeec47800503a238d971e51722ccea5feb8569b735184d5fcdbc0/toolz-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ae/30/a3a2120621bf9c17779b169fc17e3dc29b230c29d0f8222f499f5e159aa8/torch-2.10.0-cp311-cp311-manylinux_2_28_x86_64.whl
@@ -654,6 +656,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
       - pypi: https://files.pythonhosted.org/packages/8f/aa/ba0014cc4659328dc818a28827be78e6d97312ab0cb98105a770924dc11e/absl_py-2.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f8/3b/821e761f0396f68ab1adfce343dcfdb19838bfa051cc38d1923ef282e1ec/arviz-0.23.0-py3-none-any.whl
+      - pypi: git+https://github.com/JakeColtman/bartpy.git#09e409e91dd1b9d44784c788c2d731dafb181eb0
       - pypi: https://files.pythonhosted.org/packages/2c/fc/1d7b80d0eb7b714984ce40efc78859c022cd930e402f599d8ca9e39c78a4/cachetools-6.2.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/88/39/799be3f2f0f38cc727ee3b4f1445fe6d5e4133064ec2e4115069418a5bb6/cloudpickle-3.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a5/9f/bffa3362895e5437d9d12e3bbd242f86d91af1d7cd26f6e14ebb6376581b/cons-0.4.7-py3-none-any.whl
@@ -676,6 +679,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/6c/a8/73851a2ffe3fae70b4b36d8060f1b69c1ceea3bf643ba0a63a923f8efc7d/pymc-5.19.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0c/68/9317f580d73718fe03823a8221d71f093266e4fb284423e8d0c8ceb52653/pymc_bart-0.9.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/74/1a/34f74b5c35f16e3bea042494d9ffce3c6cad940ba94829047b164310b65f/pytensor-2.26.4-py2.py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/46/1c/395a83ee7b2d2ad7a05b453872053d41449564477c81dc356f720b16eac4/sklearn-0.0.post12.tar.gz
       - pypi: https://files.pythonhosted.org/packages/a2/09/77d55d46fd61b4a135c444fc97158ef34a095e5681d0a6c10b75bf356191/sympy-1.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/12/5911ae3eeec47800503a238d971e51722ccea5feb8569b735184d5fcdbc0/toolz-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/61/d8/15b9d9d3a6b0c01b883787bd056acbe5cc321090d4b216d3ea89a8fcfdf3/torch-2.10.0-cp311-none-macosx_11_0_arm64.whl
@@ -962,6 +966,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/zstd-1.5.7-h534d264_6.conda
       - pypi: https://files.pythonhosted.org/packages/8f/aa/ba0014cc4659328dc818a28827be78e6d97312ab0cb98105a770924dc11e/absl_py-2.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f8/3b/821e761f0396f68ab1adfce343dcfdb19838bfa051cc38d1923ef282e1ec/arviz-0.23.0-py3-none-any.whl
+      - pypi: git+https://github.com/JakeColtman/bartpy.git#09e409e91dd1b9d44784c788c2d731dafb181eb0
       - pypi: https://files.pythonhosted.org/packages/2c/fc/1d7b80d0eb7b714984ce40efc78859c022cd930e402f599d8ca9e39c78a4/cachetools-6.2.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/88/39/799be3f2f0f38cc727ee3b4f1445fe6d5e4133064ec2e4115069418a5bb6/cloudpickle-3.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a5/9f/bffa3362895e5437d9d12e3bbd242f86d91af1d7cd26f6e14ebb6376581b/cons-0.4.7-py3-none-any.whl
@@ -984,6 +989,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/6c/a8/73851a2ffe3fae70b4b36d8060f1b69c1ceea3bf643ba0a63a923f8efc7d/pymc-5.19.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0c/68/9317f580d73718fe03823a8221d71f093266e4fb284423e8d0c8ceb52653/pymc_bart-0.9.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0d/aa/32fcdd927bf0395e6ff732e5f6578b5f847ee6705fc6947e17556eec3a03/pytensor-2.26.4-cp311-cp311-win_amd64.whl
+      - pypi: https://files.pythonhosted.org/packages/46/1c/395a83ee7b2d2ad7a05b453872053d41449564477c81dc356f720b16eac4/sklearn-0.0.post12.tar.gz
       - pypi: https://files.pythonhosted.org/packages/a2/09/77d55d46fd61b4a135c444fc97158ef34a095e5681d0a6c10b75bf356191/sympy-1.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/12/5911ae3eeec47800503a238d971e51722ccea5feb8569b735184d5fcdbc0/toolz-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6f/3d/c87b33c5f260a2a8ad68da7147e105f05868c281c63d65ed85aa4da98c66/torch-2.10.0-cp311-cp311-win_amd64.whl
@@ -3804,6 +3810,19 @@ packages:
   license: BSD-3-Clause AND MIT AND EPL-2.0
   size: 236911
   timestamp: 1765057699400
+- pypi: git+https://github.com/JakeColtman/bartpy.git#09e409e91dd1b9d44784c788c2d731dafb181eb0
+  name: bartpy
+  version: 0.0.2
+  requires_dist:
+  - joblib
+  - matplotlib
+  - numpy
+  - pandas
+  - scipy
+  - seaborn
+  - sklearn
+  - statsmodels
+  - tqdm
 - conda: https://conda.anaconda.org/conda-forge/noarch/beautifulsoup4-4.14.3-pyha770c72_0.conda
   sha256: bf1e71c3c0a5b024e44ff928225a0874fc3c3356ec1a0b6fe719108e6d1288f6
   md5: 5267bef8efea4127aacd1f4e1f149b6e
@@ -13348,6 +13367,10 @@ packages:
   - pkg:pypi/six?source=hash-mapping
   size: 18455
   timestamp: 1753199211006
+- pypi: https://files.pythonhosted.org/packages/46/1c/395a83ee7b2d2ad7a05b453872053d41449564477c81dc356f720b16eac4/sklearn-0.0.post12.tar.gz
+  name: sklearn
+  version: 0.0.post12
+  sha256: 54cff9e20839b7b202321178228af4d9388bedf78425d9299fd9ee170d68802e
 - conda: https://conda.anaconda.org/conda-forge/noarch/sniffio-1.3.1-pyhd8ed1ab_2.conda
   sha256: dce518f45e24cd03f401cb0616917773159a210c19d601c5f2d4e0e5879d30ad
   md5: 03fe290994c5e4ec17293cfb6bdce520
