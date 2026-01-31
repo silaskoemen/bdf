@@ -450,6 +450,8 @@ class CustomOrchestrator(BaseOrchestrator):
                 "timestamp": timestamp,
                 "git_commit": git_commit,
                 "git_dirty": git_dirty,
+                "seed": self.cfg.seed,
+                "n_splits": self.cfg.n_splits,
             },
             "datasets": {},
         }
@@ -552,7 +554,7 @@ class CustomOrchestrator(BaseOrchestrator):
             else:
                 logger.warning(f"No fold metrics computed for task {metadata.name}")
             if fit_times:
-                results["datasets"][metadata.name]["fitting_time"] = float(np.mean(fit_times))
+                results["datasets"][metadata.name]["fitting_times"] = [float(t) for t in fit_times]
             # Save intermediate results
             self._save_results(results)
 
@@ -707,6 +709,11 @@ class CustomOrchestrator(BaseOrchestrator):
 
         logger.info(f"🏆 Best params for {metadata.name}: tuned_init_kwargs={tuned_init_kwargs}")
         results["datasets"][metadata.name]["best_params"] = study.best_params
+        results["datasets"][metadata.name]["tuning"] = {
+            "best_value": float(study.best_value),
+            "metric": getattr(self.cfg, "tuning_metric", "mse"),
+            "n_trials": self.cfg.n_trials,
+        }
         return results, tuned_init_kwargs
 
     def _save_results(self, results):

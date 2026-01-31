@@ -29,7 +29,12 @@ from sklearn.model_selection import KFold
 from tqdm import tqdm
 
 from bdf.tree_classes.bdf_regressor import BDFRegressor
-from benchmarks.metrics.regression import REG_POINT_METRICS, REG_PROB_METRICS, precompute_percentiles
+from benchmarks.metrics.regression import (
+    REG_POINT_METRICS,
+    REG_PROB_METRICS,
+    coverage_at_level,
+    precompute_percentiles,
+)
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -56,7 +61,9 @@ DATASET_GENERATORS: dict[str, Callable] = {
 
 # Metrics to track
 POINT_METRICS = ["rmse", "mae", "r2"]
-PROB_METRICS = ["crps", "coverage_90", "interval_score_90", "pica"]
+PROB_METRICS = ["crps", "interval_score_90", "pica"]
+# Coverage metrics computed separately via coverage_at_level
+COVERAGE_LEVELS = [0.50, 0.90, 0.95]
 
 # BDF configuration (hyperparameters to tune, excluding n_trees)
 TUNABLE_INIT_KWARGS = {
@@ -219,10 +226,20 @@ def compute_metrics(
                     )
                 except TypeError:
                     metrics[metric_name] = float(metric_spec.func(y_test, y_pred_samples))
+
+        # Coverage metrics at specific levels
+        for level in COVERAGE_LEVELS:
+            level_pct = int(level * 100)
+            metrics[f"coverage_{level_pct}"] = float(
+                coverage_at_level(y_test, y_pred_samples, level=level, precomputed=precomputed)
+            )
     except Exception as e:
         logger.warning(f"Failed to compute probabilistic metrics: {e}")
         for metric_name in PROB_METRICS:
             metrics[metric_name] = float("nan")
+        for level in COVERAGE_LEVELS:
+            level_pct = int(level * 100)
+            metrics[f"coverage_{level_pct}"] = float("nan")
 
     return metrics
 
@@ -486,6 +503,10 @@ def generate_all_plots(results: dict[str, Any]):
 
     # Plot for each metric
     all_metrics = POINT_METRICS + PROB_METRICS
+    # Add coverage metrics
+    coverage_metrics = [f"coverage_{int(level * 100)}" for level in COVERAGE_LEVELS]
+    all_metrics = all_metrics + coverage_metrics
+
     for metric in all_metrics:
         plot_metric_vs_n_trees(results, metric)
 

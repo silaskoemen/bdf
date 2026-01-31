@@ -120,9 +120,11 @@ All plots are 2x2 grids (one subplot per DGP) with n_trees on x-axis (log scale)
 | `mae_vs_n_trees.png` | MAE | ± 1 std |
 | `r2_vs_n_trees.png` | R² | ± 1 std |
 | `crps_vs_n_trees.png` | CRPS | ± 1 std |
-| `coverage_90_vs_n_trees.png` | Coverage@90% | ± 1 std |
 | `interval_score_90_vs_n_trees.png` | Interval Score@90% | ± 1 std |
 | `pica_vs_n_trees.png` | PICA | ± 1 std |
+| `coverage_50_vs_n_trees.png` | Coverage@50% | ± 1 std |
+| `coverage_90_vs_n_trees.png` | Coverage@90% | ± 1 std |
+| `coverage_95_vs_n_trees.png` | Coverage@95% | ± 1 std |
 | `fit_time_vs_n_trees.png` | Fit Time (s) | ± 1 std (log-log scale) |
 
 ## Expected Patterns
@@ -133,7 +135,7 @@ All plots are 2x2 grids (one subplot per DGP) with n_trees on x-axis (log scale)
 - **Convergence**: Minimal change 100 → 200 trees
 
 ### Calibration Metrics (Coverage, PICA)
-- Coverage should stabilize near nominal level (0.90) as n_trees increases
+- Coverage should stabilize near nominal levels (0.50, 0.90, 0.95) as n_trees increases
 - PICA should decrease (better calibration) with more trees
 
 ### Fit Time

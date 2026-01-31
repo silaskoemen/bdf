@@ -240,13 +240,17 @@ fixed_params:
 
 #### Probabilistic Metrics
 - **CRPS**: Continuous Ranked Probability Score (lower is better)
-- **NLL**: Negative Log-Likelihood
-- **Quantile Loss**: Average pinball loss across quantiles [5%, 10%, 25%, 50%, 75%, 90%, 95%]
-- **Interval Score**: Proper scoring rule for prediction intervals
-- **Coverage**: Empirical coverage for 50%, 90%, 95% prediction intervals
-- **Sharpness**: Average width of prediction intervals
+- **Interval Score**: Proper scoring rule for prediction intervals (50%, 90%, 95%)
+- **Weighted Interval Score**: Combined interval score across multiple levels
+- **Sharpness**: Average standard deviation of predictive distributions
+- **CI Width**: Average width of prediction intervals (50%, 90%)
 - **PICA**: Prediction Interval Coverage Average
 - **PIT KS Statistic**: Kolmogorov-Smirnov test for calibration
+- **Dawid-Sebastiani Score**: Proper scoring rule based on mean and variance
+
+#### Calibration Metrics (dict-valued, for plotting)
+- **Coverage Curve**: Empirical vs nominal coverage at levels [10%, 20%, ..., 90%, 95%, 99%]
+- **PIT Histogram**: Probability Integral Transform histogram for calibration assessment
 
 ### Classification Metrics
 
@@ -302,9 +306,21 @@ Results are saved to `benchmarks/results/` with the following structure:
         },
         "probabilistic_metrics": {
           "crps": 1.8,
-          "coverage_90": 0.91,
-          "sharpness": 7.2,
+          "pica": 0.03,
+          "interval_score_90": 5.2,
+          "sharpness": 2.1,
           ...
+        },
+        "calibration_metrics": {
+          "coverage_curve": {
+            "levels": [0.1, 0.2, ..., 0.9, 0.95, 0.99],
+            "empirical": [0.11, 0.19, ..., 0.88, 0.94, 0.98]
+          },
+          "pit_histogram": {
+            "bin_counts": [12, 15, 11, ...],
+            "n_bins": 20,
+            "n_samples": 200
+          }
         }
       },
       ...
@@ -312,6 +328,13 @@ Results are saved to `benchmarks/results/` with the following structure:
     "aggregated_metrics": {
       "mse": {"mean": 15.5, "std": 1.2, "values": [...]},
       "crps": {"mean": 1.9, "std": 0.2, "values": [...]},
+      "coverage_curve": {
+        "levels": [0.1, 0.2, ..., 0.9, 0.95, 0.99],
+        "empirical": {
+          "0.5": [0.48, 0.51, ...],
+          "0.9": [0.88, 0.91, ...]
+        }
+      },
       ...
     }
   }
@@ -478,9 +501,54 @@ If you use this benchmark in your research, please cite:
 }
 ```
 
+## Statistical Considerations
+
+### Limitations of 9-Fold Evaluation
+
+The benchmark uses 10-fold CV with fold 0 reserved for hyperparameter tuning and folds 1-9 for evaluation. This provides **9 evaluation points per configuration**, which has statistical implications:
+
+| What We Can Report | What We Cannot Claim |
+|--------------------|---------------------|
+| Mean metric values | Proper 95% confidence intervals |
+| Standard error (SE = σ/√9) | Statistical significance at α=0.05 |
+| Rough variance estimates | Effect sizes with tight bounds |
+
+**Why this matters:** With only 9 observations, a t-distribution 95% CI requires t₀.₉₇₅,₈ ≈ 2.31, resulting in very wide intervals (±2.31 × SE). These intervals are often wider than meaningful differences between methods.
+
+### Recommended Reporting
+
+For honest reporting from the main benchmark:
+
+```
+CRPS: 1.82 ± 0.15 (mean ± SE, 9-fold CV)
+```
+
+**Do not claim** "95% CI" unless you have substantially more samples.
+
+### For Rigorous Statistical Claims
+
+The **[Scoring Method Study](./SCORING_METHOD_STUDY.md)** provides proper statistical rigor with:
+- **20 seeds** for core experiments (sufficient for Friedman test at α=0.05)
+- **Friedman test** with Nemenyi post-hoc for multiple comparisons
+- **Wilcoxon signed-rank** tests for pairwise comparisons
+- **Cliff's delta** effect sizes with standard interpretation
+
+Use the scoring method study for formal hypothesis testing about NLE vs NLL scoring. Use the main benchmark for practical model comparison and selection.
+
+### Post-Hoc Analysis
+
+The following can be computed post-hoc from saved per-fold values (no need to re-run experiments):
+- Bonferroni-corrected p-values
+- Effect sizes (Cohen's d, Cliff's delta)
+- Critical difference diagrams
+- Win/tie/loss tables
+
+Per-fold metric values, fitting times, and tuning information are preserved in the JSON output for downstream analysis.
+
 ## See Also
 
 - [Synthetic DGP Benchmark](./SYNTHETIC_BENCHMARK.md) - Ground truth validation
+- [Scoring Method Study](./SCORING_METHOD_STUDY.md) - Statistical comparison of NLE vs NLL scoring
 - [Model Development Guide](../../CONTRIBUTING.md) - Adding new models
 - [Hydra Documentation](https://hydra.cc/) - Configuration system
 - [Optuna Documentation](https://optuna.org/) - Hyperparameter optimization

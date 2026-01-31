@@ -47,7 +47,7 @@ jobs:
         run: pixi run -e test build-rust
 
       - name: Run Tests
-        run: pixi run -e test test -- -v
+        run: pixi run test
 
   docs:
     runs-on: ubuntu-latest

@@ -42,7 +42,7 @@ from sklearn.model_selection import KFold
 from tqdm import tqdm
 
 from benchmarks.metrics.regression import (
-    coverage_90,
+    coverage_at_level,
     crps_wrapper,
     interval_score_samples,
     pica,
@@ -501,7 +501,7 @@ def compute_metrics_by_region(
 
                 # Coverage at 90%
                 region_metrics["coverage_90"] = float(
-                    coverage_90(y_t, y_s, quantile_levels=None, precomputed=precomputed)
+                    coverage_at_level(y_t, y_s, level=0.90, quantile_levels=None, precomputed=precomputed)
                 )
                 lower = np.percentile(y_s, 5, axis=1)
                 upper = np.percentile(y_s, 95, axis=1)

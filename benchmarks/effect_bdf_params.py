@@ -50,6 +50,7 @@ from benchmarks.metrics.classification import CLAS_POINT_METRICS
 from benchmarks.metrics.regression import (
     REG_POINT_METRICS,
     REG_PROB_METRICS,
+    coverage_at_level,
     precompute_percentiles,
 )
 
@@ -161,7 +162,9 @@ DGPS = REGRESSION_DGPS
 
 # Regression metrics
 REG_POINT_METRIC_NAMES = ["rmse", "mae"]
-REG_PROB_METRIC_NAMES = ["crps", "coverage_90", "interval_score_90"]
+REG_PROB_METRIC_NAMES = ["crps", "interval_score_90"]
+# Coverage metrics computed separately via coverage_at_level
+REG_COVERAGE_LEVELS = [0.50, 0.90, 0.95]
 REG_PRIMARY_METRIC = "crps"
 
 # Classification metrics (all are "point" metrics - operate on probabilities)
@@ -328,10 +331,20 @@ def compute_metrics(
                 except TypeError:
                     # Some metrics don't take precomputed
                     metrics[metric_name] = float(metric_spec.func(y_test, y_pred_samples))
+
+        # Coverage metrics at specific levels
+        for level in REG_COVERAGE_LEVELS:
+            level_pct = int(level * 100)
+            metrics[f"coverage_{level_pct}"] = float(
+                coverage_at_level(y_test, y_pred_samples, level=level, precomputed=precomputed)
+            )
     except Exception as e:
         logger.warning(f"Failed to compute probabilistic metrics: {e}")
         for metric_name in PROB_METRICS:
             metrics[metric_name] = float("nan")
+        for level in REG_COVERAGE_LEVELS:
+            level_pct = int(level * 100)
+            metrics[f"coverage_{level_pct}"] = float("nan")
 
     return metrics
 
@@ -1173,7 +1186,7 @@ def generate_all_plots(all_results: dict[str, AblationResults]):
     )
 
     # Additional plots for other metrics
-    for metric in ["rmse", "coverage_90"]:
+    for metric in ["rmse", "coverage_50", "coverage_90", "coverage_95"]:
         plot_combined_sensitivity(
             all_results,
             metric=metric,
