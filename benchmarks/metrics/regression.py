@@ -419,103 +419,124 @@ def pica(
     return total_deviation / n_levels
 
 
-def coverage_90(
+def coverage_at_level(
     y_true: np.ndarray,
     y_pred: np.ndarray,
+    level: float,
     quantile_levels: np.ndarray | None = None,
     precomputed: dict[float, np.ndarray] | None = None,
 ) -> float:
-    """Compute the 90% prediction interval coverage.
+    """Compute prediction interval coverage at a specific level.
 
-    Works with both samples and quantiles. For quantiles, requires levels 0.05 and 0.95.
+    Args:
+        y_true: True target values
+        y_pred: Predictions (samples or quantiles)
+        level: Coverage level (e.g., 0.90 for 90% interval)
+        quantile_levels: Quantile levels if y_pred contains quantiles
+        precomputed: Pre-computed percentiles from samples
+
+    Returns:
+        Empirical coverage (fraction of y_true within the interval)
     """
+    alpha = 1.0 - level
+    lower_q = alpha / 2.0
+    upper_q = 1.0 - alpha / 2.0
+
     if quantile_levels is not None:
-        # Check if required quantiles are present
-        if not has_required_quantiles(quantile_levels, [0.05, 0.95]):
-            logger.warning("coverage_90 skipped: quantiles 0.05 and 0.95 not present in model predictions")
+        if not has_required_quantiles(quantile_levels, [lower_q, upper_q]):
             return float("nan")
-        # Quantile-based calculation - direct indexing
-        lower_idx = get_quantile_index(quantile_levels, 0.05)
-        upper_idx = get_quantile_index(quantile_levels, 0.95)
+        lower_idx = get_quantile_index(quantile_levels, lower_q)
+        upper_idx = get_quantile_index(quantile_levels, upper_q)
         lower_bound = y_pred[:, lower_idx]
         upper_bound = y_pred[:, upper_idx]
     else:
-        # Sample-based calculation - use pre-computed if available
-        if precomputed and 5.0 in precomputed and 95.0 in precomputed:
-            lower_bound = precomputed[5.0]
-            upper_bound = precomputed[95.0]
+        lower_p = lower_q * 100
+        upper_p = upper_q * 100
+        if precomputed and lower_p in precomputed and upper_p in precomputed:
+            lower_bound = precomputed[lower_p]
+            upper_bound = precomputed[upper_p]
         else:
-            lower_bound = np.percentile(y_pred, 5, axis=1)
-            upper_bound = np.percentile(y_pred, 95, axis=1)
+            lower_bound = np.percentile(y_pred, lower_p, axis=1)
+            upper_bound = np.percentile(y_pred, upper_p, axis=1)
 
     coverage = np.mean((y_true >= lower_bound) & (y_true <= upper_bound))
     return float(coverage)
 
 
-def coverage_50(
+def coverage_curve(
     y_true: np.ndarray,
     y_pred: np.ndarray,
+    levels: list[float] | None = None,
     quantile_levels: np.ndarray | None = None,
     precomputed: dict[float, np.ndarray] | None = None,
-) -> float:
-    """Compute the 50% prediction interval coverage.
+) -> dict:
+    """Compute coverage at multiple levels for reliability diagrams.
 
-    Works with both samples and quantiles. For quantiles, requires levels 0.25 and 0.75.
+    Args:
+        y_true: True target values
+        y_pred: Predictions (samples or quantiles)
+        levels: Coverage levels to compute (default: standard set)
+        quantile_levels: Quantile levels if y_pred contains quantiles
+        precomputed: Pre-computed percentiles from samples
+
+    Returns:
+        dict with keys:
+            - levels: list of nominal coverage levels
+            - empirical: list of empirical coverage values
     """
-    if quantile_levels is not None:
-        # Check if required quantiles are present
-        if not has_required_quantiles(quantile_levels, [0.25, 0.75]):
-            logger.warning("coverage_50 skipped: quantiles 0.25 and 0.75 not present in model predictions")
-            return float("nan")
-        # Quantile-based calculation - direct indexing
-        lower_idx = get_quantile_index(quantile_levels, 0.25)
-        upper_idx = get_quantile_index(quantile_levels, 0.75)
-        lower_bound = y_pred[:, lower_idx]
-        upper_bound = y_pred[:, upper_idx]
-    else:
-        # Sample-based calculation - use pre-computed if available
-        if precomputed and 25.0 in precomputed and 75.0 in precomputed:
-            lower_bound = precomputed[25.0]
-            upper_bound = precomputed[75.0]
-        else:
-            lower_bound = np.percentile(y_pred, 25, axis=1)
-            upper_bound = np.percentile(y_pred, 75, axis=1)
+    if levels is None:
+        levels = [0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95, 0.99]
 
-    coverage = np.mean((y_true >= lower_bound) & (y_true <= upper_bound))
-    return float(coverage)
+    empirical = []
+    for level in levels:
+        cov = coverage_at_level(y_true, y_pred, level, quantile_levels, precomputed)
+        empirical.append(cov)
+
+    return {
+        "levels": levels,
+        "empirical": empirical,
+    }
 
 
-def coverage_95(
+def pit_histogram(
     y_true: np.ndarray,
     y_pred: np.ndarray,
+    n_bins: int = 20,
     quantile_levels: np.ndarray | None = None,
     precomputed: dict[float, np.ndarray] | None = None,
-) -> float:
-    """Compute the 95% prediction interval coverage.
+) -> dict:
+    """Compute PIT histogram bin counts for calibration assessment.
 
-    Works with both samples and quantiles. For quantiles, requires levels 0.025 and 0.975.
+    The Probability Integral Transform (PIT) values should be uniform if
+    the predictive distribution is well-calibrated.
+
+    Note: Only works with samples, not quantiles.
+
+    Args:
+        y_true: True target values
+        y_pred: Sample predictions of shape (n_obs, n_samples)
+        n_bins: Number of histogram bins
+        quantile_levels: Ignored (included for API consistency)
+        precomputed: Ignored (included for API consistency)
+
+    Returns:
+        dict with keys:
+            - bin_counts: list of counts per bin
+            - n_bins: number of bins
+            - n_samples: total number of observations
     """
-    if quantile_levels is not None:
-        # Check if required quantiles are present
-        if not has_required_quantiles(quantile_levels, [0.025, 0.975]):
-            logger.warning("coverage_95 skipped: quantiles 0.025 and 0.975 not present in model predictions")
-            return float("nan")
-        # Quantile-based calculation - direct indexing
-        lower_idx = get_quantile_index(quantile_levels, 0.025)
-        upper_idx = get_quantile_index(quantile_levels, 0.975)
-        lower_bound = y_pred[:, lower_idx]
-        upper_bound = y_pred[:, upper_idx]
-    else:
-        # Sample-based calculation - use pre-computed if available
-        if precomputed and 2.5 in precomputed and 97.5 in precomputed:
-            lower_bound = precomputed[2.5]
-            upper_bound = precomputed[97.5]
-        else:
-            lower_bound = np.percentile(y_pred, 2.5, axis=1)
-            upper_bound = np.percentile(y_pred, 97.5, axis=1)
+    # Compute PIT values: fraction of samples <= true value
+    y_true = np.asarray(y_true)
+    pit_values = np.mean(y_pred <= y_true[:, None], axis=1)
 
-    coverage = np.mean((y_true >= lower_bound) & (y_true <= upper_bound))
-    return float(coverage)
+    # Compute histogram
+    bin_counts, _ = np.histogram(pit_values, bins=n_bins, range=(0.0, 1.0))
+
+    return {
+        "bin_counts": bin_counts.tolist(),
+        "n_bins": n_bins,
+        "n_samples": len(y_true),
+    }
 
 
 # TODO: Return underpred/overpred/spread to plot decomposition
@@ -644,19 +665,6 @@ REG_PROB_METRICS = {
         func=pica,
         accepts=("samples", "quantiles"),
     ),
-    # COVERAGES
-    "coverage_50": MetricSpec(
-        func=coverage_50,
-        accepts=("samples", "quantiles"),
-    ),
-    "coverage_90": MetricSpec(
-        func=coverage_90,
-        accepts=("samples", "quantiles"),
-    ),
-    "coverage_95": MetricSpec(
-        func=coverage_95,
-        accepts=("samples", "quantiles"),
-    ),
     # INTERVAL SCORES
     "interval_score_50": MetricSpec(
         func=lambda y_true, y_pred, quantile_levels=None, precomputed=None: np.mean(
@@ -731,6 +739,18 @@ REG_PROB_METRICS = {
     # ),
     "dawid_sebastiani_score": MetricSpec(
         func=dawid_sebastiani_score,
+        accepts=("samples",),
+    ),
+}
+
+# Dict-returning metrics for calibration plots (not scalar, need special aggregation)
+REG_CALIBRATION_METRICS = {
+    "coverage_curve": MetricSpec(
+        func=coverage_curve,
+        accepts=("samples", "quantiles"),
+    ),
+    "pit_histogram": MetricSpec(
+        func=pit_histogram,
         accepts=("samples",),
     ),
 }

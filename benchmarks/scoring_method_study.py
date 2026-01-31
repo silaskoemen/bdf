@@ -1,4 +1,4 @@
-"""Scoring Method Ablation Study.
+"""Scoring Method Ablation Study for JMLR Submission.
 
 Dedicated study investigating when NLE (Bayesian marginal likelihood) outperforms
 NLL-based scoring for tree split selection in BDF.
@@ -7,17 +7,23 @@ Key research question:
 "Under what conditions does NLE outperform NLL-based scoring, and by how much?"
 
 Hypotheses:
-1. NLE dominates at small n (n ≤ 250)
+1. NLE dominates at small n (n ≤ 500)
 2. NLE and NLL converge at large n (n ≥ 1000)
 3. NLE provides better calibration (lower ECE)
 4. NLE is more robust to noise
 5. NLE handles class imbalance better
 
 Usage:
-    pixi run python benchmarks/scoring_method_study.py              # Both tasks
+    pixi run python benchmarks/scoring_method_study.py              # Full study
     pixi run python benchmarks/scoring_method_study.py regression   # Regression only
     pixi run python benchmarks/scoring_method_study.py classification  # Classification only
     pixi run python benchmarks/scoring_method_study.py --quick      # Quick test run
+    pixi run python benchmarks/scoring_method_study.py --core       # Core experiments only
+    pixi run python benchmarks/scoring_method_study.py --robustness # Robustness experiments only
+    pixi run python benchmarks/scoring_method_study.py --real-data  # Real data experiments only
+
+Note: LOO-CV (nll_loo) is excluded because Rust implementation is O(n²).
+      See scoring_method_ablation.md for details.
 """
 
 from __future__ import annotations
@@ -37,14 +43,15 @@ import pandas as pd
 import scoringrules
 from scipy import stats
 from sklearn.datasets import (
-    make_circles,
+    fetch_california_housing,
+    load_breast_cancer,
+    load_diabetes,
     make_classification,
     make_friedman1,
-    make_friedman2,
     make_moons,
     make_regression,
 )
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from tqdm import tqdm
 
 from bdf.tree_classes.bdf_regressor import BDFClassifier, BDFRegressor
@@ -66,11 +73,12 @@ for d in [RESULTS_DIR, PLOTS_DIR, TABLES_DIR]:
     d.mkdir(parents=True, exist_ok=True)
     (d / "regression").mkdir(exist_ok=True)
     (d / "classification").mkdir(exist_ok=True)
+    (d / "real_data").mkdir(exist_ok=True)
 
 # Experiment configuration
 SEED = 42
-N_SEEDS = 30  # For statistical power
-SAMPLE_SIZES = [50, 100, 250, 500, 1000, 2500]
+N_SEEDS = 20  # Sufficient for Friedman test with α=0.05
+SAMPLE_SIZES = [100, 250, 500, 1000, 2500]  # Removed 50 (too small)
 TEST_FRACTION = 0.2
 
 # Quick mode configuration (for testing)
@@ -78,12 +86,12 @@ QUICK_N_SEEDS = 3
 QUICK_SAMPLE_SIZES = [100, 500]
 
 # Scoring method configurations
+# NOTE: nll_loo excluded - Rust implementation is O(n²), not O(n) like Python
 SCORING_CONFIGS = {
     "nle": {"score_method": "nle", "score_correction": None},
     "nll": {"score_method": "nll", "score_correction": None},
     "nll_aic": {"score_method": "nll", "score_correction": "aic"},
     "nll_bic": {"score_method": "nll", "score_correction": "bic"},
-    "nll_loo": {"score_method": "nll", "score_correction": "loo_cv"},
 }
 
 # Model hyperparameters (fixed, not ablated)
@@ -125,12 +133,53 @@ IMBALANCE_LEVELS = {
     "severe": 0.1,
 }
 
+# DGPs for core study (2 per task)
+REGRESSION_DGPS = ["friedman1", "linear"]
+CLASSIFICATION_DGPS = ["make_classification", "moons"]
+
 # Logging setup
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# REAL DATA LOADERS
+# ============================================================================
+
+
+def load_real_regression_datasets() -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    """Load real regression datasets for external validation."""
+    datasets = {}
+
+    # California Housing (large n baseline)
+    cal = fetch_california_housing()
+    datasets["california"] = (cal.data, cal.target)
+
+    # Diabetes (small n)
+    diab = load_diabetes()
+    datasets["diabetes"] = (diab.data, diab.target)
+
+    # Note: Boston Housing deprecated in sklearn, using synthetic alternative
+    # Yacht and Kin8nm would need OpenML - keeping it simple for now
+    logger.info(f"Loaded {len(datasets)} real regression datasets")
+    return datasets
+
+
+def load_real_classification_datasets() -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    """Load real classification datasets for external validation."""
+    datasets = {}
+
+    # Breast Cancer (small n, imbalanced)
+    bc = load_breast_cancer()
+    datasets["breast_cancer"] = (bc.data, bc.target)
+
+    # Note: Adult Income and German Credit would need OpenML
+    # Keeping it simple with sklearn datasets for now
+    logger.info(f"Loaded {len(datasets)} real classification datasets")
+    return datasets
 
 
 # ============================================================================
@@ -153,7 +202,6 @@ def generate_regression_data(
 
     if dgp == "friedman1":
         X, y = make_friedman1(n_samples=n_samples, n_features=10, noise=0, random_state=seed)
-        # Add noise scaled to target std
         y_std = np.std(y)
         y = y + rng.normal(0, noise_scale * y_std, size=y.shape)
 
@@ -165,11 +213,6 @@ def generate_regression_data(
             noise=0,
             random_state=seed,
         )
-        y_std = np.std(y)
-        y = y + rng.normal(0, noise_scale * y_std, size=y.shape)
-
-    elif dgp == "friedman2":
-        X, y = make_friedman2(n_samples=n_samples, noise=0, random_state=seed)
         y_std = np.std(y)
         y = y + rng.normal(0, noise_scale * y_std, size=y.shape)
 
@@ -205,12 +248,7 @@ def generate_classification_data(
         )
 
     elif dgp == "moons":
-        # Generate balanced, then undersample
         X, y = make_moons(n_samples=n_samples, noise=0.2, random_state=seed)
-        X, y = _apply_imbalance(X, y, minority_ratio, seed)
-
-    elif dgp == "circles":
-        X, y = make_circles(n_samples=n_samples, noise=0.1, factor=0.5, random_state=seed)
         X, y = _apply_imbalance(X, y, minority_ratio, seed)
 
     else:
@@ -227,25 +265,19 @@ def _apply_imbalance(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Undersample majority class to achieve target minority ratio."""
     if minority_ratio >= 0.5:
-        return X, y  # Already balanced or minority is majority
+        return X, y
 
     rng = np.random.default_rng(seed)
-
-    # Identify classes
     class_0_idx = np.where(y == 0)[0]
     class_1_idx = np.where(y == 1)[0]
 
-    # Determine which is minority (should have fewer samples after imbalancing)
     n_minority = int(len(y) * minority_ratio)
     n_majority = len(y) - n_minority
 
-    # Undersample majority class
     if len(class_0_idx) > len(class_1_idx):
-        # Class 0 is majority
         majority_idx = rng.choice(class_0_idx, size=n_majority, replace=False)
         minority_idx = class_1_idx[:n_minority] if len(class_1_idx) >= n_minority else class_1_idx
     else:
-        # Class 1 is majority
         majority_idx = rng.choice(class_1_idx, size=n_majority, replace=False)
         minority_idx = class_0_idx[:n_minority] if len(class_0_idx) >= n_minority else class_0_idx
 
@@ -265,43 +297,28 @@ def compute_regression_metrics(
     X_test: np.ndarray,
     y_test: np.ndarray,
 ) -> dict[str, float]:
-    """Compute all regression metrics."""
+    """Compute regression metrics."""
     metrics = {}
 
     # Point predictions
     y_pred = model.predict(X_test)
     metrics["rmse"] = float(np.sqrt(np.mean((y_test - y_pred) ** 2)))
-    metrics["mae"] = float(np.mean(np.abs(y_test - y_pred)))
 
     # Probabilistic predictions
     try:
-        # Get samples for CRPS
         samples = model.predict_samples(X_test, n_samples=500)
         metrics["crps"] = float(np.mean(scoringrules.crps_ensemble(y_test, samples)))
     except Exception:
         metrics["crps"] = np.nan
 
     try:
-        # Coverage and interval metrics using quantiles
         quantiles = model.predict_quantiles(X_test, q=[0.05, 0.95], n_samples=500)
         lower, upper = quantiles[:, 0], quantiles[:, 1]
-        coverage = np.mean((y_test >= lower) & (y_test <= upper))
-        metrics["coverage_90"] = float(coverage)
+        metrics["coverage_90"] = float(np.mean((y_test >= lower) & (y_test <= upper)))
         metrics["interval_width_90"] = float(np.mean(upper - lower))
-
-        # Interval score (proper scoring rule for intervals)
-        alpha = 0.1
-        metrics["interval_score_90"] = float(
-            np.mean(
-                (upper - lower)
-                + (2 / alpha) * (lower - y_test) * (y_test < lower)
-                + (2 / alpha) * (y_test - upper) * (y_test > upper)
-            )
-        )
     except Exception:
         metrics["coverage_90"] = np.nan
         metrics["interval_width_90"] = np.nan
-        metrics["interval_score_90"] = np.nan
 
     return metrics
 
@@ -311,24 +328,13 @@ def compute_classification_metrics(
     X_test: np.ndarray,
     y_test: np.ndarray,
 ) -> dict[str, float]:
-    """Compute all classification metrics."""
+    """Compute classification metrics."""
     metrics = {}
 
-    # Predictions
-    y_pred = model.predict(X_test)
     y_prob = model.predict_proba(X_test)
+    y_prob_pos = y_prob[:, 1] if y_prob.ndim == 2 else y_prob
 
-    # Handle binary case
-    if y_prob.ndim == 2:
-        y_prob_pos = y_prob[:, 1]
-    else:
-        y_prob_pos = y_prob
-
-    # Point metrics
-    metrics["accuracy"] = float(np.mean(y_pred == y_test))
-
-    # Probabilistic metrics
-    # Log loss (cross-entropy)
+    # Log loss
     eps = 1e-15
     y_prob_clipped = np.clip(y_prob_pos, eps, 1 - eps)
     metrics["log_loss"] = float(-np.mean(y_test * np.log(y_prob_clipped) + (1 - y_test) * np.log(1 - y_prob_clipped)))
@@ -344,9 +350,8 @@ def compute_classification_metrics(
     except Exception:
         metrics["auroc"] = np.nan
 
-    # Calibration metrics
+    # ECE
     metrics["ece"] = _compute_ece(y_test, y_prob_pos, n_bins=10)
-    metrics["mce"] = _compute_mce(y_test, y_prob_pos, n_bins=10)
 
     return metrics
 
@@ -359,7 +364,7 @@ def _compute_ece(y_true: np.ndarray, y_prob: np.ndarray, n_bins: int = 10) -> fl
 
     for i in range(n_bins):
         mask = (y_prob >= bin_boundaries[i]) & (y_prob < bin_boundaries[i + 1])
-        if i == n_bins - 1:  # Include right boundary for last bin
+        if i == n_bins - 1:
             mask = (y_prob >= bin_boundaries[i]) & (y_prob <= bin_boundaries[i + 1])
 
         if np.sum(mask) > 0:
@@ -368,24 +373,6 @@ def _compute_ece(y_true: np.ndarray, y_prob: np.ndarray, n_bins: int = 10) -> fl
             ece += np.sum(mask) / n * np.abs(bin_accuracy - bin_confidence)
 
     return float(ece)
-
-
-def _compute_mce(y_true: np.ndarray, y_prob: np.ndarray, n_bins: int = 10) -> float:
-    """Compute Maximum Calibration Error."""
-    bin_boundaries = np.linspace(0, 1, n_bins + 1)
-    mce = 0.0
-
-    for i in range(n_bins):
-        mask = (y_prob >= bin_boundaries[i]) & (y_prob < bin_boundaries[i + 1])
-        if i == n_bins - 1:
-            mask = (y_prob >= bin_boundaries[i]) & (y_prob <= bin_boundaries[i + 1])
-
-        if np.sum(mask) > 0:
-            bin_accuracy = np.mean(y_true[mask])
-            bin_confidence = np.mean(y_prob[mask])
-            mce = max(mce, np.abs(bin_accuracy - bin_confidence))
-
-    return float(mce)
 
 
 # ============================================================================
@@ -400,7 +387,7 @@ class ExperimentResult:
     task: str
     dgp: str
     n_samples: int
-    noise_or_imbalance: str
+    condition: str  # noise_level or imbalance_level
     scoring_method: str
     seed: int
     metrics: dict[str, float]
@@ -424,7 +411,7 @@ class StudyResults:
                 "task": r.task,
                 "dgp": r.dgp,
                 "n_samples": r.n_samples,
-                "condition": r.noise_or_imbalance,
+                "condition": r.condition,
                 "scoring": r.scoring_method,
                 "seed": r.seed,
                 "fit_time": r.fit_time,
@@ -449,24 +436,14 @@ class StudyResults:
             metrics = {
                 k: row[k]
                 for k in row.index
-                if k
-                not in [
-                    "task",
-                    "dgp",
-                    "n_samples",
-                    "condition",
-                    "scoring",
-                    "seed",
-                    "fit_time",
-                    "predict_time",
-                ]
+                if k not in ["task", "dgp", "n_samples", "condition", "scoring", "seed", "fit_time", "predict_time"]
             }
             results.results.append(
                 ExperimentResult(
                     task=row["task"],
                     dgp=row["dgp"],
                     n_samples=row["n_samples"],
-                    noise_or_imbalance=row["condition"],
+                    condition=row["condition"],
                     scoring_method=row["scoring"],
                     seed=row["seed"],
                     metrics=metrics,
@@ -485,14 +462,11 @@ def run_regression_experiment(
     seed: int,
 ) -> ExperimentResult:
     """Run a single regression experiment."""
-    # Generate data
     X_train, X_test, y_train, y_test = generate_regression_data(dgp, n_samples, noise_level, seed)
 
-    # Build distribution params with scoring config
     dist_params = REG_DIST_PARAMS.copy()
     dist_params.update(SCORING_CONFIGS[scoring_name])
 
-    # Create and fit model
     model = BDFRegressor(dist="NormalMuNormal", params=dist_params, **MODEL_CONFIG)
 
     start_time = time.time()
@@ -507,7 +481,7 @@ def run_regression_experiment(
         task="regression",
         dgp=dgp,
         n_samples=n_samples,
-        noise_or_imbalance=noise_level,
+        condition=noise_level,
         scoring_method=scoring_name,
         seed=seed,
         metrics=metrics,
@@ -524,14 +498,11 @@ def run_classification_experiment(
     seed: int,
 ) -> ExperimentResult:
     """Run a single classification experiment."""
-    # Generate data
     X_train, X_test, y_train, y_test = generate_classification_data(dgp, n_samples, imbalance_level, seed)
 
-    # Build distribution params with scoring config
     dist_params = CLAS_DIST_PARAMS.copy()
     dist_params.update(SCORING_CONFIGS[scoring_name])
 
-    # Create and fit model
     model = BDFClassifier(dist="BetaABBernoulli", params=dist_params, **MODEL_CONFIG)
 
     start_time = time.time()
@@ -546,7 +517,7 @@ def run_classification_experiment(
         task="classification",
         dgp=dgp,
         n_samples=n_samples,
-        noise_or_imbalance=imbalance_level,
+        condition=imbalance_level,
         scoring_method=scoring_name,
         seed=seed,
         metrics=metrics,
@@ -555,130 +526,220 @@ def run_classification_experiment(
     )
 
 
-def run_regression_study(
+# ============================================================================
+# STUDY RUNNERS
+# ============================================================================
+
+
+def run_core_study(
+    task: str,
     n_seeds: int = N_SEEDS,
     sample_sizes: list[int] | None = None,
     resume: bool = True,
 ) -> StudyResults:
-    """Run full regression scoring method study."""
+    """Run core study: sample size × scoring method (fixed noise/imbalance).
+
+    This is the PRIMARY analysis for the paper.
+    """
     if sample_sizes is None:
         sample_sizes = SAMPLE_SIZES
 
-    results_path = RESULTS_DIR / "regression" / "raw_results.parquet"
+    results_path = RESULTS_DIR / task / "core_results.parquet"
 
-    # Try to resume from existing results
     if resume and results_path.exists():
         logger.info(f"Loading existing results from {results_path}")
-        results = StudyResults.load(results_path, "regression")
-        completed = {(r.dgp, r.n_samples, r.noise_or_imbalance, r.scoring_method, r.seed) for r in results.results}
+        results = StudyResults.load(results_path, task)
+        completed = {(r.dgp, r.n_samples, r.condition, r.scoring_method, r.seed) for r in results.results}
     else:
-        results = StudyResults(
-            task="regression",
-            config={
-                "sample_sizes": sample_sizes,
-                "n_seeds": n_seeds,
-                "scoring_configs": list(SCORING_CONFIGS.keys()),
-                "noise_levels": list(NOISE_LEVELS.keys()),
-                "dgps": ["friedman1", "linear"],
-            },
-        )
+        results = StudyResults(task=task, config={"type": "core", "sample_sizes": sample_sizes, "n_seeds": n_seeds})
         completed = set()
 
-    dgps = ["friedman1", "linear"]
-    noise_levels = list(NOISE_LEVELS.keys())
+    dgps = REGRESSION_DGPS if task == "regression" else CLASSIFICATION_DGPS
+    # Fixed condition for core study
+    condition = "medium" if task == "regression" else "balanced"
     scoring_methods = list(SCORING_CONFIGS.keys())
 
-    total_experiments = len(dgps) * len(sample_sizes) * len(noise_levels) * len(scoring_methods) * n_seeds
-    remaining = total_experiments - len(completed)
+    total = len(dgps) * len(sample_sizes) * len(scoring_methods) * n_seeds
+    remaining = total - len(completed)
 
-    logger.info(f"Regression study: {remaining} experiments remaining of {total_experiments}")
+    logger.info(f"Core {task} study: {remaining} experiments remaining of {total}")
+    pbar = tqdm(total=remaining, desc=f"Core {task}")
 
-    pbar = tqdm(total=remaining, desc="Regression experiments")
+    run_fn = run_regression_experiment if task == "regression" else run_classification_experiment
 
     for dgp in dgps:
         for n_samples in sample_sizes:
-            for noise_level in noise_levels:
-                for scoring_name in scoring_methods:
-                    for seed in range(SEED, SEED + n_seeds):
-                        key = (dgp, n_samples, noise_level, scoring_name, seed)
-                        if key in completed:
-                            continue
+            for scoring_name in scoring_methods:
+                for seed in range(SEED, SEED + n_seeds):
+                    key = (dgp, n_samples, condition, scoring_name, seed)
+                    if key in completed:
+                        continue
 
-                        try:
-                            result = run_regression_experiment(dgp, n_samples, noise_level, scoring_name, seed)
-                            results.results.append(result)
-                        except Exception as e:
-                            logger.warning(f"Experiment failed {key}: {e}")
+                    try:
+                        result = run_fn(dgp, n_samples, condition, scoring_name, seed)
+                        results.results.append(result)
+                    except Exception as e:
+                        logger.warning(f"Experiment failed {key}: {e}")
 
-                        pbar.update(1)
+                    pbar.update(1)
 
-                # Save checkpoint after each n_samples × noise_level block
-                results.save(results_path)
+            # Checkpoint after each sample size
+            results.save(results_path)
 
     pbar.close()
     return results
 
 
-def run_classification_study(
-    n_seeds: int = N_SEEDS,
-    sample_sizes: list[int] | None = None,
+def run_robustness_study(
+    task: str,
+    n_seeds: int = 10,
     resume: bool = True,
 ) -> StudyResults:
-    """Run full classification scoring method study."""
-    if sample_sizes is None:
-        sample_sizes = SAMPLE_SIZES
+    """Run robustness study: vary noise/imbalance at fixed n=500.
 
-    results_path = RESULTS_DIR / "classification" / "raw_results.parquet"
+    This is SECONDARY analysis for the paper.
+    """
+    results_path = RESULTS_DIR / task / "robustness_results.parquet"
+    fixed_n = 500
 
-    # Try to resume from existing results
     if resume and results_path.exists():
         logger.info(f"Loading existing results from {results_path}")
-        results = StudyResults.load(results_path, "classification")
-        completed = {(r.dgp, r.n_samples, r.noise_or_imbalance, r.scoring_method, r.seed) for r in results.results}
+        results = StudyResults.load(results_path, task)
+        completed = {(r.dgp, r.n_samples, r.condition, r.scoring_method, r.seed) for r in results.results}
     else:
-        results = StudyResults(
-            task="classification",
-            config={
-                "sample_sizes": sample_sizes,
-                "n_seeds": n_seeds,
-                "scoring_configs": list(SCORING_CONFIGS.keys()),
-                "imbalance_levels": list(IMBALANCE_LEVELS.keys()),
-                "dgps": ["make_classification", "moons", "circles"],
-            },
-        )
+        results = StudyResults(task=task, config={"type": "robustness", "n_samples": fixed_n, "n_seeds": n_seeds})
         completed = set()
 
-    dgps = ["make_classification", "moons", "circles"]
-    imbalance_levels = list(IMBALANCE_LEVELS.keys())
-    # Skip LOO-CV for classification (slow without fast implementation)
-    scoring_methods = [s for s in SCORING_CONFIGS.keys() if s != "nll_loo"]
+    dgps = REGRESSION_DGPS if task == "regression" else CLASSIFICATION_DGPS
+    conditions = list(NOISE_LEVELS.keys()) if task == "regression" else list(IMBALANCE_LEVELS.keys())
+    scoring_methods = list(SCORING_CONFIGS.keys())
 
-    total_experiments = len(dgps) * len(sample_sizes) * len(imbalance_levels) * len(scoring_methods) * n_seeds
-    remaining = total_experiments - len(completed)
+    total = len(dgps) * len(conditions) * len(scoring_methods) * n_seeds
+    remaining = total - len(completed)
 
-    logger.info(f"Classification study: {remaining} experiments remaining of {total_experiments}")
+    logger.info(f"Robustness {task} study: {remaining} experiments remaining of {total}")
+    pbar = tqdm(total=remaining, desc=f"Robustness {task}")
 
-    pbar = tqdm(total=remaining, desc="Classification experiments")
+    run_fn = run_regression_experiment if task == "regression" else run_classification_experiment
 
     for dgp in dgps:
-        for n_samples in sample_sizes:
-            for imbalance_level in imbalance_levels:
-                for scoring_name in scoring_methods:
-                    for seed in range(SEED, SEED + n_seeds):
-                        key = (dgp, n_samples, imbalance_level, scoring_name, seed)
-                        if key in completed:
-                            continue
+        for condition in conditions:
+            for scoring_name in scoring_methods:
+                for seed in range(SEED, SEED + n_seeds):
+                    key = (dgp, fixed_n, condition, scoring_name, seed)
+                    if key in completed:
+                        continue
 
-                        try:
-                            result = run_classification_experiment(dgp, n_samples, imbalance_level, scoring_name, seed)
-                            results.results.append(result)
-                        except Exception as e:
-                            logger.warning(f"Experiment failed {key}: {e}")
+                    try:
+                        result = run_fn(dgp, fixed_n, condition, scoring_name, seed)
+                        results.results.append(result)
+                    except Exception as e:
+                        logger.warning(f"Experiment failed {key}: {e}")
 
-                        pbar.update(1)
+                    pbar.update(1)
 
-                # Save checkpoint
-                results.save(results_path)
+            # Checkpoint
+            results.save(results_path)
+
+    pbar.close()
+    return results
+
+
+def run_real_data_study(
+    task: str,
+    n_folds: int = 5,
+    n_seeds: int = 5,
+    resume: bool = True,
+) -> StudyResults:
+    """Run real data validation: 5-fold CV × 5 seeds.
+
+    Required for JMLR submission.
+    """
+    results_path = RESULTS_DIR / "real_data" / f"{task}_results.parquet"
+
+    if resume and results_path.exists():
+        logger.info(f"Loading existing results from {results_path}")
+        results = StudyResults.load(results_path, task)
+        completed = {(r.dgp, r.n_samples, r.condition, r.scoring_method, r.seed) for r in results.results}
+    else:
+        results = StudyResults(task=task, config={"type": "real_data", "n_folds": n_folds, "n_seeds": n_seeds})
+        completed = set()
+
+    # Load datasets
+    if task == "regression":
+        datasets = load_real_regression_datasets()
+        kfold_cls = KFold
+    else:
+        datasets = load_real_classification_datasets()
+        kfold_cls = StratifiedKFold
+
+    scoring_methods = list(SCORING_CONFIGS.keys())
+
+    total = len(datasets) * len(scoring_methods) * n_folds * n_seeds
+    remaining = total - len(completed)
+
+    logger.info(f"Real data {task} study: {remaining} experiments remaining of {total}")
+    pbar = tqdm(total=remaining, desc=f"Real data {task}")
+
+    for dataset_name, (X, y) in datasets.items():
+        n_samples = len(y)
+
+        for scoring_name in scoring_methods:
+            for seed in range(SEED, SEED + n_seeds):
+                kfold = kfold_cls(n_splits=n_folds, shuffle=True, random_state=seed)
+
+                for fold_idx, (train_idx, test_idx) in enumerate(kfold.split(X, y)):
+                    condition = f"fold_{fold_idx}"
+                    key = (dataset_name, n_samples, condition, scoring_name, seed)
+                    if key in completed:
+                        continue
+
+                    X_train, X_test = X[train_idx], X[test_idx]
+                    y_train, y_test = y[train_idx], y[test_idx]
+
+                    dist_params = (REG_DIST_PARAMS if task == "regression" else CLAS_DIST_PARAMS).copy()
+                    dist_params.update(SCORING_CONFIGS[scoring_name])
+
+                    try:
+                        if task == "regression":
+                            model = BDFRegressor(dist="NormalMuNormal", params=dist_params, **MODEL_CONFIG)
+                            start_time = time.time()
+                            model.fit(X_train, y_train)
+                            fit_time = time.time() - start_time
+
+                            start_time = time.time()
+                            metrics = compute_regression_metrics(model, X_test, y_test)
+                            predict_time = time.time() - start_time
+                        else:
+                            model = BDFClassifier(dist="BetaABBernoulli", params=dist_params, **MODEL_CONFIG)
+                            start_time = time.time()
+                            model.fit(X_train, y_train)
+                            fit_time = time.time() - start_time
+
+                            start_time = time.time()
+                            metrics = compute_classification_metrics(model, X_test, y_test)
+                            predict_time = time.time() - start_time
+
+                        results.results.append(
+                            ExperimentResult(
+                                task=task,
+                                dgp=dataset_name,
+                                n_samples=n_samples,
+                                condition=condition,
+                                scoring_method=scoring_name,
+                                seed=seed,
+                                metrics=metrics,
+                                fit_time=fit_time,
+                                predict_time=predict_time,
+                            )
+                        )
+                    except Exception as e:
+                        logger.warning(f"Experiment failed {key}: {e}")
+
+                    pbar.update(1)
+
+            # Checkpoint after each scoring method
+            results.save(results_path)
 
     pbar.close()
     return results
@@ -703,8 +764,6 @@ def compute_statistical_tests(
     for group_vals, group_df in df.groupby(groupby):
         group_key = str(group_vals) if isinstance(group_vals, tuple) else str(group_vals)
 
-        # Pivot to get scoring methods as columns
-        # Each row is a unique (dgp, condition, seed) combination
         pivot_df = group_df.pivot_table(
             index=["dgp", "condition", "seed"],
             columns="scoring",
@@ -729,7 +788,7 @@ def compute_statistical_tests(
             logger.warning(f"Friedman test failed for {group_key}: {e}")
 
         # Average ranks for CD diagram
-        ranks = pivot_df.rank(axis=1, ascending=True)  # Lower is better
+        ranks = pivot_df.rank(axis=1, ascending=True)
         avg_ranks = ranks.mean().to_dict()
         results[f"{group_key}_avg_ranks"] = avg_ranks
 
@@ -742,9 +801,8 @@ def compute_statistical_tests(
                     stat, pval = stats.wilcoxon(
                         pivot_df["nle"].values,
                         pivot_df[other].values,
-                        alternative="less",  # NLE < other (lower is better)
+                        alternative="less",
                     )
-                    # Cliff's delta effect size
                     cliffs_d = _cliffs_delta(pivot_df["nle"].values, pivot_df[other].values)
                     results[f"{group_key}_nle_vs_{other}"] = {
                         "wilcoxon_stat": float(stat),
@@ -758,7 +816,14 @@ def compute_statistical_tests(
 
 
 def _cliffs_delta(x: np.ndarray, y: np.ndarray) -> float:
-    """Compute Cliff's delta effect size."""
+    """Compute Cliff's delta effect size.
+
+    Interpretation:
+    - |d| < 0.147: negligible
+    - 0.147 <= |d| < 0.33: small
+    - 0.33 <= |d| < 0.474: medium
+    - |d| >= 0.474: large
+    """
     n_x, n_y = len(x), len(y)
     more = int(np.sum(x[:, None] > y[None, :]))
     less = int(np.sum(x[:, None] < y[None, :]))
@@ -767,8 +832,6 @@ def _cliffs_delta(x: np.ndarray, y: np.ndarray) -> float:
 
 def compute_nemenyi_cd(n_methods: int, n_datasets: int, alpha: float = 0.05) -> float:
     """Compute critical difference for Nemenyi test."""
-    # q_alpha values for Nemenyi test (from tables)
-    # Approximate using Studentized range distribution
     from scipy.stats import studentized_range
 
     q_alpha = studentized_range.ppf(1 - alpha, n_methods, np.inf)
@@ -790,21 +853,8 @@ def plot_interaction(
     """Plot metric vs sample size for each scoring method (THE key figure)."""
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    colors = {
-        "nle": "#2ecc71",
-        "nll": "#e74c3c",
-        "nll_aic": "#9b59b6",
-        "nll_bic": "#3498db",
-        "nll_loo": "#f39c12",
-    }
-
-    markers = {
-        "nle": "o",
-        "nll": "s",
-        "nll_aic": "^",
-        "nll_bic": "D",
-        "nll_loo": "v",
-    }
+    colors = {"nle": "#2ecc71", "nll": "#e74c3c", "nll_aic": "#9b59b6", "nll_bic": "#3498db"}
+    markers = {"nle": "o", "nll": "s", "nll_aic": "^", "nll_bic": "D"}
 
     scoring_methods = df["scoring"].unique()
     sample_sizes = sorted(df["n_samples"].unique())
@@ -820,9 +870,6 @@ def plot_interaction(
             else:
                 means.append(np.nan)
                 stds.append(np.nan)
-
-        means = np.array(means)
-        stds = np.array(stds)
 
         ax.errorbar(
             sample_sizes,
@@ -848,7 +895,7 @@ def plot_interaction(
     plt.tight_layout()
 
     if save_path:
-        fig.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
         logger.info(f"Saved plot to {save_path}")
 
     plt.close()
@@ -866,7 +913,6 @@ def plot_cd_diagram(
     methods = list(avg_ranks.keys())
     ranks = [avg_ranks[m] for m in methods]
 
-    # Sort by rank
     sorted_idx = np.argsort(ranks)
     methods = [methods[i] for i in sorted_idx]
     ranks = [ranks[i] for i in sorted_idx]
@@ -874,10 +920,8 @@ def plot_cd_diagram(
     n_methods = len(methods)
     y_positions = np.arange(n_methods)
 
-    # Plot ranks
     ax.scatter(ranks, y_positions, s=100, zorder=3)
 
-    # Add method labels
     for i, (method, rank) in enumerate(zip(methods, ranks)):
         ax.annotate(
             f"{method.upper()} ({rank:.2f})",
@@ -888,12 +932,10 @@ def plot_cd_diagram(
             fontsize=10,
         )
 
-    # Draw CD bar
     ax.axhline(y=-0.5, color="black", linewidth=2)
     ax.plot([1, 1 + cd], [-0.3, -0.3], "k-", linewidth=2)
     ax.annotate(f"CD = {cd:.2f}", (1 + cd / 2, -0.1), ha="center", fontsize=10)
 
-    # Draw connections for methods not significantly different
     for i, (m1, r1) in enumerate(zip(methods, ranks)):
         for j, (m2, r2) in enumerate(zip(methods[i + 1 :], ranks[i + 1 :]), i + 1):
             if abs(r1 - r2) < cd:
@@ -908,52 +950,13 @@ def plot_cd_diagram(
     plt.tight_layout()
 
     if save_path:
-        fig.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
         logger.info(f"Saved CD diagram to {save_path}")
 
     plt.close()
 
 
-def plot_calibration_boxplot(
-    df: pd.DataFrame,
-    metric: str,
-    title: str,
-    save_path: Path | None = None,
-):
-    """Plot boxplot of calibration metric by scoring method."""
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    scoring_methods = sorted(df["scoring"].unique())
-    data = [df[df["scoring"] == s][metric].dropna().values for s in scoring_methods]
-
-    colors = {
-        "nle": "#2ecc71",
-        "nll": "#e74c3c",
-        "nll_aic": "#9b59b6",
-        "nll_bic": "#3498db",
-        "nll_loo": "#f39c12",
-    }
-
-    bp = ax.boxplot(data, tick_labels=[s.upper() for s in scoring_methods], patch_artist=True)
-
-    for patch, method in zip(bp["boxes"], scoring_methods):
-        patch.set_facecolor(colors.get(method, "#cccccc"))
-        patch.set_alpha(0.7)
-
-    ax.set_ylabel(metric.upper(), fontsize=12)
-    ax.set_title(title, fontsize=14)
-    ax.grid(True, alpha=0.3, axis="y")
-
-    plt.tight_layout()
-
-    if save_path:
-        fig.savefig(save_path, dpi=150, bbox_inches="tight")
-        logger.info(f"Saved boxplot to {save_path}")
-
-    plt.close()
-
-
-def plot_condition_interaction(
+def plot_robustness(
     df: pd.DataFrame,
     metric: str,
     condition_col: str,
@@ -967,15 +970,9 @@ def plot_condition_interaction(
     scoring_methods = sorted(df["scoring"].unique())
 
     x = np.arange(len(conditions))
-    width = 0.15
+    width = 0.18
 
-    colors = {
-        "nle": "#2ecc71",
-        "nll": "#e74c3c",
-        "nll_aic": "#9b59b6",
-        "nll_bic": "#3498db",
-        "nll_loo": "#f39c12",
-    }
+    colors = {"nle": "#2ecc71", "nll": "#e74c3c", "nll_aic": "#9b59b6", "nll_bic": "#3498db"}
 
     for i, scoring in enumerate(scoring_methods):
         means = []
@@ -1008,8 +1005,8 @@ def plot_condition_interaction(
     plt.tight_layout()
 
     if save_path:
-        fig.savefig(save_path, dpi=150, bbox_inches="tight")
-        logger.info(f"Saved interaction plot to {save_path}")
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+        logger.info(f"Saved robustness plot to {save_path}")
 
     plt.close()
 
@@ -1051,7 +1048,7 @@ def generate_summary_tables(
         best_method = means.idxmin()
         best_value = means.min()
         second_best = means.drop(best_method).min()
-        improvement = (second_best - best_value) / second_best * 100
+        improvement = (second_best - best_value) / second_best * 100 if second_best > 0 else 0
 
         best_rows.append(
             {
@@ -1080,30 +1077,31 @@ def save_latex_table(df: pd.DataFrame, path: Path, caption: str, label: str):
 # ============================================================================
 
 
-def analyze_regression_results(results: StudyResults):
-    """Run full analysis on regression results."""
+def analyze_results(results: StudyResults, task: str, study_type: str):
+    """Run full analysis on results."""
     df = results.to_dataframe()
-    primary_metric = "crps"
-    task_dir = "regression"
+    primary_metric = "crps" if task == "regression" else "log_loss"
+    task_dir = task if study_type != "real_data" else "real_data"
 
-    logger.info("Analyzing regression results...")
+    logger.info(f"Analyzing {study_type} {task} results...")
 
     # Statistical tests
     stat_tests = compute_statistical_tests(df, primary_metric, groupby=["n_samples"])
-    with open(RESULTS_DIR / task_dir / "statistical_tests.json", "w") as f:
+    with open(RESULTS_DIR / task_dir / f"{study_type}_statistical_tests.json", "w") as f:
         json.dump(stat_tests, f, indent=2)
 
-    # Plots
-    plot_interaction(
-        df,
-        primary_metric,
-        "CRPS vs Sample Size (Regression)",
-        PLOTS_DIR / task_dir / "interaction_crps.png",
-    )
+    # Interaction plot (for core study)
+    if study_type == "core":
+        plot_interaction(
+            df,
+            primary_metric,
+            f"{primary_metric.upper()} vs Sample Size ({task.title()})",
+            PLOTS_DIR / task_dir / f"fig1_{task}_interaction.pdf",
+        )
 
     # CD diagram (overall)
     pivot_df = df.pivot_table(
-        index=["dgp", "condition", "seed", "n_samples"],
+        index=["dgp", "condition", "seed"],
         columns="scoring",
         values=primary_metric,
         aggfunc="first",
@@ -1119,101 +1117,33 @@ def analyze_regression_results(results: StudyResults):
         plot_cd_diagram(
             avg_ranks,
             cd,
-            "Critical Difference Diagram (Regression)",
-            PLOTS_DIR / task_dir / "cd_diagram_overall.png",
+            f"Critical Difference Diagram ({task.title()} - {study_type})",
+            PLOTS_DIR / task_dir / f"fig3_cd_diagram_{study_type}.pdf",
         )
 
-    # Calibration
-    plot_calibration_boxplot(
-        df,
-        "coverage_90",
-        "90% Coverage by Scoring Method (Regression)",
-        PLOTS_DIR / task_dir / "calibration_coverage.png",
-    )
-
-    # Noise interaction
-    plot_condition_interaction(
-        df,
-        primary_metric,
-        "condition",
-        "CRPS by Noise Level (Regression)",
-        PLOTS_DIR / task_dir / "noise_interaction.png",
-    )
-
-    # Tables
-    tables = generate_summary_tables(df, "regression", primary_metric)
-    for name, table_df in tables.items():
-        table_df.to_csv(RESULTS_DIR / task_dir / f"{name}.csv", index=False)
-
-    logger.info("Regression analysis complete.")
-
-
-def analyze_classification_results(results: StudyResults):
-    """Run full analysis on classification results."""
-    df = results.to_dataframe()
-    primary_metric = "log_loss"
-    task_dir = "classification"
-
-    logger.info("Analyzing classification results...")
-
-    # Statistical tests
-    stat_tests = compute_statistical_tests(df, primary_metric, groupby=["n_samples"])
-    with open(RESULTS_DIR / task_dir / "statistical_tests.json", "w") as f:
-        json.dump(stat_tests, f, indent=2)
-
-    # Plots
-    plot_interaction(
-        df,
-        primary_metric,
-        "Log Loss vs Sample Size (Classification)",
-        PLOTS_DIR / task_dir / "interaction_logloss.png",
-    )
-
-    # CD diagram (overall)
-    pivot_df = df.pivot_table(
-        index=["dgp", "condition", "seed", "n_samples"],
-        columns="scoring",
-        values=primary_metric,
-        aggfunc="first",
-    ).dropna()
-
-    if len(pivot_df) > 0:
-        ranks = pivot_df.rank(axis=1, ascending=True)
-        avg_ranks = ranks.mean().to_dict()
-        n_methods = len(avg_ranks)
-        n_datasets = len(pivot_df)
-        cd = compute_nemenyi_cd(n_methods, n_datasets)
-
-        plot_cd_diagram(
-            avg_ranks,
-            cd,
-            "Critical Difference Diagram (Classification)",
-            PLOTS_DIR / task_dir / "cd_diagram_overall.png",
+    # Robustness plot (for robustness study)
+    if study_type == "robustness":
+        condition_label = "Noise Level" if task == "regression" else "Class Imbalance"
+        plot_robustness(
+            df,
+            primary_metric,
+            "condition",
+            f"{primary_metric.upper()} by {condition_label} ({task.title()})",
+            PLOTS_DIR / task_dir / f"fig4_{task}_robustness.pdf",
         )
 
-    # Calibration
-    plot_calibration_boxplot(
-        df,
-        "ece",
-        "ECE by Scoring Method (Classification)",
-        PLOTS_DIR / task_dir / "calibration_ece.png",
-    )
-
-    # Imbalance interaction
-    plot_condition_interaction(
-        df,
-        primary_metric,
-        "condition",
-        "Log Loss by Class Imbalance (Classification)",
-        PLOTS_DIR / task_dir / "imbalance_interaction.png",
-    )
-
     # Tables
-    tables = generate_summary_tables(df, "classification", primary_metric)
+    tables = generate_summary_tables(df, task, primary_metric)
     for name, table_df in tables.items():
-        table_df.to_csv(RESULTS_DIR / task_dir / f"{name}.csv", index=False)
+        table_df.to_csv(RESULTS_DIR / task_dir / f"{study_type}_{name}.csv", index=False)
+        save_latex_table(
+            table_df,
+            TABLES_DIR / task_dir / f"{study_type}_{name}.tex",
+            caption=f"{task.title()} {study_type} results: {name}",
+            label=f"tab:{task}_{study_type}_{name}",
+        )
 
-    logger.info("Classification analysis complete.")
+    logger.info(f"{study_type.title()} {task} analysis complete.")
 
 
 # ============================================================================
@@ -1222,7 +1152,7 @@ def analyze_classification_results(results: StudyResults):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Scoring Method Ablation Study")
+    parser = argparse.ArgumentParser(description="Scoring Method Ablation Study for JMLR")
     parser.add_argument(
         "task",
         nargs="?",
@@ -1230,23 +1160,23 @@ def main():
         choices=["regression", "classification", "both"],
         help="Which task to run (default: both)",
     )
-    parser.add_argument(
-        "--quick",
-        action="store_true",
-        help="Quick test run with reduced seeds and sample sizes",
-    )
-    parser.add_argument(
-        "--no-resume",
-        action="store_true",
-        help="Start fresh, don't resume from existing results",
-    )
-    parser.add_argument(
-        "--analyze-only",
-        action="store_true",
-        help="Only run analysis on existing results",
-    )
+    parser.add_argument("--quick", action="store_true", help="Quick test run with reduced seeds and sample sizes")
+    parser.add_argument("--no-resume", action="store_true", help="Start fresh, don't resume from existing results")
+    parser.add_argument("--analyze-only", action="store_true", help="Only run analysis on existing results")
+    parser.add_argument("--core", action="store_true", help="Run only core study (sample size × scoring)")
+    parser.add_argument("--robustness", action="store_true", help="Run only robustness study (noise/imbalance)")
+    parser.add_argument("--real-data", action="store_true", help="Run only real data validation")
 
     args = parser.parse_args()
+
+    # Determine which studies to run
+    run_core = args.core or (not args.robustness and not args.real_data)
+    run_robustness = args.robustness or (not args.core and not args.real_data)
+    run_real = args.real_data or (not args.core and not args.robustness)
+
+    # If no specific study selected, run all
+    if not args.core and not args.robustness and not args.real_data:
+        run_core = run_robustness = run_real = True
 
     # Configuration
     if args.quick:
@@ -1258,33 +1188,47 @@ def main():
         sample_sizes = SAMPLE_SIZES
 
     resume = not args.no_resume
+    tasks = ["regression", "classification"] if args.task == "both" else [args.task]
 
-    # Run experiments
-    if args.task in ["regression", "both"]:
-        if not args.analyze_only:
-            results = run_regression_study(n_seeds, sample_sizes, resume)
-        else:
-            results_path = RESULTS_DIR / "regression" / "raw_results.parquet"
-            if results_path.exists():
-                results = StudyResults.load(results_path, "regression")
+    for task in tasks:
+        # Core study
+        if run_core:
+            if not args.analyze_only:
+                results = run_core_study(task, n_seeds, sample_sizes, resume)
             else:
-                logger.error("No regression results found for analysis")
-                return
+                results_path = RESULTS_DIR / task / "core_results.parquet"
+                if results_path.exists():
+                    results = StudyResults.load(results_path, task)
+                else:
+                    logger.error(f"No core {task} results found for analysis")
+                    continue
+            analyze_results(results, task, "core")
 
-        analyze_regression_results(results)
-
-    if args.task in ["classification", "both"]:
-        if not args.analyze_only:
-            results = run_classification_study(n_seeds, sample_sizes, resume)
-        else:
-            results_path = RESULTS_DIR / "classification" / "raw_results.parquet"
-            if results_path.exists():
-                results = StudyResults.load(results_path, "classification")
+        # Robustness study
+        if run_robustness:
+            if not args.analyze_only:
+                results = run_robustness_study(task, n_seeds=10, resume=resume)
             else:
-                logger.error("No classification results found for analysis")
-                return
+                results_path = RESULTS_DIR / task / "robustness_results.parquet"
+                if results_path.exists():
+                    results = StudyResults.load(results_path, task)
+                else:
+                    logger.error(f"No robustness {task} results found for analysis")
+                    continue
+            analyze_results(results, task, "robustness")
 
-        analyze_classification_results(results)
+        # Real data study
+        if run_real:
+            if not args.analyze_only:
+                results = run_real_data_study(task, n_folds=5, n_seeds=5, resume=resume)
+            else:
+                results_path = RESULTS_DIR / "real_data" / f"{task}_results.parquet"
+                if results_path.exists():
+                    results = StudyResults.load(results_path, task)
+                else:
+                    logger.error(f"No real data {task} results found for analysis")
+                    continue
+            analyze_results(results, task, "real_data")
 
     logger.info("Study complete!")
 

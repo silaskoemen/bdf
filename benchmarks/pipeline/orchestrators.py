@@ -18,7 +18,12 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from ..metrics.classification import CLAS_POINT_METRICS, CLAS_PROB_METRICS, compute_calibration_curve
-from ..metrics.regression import REG_POINT_METRICS, REG_PROB_METRICS, precompute_percentiles
+from ..metrics.regression import (
+    REG_CALIBRATION_METRICS,
+    REG_POINT_METRICS,
+    REG_PROB_METRICS,
+    precompute_percentiles,
+)
 from ..pipeline.data import DatasetMetadata, available_classification_datasets, available_regression_datasets
 from ..utils.benchmark_utils import LogTransformTransformer
 
@@ -61,6 +66,115 @@ def _aggregate_calibration_curves(curves: list[dict]) -> dict:
         "prob_pred": [float(x) if not np.isnan(x) else None for x in avg_prob_pred],
         "bin_counts": [int(x) for x in total_counts],
     }
+
+
+def _aggregate_coverage_curves(curves: list[dict]) -> dict:
+    """Aggregate coverage curves across folds for reliability diagram plotting.
+
+    A coverage curve measures calibration by comparing nominal vs empirical coverage
+    at multiple prediction interval levels. For a well-calibrated model, the 90%
+    prediction interval should contain ~90% of true values.
+
+    Input format (per fold):
+        {
+            "levels": [0.50, 0.80, 0.90, 0.95],  # Nominal coverage levels
+            "empirical": [0.48, 0.79, 0.88, 0.94]  # Observed coverage fractions
+        }
+
+    Output format (aggregated):
+        {
+            "levels": [0.50, 0.80, 0.90, 0.95],  # Same nominal levels
+            "empirical": {
+                0.50: [0.48, 0.51, 0.49, ...],  # Per-fold values at 50% level
+                0.80: [0.79, 0.82, 0.78, ...],  # Per-fold values at 80% level
+                ...
+            }
+        }
+
+    The per-fold structure allows computing mean ± std for error bars in plots.
+
+    Args:
+        curves: List of coverage curve dicts from each fold
+
+    Returns:
+        Aggregated dict with levels and empirical values grouped by level
+    """
+    if not curves:
+        return {"levels": [], "empirical": {}}
+
+    # All curves should have same levels
+    levels = curves[0]["levels"]
+
+    # Store empirical values per level across folds (for later mean/std)
+    empirical_per_level: dict[float, list[float]] = {level: [] for level in levels}
+    for curve in curves:
+        for i, level in enumerate(levels):
+            val = curve["empirical"][i]
+            if val is not None and not np.isnan(val):
+                empirical_per_level[level].append(val)
+
+    return {
+        "levels": levels,
+        "empirical": empirical_per_level,
+    }
+
+
+def _aggregate_pit_histograms(histograms: list[dict]) -> dict:
+    """Aggregate PIT histograms across folds for calibration assessment.
+
+    The Probability Integral Transform (PIT) maps each observation to the CDF
+    value of the predictive distribution at the true value. For a well-calibrated
+    model, PIT values should be uniformly distributed on [0, 1].
+
+    We aggregate by summing bin counts across folds, which is valid because
+    PIT values from different folds are independent samples that should all
+    follow the same (ideally uniform) distribution.
+
+    Input format (per fold):
+        {
+            "bin_counts": [48, 52, 49, 51, ...],  # 20 bins from 0 to 1
+            "n_bins": 20,
+            "n_samples": 500  # Test set size for this fold
+        }
+
+    Output format (aggregated):
+        {
+            "bin_counts": [432, 468, 441, 459, ...],  # Summed across folds
+            "n_bins": 20,
+            "n_samples": 4500  # Total test samples across all folds
+        }
+
+    For plotting: uniform distribution has expected count = n_samples / n_bins.
+
+    Args:
+        histograms: List of pit_histogram dicts from each fold
+
+    Returns:
+        Aggregated dict with summed bin counts and total sample count
+    """
+    if not histograms:
+        return {"bin_counts": [], "n_bins": 0, "n_samples": 0}
+
+    n_bins = histograms[0]["n_bins"]
+    total_counts = np.zeros(n_bins)
+    total_samples = 0
+
+    for hist in histograms:
+        total_counts += np.array(hist["bin_counts"])
+        total_samples += hist["n_samples"]
+
+    return {
+        "bin_counts": [int(x) for x in total_counts],
+        "n_bins": n_bins,
+        "n_samples": total_samples,
+    }
+
+
+# Mapping from regression calibration metric name to its aggregation function
+REG_CALIBRATION_AGGREGATORS = {
+    "coverage_curve": _aggregate_coverage_curves,
+    "pit_histogram": _aggregate_pit_histograms,
+}
 
 
 def _get_git_commit_hash() -> str | None:
@@ -160,11 +274,15 @@ class BaseOrchestrator:
         point_metrics = REG_POINT_METRICS if do_reg else CLAS_POINT_METRICS
         proba_metrics = REG_PROB_METRICS if do_reg else CLAS_PROB_METRICS
 
-        metric_dict = {m: float("nan") for m in point_metrics.keys()}
+        metric_dict: dict = {m: float("nan") for m in point_metrics.keys()}
 
         # Add calibration curve for classification
         if not do_reg:
-            metric_dict["calibration_curve"] = None  # pyright: ignore[reportArgumentType]
+            metric_dict["calibration_curve"] = None
+        else:
+            # Add calibration metrics for regression
+            for m in REG_CALIBRATION_METRICS.keys():
+                metric_dict[m] = None
 
         # Add probabilistic metrics if model is probabilistic
         if self.model_cfg.probabilistic and proba_metrics:
@@ -270,6 +388,27 @@ class BaseOrchestrator:
                     except Exception as e:
                         logger.error(f"❌ Prob metric {m} failed: {e}")
                         metric_dict[m] = float("nan")
+
+                # Calibration metrics for regression (dict-returning, need special aggregation)
+                if do_reg:
+                    for m, spec in REG_CALIBRATION_METRICS.items():
+                        if status_callback:
+                            status_callback(f"📈 {m}")
+                        try:
+                            if prediction_type in spec.accepts:
+                                metric_dict[m] = spec(
+                                    y,
+                                    y_pred_native,
+                                    quantile_levels=quantile_levels,
+                                    precomputed=precomputed_percentiles,
+                                )
+                            else:
+                                metric_dict[m] = spec(
+                                    y, y_pred_samples, quantile_levels=None, precomputed=precomputed_percentiles
+                                )
+                        except Exception as e:
+                            logger.error(f"❌ Calibration metric {m} failed: {e}")
+                            metric_dict[m] = None
 
             except Exception as e:
                 logger.error(f"❌ Probabilistic prediction failed: {e}")
@@ -396,14 +535,17 @@ class CustomOrchestrator(BaseOrchestrator):
             if fold_metrics:
                 aggregated = {}
                 for m in fold_metrics[0].keys():
+                    fold_values = [fold[m] for fold in fold_metrics if fold.get(m) is not None]
+
                     if m == "calibration_curve":
-                        # Weighted average of calibration curves across folds
-                        aggregated[m] = _aggregate_calibration_curves(
-                            [fold[m] for fold in fold_metrics if fold.get(m) is not None]
-                        )
+                        # Classification: weighted average of calibration curves
+                        aggregated[m] = _aggregate_calibration_curves(fold_values)
+                    elif m in REG_CALIBRATION_AGGREGATORS:
+                        # Regression calibration metrics: use metric-specific aggregation
+                        aggregated[m] = REG_CALIBRATION_AGGREGATORS[m](fold_values)
                     else:
                         # Scalar metrics: store raw fold values for statistical testing
-                        values = [fold[m] for fold in fold_metrics if m in fold and not np.isnan(fold[m])]
+                        values = [v for v in fold_values if not np.isnan(v)]
                         aggregated[m] = [float(v) for v in values] if values else []
                 results["datasets"][metadata.name]["metrics"] = aggregated
                 logger.info(f"✅ Finished {metadata.name} with aggregated metrics")
@@ -573,5 +715,5 @@ class CustomOrchestrator(BaseOrchestrator):
         Uses YAML format for native NaN/inf support that can be loaded back.
         """
         os.makedirs("benchmarks/results/custom/", exist_ok=True)
-        with open(f"benchmarks/results/custom/{self.model_cfg.name}.yaml", "w") as f:
+        with open(f"benchmarks/results/custom/res_{self.model_cfg.name}.yaml", "w") as f:
             yaml.dump(results, f, default_flow_style=False, allow_unicode=True)
