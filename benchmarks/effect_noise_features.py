@@ -67,14 +67,14 @@ MODEL_CONFIGS: dict[str, dict[str, Any]] = {
         "fixed_init_kwargs": {
             "dist": "NormalMuNormal",
             "random_state": SEED,
-            # "reg_gamma": 1.0,
+            # "gamma": 1.0,
         },
         "tunable_init_kwargs": {
             "n_trees": {"type": "int", "low": 15, "high": 200},
             "max_depth": {"type": "int", "low": 2, "high": 30},
-            "reg_lambda": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
-            "reg_gamma": {"type": "float", "low": 0.1, "high": 1.0},
-            "reg_nu": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
+            "alpha": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
+            "gamma": {"type": "float", "low": 0.1, "high": 1.0},
+            "delta": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
             "min_samples_leaf": {"type": "int", "low": 5, "high": 50},
             "subsample": {"type": "float", "low": 0.5, "high": 1.0},
             "colsample": {"type": "float", "low": 0.5, "high": 1.0},

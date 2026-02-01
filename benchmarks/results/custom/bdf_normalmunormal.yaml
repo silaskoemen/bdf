@@ -5,9 +5,9 @@ datasets:
       eta: 0.0052927144750647545
       min_samples_leaf: 13
       n_trees: 75
-      reg_gamma: 0.009117398675898615
-      reg_lambda: 0.002677936583905035
-      reg_nu: 0.00039661986397665884
+      gamma: 0.009117398675898615
+      alpha: 0.002677936583905035
+      delta: 0.00039661986397665884
       score_method: nll
       sigma_mu_auto_scale: 1.817187573505789
       subsample: 0.6358265509127714
@@ -205,9 +205,9 @@ datasets:
       eta: 0.003860568106519739
       min_samples_leaf: 5
       n_trees: 198
-      reg_gamma: 0.008438355979123235
-      reg_lambda: 0.26274201790536206
-      reg_nu: 0.17447383218484333
+      gamma: 0.008438355979123235
+      alpha: 0.26274201790536206
+      delta: 0.17447383218484333
       score_method: nle
       sigma_mu_auto_scale: 1.7568706150221336
       subsample: 0.5094878494475389
@@ -405,9 +405,9 @@ datasets:
       eta: 0.003847854989512199
       min_samples_leaf: 5
       n_trees: 56
-      reg_gamma: 0.2104838712901262
-      reg_lambda: 0.00010236040884794263
-      reg_nu: 0.1477456610010389
+      gamma: 0.2104838712901262
+      alpha: 0.00010236040884794263
+      delta: 0.1477456610010389
       score_method: nle
       sigma_mu_auto_scale: 1.5443760977358176
       subsample: 0.8569015400079633
@@ -605,9 +605,9 @@ datasets:
       eta: 0.0029477221238042497
       min_samples_leaf: 5
       n_trees: 200
-      reg_gamma: 0.00028319946534074183
-      reg_lambda: 0.0017409174265639396
-      reg_nu: 0.00032438603217361606
+      gamma: 0.00028319946534074183
+      alpha: 0.0017409174265639396
+      delta: 0.00032438603217361606
       score_method: nll
       sigma_mu_auto_scale: 2.634789252437791
       subsample: 0.6868240480010936
@@ -805,9 +805,9 @@ datasets:
       eta: 0.003409200829887337
       min_samples_leaf: 5
       n_trees: 81
-      reg_gamma: 0.3480062180776975
-      reg_lambda: 2.900587762902963e-05
-      reg_nu: 0.2871427854358947
+      gamma: 0.3480062180776975
+      alpha: 2.900587762902963e-05
+      delta: 0.2871427854358947
       score_method: nle
       sigma_mu_auto_scale: 4.175378989895852
       subsample: 0.9368691912186944
@@ -1005,9 +1005,9 @@ datasets:
       eta: 0.002584046289769079
       min_samples_leaf: 5
       n_trees: 199
-      reg_gamma: 0.02319511733973081
-      reg_lambda: 0.8473801476266638
-      reg_nu: 0.858073485652279
+      gamma: 0.02319511733973081
+      alpha: 0.8473801476266638
+      delta: 0.858073485652279
       score_method: nle
       sigma_mu_auto_scale: 1.4939833424120372
       subsample: 0.518842755556892
@@ -1205,9 +1205,9 @@ datasets:
       eta: 0.0045262618570897474
       min_samples_leaf: 5
       n_trees: 25
-      reg_gamma: 0.3587600475548773
-      reg_lambda: 0.00031363653052845326
-      reg_nu: 0.06533381168002576
+      gamma: 0.3587600475548773
+      alpha: 0.00031363653052845326
+      delta: 0.06533381168002576
       score_method: nle
       sigma_mu_auto_scale: 2.2549906342332267
       subsample: 0.8549808049149826
@@ -1405,9 +1405,9 @@ datasets:
       eta: 0.0026552970061393903
       min_samples_leaf: 5
       n_trees: 142
-      reg_gamma: 0.014407038697920066
-      reg_lambda: 0.4159636440022283
-      reg_nu: 0.049740774224610575
+      gamma: 0.014407038697920066
+      alpha: 0.4159636440022283
+      delta: 0.049740774224610575
       score_method: nle
       sigma_mu_auto_scale: 2.343890685284157
       subsample: 0.6174278898895293
@@ -1605,9 +1605,9 @@ datasets:
       eta: 0.057756778964913436
       min_samples_leaf: 5
       n_trees: 74
-      reg_gamma: 0.00263860909412334
-      reg_lambda: 4.937944799795166e-05
-      reg_nu: 0.48245346027032454
+      gamma: 0.00263860909412334
+      alpha: 4.937944799795166e-05
+      delta: 0.48245346027032454
       score_method: nll
       sigma_mu_auto_scale: 1.8443532696945852
       subsample: 0.8148783146380705
@@ -1805,9 +1805,9 @@ datasets:
       eta: 0.005036376145663374
       min_samples_leaf: 8
       n_trees: 90
-      reg_gamma: 0.2909163126923323
-      reg_lambda: 3.3258966721572536e-05
-      reg_nu: 0.018190594936651063
+      gamma: 0.2909163126923323
+      alpha: 3.3258966721572536e-05
+      delta: 0.018190594936651063
       score_method: nll
       sigma_mu_auto_scale: 3.198232388228577
       subsample: 0.9323446205647351
@@ -2005,9 +2005,9 @@ datasets:
       eta: 0.003847854989512199
       min_samples_leaf: 5
       n_trees: 56
-      reg_gamma: 0.2104838712901262
-      reg_lambda: 0.00010236040884794263
-      reg_nu: 0.1477456610010389
+      gamma: 0.2104838712901262
+      alpha: 0.00010236040884794263
+      delta: 0.1477456610010389
       score_method: nle
       sigma_mu_auto_scale: 1.5443760977358176
       subsample: 0.8569015400079633
@@ -2240,17 +2240,17 @@ model_config:
       high: 200
       low: 5
       type: int
-    reg_gamma:
+    gamma:
       high: 1.0
       log: true
       low: 0.0001
       type: float
-    reg_lambda:
+    alpha:
       high: 1.0
       log: true
       low: 1.0e-05
       type: float
-    reg_nu:
+    delta:
       high: 1.0
       log: true
       low: 0.0001

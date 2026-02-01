@@ -6,9 +6,9 @@ datasets:
       eta: 0.03712371240623586
       min_samples_leaf: 11
       n_trees: 76
-      reg_gamma: 0.017570525244134657
-      reg_lambda: 0.0003026934470902618
-      reg_nu: 0.0032303493779340005
+      gamma: 0.017570525244134657
+      alpha: 0.0003026934470902618
+      delta: 0.0032303493779340005
       score_correction: bic
       subsample: 0.886413310806187
     fitting_times:
@@ -337,9 +337,9 @@ datasets:
       eta: 0.0012061972311462666
       min_samples_leaf: 49
       n_trees: 60
-      reg_gamma: 0.0003135269749553676
-      reg_lambda: 0.000170248657851621
-      reg_nu: 0.010834734242702477
+      gamma: 0.0003135269749553676
+      alpha: 0.000170248657851621
+      delta: 0.010834734242702477
       score_correction: null
       subsample: 0.7452276013077197
     fitting_times:
@@ -668,9 +668,9 @@ datasets:
       eta: 0.045165516258140206
       min_samples_leaf: 10
       n_trees: 80
-      reg_gamma: 0.00018931630750357008
-      reg_lambda: 0.00011622751148934839
-      reg_nu: 0.0009685933009903783
+      gamma: 0.00018931630750357008
+      alpha: 0.00011622751148934839
+      delta: 0.0009685933009903783
       score_correction: bic
       subsample: 0.9279397567898923
     fitting_times:
@@ -999,9 +999,9 @@ datasets:
       eta: 0.0399194206755903
       min_samples_leaf: 11
       n_trees: 97
-      reg_gamma: 0.00011497720576274554
-      reg_lambda: 6.456647371017405e-05
-      reg_nu: 0.001953536812653224
+      gamma: 0.00011497720576274554
+      alpha: 6.456647371017405e-05
+      delta: 0.001953536812653224
       score_correction: bic
       subsample: 0.9999802722233873
     fitting_times:
@@ -1330,9 +1330,9 @@ datasets:
       eta: 0.06376617860125094
       min_samples_leaf: 10
       n_trees: 67
-      reg_gamma: 0.03365675895234507
-      reg_lambda: 8.944158758591394e-05
-      reg_nu: 0.09315829899806888
+      gamma: 0.03365675895234507
+      alpha: 8.944158758591394e-05
+      delta: 0.09315829899806888
       score_correction: null
       subsample: 0.8560781953819137
     fitting_times:
@@ -1661,9 +1661,9 @@ datasets:
       eta: 0.009738809975130153
       min_samples_leaf: 26
       n_trees: 92
-      reg_gamma: 0.01093694888330641
-      reg_lambda: 0.0002204677319654914
-      reg_nu: 0.0014632796331204587
+      gamma: 0.01093694888330641
+      alpha: 0.0002204677319654914
+      delta: 0.0014632796331204587
       score_correction: bic
       subsample: 0.8380378189204073
     fitting_times:
@@ -1992,9 +1992,9 @@ datasets:
       eta: 0.02629154605771744
       min_samples_leaf: 10
       n_trees: 68
-      reg_gamma: 0.003995999487355331
-      reg_lambda: 0.00023013397930589545
-      reg_nu: 0.09315829899806888
+      gamma: 0.003995999487355331
+      alpha: 0.00023013397930589545
+      delta: 0.09315829899806888
       score_correction: null
       subsample: 0.854883822054852
     fitting_times:
@@ -2323,9 +2323,9 @@ datasets:
       eta: 0.03712371240623586
       min_samples_leaf: 11
       n_trees: 76
-      reg_gamma: 0.017570525244134657
-      reg_lambda: 0.0003026934470902618
-      reg_nu: 0.0032303493779340005
+      gamma: 0.017570525244134657
+      alpha: 0.0003026934470902618
+      delta: 0.0032303493779340005
       score_correction: bic
       subsample: 0.886413310806187
     fitting_times:
@@ -2654,9 +2654,9 @@ datasets:
       eta: 0.03712371240623586
       min_samples_leaf: 11
       n_trees: 76
-      reg_gamma: 0.017570525244134657
-      reg_lambda: 0.0003026934470902618
-      reg_nu: 0.0032303493779340005
+      gamma: 0.017570525244134657
+      alpha: 0.0003026934470902618
+      delta: 0.0032303493779340005
       score_correction: bic
       subsample: 0.886413310806187
     fitting_times:
@@ -2985,9 +2985,9 @@ datasets:
       eta: 0.0399194206755903
       min_samples_leaf: 11
       n_trees: 97
-      reg_gamma: 0.00011497720576274554
-      reg_lambda: 6.456647371017405e-05
-      reg_nu: 0.001953536812653224
+      gamma: 0.00011497720576274554
+      alpha: 6.456647371017405e-05
+      delta: 0.001953536812653224
       score_correction: bic
       subsample: 0.9999802722233873
     fitting_times:
@@ -3316,9 +3316,9 @@ datasets:
       eta: 0.0025975628838095046
       min_samples_leaf: 36
       n_trees: 78
-      reg_gamma: 0.0654278582132956
-      reg_lambda: 8.352864919298868e-05
-      reg_nu: 0.0009685933009903783
+      gamma: 0.0654278582132956
+      alpha: 8.352864919298868e-05
+      delta: 0.0009685933009903783
       score_correction: null
       subsample: 0.8869298569431665
     fitting_times:
@@ -3686,17 +3686,17 @@ model_config:
       high: 100
       low: 15
       type: int
-    reg_gamma:
+    gamma:
       high: 1.0
       log: true
       low: 0.0001
       type: float
-    reg_lambda:
+    alpha:
       high: 0.1
       log: true
       low: 1.0e-05
       type: float
-    reg_nu:
+    delta:
       high: 0.1
       log: true
       low: 0.0001

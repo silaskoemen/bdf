@@ -24,18 +24,18 @@
         "low": 5,
         "high": 200
       },
-      "reg_lambda": {
+      "alpha": {
         "type": "float",
         "low": 1e-05,
         "high": 100.0,
         "log": true
       },
-      "reg_gamma": {
+      "gamma": {
         "type": "float",
         "low": 0.0,
         "high": 1.0
       },
-      "reg_nu": {
+      "delta": {
         "type": "float",
         "low": 0.0,
         "high": 1.0
@@ -121,9 +121,9 @@
       },
       "best_params": {
         "n_trees": 173,
-        "reg_lambda": 0.0001234817735588723,
-        "reg_gamma": 0.5822202175158445,
-        "reg_nu": 0.017311218260108688,
+        "alpha": 0.0001234817735588723,
+        "gamma": 0.5822202175158445,
+        "delta": 0.017311218260108688,
         "min_samples_leaf": 9,
         "min_samples_split": 68,
         "subsample": 0.9900727905434475,
@@ -169,9 +169,9 @@
       },
       "best_params": {
         "n_trees": 168,
-        "reg_lambda": 0.015449959948145228,
-        "reg_gamma": 0.8635623600273155,
-        "reg_nu": 0.29996389388880595,
+        "alpha": 0.015449959948145228,
+        "gamma": 0.8635623600273155,
+        "delta": 0.29996389388880595,
         "min_samples_leaf": 6,
         "min_samples_split": 46,
         "subsample": 0.857170903351791,

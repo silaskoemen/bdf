@@ -73,7 +73,7 @@ class BDFNode:
         min_samples_leaf: int,
         min_child_weight: float,
         col_idcs: list | np.ndarray | None = None,
-        reg_gamma: float = 0.0,
+        gamma: float = 0.0,
         eta=0.025,
         split_gain_method: Literal["evidence", "map"] = "map",
     ) -> (
@@ -127,7 +127,7 @@ class BDFNode:
                 left_params,
                 right_params,
             ) = bdf_rs.find_best_split(  # type: ignore
-                X, y, min_samples_leaf, min_child_weight, dist_spec, eta, reg_gamma, col_idcs, split_gain_method
+                X, y, min_samples_leaf, min_child_weight, dist_spec, eta, gamma, col_idcs, split_gain_method
             )
 
             return feature_idx, threshold, loss_reduction, left_indices, right_indices, left_params, right_params
@@ -141,7 +141,7 @@ class BDFNode:
                 min_child_weight,
                 col_idcs,
                 eta=eta,
-                reg_gamma=reg_gamma,
+                gamma=gamma,
                 split_gain_method=split_gain_method,
             )
 
@@ -152,7 +152,7 @@ class BDFNode:
         min_samples_leaf: int,
         min_child_weight: float,
         col_idcs: list | np.ndarray | None = None,
-        reg_gamma: float = 1.0,
+        gamma: float = 1.0,
         eta: float = 0.025,
         split_gain_method: Literal["evidence", "map"] = "evidence",
     ) -> (
@@ -172,7 +172,7 @@ class BDFNode:
         # fast-path for KDE distributions (preserves existing optimized behavior)
         if self._is_kde_distribution():
             return self._find_best_split_python_kde(
-                X, y, min_samples_leaf, min_child_weight, col_idcs, reg_gamma=reg_gamma, eta=eta
+                X, y, min_samples_leaf, min_child_weight, col_idcs, gamma=gamma, eta=eta
             )
 
         n_samples, n_features = X.shape
@@ -273,9 +273,9 @@ class BDFNode:
             # multiplicity m_j: use valid_splits (matching Rust semantics)
             m_j = valid_splits
 
-            # Compute g_j (optionally tempered by reg_gamma)
-            if reg_gamma != 1.0:
-                g_j = log_sum_exp - reg_gamma * np.log(m_j)
+            # Compute g_j (optionally tempered by gamma)
+            if gamma != 1.0:
+                g_j = log_sum_exp - gamma * np.log(m_j)
             else:
                 g_j = log_sum_exp - np.log(m_j)
 
@@ -298,10 +298,10 @@ class BDFNode:
                 best_right_evidence = feat_best_right
 
             # Compute MAP penalized score for this feature:
-            # base = feat_best_delta, penalty = reg_gamma*(ln(k) + ln(m_j)) if reg_gamma>0
+            # base = feat_best_delta, penalty = gamma*(ln(k) + ln(m_j)) if gamma>0
             feat_map_score = feat_best_delta
-            if reg_gamma > 0.0:
-                feat_map_score -= reg_gamma * (np.log(k) + np.log(m_j))
+            if gamma > 0.0:
+                feat_map_score -= gamma * (np.log(k) + np.log(m_j))
 
             # Track best feature by MAP
             if feat_map_score > best_map_score and feat_best_threshold is not None:
@@ -339,8 +339,8 @@ class BDFNode:
         # Compute node-level integrated evidence G = log( (1/k) * sum_j exp(g_j) )
         G = node_M + np.log(node_S)
         # Apply feature-prior multiplicity tempering (same semantics as original code)
-        if reg_gamma != 1.0:
-            G -= reg_gamma * np.log(k)
+        if gamma != 1.0:
+            G -= gamma * np.log(k)
         else:
             G -= np.log(k)
 
@@ -375,7 +375,7 @@ class BDFNode:
         min_samples_leaf: int,
         min_child_weight: float,
         col_idcs: list | np.ndarray | None = None,
-        reg_gamma: float = 0.0,
+        gamma: float = 0.0,
         eta=0.025,
     ) -> (
         tuple[int, float, float, np.ndarray, np.ndarray, None, None] | tuple[None, None, float, None, None, None, None]
@@ -441,9 +441,9 @@ class BDFNode:
                     feat_best_threshold = threshold
                     feat_best_left_indices = left_indices
                     feat_best_right_indices = right_indices
-            if reg_gamma > 0.0:
+            if gamma > 0.0:
                 # Apply complexity penalty of gamma*(ln(k) + ln(m_j))
-                feat_best_loss_reduction -= reg_gamma * (np.log(k) + np.log(tried_thresholds))
+                feat_best_loss_reduction -= gamma * (np.log(k) + np.log(tried_thresholds))
             if feat_best_loss_reduction > best_loss_reduction:
                 best_loss_reduction = feat_best_loss_reduction
                 best_feature = feat_best_feature
@@ -600,8 +600,8 @@ def _find_best_split_python(
     min_samples_leaf: int,
     min_child_weight: float,
     col_idcs: list | np.ndarray | None = None,
-    # reg_gamma kept for backwards compatibility; see note below
-    reg_gamma: float = 1.0,
+    # gamma kept for backwards compatibility; see note below
+    gamma: float = 1.0,
     eta: float = 0.025,
 ):
     n_samples, n_features = X.shape
@@ -676,7 +676,7 @@ def _find_best_split_python(
         # If no valid splits, contribution is effectively zero mass -> log score -inf
         deltas_arr = np.array(deltas, dtype=float)
 
-        # --- Exact Bayesian (uniform prior) uses reg_gamma = 1.0 ---
+        # --- Exact Bayesian (uniform prior) uses gamma = 1.0 ---
         # g_j = log( (1/m_j) * sum_c exp(delta_{j,c}) )
         # If you want m_j to be "all proposed cutpoints", use tried_thresholds.
         # If you want m_j to be only valid cutpoints, use len(deltas_arr).
@@ -686,9 +686,9 @@ def _find_best_split_python(
         g_j = log_sum_exp - np.log(m_j)       # log(1/m_j Σ exp(delta))
 
         # Optional "tempering": scale the multiplicity charge only (not fully Bayes unless γ=1).
-        # If you want exact Bayes, keep reg_gamma=1 and REMOVE the next line.
-        if reg_gamma != 1.0:
-            g_j = log_sum_exp - reg_gamma * np.log(m_j)
+        # If you want exact Bayes, keep gamma=1 and REMOVE the next line.
+        if gamma != 1.0:
+            g_j = log_sum_exp - gamma * np.log(m_j)
 
         feature_log_scores.append(g_j)
 
@@ -709,9 +709,9 @@ def _find_best_split_python(
     # G = log( (1/k) * sum_j exp(g_j) )
     G = _logsumexp(np.array(feature_log_scores, dtype=float)) - np.log(k)
 
-    # Optional tempering of feature prior mass (again, exact Bayes is reg_gamma=1)
-    if reg_gamma != 1.0:
-        G = _logsumexp(np.array(feature_log_scores, dtype=float)) - reg_gamma * np.log(k)
+    # Optional tempering of feature prior mass (again, exact Bayes is gamma=1)
+    if gamma != 1.0:
+        G = _logsumexp(np.array(feature_log_scores, dtype=float)) - gamma * np.log(k)
 
     return best_feature, best_threshold, float(G), best_left_indices, best_right_indices, None, None
 """

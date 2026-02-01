@@ -173,7 +173,7 @@ pub fn find_best_split(
     distribution: &dyn DistributionPrimitives,
     scoring_spec: &ScoringSpec,
     eta: f64,
-    reg_gamma: f64,
+    gamma: f64,
     col_idcs: Option<Array1<usize>>,
     split_gain_method: &str,
 ) -> (Option<usize>, Option<f64>, f64, Option<Array1<bool>>, Option<Array1<bool>>, Option<HashMap<String, f64>>, Option<HashMap<String, f64>>) {
@@ -273,9 +273,9 @@ pub fn find_best_split(
                     }
                 }
             }
-            if (reg_gamma > 0.0) && (num_thresholds_tried > 0) && (local_best_threshold.is_some()) {
+            if (gamma > 0.0) && (num_thresholds_tried > 0) && (local_best_threshold.is_some()) {
                 // Apply complexity penalty of gamma*(ln(k) + ln(m_j))
-                local_best_loss -= reg_gamma * ((num_features_tried as f64).ln() + (num_thresholds_tried as f64).ln());
+                local_best_loss -= gamma * ((num_features_tried as f64).ln() + (num_thresholds_tried as f64).ln());
             }
 
             update_best(&best_results, feature_idx, n_samples, local_best_loss,
@@ -350,9 +350,9 @@ pub fn find_best_split(
                     local_best_split_idx = Some(split_idx);
                 }
             }
-            if (reg_gamma > 0.0) && (num_thresholds_tried > 0) && (local_best_threshold.is_some()) {
+            if (gamma > 0.0) && (num_thresholds_tried > 0) && (local_best_threshold.is_some()) {
                 // Apply complexity penalty of gamma*(ln(k) + ln(m_j))
-                local_best_loss -= reg_gamma * ((num_features_tried as f64).ln() + (num_thresholds_tried as f64).ln());
+                local_best_loss -= gamma * ((num_features_tried as f64).ln() + (num_thresholds_tried as f64).ln());
             }
 
             update_best(&best_results, feature_idx, n_samples, local_best_loss,
@@ -393,7 +393,7 @@ pub fn find_best_split_kde(
     min_child_weight: f64,
     config: &KdeSplitConfig,
     eta: f64,
-    reg_gamma: f64,
+    gamma: f64,
     col_idcs: Option<Array1<usize>>,
     split_gain_method: &str,
 ) -> (Option<usize>, Option<f64>, f64, Option<Array1<bool>>, Option<Array1<bool>>, Option<HashMap<String, f64>>, Option<HashMap<String, f64>>) {
@@ -426,7 +426,7 @@ pub fn find_best_split_kde(
         || (matches!(config.backend, KdeBackend::Switch) && n2 > config.kde_backend_switch_size);
     if want_fft && fft_eligible {
         let (fi, thr, gain, lmask, rmask) = find_best_split_kde_fft(
-            x, y, min_samples_leaf, min_child_weight, config, parent_h, eta, reg_gamma, col_idcs,
+            x, y, min_samples_leaf, min_child_weight, config, parent_h, eta, gamma, col_idcs,
         );
         return (fi, thr, gain, lmask, rmask, None, None);
     }
@@ -546,8 +546,8 @@ pub fn find_best_split_kde(
                 }
             }
 
-            if (reg_gamma > 0.0) && (num_thresholds_tried > 0) && (local_best_threshold.is_some()) {
-                local_best_gain -= reg_gamma * ((num_features_tried as f64).ln() + (num_thresholds_tried as f64).ln());
+            if (gamma > 0.0) && (num_thresholds_tried > 0) && (local_best_threshold.is_some()) {
+                local_best_gain -= gamma * ((num_features_tried as f64).ln() + (num_thresholds_tried as f64).ln());
             }
 
             if let Some(threshold) = local_best_threshold {
@@ -641,8 +641,8 @@ pub fn find_best_split_kde(
                 }
             }
 
-            if (reg_gamma > 0.0) && (num_thresholds_tried > 0) && (local_best_threshold.is_some()) {
-                local_best_gain -= reg_gamma * ((num_features_tried as f64).ln() + (num_thresholds_tried as f64).ln());
+            if (gamma > 0.0) && (num_thresholds_tried > 0) && (local_best_threshold.is_some()) {
+                local_best_gain -= gamma * ((num_features_tried as f64).ln() + (num_thresholds_tried as f64).ln());
             }
 
             if let Some(threshold) = local_best_threshold {
@@ -711,8 +711,8 @@ pub fn find_best_split_kde(
             }
 
             let mut gain = current_score - (left_score + right_score);
-            if (reg_gamma > 0.0) && (cand.thresholds_tried > 0) {
-                gain -= reg_gamma * ((num_features_tried as f64).ln() + (cand.thresholds_tried as f64).ln());
+            if (gamma > 0.0) && (cand.thresholds_tried > 0) {
+                gain -= gamma * ((num_features_tried as f64).ln() + (cand.thresholds_tried as f64).ln());
             }
             gain
         } else {
@@ -782,7 +782,7 @@ fn find_best_split_kde_fft(
     config: &KdeSplitConfig,
     parent_h: f64,
     eta: f64,
-    reg_gamma: f64,
+    gamma: f64,
     col_idcs: Option<Array1<usize>>,
 ) -> (Option<usize>, Option<f64>, f64, Option<Array1<bool>>, Option<Array1<bool>>) {
     let n_features = x.shape()[1];
@@ -973,8 +973,8 @@ fn find_best_split_kde_fft(
             }
         }
 
-        if (reg_gamma > 0.0) && (num_thresholds_tried > 0) && local_best_threshold.is_some() {
-            local_best_gain -= reg_gamma * ((num_features_tried as f64).ln() + (num_thresholds_tried as f64).ln());
+        if (gamma > 0.0) && (num_thresholds_tried > 0) && local_best_threshold.is_some() {
+            local_best_gain -= gamma * ((num_features_tried as f64).ln() + (num_thresholds_tried as f64).ln());
         }
 
         if let Some(threshold) = local_best_threshold {
@@ -1084,8 +1084,8 @@ fn find_best_split_kde_fft(
         }
 
         let mut refined_gain = current_score - (left_score + right_score);
-        if (reg_gamma > 0.0) && (cand.thresholds_tried > 0) {
-            refined_gain -= reg_gamma
+        if (gamma > 0.0) && (cand.thresholds_tried > 0) {
+            refined_gain -= gamma
                 * ((num_features_tried as f64).ln() + (cand.thresholds_tried as f64).ln());
         }
 

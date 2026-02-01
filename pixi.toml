@@ -29,6 +29,7 @@ scoring-study = "PYTHONPATH=src python -m benchmarks.scoring_method_study"
 scoring-study-reg = "PYTHONPATH=src python -m benchmarks.scoring_method_study regression"
 scoring-study-clas = "PYTHONPATH=src python -m benchmarks.scoring_method_study classification"
 scoring-study-quick = "PYTHONPATH=src python -m benchmarks.scoring_method_study --quick"
+effect-tree-prior = "PYTHONPATH=src python -m benchmarks.effect_tree_prior"
 
 [feature.bench-models.tasks]
 bench-models = "PYTHONPATH=src python -m benchmarks.run"

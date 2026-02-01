@@ -17,21 +17,24 @@ tunable_init_kwargs:
     type: int
     low: 5
     high: 200
-  reg_lambda:
+  # alpha:
+  #   type: float
+  #   low: 0.00001
+  #   high: 1.0
+  #   log: true
+  alpha:
     type: float
-    low: 0.00001
-    high: 1.0
-    log: true
-  reg_gamma:
+    low: 0.25
+    high: 0.99
+  gamma:
     type: float
     low: 0.0001
     high: 1.0
     log: true
-  reg_nu:
+  delta:
     type: float
-    low: 0.0001
-    high: 1.0
-    log: true
+    low: 0.25
+    high: 0.99
   min_samples_leaf:
     type: int
     low: 5
@@ -74,5 +77,6 @@ tunable_params:
 fixed_params:
   mu_mu: 'auto'  # Set prior mean based on data
   sigma_mu: 'auto'  # Set prior std based on data
+  tree_prior_mode: 'defer' # bernoulli, linear, defer
   # Should also include loo_cv for normal as 'fast path' is available - missing in Rust
   score_correction: bic  # Bayesian information criterion for score correction if 'nll' is used

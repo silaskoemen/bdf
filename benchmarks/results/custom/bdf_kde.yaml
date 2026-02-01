@@ -7,9 +7,9 @@ datasets:
       kernel: gaussian
       min_samples_leaf: 24
       n_trees: 58
-      reg_gamma: 0.053148253490875416
-      reg_lambda: 8.713575048854158e-05
-      reg_nu: 0.0033415429980849813
+      gamma: 0.053148253490875416
+      alpha: 8.713575048854158e-05
+      delta: 0.0033415429980849813
       subsample: 0.8700629836045872
     fitting_time: 2.2418665885925293
     metadata:
@@ -99,9 +99,9 @@ datasets:
       kernel: gaussian
       min_samples_leaf: 21
       n_trees: 38
-      reg_gamma: 0.01451849609672823
-      reg_lambda: 0.001474407091306318
-      reg_nu: 0.00022497618146000774
+      gamma: 0.01451849609672823
+      alpha: 0.001474407091306318
+      delta: 0.00022497618146000774
       subsample: 0.8053550936090645
     fitting_time: 6.057394716474745
     metadata:
@@ -191,9 +191,9 @@ datasets:
       kernel: gaussian
       min_samples_leaf: 14
       n_trees: 40
-      reg_gamma: 0.0051239852015879505
-      reg_lambda: 0.09766237753291508
-      reg_nu: 0.00011279988570204479
+      gamma: 0.0051239852015879505
+      alpha: 0.09766237753291508
+      delta: 0.00011279988570204479
       subsample: 0.8806424988471167
     fitting_time: 0.12589565912882486
     metadata:
@@ -314,17 +314,17 @@ model_config:
       high: 100
       low: 15
       type: int
-    reg_gamma:
+    gamma:
       high: 1.0
       log: true
       low: 0.0001
       type: float
-    reg_lambda:
+    alpha:
       high: 0.1
       log: true
       low: 1.0e-05
       type: float
-    reg_nu:
+    delta:
       high: 0.1
       log: true
       low: 0.0001

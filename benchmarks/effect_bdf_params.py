@@ -6,9 +6,9 @@ and scoring methods. This script investigates the sensitivity of BDF performance
 to its key hyperparameters.
 
 Parameters ablated:
-- reg_lambda: Prior split probability penalty (0, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1.0)
-- reg_gamma: Multiplicity correction (0, 1e-3, 0.01, 0.1, 0.5, 1.0)
-- reg_nu: Depth penalty (0, 1e-3, 0.01, 0.1, 0.5, 1.0)
+- alpha: Prior split probability penalty (0, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1.0)
+- gamma: Multiplicity correction (0, 1e-3, 0.01, 0.1, 0.5, 1.0)
+- delta: Depth penalty (0, 1e-3, 0.01, 0.1, 0.5, 1.0)
 - min_samples_leaf: Minimum samples per leaf (5, 10, 25, 50)
 - score_method: nle (Bayesian), nll+bic, nll (plug-in only)
 
@@ -77,9 +77,9 @@ PLOTS_DIR = Path("benchmarks/plots/effect_bdf_params")
 
 # Default values (used when varying other parameters)
 DEFAULT_PARAMS = {
-    "reg_lambda": 0.01,
-    "reg_gamma": 0.1,
-    "reg_nu": 0.01,
+    "alpha": 0.01,
+    "gamma": 0.1,
+    "delta": 0.01,
     "min_samples_leaf": 10,
     "n_trees": 50,
     "max_depth": 50,
@@ -107,9 +107,9 @@ DEFAULT_CLAS_DIST_PARAMS = {
 
 # Parameter grids for ablation
 ABLATION_GRIDS = {
-    "reg_lambda": [0.0, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1.0],
-    "reg_gamma": [0.0, 1e-3, 0.01, 0.1, 0.5, 1.0],
-    "reg_nu": [0.0, 1e-3, 0.01, 0.1, 0.5, 1.0],
+    "alpha": [0.0, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1.0],
+    "gamma": [0.0, 1e-3, 0.01, 0.1, 0.5, 1.0],
+    "delta": [0.0, 1e-3, 0.01, 0.1, 0.5, 1.0],
     "min_samples_leaf": [5, 10, 25, 50],
 }
 

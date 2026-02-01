@@ -18,7 +18,7 @@ pub mod scoring;
     min_child_weight,
     distribution_spec,
     eta,
-    reg_gamma,
+    gamma,
     col_idcs=None,
     split_gain_method="map"
 ))]
@@ -30,7 +30,7 @@ fn find_best_split(
     min_child_weight: f64,
     distribution_spec: &PyDict,
     eta: f64,
-    reg_gamma: f64,  // Parameter for split cost complexity penalty
+    gamma: f64,  // Parameter for split cost complexity penalty
     col_idcs: Option<PyReadonlyArray1<i64>>,
     split_gain_method: &str
 ) -> PyResult<(Option<usize>, Option<f64>, f64, Option<pyo3::Py<numpy::PyArray1<bool>>>, Option<pyo3::Py<numpy::PyArray1<bool>>>, Option<pyo3::Py<PyDict>>, Option<pyo3::Py<PyDict>>)> {
@@ -152,7 +152,7 @@ fn find_best_split(
             min_child_weight,
             &kde_config,
             eta,
-            reg_gamma,
+            gamma,
             col_indices,
             split_gain_method,
         )
@@ -167,7 +167,7 @@ fn find_best_split(
             &*distribution,
             &scoring_spec,
             eta,
-            reg_gamma,
+            gamma,
             col_indices,
             split_gain_method,
         )

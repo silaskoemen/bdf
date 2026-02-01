@@ -121,7 +121,7 @@ tunable_init_kwargs:
     type: int
     low: 15
     high: 100
-  reg_lambda:
+  alpha:
     type: float
     low: 0.00001
     high: 0.1
@@ -289,7 +289,7 @@ Results are saved to `benchmarks/results/` with the following structure:
     },
     "best_params": {
       "n_trees": 75,
-      "reg_lambda": 0.001,
+      "alpha": 0.001,
       ...
     },
     "tuning_time": 125.3,

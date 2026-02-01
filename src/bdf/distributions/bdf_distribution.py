@@ -47,6 +47,11 @@ class BDFDistributionParams(BaseModel, ABC):
         default=True, description="Use posterior predictive (True) or plug-in MAP (False) for NLL/inference."
     )
 
+    tree_prior_mode: Literal["linear", "defer", "bernoulli"] = Field(
+        default="linear",
+        description="Tree prior mode: 'linear' (positive penalty terms), 'defer' (log params, includes current stop prob), ' \
+            'bernoulli' (log params, includes probability of making children leaves).",
+    )
     model_config = ConfigDict(extra="forbid", validate_assignment=True, validate_by_name=True)
 
 

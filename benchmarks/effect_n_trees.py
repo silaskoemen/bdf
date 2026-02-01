@@ -67,9 +67,9 @@ COVERAGE_LEVELS = [0.50, 0.90, 0.95]
 
 # BDF configuration (hyperparameters to tune, excluding n_trees)
 TUNABLE_INIT_KWARGS = {
-    "reg_lambda": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
-    "reg_gamma": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
-    "reg_nu": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
+    "alpha": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
+    "gamma": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
+    "delta": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
     "min_samples_leaf": {"type": "int", "low": 5, "high": 50},
     "subsample": {"type": "float", "low": 0.5, "high": 1.0},
     "colsample": {"type": "float", "low": 0.5, "high": 1.0},

@@ -11,9 +11,9 @@ Includes the `heapq` fit method for the tree under dynamically growing penalties
 #     verbose: bool = False,
 #     eta: float = 0.025,
 # ) -> "BDFTree":
-#     # NOTE: if reg_lambda is 0, each loss component is fully seperable, meaning each
+#     # NOTE: if alpha is 0, each loss component is fully seperable, meaning each
 #     # node can be split simply by considering NLL reduction and including reg_beta; no need for a queue.
-#     # TODO: Implement separate fit functions given reg_lambda == 0 and reg_lambda > 0.
+#     # TODO: Implement separate fit functions given alpha == 0 and alpha > 0.
 #     # Create root node
 #     self.root = BDFNode(distribution=self.distribution, depth=0, random_state=self.random_state)
 #     self.root.estimate_posterior(y)
@@ -21,7 +21,7 @@ Includes the `heapq` fit method for the tree under dynamically growing penalties
 
 #     # Calculate initial tree loss (NLL at root + regularization)
 #     root_nll = self.distribution.nll(y)
-#     self.tree_loss = root_nll + self.reg_beta + self.reg_lambda
+#     self.tree_loss = root_nll + self.reg_beta + self.alpha
 
 #     # Initialize priority queue with potential splits
 #     split_candidates: list[tuple] = []
@@ -63,10 +63,10 @@ Includes the `heapq` fit method for the tree under dynamically growing penalties
 #         # Check whether split given tree structure and regularization is still beneficial
 #         # Calculate exact penalty for adding one leaf node
 #         # When splitting, one leaf becomes two leaves (net +1)
-#         # Old penalty: reg_beta * n_leaves + reg_lambda * n_leaves^2
-#         # New penalty: reg_beta * (n_leaves+1) + reg_lambda * (n_leaves+1)^2
-#         # Penalty increase: reg_beta + reg_lambda * (2*n_leaves + 1)
-#         if self.reg_beta + self.reg_lambda * (2 * self.n_leaves + 1) - nll_reduction <= 0:
+#         # Old penalty: reg_beta * n_leaves + alpha * n_leaves^2
+#         # New penalty: reg_beta * (n_leaves+1) + alpha * (n_leaves+1)^2
+#         # Penalty increase: reg_beta + alpha * (2*n_leaves + 1)
+#         if self.reg_beta + self.alpha * (2 * self.n_leaves + 1) - nll_reduction <= 0:
 #             # Execute the split
 #             node.split_node(y=node_y, feat_idx=feat_idx, threshold=thresh, left_idx=left_idx, right_idx=right_idx)
 
@@ -78,7 +78,7 @@ Includes the `heapq` fit method for the tree under dynamically growing penalties
 #             self.n_leaves += 1  # One leaf becomes two, net +1
 
 #             # Update tree loss
-#             self.tree_loss -= nll_reduction + self.reg_beta + self.reg_lambda * (2 * (self.n_leaves - 1) + 1)
+#             self.tree_loss -= nll_reduction + self.reg_beta + self.alpha * (2 * (self.n_leaves - 1) + 1)
 
 #             # Evaluate further splits for each new child
 #             for child_node, child_X, child_y in [

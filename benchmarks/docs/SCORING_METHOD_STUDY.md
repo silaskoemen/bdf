@@ -173,9 +173,9 @@ MODEL_CONFIG = {
     "n_trees": 50,
     "max_depth": 50,
     "min_samples_leaf": 10,
-    "reg_lambda": 0.01,
-    "reg_gamma": 0.1,
-    "reg_nu": 0.01,
+    "alpha": 0.01,
+    "gamma": 0.1,
+    "delta": 0.01,
 }
 
 REG_DIST_CONFIG = {

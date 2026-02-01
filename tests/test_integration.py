@@ -54,7 +54,7 @@ def test_distribution_parameters():
     X = np.random.rand(20, 2)
     y = np.random.rand(20)
 
-    # Call Rust function (updated signature: X, y, min_samples_leaf, min_child_weight, spec, eta, reg_gamma, col_idcs, split_gain_method)
+    # Call Rust function (updated signature: X, y, min_samples_leaf, min_child_weight, spec, eta, gamma, col_idcs, split_gain_method)
     result = bdf_rs.find_best_split(X, y, 1, 0.0, rust_spec, 0.1, 0.0, None, "map")  # type: ignore
 
     # Just check it runs without error - actual values tested elsewhere

@@ -26,9 +26,10 @@ class BDFModel(BaseEstimator):
         dist: str = "NormalMuNormal",
         params: dict = {"mu_mu": "auto", "sigma_mu": "auto", "sigma_mu_auto_scale": 1.0},
         n_trees: int = 50,
-        reg_lambda: float = 0.0,
-        reg_gamma: float = 0.1,
-        reg_nu: float = 0.01,
+        alpha: float = 0.0,
+        gamma: float = 0.1,
+        delta: float = 0.01,
+        tree_prior_mode: Literal["linear", "defer", "bernoulli"] = "linear",
         max_depth: int = 50,
         min_samples_leaf: int = 10,
         min_samples_split: int = 20,
@@ -51,9 +52,9 @@ class BDFModel(BaseEstimator):
             Prior parameters for the distribution, can be string name or 'auto', a BDFDistribution instance, or a dictionary parameters as keys. Default is 'auto'.
         `n_trees` : int, optional
             Number of trees in the forest, default is 100.
-        `reg_gamma` : float, optional
+        `gamma` : float, optional
             Regularization parameter for the gamma term, default is 0.
-        `reg_lambda` : float, optional
+        `alpha` : float, optional
             Regularization parameter for the lambda term, default is 0.
         `max_depth` : int, optional
             Maximum depth of the regression tree, default is 10.
@@ -69,9 +70,10 @@ class BDFModel(BaseEstimator):
         self.rng = np.random.default_rng(random_state)
         self._validate_init_params(
             n_trees=n_trees,
-            reg_gamma=reg_gamma,
-            reg_lambda=reg_lambda,
-            reg_nu=reg_nu,
+            gamma=gamma,
+            alpha=alpha,
+            delta=delta,
+            tree_prior_mode=tree_prior_mode,
             max_depth=max_depth,
             min_samples_leaf=min_samples_leaf,
             min_samples_split=min_samples_split,
@@ -113,7 +115,7 @@ class BDFModel(BaseEstimator):
 
         # Otherwise regularization depends on size of the dataset (NLL as sum)
         # n_features_iter = int(np.ceil(X.shape[1] * self.colsample))
-        penalty = self.reg_lambda  # * np.log(np.ceil(X.shape[0] * self.subsample))  # before had n
+        penalty = self.alpha  # * np.log(np.ceil(X.shape[0] * self.subsample))  # before had n
 
         trees = Parallel(n_jobs=self.n_jobs)(
             delayed(_fit_single_tree)(
@@ -121,9 +123,10 @@ class BDFModel(BaseEstimator):
                 y=y,
                 verbose=verbose,
                 distribution=self.distribution,
-                reg_lambda=self.reg_lambda,
-                reg_gamma=self.reg_gamma,
-                reg_nu=self.reg_nu,
+                alpha=self.alpha,
+                gamma=self.gamma,
+                delta=self.delta,
+                tree_prior_mode=self.tree_prior_mode,
                 penalty=penalty,
                 max_depth=self.max_depth,
                 min_samples_leaf=self.min_samples_leaf,
@@ -430,9 +433,10 @@ class BDFModel(BaseEstimator):
     def _validate_init_params(
         self,
         n_trees: int,
-        reg_lambda: float,
-        reg_gamma: float,
-        reg_nu: float,
+        alpha: float,
+        gamma: float,
+        delta: float,
+        tree_prior_mode: str,
         max_depth: int,
         min_samples_leaf: int,
         min_samples_split: int,
@@ -447,14 +451,20 @@ class BDFModel(BaseEstimator):
     ):
         """Validate the initialization parameters."""
         assert (
-            isinstance(reg_gamma, (float, int)) and reg_gamma >= 0.0 and reg_gamma <= 1.0
-        ), f"reg_gamma must be float and non-negative, got {reg_gamma} of type {type(reg_gamma)}"
-        assert isinstance(
-            reg_lambda, (float, int)
-        ), f"reg_lambda must be a float, got {reg_lambda} of type {type(reg_lambda)}"
+            isinstance(gamma, (float, int)) and gamma >= 0.0 and gamma <= 1.0
+        ), f"gamma must be float and non-negative, got {gamma} of type {type(gamma)}"
+        assert isinstance(alpha, (float, int)), f"alpha must be a float, got {alpha} of type {type(alpha)}"
         assert (
-            isinstance(reg_nu, (float, int)) and reg_nu >= 0.0 and reg_nu <= 1.0
-        ), f"reg_nu must be a float in [0, 1], got {reg_nu} of type {type(reg_nu)}"
+            isinstance(delta, (float, int)) and delta >= 0.0 and delta <= 1.0
+        ), f"delta must be a float in [0, 1], got {delta} of type {type(delta)}"
+        # Validate tree_prior_mode
+        valid_modes = ["linear", "defer", "bernoulli"]
+        assert tree_prior_mode in valid_modes, f"tree_prior_mode must be one of {valid_modes}, got '{tree_prior_mode}'"
+        # For defer and bernoulli modes, alpha and delta must be in (0, 1) for valid probabilities
+        if tree_prior_mode in ["defer", "bernoulli"]:
+            assert 0 < alpha < 1, f"For tree_prior_mode='{tree_prior_mode}', alpha must be in (0, 1), got {alpha}"
+            assert 0 < delta < 1, f"For tree_prior_mode='{tree_prior_mode}', delta must be in (0, 1), got {delta}"
+        self.tree_prior_mode = tree_prior_mode
         assert (
             isinstance(n_trees, int) and n_trees > 0
         ), f"n_trees must be a positive integer, got {n_trees} of type {type(n_trees)}"
@@ -493,9 +503,9 @@ class BDFModel(BaseEstimator):
         self.bootstrap = bootstrap
         self.random_state = random_state
         self.eta = eta
-        self.reg_lambda = reg_lambda
-        self.reg_gamma = reg_gamma
-        self.reg_nu = reg_nu
+        self.alpha = alpha
+        self.gamma = gamma
+        self.delta = delta
         self.n_trees = n_trees
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
