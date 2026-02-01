@@ -2,7 +2,6 @@ from typing import Any
 
 from lightgbm import LGBMClassifier, LGBMRegressor
 from omegaconf import OmegaConf
-from quantile_forest import RandomForestQuantileRegressor
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
@@ -22,6 +21,7 @@ from .wrappers import (  # BARTRegressor,
     LGBMQuantileRegressorWrapper,
     NGBClassifierWrapper,
     NGBRegressorWrapper,
+    QuantileForestWrapper,
     TreeffuserWrapper,
 )
 
@@ -69,7 +69,7 @@ class ModelFactory:
             case "CalibratedRandomForestClassifier":
                 return CalibratedRFWrapper
             case "RandomForestQuantileRegressor":
-                return RandomForestQuantileRegressor
+                return QuantileForestWrapper
             case "BARTPyRegressor":
                 return BARTPyRegressorWrapper
             case "Treeffuser":

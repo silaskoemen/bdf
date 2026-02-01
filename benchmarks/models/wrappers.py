@@ -552,16 +552,51 @@ class BayesianRidgeWrapper(BayesianRidge):
 
 
 class QuantileForestWrapper(BaseEstimator, RegressorMixin):
-    PREDICTION_TYPE: PredictionType = "quantiles"
     """
     Wrapper for Quantile Regression Forests.
     Requires: pip install quantile-forest
     """
 
+    PREDICTION_TYPE: PredictionType = "quantiles"
+
+    # Default quantiles covering all levels needed by quantile-compatible metrics:
+    # - CRPS (any quantiles work)
+    # - PICA (needs alpha/2 and 1-alpha/2 for levels 0.5, 0.8, 0.9, 0.95, 0.975, 0.99)
+    # - interval_score_50/90/95 (needs 0.25/0.75, 0.05/0.95, 0.025/0.975)
+    # - weighted_interval_score (needs 0.5 and pairs for alphas 0.01, 0.025, 0.05, 0.1, 0.2, 0.5)
+    # - ci_width_50/90/95 (needs 0.25/0.75, 0.05/0.95, 0.025/0.975)
+    # - coverage_curve (needs pairs for levels 0.1 to 0.99)
+    DEFAULT_QUANTILES = [
+        0.005,
+        0.0125,
+        0.025,
+        0.05,
+        0.1,
+        0.15,
+        0.2,
+        0.25,
+        0.3,
+        0.35,
+        0.4,
+        0.45,
+        0.5,
+        0.55,
+        0.6,
+        0.65,
+        0.7,
+        0.75,
+        0.8,
+        0.85,
+        0.9,
+        0.95,
+        0.975,
+        0.9875,
+        0.995,
+    ]
+
     def __init__(self, n_estimators=100, quantiles=None, random_state=None, **kwargs):
         self.n_estimators = n_estimators
-        # Default quantiles to cover the distribution well
-        self.quantiles = quantiles or [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]
+        self.quantiles = quantiles if quantiles is not None else self.DEFAULT_QUANTILES
         self.random_state = random_state
         self.kwargs = kwargs
         self.model_ = None
@@ -585,6 +620,22 @@ class QuantileForestWrapper(BaseEstimator, RegressorMixin):
         """Returns shape (n_obs, n_quantiles)"""
         sorted_quantiles = sorted(self.quantiles)
         return self.model_.predict(X, quantiles=sorted_quantiles)  # pyright: ignore[reportOptionalMemberAccess]
+
+    def get_params(self, deep=True):
+        params = {
+            "n_estimators": self.n_estimators,
+            "quantiles": self.quantiles,
+            "random_state": self.random_state,
+        }
+        params.update(self.kwargs)
+        return params
+
+    def set_params(self, **params):
+        for key in ("n_estimators", "quantiles", "random_state"):
+            if key in params:
+                setattr(self, key, params.pop(key))
+        self.kwargs.update(params)
+        return self
 
 
 class KNNKDE(BaseEstimator, RegressorMixin):

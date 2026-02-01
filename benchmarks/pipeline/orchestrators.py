@@ -350,41 +350,31 @@ class BaseOrchestrator:
                 # Get predictions in native format
                 if prediction_type == "quantiles":
                     y_pred_native = model.predict_quantiles(X)  # type: ignore[attr-defined]
-                    # Also get samples for metrics that need them
-                    y_pred_samples = model.predict_samples(X, n_samples=self.cfg.sample_size)  # type: ignore[attr-defined]
+                    precomputed_percentiles = None
                 else:
                     y_pred_native = model.predict_samples(X, n_samples=self.cfg.sample_size)  # type: ignore[attr-defined]
-                    y_pred_samples = y_pred_native
-
-                # Inverse transform if needed
-                if pipeline is not None and self.standardize_target in ["only", "both"]:
-                    if prediction_type == "quantiles":
+                    # Inverse transform if needed
+                    if pipeline is not None and self.standardize_target in ["only", "both"]:
                         y_pred_native = pipeline.inverse_transform(y_pred_native)
-                    y_pred_samples = pipeline.inverse_transform(y_pred_samples)
-
-                # Pre-compute percentiles from samples to avoid redundant calculations
-                precomputed_percentiles = precompute_percentiles(y_pred_samples)
+                    # Pre-compute percentiles from samples to avoid redundant calculations
+                    precomputed_percentiles = precompute_percentiles(y_pred_native)
 
                 # Route each metric to appropriate prediction format
                 for m, spec in proba_metrics.items():
+                    # Skip metrics that don't accept this prediction type
+                    if prediction_type not in spec.accepts:
+                        continue
                     if status_callback:
                         status_callback(f"🎲 {m}")
                     try:
-                        if prediction_type in spec.accepts:
-                            # Native format works - pass quantile_levels and precomputed to all metrics
-                            metric_dict[m] = float(
-                                spec(
-                                    y,
-                                    y_pred_native,
-                                    quantile_levels=quantile_levels,
-                                    precomputed=precomputed_percentiles,
-                                )
+                        metric_dict[m] = float(
+                            spec(
+                                y,
+                                y_pred_native,
+                                quantile_levels=quantile_levels,
+                                precomputed=precomputed_percentiles,
                             )
-                        else:
-                            # Need samples, use converted version with precomputed percentiles
-                            metric_dict[m] = float(
-                                spec(y, y_pred_samples, quantile_levels=None, precomputed=precomputed_percentiles)
-                            )
+                        )
                     except Exception as e:
                         logger.error(f"❌ Prob metric {m} failed: {e}")
                         metric_dict[m] = float("nan")
@@ -392,20 +382,18 @@ class BaseOrchestrator:
                 # Calibration metrics for regression (dict-returning, need special aggregation)
                 if do_reg:
                     for m, spec in REG_CALIBRATION_METRICS.items():
+                        # Skip metrics that don't accept this prediction type
+                        if prediction_type not in spec.accepts:
+                            continue
                         if status_callback:
                             status_callback(f"📈 {m}")
                         try:
-                            if prediction_type in spec.accepts:
-                                metric_dict[m] = spec(
-                                    y,
-                                    y_pred_native,
-                                    quantile_levels=quantile_levels,
-                                    precomputed=precomputed_percentiles,
-                                )
-                            else:
-                                metric_dict[m] = spec(
-                                    y, y_pred_samples, quantile_levels=None, precomputed=precomputed_percentiles
-                                )
+                            metric_dict[m] = spec(
+                                y,
+                                y_pred_native,
+                                quantile_levels=quantile_levels,
+                                precomputed=precomputed_percentiles,
+                            )
                         except Exception as e:
                             logger.error(f"❌ Calibration metric {m} failed: {e}")
                             metric_dict[m] = None

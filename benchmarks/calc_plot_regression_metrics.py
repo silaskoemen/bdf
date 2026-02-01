@@ -47,6 +47,9 @@ BASELINE_MODELS = [
     # "gp_reg",
     "bartpy",  # Only 2 datasets - excluded
     "ngboost_reg",  # add when available
+    "qrf",
+    "catbunc_reg",
+    "knnkde",
 ]
 
 # Model display names for plots and tables
@@ -59,6 +62,9 @@ MODEL_DISPLAY_NAMES = {
     "bartpy": "BART",
     "ngboost_reg": "NGBoost",
     "gp_reg": "GP",
+    "qrf": "QRF",
+    "catbunc_reg": "CatBoostUnc",
+    "knnkde": "KNNKDE",
 }
 
 # Fixed colors for each model (for consistent styling across plots)
@@ -71,6 +77,9 @@ MODEL_COLORS = {
     "bartpy": "crimson",
     "ngboost_reg": "goldenrod",
     "gp_reg": "teal",
+    "qrf": "darkorange",
+    "catbunc_reg": "purple",
+    "knnkde": "brown",
 }
 
 # Datasets to include (None = all available)
