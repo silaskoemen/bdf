@@ -68,11 +68,23 @@ class GammaMVLambdaPoissonParams(BDFDistributionParams):
     This parameterization is more interpretable:
     - mean_lambda: prior expectation of rate λ
     - var_lambda: prior uncertainty about λ
+
+    Auto-parameter resolution:
+    - mean_lambda: 'auto' → sample mean
+    - var_lambda: 'auto' → sample_mean * var_lambda_auto_scale
+      (For Poisson, Var[Y] = E[Y] = λ, so sample mean is a natural scale)
     """
 
     # Prior hyperparameters (mean-variance parameterization)
     mean_lambda: float = Field(default=1.0, gt=0, description="Prior mean E[λ] for rate parameter")
     var_lambda: float = Field(default=1.0, gt=0, description="Prior variance Var[λ] for rate parameter")
+    var_lambda_auto_scale: float = Field(
+        default=1.0,
+        gt=0,
+        description="Scale factor for automatic var_lambda. var_lambda = sample_mean * scale. "
+        "Higher values = weaker prior (more uncertainty about λ).",
+        exclude=True,
+    )
 
     # Scoring defaults
     score_method: Literal["nle", "nll"] = Field(default="nle")
@@ -438,10 +450,24 @@ class GammaMVLambdaPoisson(BDFDistribution[GammaMVLambdaPoissonParams]):
     def resolve_auto_params(cls, key: str, data: np.ndarray, params: dict[str, Any] | None = None) -> Any:
         """Resolve 'auto' parameters based on data.
 
-        For NormalMuNormal:
-        - 'mean_lambda': Use sample mean
+        For GammaMVLambdaPoisson:
+        - 'mean_lambda': Use sample mean (natural estimate of λ for Poisson)
+        - 'var_lambda': Use sample_mean * var_lambda_auto_scale
+          (For Poisson, Var[Y] = E[Y] = λ, so sample mean provides natural scale)
         """
         if key == "mean_lambda":
             return float(np.mean(data))
+        if key == "var_lambda":
+            assert params is not None, "'params' must be provided to resolve 'var_lambda' automatically."
+            assert (
+                "var_lambda_auto_scale" in params
+            ), "'var_lambda_auto_scale' must be defined in params to resolve 'var_lambda' automatically."
+            sample_mean = np.mean(data)
+            scale = params["var_lambda_auto_scale"]
+            # Prior variance = sample_mean * scale
+            # scale=1: prior std ≈ sqrt(mean), reasonable for Poisson
+            # scale>1: weaker prior (more uncertainty)
+            # scale<1: stronger prior (less uncertainty)
+            return float(max(sample_mean * scale, 1e-6))  # Ensure positive
         else:
             raise ValueError(f"Unknown parameter '{key}' for auto resolution in {cls.__name__}")

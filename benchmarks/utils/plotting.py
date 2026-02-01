@@ -36,23 +36,59 @@ def plot_average_rmse_rank(avg_rank_df, save_path: str | None = None) -> None:
     plt.close(fig)
 
 
-def plot_rel_to_best(rel_to_best_df, metric: str, save_path: str | Path | None = None) -> None:
-    """Plot relative-to-best RMSE for regression models.
+def plot_rel_to_best(
+    rel_to_best_data: dict[str, float],  # model -> relative-to-best value
+    metric: str,
+    save_path: str | Path | None = None,
+    figsize: tuple[float, float] = (10, 6),
+) -> None:
+    """Plot relative-to-best metric for regression models.
 
     Args:
-        rel_to_best_df: DataFrame with columns 'model' and f'rel_to_best_{metric}'.
+        rel_to_best_data: Dict mapping model name -> relative-to-best value.
+        metric: Metric name for axis label.
         save_path: Optional path to save the plot (str or Path).
+        figsize: Figure size.
     """
-    fig, ax = plt.subplots()
-    ax.bar(rel_to_best_df["model"], rel_to_best_df[f"rel_to_best_{metric}"], color="limegreen")
-    ax.set_xlabel("Model")
-    ax.set_ylabel(f"Relative to Best {metric.upper()}")
-    # ax.set_title(f'Relative to Best {metric.upper()} of Regression Models')
-    plt.xticks(rotation=45)
+    # Sort by value (best = 1.0 should be first)
+    sorted_items = sorted(rel_to_best_data.items(), key=lambda x: x[1])
+    names = [item[0] for item in sorted_items]
+    values = [item[1] for item in sorted_items]
+
+    fig, ax = plt.subplots(figsize=figsize, dpi=300)
+
+    # Color: green for best (closest to 1), gradient to red for worse
+    colors = plt.cm.RdYlGn_r(np.linspace(0, 0.8, len(values)))
+
+    bars = ax.bar(range(len(names)), values, color=colors, edgecolor="black", linewidth=0.5)
+
+    # Add horizontal line at 1.0 (best)
+    ax.axhline(y=1.0, color="green", linestyle="--", linewidth=1.5, alpha=0.7, label="Best")
+
+    ax.set_xticks(range(len(names)))
+    ax.set_xticklabels([n.replace("_", "\n") for n in names], rotation=0, ha="center", fontsize=10)
+    ax.set_ylabel(f"Relative to Best {metric.upper()}", fontsize=12)
+    ax.set_title(f"Relative to Best {metric.upper()}", fontsize=14)
+    ax.grid(axis="y", alpha=0.3)
+
+    # Add value labels on bars
+    for bar, val in zip(bars, values):
+        height = bar.get_height()
+        ax.annotate(
+            f"{val:.2f}",
+            xy=(bar.get_x() + bar.get_width() / 2, height),
+            xytext=(0, 3),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
+
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path)
+        plt.savefig(save_path, bbox_inches="tight")
+        print(f"Saved: {save_path}")
     plt.close(fig)
 
 
@@ -424,4 +460,321 @@ def plot_coverage_vs_interval_score_grid(
 
     if save_path:
         plt.savefig(save_path)
+    plt.close(fig)
+
+
+def plot_critical_difference_diagram(
+    avg_ranks: dict[str, float],
+    n_datasets: int,
+    cd: float | None = None,
+    alpha: float = 0.05,
+    title: str = "Critical Difference Diagram",
+    save_path: str | Path | None = None,
+    figsize: tuple[float, float] = (10, 4),
+) -> None:
+    """Plot a Critical Difference (CD) diagram for algorithm comparison.
+
+    Based on Demšar (2006). Algorithms are ordered by average rank on a number line.
+    Algorithms connected by a horizontal bar are NOT significantly different.
+
+    Args:
+        avg_ranks: Dict mapping algorithm name -> average rank.
+        n_datasets: Number of datasets used for ranking.
+        cd: Critical difference value. If None, computed from Nemenyi test.
+        alpha: Significance level for CD computation.
+        title: Plot title.
+        save_path: Path to save the figure.
+        figsize: Figure size.
+    """
+    from .statistical_tests import nemenyi_critical_difference
+
+    # Sort algorithms by rank
+    sorted_algs = sorted(avg_ranks.items(), key=lambda x: x[1])
+    names = [a[0] for a in sorted_algs]
+    ranks = [a[1] for a in sorted_algs]
+
+    k = len(names)
+
+    if cd is None:
+        cd = nemenyi_critical_difference(k, n_datasets, alpha)
+
+    # Find groups of algorithms that are not significantly different
+    # (their rank difference is <= CD)
+    groups = []
+    for i in range(k):
+        for j in range(i + 1, k):
+            if abs(ranks[i] - ranks[j]) <= cd:
+                # Check if this pair extends an existing group
+                merged = False
+                for g in groups:
+                    if i in g or j in g:
+                        g.add(i)
+                        g.add(j)
+                        merged = True
+                        break
+                if not merged:
+                    groups.append({i, j})
+
+    # Merge overlapping groups
+    merged_groups = []
+    for g in groups:
+        found = False
+        for mg in merged_groups:
+            if mg & g:  # intersection
+                mg.update(g)
+                found = True
+                break
+        if not found:
+            merged_groups.append(g)
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=figsize, dpi=300)
+
+    # Rank axis limits
+    min_rank = 1
+    max_rank = k
+    # rank_range = max_rank - min_rank
+
+    # Draw the axis
+    ax.axhline(y=0.5, color="black", linewidth=1.5, zorder=1)
+
+    # Draw tick marks and labels
+    for i, (name, rank) in enumerate(zip(names, ranks)):
+        # Tick mark
+        ax.plot([rank, rank], [0.45, 0.55], color="black", linewidth=1.5, zorder=2)
+
+        # Label (alternate above and below to avoid overlap)
+        if i % 2 == 0:
+            y_pos = 0.7
+            va = "bottom"
+        else:
+            y_pos = 0.3
+            va = "top"
+
+        # Draw line from tick to label
+        ax.plot(
+            [rank, rank],
+            [0.55 if i % 2 == 0 else 0.45, y_pos - 0.05 if i % 2 == 0 else y_pos + 0.05],
+            color="gray",
+            linewidth=0.8,
+            linestyle="-",
+            zorder=1,
+        )
+
+        ax.text(rank, y_pos, f"{name}\n({rank:.2f})", ha="center", va=va, fontsize=10)
+
+    # Draw CD bar at top
+    cd_y = 0.9
+    ax.plot([1, 1 + cd], [cd_y, cd_y], color="black", linewidth=2, zorder=3)
+    ax.plot([1, 1], [cd_y - 0.02, cd_y + 0.02], color="black", linewidth=2)
+    ax.plot([1 + cd, 1 + cd], [cd_y - 0.02, cd_y + 0.02], color="black", linewidth=2)
+    ax.text(1 + cd / 2, cd_y + 0.05, f"CD = {cd:.2f}", ha="center", va="bottom", fontsize=10)
+
+    # Draw non-significance bars (groups)
+    bar_y_positions = np.linspace(0.1, 0.35, len(merged_groups) + 1)[:-1] if merged_groups else []
+
+    for bar_y, group in zip(bar_y_positions, merged_groups):
+        group_list = sorted(group)
+        left_rank = ranks[group_list[0]]
+        right_rank = ranks[group_list[-1]]
+
+        # Draw thick bar
+        ax.plot([left_rank, right_rank], [bar_y, bar_y], color="black", linewidth=3, solid_capstyle="butt", zorder=3)
+
+    # Set axis properties
+    ax.set_xlim(min_rank - 0.3, max_rank + 0.3)
+    ax.set_ylim(0, 1.1)
+    ax.set_xlabel("Average Rank", fontsize=12)
+    ax.set_title(title, fontsize=14, fontweight="bold")
+
+    # Remove y-axis
+    ax.set_yticks([])
+    ax.spines["left"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+
+    # Add rank ticks on x-axis
+    ax.set_xticks(range(1, k + 1))
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
+        print(f"Saved: {save_path}")
+    plt.close(fig)
+
+
+def plot_metric_scatter(
+    metric_matrix: np.ndarray,  # shape (n_datasets, n_models)
+    models: list[str],
+    datasets: list[str],
+    metric_name: str = "CRPS",
+    lower_is_better: bool = True,
+    save_path: str | Path | None = None,
+    figsize: tuple[float, float] = (12, 6),
+) -> None:
+    """Plot metric values with dots per dataset and mean diamond.
+
+    Args:
+        metric_matrix: Shape (n_datasets, n_models) with metric values.
+        models: List of model names (columns).
+        datasets: List of dataset names (rows).
+        metric_name: Name of metric for title.
+        lower_is_better: If True, highlight minimum mean.
+        save_path: Path to save the figure.
+        figsize: Figure size.
+    """
+    n_datasets, n_models = metric_matrix.shape
+
+    fig, ax = plt.subplots(figsize=figsize, dpi=300)
+
+    # Colors for datasets
+    cmap = plt.get_cmap("tab10")
+    colors = {ds: cmap(i % 10) for i, ds in enumerate(datasets)}
+
+    rng = np.random.default_rng(12345)  # deterministic jitter
+
+    # Plot each dataset as dots
+    for i, ds in enumerate(datasets):
+        row = metric_matrix[i, :]
+        valid = ~np.isnan(row)
+        if not valid.any():
+            continue
+
+        x_positions = np.arange(n_models)[valid]
+        y_values = row[valid]
+
+        # Add jitter
+        jitter = rng.normal(loc=0.0, scale=0.08, size=len(x_positions))
+        ax.scatter(
+            x_positions + jitter,
+            y_values,
+            color=colors[ds],
+            alpha=0.7,
+            s=40,
+            label=ds,
+            edgecolor="white",
+            linewidth=0.5,
+        )
+
+    # Compute and plot means
+    means = np.nanmean(metric_matrix, axis=0)
+    valid_means = ~np.isnan(means)
+
+    ax.scatter(
+        np.arange(n_models)[valid_means],
+        means[valid_means],
+        marker="D",
+        color="red",
+        s=100,
+        zorder=10,
+        label="Mean",
+        edgecolor="black",
+        linewidth=1,
+    )
+
+    # Highlight best mean
+    if valid_means.any():
+        if lower_is_better:
+            best_idx = np.nanargmin(means)
+        else:
+            best_idx = np.nanargmax(means)
+        ax.scatter(
+            [best_idx],
+            [means[best_idx]],
+            marker="*",
+            color="gold",
+            s=300,
+            zorder=11,
+            edgecolor="black",
+            linewidth=1,
+        )
+
+    ax.set_xticks(range(n_models))
+    ax.set_xticklabels([m.replace("_", "\n") for m in models], rotation=0, ha="center", fontsize=10)
+    ax.set_ylabel(metric_name, fontsize=12)
+    ax.set_title(f"{metric_name} per Model (dots = datasets, diamond = mean)", fontsize=12)
+    ax.grid(axis="y", alpha=0.3)
+
+    # Legend (outside plot)
+    handles, labels = ax.get_legend_handles_labels()
+    # Deduplicate
+    by_label = dict(zip(labels, handles))
+    ax.legend(
+        by_label.values(),
+        by_label.keys(),
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+        fontsize=9,
+    )
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
+        print(f"Saved: {save_path}")
+    plt.close(fig)
+
+
+def plot_metric_comparison_bars(
+    metric_data: dict[str, tuple[float, float]],  # model -> (mean, std)
+    metric_name: str = "CRPS",
+    lower_is_better: bool = True,
+    save_path: str | Path | None = None,
+    figsize: tuple[float, float] = (10, 6),
+    highlight_best: bool = True,
+) -> None:
+    """Plot bar chart comparing models on a single metric.
+
+    Args:
+        metric_data: Dict mapping model name -> (mean, std).
+        metric_name: Name of metric for axis label.
+        lower_is_better: If True, highlight minimum as best.
+        save_path: Path to save the figure.
+        figsize: Figure size.
+        highlight_best: If True, highlight the best model in a different color.
+    """
+    # Sort by metric value
+    sorted_items = sorted(metric_data.items(), key=lambda x: x[1][0], reverse=not lower_is_better)
+    names = [item[0] for item in sorted_items]
+    means = [item[1][0] for item in sorted_items]
+    stds = [item[1][1] for item in sorted_items]
+
+    # Find best
+    if lower_is_better:
+        best_idx = np.argmin(means)
+    else:
+        best_idx = np.argmax(means)
+
+    # Colors
+    colors = ["#2ecc71" if i == best_idx and highlight_best else "#3498db" for i in range(len(names))]
+
+    fig, ax = plt.subplots(figsize=figsize, dpi=300)
+
+    x = np.arange(len(names))
+    bars = ax.bar(x, means, yerr=stds, capsize=4, color=colors, edgecolor="black", linewidth=0.5)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels([n.replace("_", "\n") for n in names], rotation=0, ha="center", fontsize=10)
+    ax.set_ylabel(metric_name, fontsize=12)
+    ax.set_title(f"{metric_name} Comparison", fontsize=14)
+    ax.grid(axis="y", alpha=0.3)
+
+    # Add value labels on bars
+    for bar, mean, std in zip(bars, means, stds):
+        height = bar.get_height()
+        ax.annotate(
+            f"{mean:.3f}",
+            xy=(bar.get_x() + bar.get_width() / 2, height + std + 0.01 * max(means)),
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
+        print(f"Saved: {save_path}")
     plt.close(fig)

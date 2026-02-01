@@ -41,10 +41,7 @@ jobs:
           workspaces: "compiled/rust"
 
       - name: Install Python Package
-        run: pixi run -e test pip install --no-deps -e .
-
-      - name: Build Rust Extension
-        run: pixi run -e test build-rust
+        run: pixi run setup
 
       - name: Run Tests
         run: pixi run test

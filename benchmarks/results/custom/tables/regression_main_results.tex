@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+\centering
+\caption{Regression benchmark results across datasets}
+\label{tab:regression-main}
+\begin{tabular}{lcccc}
+\toprule
+Model & RMSE $\downarrow$ & CRPS $\downarrow$ & Cov@90 $\uparrow$ & PICA $\downarrow$ \\
+\midrule
+BDF & \textbf{7.236 ± 0.605} & \textbf{3.249 ± 0.173} & --- & 0.050 ± 0.011 \\
+bayesridge\_reg & 18.581 ± 0.688$^{***}$ & 10.161 ± 0.328$^{***}$ & --- & 0.029 ± 0.008 \\
+confrf & 8.539 ± 0.634$^{**}$ & 4.338 ± 0.245$^{**}$ & 0.892 ± 0.028 & \textbf{0.023 ± 0.010} \\
+gaussian\_de & 9.216 ± 0.721$^{*}$ & 4.013 ± 0.265$^{*}$ & \textbf{0.914 ± 0.022} & 0.025 ± 0.011 \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize{Results averaged over 11 datasets. Bold = best. Significance: * $p<0.05$, ** $p<0.01$, *** $p<0.001$ (Wilcoxon vs control).}}
+\end{table}

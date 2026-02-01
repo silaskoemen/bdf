@@ -2,7 +2,7 @@
 
 name: bdf_gammamvlambdapoisson
 target_type: regression
-class_name: BDFModel
+class_name: BDFRegressor
 probabilistic: true
 
 compatible_target_domains: [positive_real, nonnegative_real, nonnegative_integer, positive_integer]
@@ -18,17 +18,31 @@ tunable_init_kwargs:
     high: 200
   reg_lambda:
     type: float
+    low: 0.00001
+    high: 1.0
+    log: true
+  reg_gamma:
+    type: float
     low: 0.0001
-    high: 10.0
+    high: 1.0
+    log: true
+  reg_nu:
+    type: float
+    low: 0.0001
+    high: 1.0
     log: true
   min_samples_leaf:
     type: int
     low: 5
     high: 50
-  min_samples_split:
-    type: int
-    low: 10
-    high: 100
+  # max_depth:
+  #   type: int
+  #   low: 10
+  #   high: 30
+  # min_samples_split:
+  #   type: int
+  #   low: 10
+  #   high: 100
   subsample:
     type: float
     low: 0.5
@@ -37,10 +51,6 @@ tunable_init_kwargs:
     type: float
     low: 0.5
     high: 1.0
-  max_depth:
-    type: int
-    low: 10
-    high: 30
   eta:
     type: float
     low: 0.001
@@ -48,12 +58,13 @@ tunable_init_kwargs:
     log: true
 
 tunable_params:
-  var_lambda:
+  var_lambda_auto_scale:
     type: float
     low: 0.1
-    high: 20
+    high: 10.0
     log: true
 
 fixed_params:
-  mean_lambda: auto  # Set prior mean based on data
-  raise_on_non_integer: false  # Raise error if non-integer data is provided for Poisson distribution
+  mean_lambda: auto  # Prior mean = sample mean
+  var_lambda: auto   # Prior variance = sample_mean * var_lambda_auto_scale
+  raise_on_non_integer: false  # Allow non-integer data (e.g., for count-like continuous targets)

@@ -1,0 +1,27 @@
+\begin{table}[htbp]
+\centering
+\caption{CRPS per dataset}
+\label{tab:crps-per-dataset}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+Dataset & BDF & bayesridge\_reg & confrf & gaussian\_de \\
+\midrule
+abalone\_age & 1.063 ± 0.060 & 1.176 ± 0.071 & 1.095 ± 0.072 & \textbf{1.050 ± 0.060} \\
+bike\_sharing & \textbf{20.062 ± 0.526} & 77.224 ± 1.575 & 25.111 ± 0.741 & 22.601 ± 1.071 \\
+boston\_housing & \textbf{1.730 ± 0.311} & 2.534 ± 0.459 & 1.998 ± 0.384 & 1.835 ± 0.454 \\
+combined\_cycle\_power\_plant & \textbf{1.701 ± 0.025} & 2.822 ± 0.055 & 2.027 ± 0.045 & 2.090 ± 0.044 \\
+concrete\_strength & 2.953 ± 0.325 & 5.878 ± 0.283 & 3.532 ± 0.363 & \textbf{2.841 ± 0.287} \\
+energy\_efficiency & \textbf{0.326 ± 0.034} & 1.640 ± 0.152 & 0.550 ± 0.076 & 0.849 ± 0.128 \\
+kin8nm & 0.080 ± 0.001 & 0.114 ± 0.003 & 0.090 ± 0.003 & \textbf{0.040 ± 0.001} \\
+parkinsons\_updrs & \textbf{0.387 ± 0.030} & 5.561 ± 0.236 & 1.122 ± 0.065 & 2.918 ± 0.131 \\
+realestate & \textbf{3.428 ± 0.474} & 4.669 ± 0.583 & 3.519 ± 0.458 & 4.094 ± 0.623 \\
+superconductor & \textbf{3.697 ± 0.099} & 9.730 ± 0.180 & --- & 5.449 ± 0.099 \\
+wine\_quality & \textbf{0.314 ± 0.014} & 0.419 ± 0.016 & --- & 0.371 ± 0.012 \\
+\midrule
+\textit{Average} & \textbf{3.249 ± 0.173} & 10.161 ± 0.328 & 4.338 ± 0.245 & 4.013 ± 0.265 \\
+\bottomrule
+\end{tabular}
+}
+\par\smallskip\footnotesize{CRPS values. Bold = best per row.}
+\end{table}
