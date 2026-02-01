@@ -203,6 +203,31 @@ def build_comparison_dataframe(
 
             ds_metrics = ds_data.get("metrics", {})
 
+            # Extract coverage metrics from coverage_curve
+            coverage_curve = ds_metrics.get("coverage_curve", {})
+            if coverage_curve:
+                empirical = coverage_curve.get("empirical", {})
+                for level, fold_vals in empirical.items():
+                    level_float = float(level)
+                    level_int = int(level_float * 100)
+                    cov_metric = f"coverage_{level_int}"
+                    if metrics is not None and cov_metric not in metrics:
+                        continue
+                    fold_values = [float(v) for v in fold_vals]
+                    mean_val = float(np.mean(fold_values))
+                    std_val = float(np.std(fold_values, ddof=1)) if len(fold_values) > 1 else 0.0
+                    rows.append(
+                        {
+                            "model": model_name,
+                            "dataset": ds_name,
+                            "metric": cov_metric,
+                            "fold_values": fold_values,
+                            "mean": mean_val,
+                            "std": std_val,
+                            "n_folds": len(fold_values),
+                        }
+                    )
+
             for metric_name, values in ds_metrics.items():
                 if metrics is not None and metric_name not in metrics:
                     continue
@@ -213,7 +238,7 @@ def build_comparison_dataframe(
                     mean_val = float(np.mean(fold_values))
                     std_val = float(np.std(fold_values, ddof=1)) if len(fold_values) > 1 else 0.0
                 elif isinstance(values, dict):
-                    # Skip complex nested structures (coverage_curve, pit_histogram)
+                    # Skip nested structures (coverage_curve, pit_histogram) - handled above
                     continue
                 else:
                     fold_values = [float(values)]
@@ -309,3 +334,155 @@ def get_fold_values_matrix(
             fold_dict[(d, m)] = vals
 
     return fold_dict, datasets, models
+
+
+def extract_coverage_curves(
+    model_results: dict[str, dict[str, Any]],
+    datasets: list[str] | None = None,
+) -> dict[str, dict[str, dict[str, list[float]]]]:
+    """Extract coverage curve data from model results.
+
+    Args:
+        model_results: Dict mapping model_name -> result dict.
+        datasets: List of datasets to include. If None, includes all.
+
+    Returns:
+        Nested dict: model -> dataset -> {levels: [...], empirical: [[fold1], [fold2], ...]}
+    """
+    coverage_data = {}
+
+    for model_name, model_data in model_results.items():
+        coverage_data[model_name] = {}
+
+        for ds_name, ds_data in model_data.get("datasets", {}).items():
+            if datasets is not None and ds_name not in datasets:
+                continue
+
+            ds_metrics = ds_data.get("metrics", {})
+            cov_curve = ds_metrics.get("coverage_curve", {})
+
+            if not cov_curve:
+                continue
+
+            levels = cov_curve.get("levels", [])
+            empirical = cov_curve.get("empirical", {})
+
+            if not levels or not empirical:
+                continue
+
+            # Convert empirical from {level: [fold_values]} to list of per-fold values
+            # Structure: empirical[level_str] = [fold0_val, fold1_val, ...]
+            n_folds = len(next(iter(empirical.values()))) if empirical else 0
+            fold_curves = []
+
+            for fold_idx in range(n_folds):
+                fold_curve = []
+                for level in levels:
+                    level_key = level if isinstance(level, str) else level
+                    level_vals = empirical.get(level_key, [])
+                    if fold_idx < len(level_vals):
+                        fold_curve.append(float(level_vals[fold_idx]))
+                    else:
+                        fold_curve.append(np.nan)
+                fold_curves.append(fold_curve)
+
+            coverage_data[model_name][ds_name] = {
+                "levels": [float(lev) for lev in levels],
+                "fold_curves": fold_curves,  # List of [n_folds][n_levels]
+                "mean_curve": [float(np.nanmean([fc[i] for fc in fold_curves])) for i in range(len(levels))],
+            }
+
+    return coverage_data
+
+
+def extract_pit_histograms(
+    model_results: dict[str, dict[str, Any]],
+    datasets: list[str] | None = None,
+) -> dict[str, dict[str, dict[str, Any]]]:
+    """Extract PIT histogram data from model results.
+
+    Args:
+        model_results: Dict mapping model_name -> result dict.
+        datasets: List of datasets to include. If None, includes all.
+
+    Returns:
+        Nested dict: model -> dataset -> {bin_counts: [...], n_bins: int, n_samples: int}
+    """
+    pit_data = {}
+
+    for model_name, model_data in model_results.items():
+        pit_data[model_name] = {}
+
+        for ds_name, ds_data in model_data.get("datasets", {}).items():
+            if datasets is not None and ds_name not in datasets:
+                continue
+
+            ds_metrics = ds_data.get("metrics", {})
+            pit_hist = ds_metrics.get("pit_histogram", {})
+
+            if not pit_hist:
+                continue
+
+            bin_counts = pit_hist.get("bin_counts", [])
+            n_bins = pit_hist.get("n_bins", 20)
+            n_samples = pit_hist.get("n_samples", sum(bin_counts) if bin_counts else 0)
+
+            if bin_counts:
+                pit_data[model_name][ds_name] = {
+                    "bin_counts": [int(c) for c in bin_counts],
+                    "n_bins": n_bins,
+                    "n_samples": n_samples,
+                    "bin_proportions": [c / n_samples for c in bin_counts] if n_samples > 0 else [],
+                }
+
+    return pit_data
+
+
+def build_coverage_level_dataframe(
+    model_results: dict[str, dict[str, Any]],
+    levels: list[float] | None = None,
+    datasets: list[str] | None = None,
+) -> pl.DataFrame:
+    """Build a DataFrame with coverage at specified levels for all models.
+
+    Args:
+        model_results: Dict mapping model_name -> result dict.
+        levels: Coverage levels to extract. Defaults to [0.5, 0.9, 0.95].
+        datasets: List of datasets to include. If None, includes all.
+
+    Returns:
+        DataFrame with columns: model, dataset, level, empirical_coverage, coverage_error
+    """
+    if levels is None:
+        levels = [0.5, 0.9, 0.95]
+
+    coverage_curves = extract_coverage_curves(model_results, datasets)
+    rows = []
+
+    for model_name, model_ds in coverage_curves.items():
+        for ds_name, ds_data in model_ds.items():
+            curve_levels = ds_data["levels"]
+            mean_curve = ds_data["mean_curve"]
+
+            for target_level in levels:
+                # Find closest level in curve
+                if target_level in curve_levels:
+                    idx = curve_levels.index(target_level)
+                    emp_cov = mean_curve[idx]
+                else:
+                    # Interpolate or find nearest
+                    diffs = [abs(lev - target_level) for lev in curve_levels]
+                    idx = diffs.index(min(diffs))
+                    emp_cov = mean_curve[idx]
+
+                rows.append(
+                    {
+                        "model": model_name,
+                        "dataset": ds_name,
+                        "level": target_level,
+                        "empirical_coverage": emp_cov,
+                        "coverage_error": abs(emp_cov - target_level),
+                    }
+                )
+
+    return pl.DataFrame(rows)

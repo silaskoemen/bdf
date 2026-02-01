@@ -1,6 +1,6 @@
 # Random Forest quantile regression model config
 
-name: rf_qreg
+name: qrf
 target_type: regression
 class_name: RandomForestQuantileRegressor
 probabilistic: true

@@ -15,6 +15,48 @@ mpl.rcParams.update(
     }
 )
 
+# Default color palette for models (tab10-based fallback)
+_DEFAULT_CMAP = plt.get_cmap("tab10")
+_MARKERS = ["o", "s", "^", "D", "v", "p", "h", "*", "X", "P"]
+
+
+def _get_model_style(
+    models: list[str],
+    model_colors: dict[str, str] | None = None,
+    model_display_names: dict[str, str] | None = None,
+) -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
+    """Get consistent colors, display names, and markers for models.
+
+    Args:
+        models: List of model names.
+        model_colors: Optional dict mapping model -> color.
+        model_display_names: Optional dict mapping model -> display name.
+
+    Returns:
+        Tuple of (colors dict, display_names dict, markers dict)
+    """
+    colors = {}
+    display_names = {}
+    markers = {}
+
+    for i, model in enumerate(models):
+        # Color: use provided or fall back to colormap
+        if model_colors and model in model_colors:
+            colors[model] = model_colors[model]
+        else:
+            colors[model] = _DEFAULT_CMAP(i % 10)
+
+        # Display name: use provided or fall back to model name
+        if model_display_names and model in model_display_names:
+            display_names[model] = model_display_names[model]
+        else:
+            display_names[model] = model
+
+        # Marker
+        markers[model] = _MARKERS[i % len(_MARKERS)]
+
+    return colors, display_names, markers
+
 
 def plot_average_rmse_rank(avg_rank_df, save_path: str | None = None) -> None:
     """Plot average RMSE rank for regression models.
@@ -39,6 +81,8 @@ def plot_average_rmse_rank(avg_rank_df, save_path: str | None = None) -> None:
 def plot_rel_to_best(
     rel_to_best_data: dict[str, float],  # model -> relative-to-best value
     metric: str,
+    model_colors: dict[str, str] | None = None,
+    model_display_names: dict[str, str] | None = None,
     save_path: str | Path | None = None,
     figsize: tuple[float, float] = (10, 6),
 ) -> None:
@@ -47,6 +91,8 @@ def plot_rel_to_best(
     Args:
         rel_to_best_data: Dict mapping model name -> relative-to-best value.
         metric: Metric name for axis label.
+        model_colors: Optional dict mapping model -> color.
+        model_display_names: Optional dict mapping model -> display name.
         save_path: Optional path to save the plot (str or Path).
         figsize: Figure size.
     """
@@ -55,10 +101,15 @@ def plot_rel_to_best(
     names = [item[0] for item in sorted_items]
     values = [item[1] for item in sorted_items]
 
+    colors_map, display_names, _ = _get_model_style(names, model_colors, model_display_names)
+
     fig, ax = plt.subplots(figsize=figsize, dpi=300)
 
-    # Color: green for best (closest to 1), gradient to red for worse
-    colors = plt.cm.RdYlGn_r(np.linspace(0, 0.8, len(values)))
+    # Colors: use model colors if provided, else gradient
+    if model_colors:
+        colors = [colors_map[n] for n in names]
+    else:
+        colors = plt.cm.RdYlGn_r(np.linspace(0, 0.8, len(values)))
 
     bars = ax.bar(range(len(names)), values, color=colors, edgecolor="black", linewidth=0.5)
 
@@ -66,7 +117,7 @@ def plot_rel_to_best(
     ax.axhline(y=1.0, color="green", linestyle="--", linewidth=1.5, alpha=0.7, label="Best")
 
     ax.set_xticks(range(len(names)))
-    ax.set_xticklabels([n.replace("_", "\n") for n in names], rotation=0, ha="center", fontsize=10)
+    ax.set_xticklabels([display_names[n] for n in names], rotation=0, ha="center", fontsize=10)
     ax.set_ylabel(f"Relative to Best {metric.upper()}", fontsize=12)
     ax.set_title(f"Relative to Best {metric.upper()}", fontsize=14)
     ax.grid(axis="y", alpha=0.3)
@@ -469,6 +520,7 @@ def plot_critical_difference_diagram(
     cd: float | None = None,
     alpha: float = 0.05,
     title: str = "Critical Difference Diagram",
+    model_display_names: dict[str, str] | None = None,
     save_path: str | Path | None = None,
     figsize: tuple[float, float] = (10, 4),
 ) -> None:
@@ -483,6 +535,7 @@ def plot_critical_difference_diagram(
         cd: Critical difference value. If None, computed from Nemenyi test.
         alpha: Significance level for CD computation.
         title: Plot title.
+        model_display_names: Optional dict mapping model -> display name.
         save_path: Path to save the figure.
         figsize: Figure size.
     """
@@ -492,6 +545,8 @@ def plot_critical_difference_diagram(
     sorted_algs = sorted(avg_ranks.items(), key=lambda x: x[1])
     names = [a[0] for a in sorted_algs]
     ranks = [a[1] for a in sorted_algs]
+
+    _, display_names, _ = _get_model_style(names, None, model_display_names)
 
     k = len(names)
 
@@ -561,7 +616,7 @@ def plot_critical_difference_diagram(
             zorder=1,
         )
 
-        ax.text(rank, y_pos, f"{name}\n({rank:.2f})", ha="center", va=va, fontsize=10)
+        ax.text(rank, y_pos, f"{display_names[name]}\n({rank:.2f})", ha="center", va=va, fontsize=10)
 
     # Draw CD bar at top
     cd_y = 0.9
@@ -611,6 +666,7 @@ def plot_metric_scatter(
     datasets: list[str],
     metric_name: str = "CRPS",
     lower_is_better: bool = True,
+    model_display_names: dict[str, str] | None = None,
     save_path: str | Path | None = None,
     figsize: tuple[float, float] = (12, 6),
 ) -> None:
@@ -622,9 +678,11 @@ def plot_metric_scatter(
         datasets: List of dataset names (rows).
         metric_name: Name of metric for title.
         lower_is_better: If True, highlight minimum mean.
+        model_display_names: Optional dict mapping model -> display name.
         save_path: Path to save the figure.
         figsize: Figure size.
     """
+    _, display_names, _ = _get_model_style(models, None, model_display_names)
     n_datasets, n_models = metric_matrix.shape
 
     fig, ax = plt.subplots(figsize=figsize, dpi=300)
@@ -692,7 +750,7 @@ def plot_metric_scatter(
         )
 
     ax.set_xticks(range(n_models))
-    ax.set_xticklabels([m.replace("_", "\n") for m in models], rotation=0, ha="center", fontsize=10)
+    ax.set_xticklabels([display_names[m] for m in models], rotation=0, ha="center", fontsize=10)
     ax.set_ylabel(metric_name, fontsize=12)
     ax.set_title(f"{metric_name} per Model (dots = datasets, diamond = mean)", fontsize=12)
     ax.grid(axis="y", alpha=0.3)
@@ -721,6 +779,8 @@ def plot_metric_comparison_bars(
     metric_data: dict[str, tuple[float, float]],  # model -> (mean, std)
     metric_name: str = "CRPS",
     lower_is_better: bool = True,
+    model_colors: dict[str, str] | None = None,
+    model_display_names: dict[str, str] | None = None,
     save_path: str | Path | None = None,
     figsize: tuple[float, float] = (10, 6),
     highlight_best: bool = True,
@@ -731,6 +791,8 @@ def plot_metric_comparison_bars(
         metric_data: Dict mapping model name -> (mean, std).
         metric_name: Name of metric for axis label.
         lower_is_better: If True, highlight minimum as best.
+        model_colors: Optional dict mapping model -> color.
+        model_display_names: Optional dict mapping model -> display name.
         save_path: Path to save the figure.
         figsize: Figure size.
         highlight_best: If True, highlight the best model in a different color.
@@ -741,14 +803,19 @@ def plot_metric_comparison_bars(
     means = [item[1][0] for item in sorted_items]
     stds = [item[1][1] for item in sorted_items]
 
+    colors_map, display_names, _ = _get_model_style(names, model_colors, model_display_names)
+
     # Find best
     if lower_is_better:
         best_idx = np.argmin(means)
     else:
         best_idx = np.argmax(means)
 
-    # Colors
-    colors = ["#2ecc71" if i == best_idx and highlight_best else "#3498db" for i in range(len(names))]
+    # Colors: use model colors, but highlight best with border or different shade
+    if model_colors:
+        colors = [colors_map[n] for n in names]
+    else:
+        colors = ["#2ecc71" if i == best_idx and highlight_best else "#3498db" for i in range(len(names))]
 
     fig, ax = plt.subplots(figsize=figsize, dpi=300)
 
@@ -756,7 +823,7 @@ def plot_metric_comparison_bars(
     bars = ax.bar(x, means, yerr=stds, capsize=4, color=colors, edgecolor="black", linewidth=0.5)
 
     ax.set_xticks(x)
-    ax.set_xticklabels([n.replace("_", "\n") for n in names], rotation=0, ha="center", fontsize=10)
+    ax.set_xticklabels([display_names[n] for n in names], rotation=0, ha="center", fontsize=10)
     ax.set_ylabel(metric_name, fontsize=12)
     ax.set_title(f"{metric_name} Comparison", fontsize=14)
     ax.grid(axis="y", alpha=0.3)
@@ -772,6 +839,464 @@ def plot_metric_comparison_bars(
             fontsize=9,
         )
 
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
+        print(f"Saved: {save_path}")
+    plt.close(fig)
+
+
+def plot_calibration_curve(
+    coverage_data: dict[str, dict[str, dict]],
+    models: list[str] | None = None,
+    model_colors: dict[str, str] | None = None,
+    model_display_names: dict[str, str] | None = None,
+    save_path: str | Path | None = None,
+    figsize: tuple[float, float] = (8, 7),
+) -> None:
+    """Plot calibration curve: average empirical coverage vs nominal coverage.
+
+    Shows how well each model's prediction intervals are calibrated.
+    Perfect calibration follows the 45-degree diagonal.
+
+    Args:
+        coverage_data: Nested dict from extract_coverage_curves:
+            model -> dataset -> {levels: [...], mean_curve: [...]}
+        models: List of models to include (preserves order). If None, uses all.
+        model_colors: Optional dict mapping model -> color.
+        model_display_names: Optional dict mapping model -> display name.
+        save_path: Path to save the figure.
+        figsize: Figure size.
+    """
+    if models is None:
+        models = sorted(coverage_data.keys())
+
+    colors, display_names, markers = _get_model_style(models, model_colors, model_display_names)
+
+    fig, ax = plt.subplots(figsize=figsize, dpi=300)
+
+    # Plot diagonal (perfect calibration)
+    ax.plot([0, 1], [0, 1], "k--", linewidth=1.5, alpha=0.7, label="Perfect calibration")
+
+    for model in models:
+        if model not in coverage_data:
+            continue
+
+        model_ds = coverage_data[model]
+        if not model_ds:
+            continue
+
+        # Collect all curves across datasets
+        all_levels = None
+        all_curves = []
+
+        for _, ds_data in model_ds.items():
+            levels = ds_data.get("levels", [])
+            mean_curve = ds_data.get("mean_curve", [])
+
+            if not levels or not mean_curve:
+                continue
+
+            if all_levels is None:
+                all_levels = levels
+            all_curves.append(mean_curve)
+
+        if all_levels is None or not all_curves:
+            continue
+
+        # Average across datasets
+        avg_curve = np.nanmean(np.array(all_curves), axis=0)
+
+        # Plot
+        ax.plot(
+            all_levels,
+            avg_curve,
+            marker=markers[model],
+            markersize=6,
+            linewidth=2,
+            color=colors[model],
+            label=display_names[model],
+            alpha=0.9,
+        )
+
+    ax.set_xlabel("Nominal Coverage", fontsize=12)
+    ax.set_ylabel("Empirical Coverage", fontsize=12)
+    ax.set_title("Calibration Curve (Averaged Across Datasets)", fontsize=14)
+    ax.set_xlim(0, 1.02)
+    ax.set_ylim(0, 1.02)
+    ax.set_aspect("equal")
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc="lower right", fontsize=10)
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
+        print(f"Saved: {save_path}")
+    plt.close(fig)
+
+
+def plot_pit_histograms(
+    pit_data: dict[str, dict[str, dict]],
+    models: list[str] | None = None,
+    model_colors: dict[str, str] | None = None,
+    model_display_names: dict[str, str] | None = None,
+    save_path: str | Path | None = None,
+    figsize: tuple[float, float] = (12, 8),
+    n_cols: int = 3,
+) -> None:
+    """Plot PIT histograms in a grid, one per model, averaged across datasets.
+
+    For well-calibrated models, PIT values should be uniformly distributed.
+    Deviations indicate miscalibration:
+    - U-shaped: underdispersed (prediction intervals too narrow)
+    - Inverse U-shaped: overdispersed (intervals too wide)
+    - Skewed: biased predictions
+
+    Args:
+        pit_data: Nested dict from extract_pit_histograms:
+            model -> dataset -> {bin_counts: [...], n_bins: int, bin_proportions: [...]}
+        models: List of models to include (preserves order). If None, uses all.
+        model_colors: Optional dict mapping model -> color.
+        model_display_names: Optional dict mapping model -> display name.
+        save_path: Path to save the figure.
+        figsize: Figure size.
+        n_cols: Number of columns in the grid.
+    """
+    if models is None:
+        models = sorted(pit_data.keys())
+
+    # Filter to models that have PIT data
+    models = [m for m in models if m in pit_data and pit_data[m]]
+
+    if not models:
+        print("No PIT histogram data available")
+        return
+
+    colors, display_names, _ = _get_model_style(models, model_colors, model_display_names)
+
+    n_models = len(models)
+    n_rows = (n_models + n_cols - 1) // n_cols
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=figsize, dpi=300)
+    axes = np.atleast_2d(axes)
+    axes_flat = axes.flatten()
+
+    for idx, model in enumerate(models):
+        ax = axes_flat[idx]
+        color = colors[model]
+
+        model_ds = pit_data[model]
+        if not model_ds:
+            ax.set_visible(False)
+            continue
+
+        # Collect all bin proportions across datasets
+        all_proportions = []
+        n_bins = None
+
+        for ds_data in model_ds.values():
+            props = ds_data.get("bin_proportions", [])
+            if props:
+                all_proportions.append(props)
+                if n_bins is None:
+                    n_bins = ds_data.get("n_bins", len(props))
+
+        if not all_proportions or n_bins is None:
+            ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
+            ax.set_title(display_names[model])
+            continue
+
+        # Average across datasets
+        avg_proportions = np.nanmean(np.array(all_proportions), axis=0)
+
+        # Create bin edges
+        bin_edges = np.linspace(0, 1, n_bins + 1)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        bin_width = 1.0 / n_bins
+
+        # Plot histogram bars
+        ax.bar(
+            bin_centers,
+            avg_proportions,
+            width=bin_width * 0.9,
+            color=color,
+            alpha=0.7,
+            edgecolor="black",
+            linewidth=0.5,
+        )
+
+        # Plot uniform reference line
+        uniform_height = 1.0 / n_bins
+        ax.axhline(uniform_height, color="red", linestyle="--", linewidth=1.5, alpha=0.8, label="Uniform")
+
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, max(avg_proportions.max() * 1.1, uniform_height * 1.5))
+        ax.set_xlabel("PIT value", fontsize=10)
+        ax.set_ylabel("Proportion", fontsize=10)
+        ax.set_title(display_names[model], fontsize=11)
+        ax.grid(True, alpha=0.2, axis="y")
+
+    # Hide unused subplots
+    for idx in range(n_models, len(axes_flat)):
+        axes_flat[idx].set_visible(False)
+
+    # Add legend to first subplot
+    axes_flat[0].legend(loc="upper right", fontsize=9)
+
+    fig.suptitle("PIT Histograms (Averaged Across Datasets)", fontsize=14, y=1.02)
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
+        print(f"Saved: {save_path}")
+    plt.close(fig)
+
+
+def plot_coverage_vs_sharpness(
+    df,  # polars DataFrame with metrics
+    models: list[str],
+    levels: list[int] = [50, 90, 95],
+    model_colors: dict[str, str] | None = None,
+    model_display_names: dict[str, str] | None = None,
+    save_path: str | Path | None = None,
+    figsize: tuple[float, float] = (12, 5),
+) -> None:
+    """Plot coverage vs interval score rank at multiple confidence levels.
+
+    Shows the sharpness-calibration tradeoff using rank of interval score
+    (1 = sharpest) as a scale-free metric, averaged across datasets.
+
+    Args:
+        df: Polars DataFrame from build_comparison_dataframe with metrics.
+        models: List of models to include.
+        levels: Coverage levels to plot (e.g., [50, 90, 95]).
+        model_colors: Optional dict mapping model -> color.
+        model_display_names: Optional dict mapping model -> display name.
+        save_path: Path to save the figure.
+        figsize: Figure size.
+    """
+    import polars as pl
+    from scipy.stats import rankdata
+
+    colors, display_names, markers = _get_model_style(models, model_colors, model_display_names)
+
+    n_levels = len(levels)
+    fig, axes = plt.subplots(1, n_levels, figsize=figsize, dpi=300)
+    if n_levels == 1:
+        axes = [axes]
+
+    for ax_idx, level in enumerate(levels):
+        ax = axes[ax_idx]
+        nominal = level / 100.0
+
+        coverage_metric = f"coverage_{level}"
+        iscore_metric = f"interval_score_{level}"
+
+        # Get all datasets that have data for this level
+        iscore_df = df.filter(pl.col("metric") == iscore_metric)
+        all_datasets = set(iscore_df.select("dataset").unique().to_series().to_list())
+
+        # For each dataset, compute ranks of interval score across models
+        # model -> list of (coverage, rank) per dataset
+        model_data = {m: {"coverages": [], "ranks": []} for m in models}
+
+        for ds in all_datasets:
+            # Get interval scores for all models on this dataset
+            ds_scores = {}
+            ds_coverages = {}
+            for model in models:
+                iscore_row = df.filter(
+                    (pl.col("model") == model) & (pl.col("dataset") == ds) & (pl.col("metric") == iscore_metric)
+                )
+                cov_row = df.filter(
+                    (pl.col("model") == model) & (pl.col("dataset") == ds) & (pl.col("metric") == coverage_metric)
+                )
+                if not iscore_row.is_empty() and not cov_row.is_empty():
+                    ds_scores[model] = iscore_row.select("mean").to_series()[0]
+                    ds_coverages[model] = cov_row.select("mean").to_series()[0]
+
+            if len(ds_scores) < 2:
+                continue
+
+            # Compute ranks (1 = lowest interval score = sharpest)
+            model_names = list(ds_scores.keys())
+            scores = [ds_scores[m] for m in model_names]
+            ranks = rankdata(scores, method="average")
+
+            for m, rank in zip(model_names, ranks):
+                model_data[m]["ranks"].append(rank)
+                model_data[m]["coverages"].append(ds_coverages[m])
+
+        # Plot each model
+        for model in models:
+            if not model_data[model]["ranks"]:
+                continue
+
+            avg_coverage = float(np.mean(model_data[model]["coverages"]))
+            avg_rank = float(np.mean(model_data[model]["ranks"]))
+
+            ax.scatter(
+                avg_coverage,
+                avg_rank,
+                s=100,
+                color=colors[model],
+                marker=markers[model],
+                label=display_names[model],
+                edgecolor="black",
+                linewidth=0.5,
+                zorder=5,
+            )
+
+        # Add vertical line at nominal coverage
+        ax.axvline(nominal, color="gray", linestyle="--", linewidth=1.5, alpha=0.7)
+
+        ax.set_xlabel("Empirical Coverage", fontsize=11)
+        ax.set_ylabel("Avg Interval Score Rank", fontsize=11)
+        ax.set_title(f"{level}% Prediction Interval", fontsize=12)
+        ax.grid(True, alpha=0.3)
+
+        # Set x-axis limits around nominal
+        x_margin = 0.15
+        ax.set_xlim(max(nominal - x_margin, 0), min(nominal + x_margin, 1.0))
+
+    # Single legend for all subplots
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        loc="center right",
+        bbox_to_anchor=(1.12, 0.5),
+        fontsize=10,
+    )
+
+    fig.suptitle("Coverage vs Interval Score Rank (1 = sharpest, averaged across datasets)", fontsize=12, y=1.02)
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
+        print(f"Saved: {save_path}")
+    plt.close(fig)
+
+
+def plot_coverage_vs_width_rank(
+    df,  # polars DataFrame with metrics
+    models: list[str],
+    levels: list[int] = [50, 90],
+    model_colors: dict[str, str] | None = None,
+    model_display_names: dict[str, str] | None = None,
+    save_path: str | Path | None = None,
+    figsize: tuple[float, float] = (10, 5),
+) -> None:
+    """Plot coverage vs CI width rank at multiple confidence levels.
+
+    Shows the calibration-sharpness tradeoff using rank of CI width
+    (1 = narrowest) as a scale-free metric, averaged across datasets.
+
+    Args:
+        df: Polars DataFrame from build_comparison_dataframe with metrics.
+        models: List of models to include.
+        levels: Coverage levels to plot (e.g., [50, 90]).
+        model_colors: Optional dict mapping model -> color.
+        model_display_names: Optional dict mapping model -> display name.
+        save_path: Path to save the figure.
+        figsize: Figure size.
+    """
+    import polars as pl
+    from scipy.stats import rankdata
+
+    colors, display_names, markers = _get_model_style(models, model_colors, model_display_names)
+
+    n_levels = len(levels)
+    fig, axes = plt.subplots(1, n_levels, figsize=figsize, dpi=300)
+    if n_levels == 1:
+        axes = [axes]
+
+    for ax_idx, level in enumerate(levels):
+        ax = axes[ax_idx]
+        nominal = level / 100.0
+
+        coverage_metric = f"coverage_{level}"
+        width_metric = f"ci_width_{level}"
+
+        # Get all datasets that have data for this level
+        width_df = df.filter(pl.col("metric") == width_metric)
+        all_datasets = set(width_df.select("dataset").unique().to_series().to_list())
+
+        # For each dataset, compute ranks of CI width across models
+        model_data = {m: {"coverages": [], "ranks": []} for m in models}
+
+        for ds in all_datasets:
+            # Get CI widths for all models on this dataset
+            ds_widths = {}
+            ds_coverages = {}
+            for model in models:
+                width_row = df.filter(
+                    (pl.col("model") == model) & (pl.col("dataset") == ds) & (pl.col("metric") == width_metric)
+                )
+                cov_row = df.filter(
+                    (pl.col("model") == model) & (pl.col("dataset") == ds) & (pl.col("metric") == coverage_metric)
+                )
+                if not width_row.is_empty() and not cov_row.is_empty():
+                    ds_widths[model] = width_row.select("mean").to_series()[0]
+                    ds_coverages[model] = cov_row.select("mean").to_series()[0]
+
+            if len(ds_widths) < 2:
+                continue
+
+            # Compute ranks (1 = lowest width = narrowest)
+            model_names = list(ds_widths.keys())
+            widths = [ds_widths[m] for m in model_names]
+            ranks = rankdata(widths, method="average")
+
+            for m, rank in zip(model_names, ranks):
+                model_data[m]["ranks"].append(rank)
+                model_data[m]["coverages"].append(ds_coverages[m])
+
+        # Plot each model
+        for model in models:
+            if not model_data[model]["ranks"]:
+                continue
+
+            avg_coverage = float(np.mean(model_data[model]["coverages"]))
+            avg_rank = float(np.mean(model_data[model]["ranks"]))
+
+            ax.scatter(
+                avg_coverage,
+                avg_rank,
+                s=100,
+                color=colors[model],
+                marker=markers[model],
+                label=display_names[model],
+                edgecolor="black",
+                linewidth=0.5,
+                zorder=5,
+            )
+
+        # Add vertical line at nominal coverage
+        ax.axvline(nominal, color="gray", linestyle="--", linewidth=1.5, alpha=0.7)
+
+        ax.set_xlabel("Empirical Coverage", fontsize=11)
+        ax.set_ylabel("Avg Width Rank", fontsize=11)
+        ax.set_title(f"{level}% Prediction Interval", fontsize=12)
+        ax.grid(True, alpha=0.3)
+
+        # Set x-axis limits around nominal
+        x_margin = 0.15
+        ax.set_xlim(max(nominal - x_margin, 0), min(nominal + x_margin, 1.0))
+
+    # Single legend for all subplots
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        loc="center right",
+        bbox_to_anchor=(1.12, 0.5),
+        fontsize=10,
+    )
+
+    fig.suptitle("Coverage vs Width Rank (1 = narrowest, averaged across datasets)", fontsize=12, y=1.02)
     plt.tight_layout()
 
     if save_path:

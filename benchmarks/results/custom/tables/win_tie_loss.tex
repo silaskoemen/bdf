@@ -7,8 +7,11 @@
 Comparison & Wins & Ties & Losses & Total & Sign test $p$ \\
 \midrule
 BDF vs bayesridge\_reg & 11 & 0 & 0 & 11 & \textbf{0.001} \\
-BDF vs confrf & 9 & 0 & 0 & 9 & \textbf{0.004} \\
+BDF vs conflgbm & 6 & 0 & 5 & 11 & 1.000 \\
+BDF vs confrf & 11 & 0 & 0 & 11 & \textbf{0.001} \\
 BDF vs gaussian\_de & 8 & 0 & 3 & 11 & 0.227 \\
+BDF vs bartpy & 11 & 0 & 0 & 11 & \textbf{0.001} \\
+BDF vs ngboost\_reg & 8 & 1 & 2 & 11 & 0.109 \\
 \bottomrule
 \end{tabular}
 \par\smallskip\footnotesize{Wins = control better, Losses = challenger better. Ties = $<$1\% relative difference. Bold $p$ = significant.}

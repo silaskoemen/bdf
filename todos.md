@@ -1,7 +1,6 @@
 # List of things to do
 ## Overall updates
 - [ ] Write tests for all distributions, expose nll from Rust & check parity
-- [ ] Suff stats for python splits as well?
 - [ ] Add allowed distributions to BDFRegressor and BDFClassifier docstrings, validate input
 - [ ] Allow numpy and pandas inputs
 

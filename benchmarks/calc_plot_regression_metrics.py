@@ -34,19 +34,44 @@ PLOT_FORMAT = "pdf"
 BDF_MODELS = [
     "bdf_normalmunormal",
     "bdf_kde",
+    "bdf_gammamvlambdapoisson",
     # "bdf_skewnormal",  # uncomment when available
 ]
 
 # Baseline models to compare against
 BASELINE_MODELS = [
     "bayesridge_reg",
-    # "conflgbm",
+    "conflgbm",
     "confrf",
     "gaussian_de",
     # "gp_reg",
-    # "bartpy",  # Only 2 datasets - excluded
-    # "ngboost_reg",  # add when available
+    "bartpy",  # Only 2 datasets - excluded
+    "ngboost_reg",  # add when available
 ]
+
+# Model display names for plots and tables
+MODEL_DISPLAY_NAMES = {
+    "BDF": "BDF",
+    "bayesridge_reg": "BayesRidge",
+    "conflgbm": "ConfLGBM",
+    "confrf": "ConfRF",
+    "gaussian_de": "GaussianDE",
+    "bartpy": "BART",
+    "ngboost_reg": "NGBoost",
+    "gp_reg": "GP",
+}
+
+# Fixed colors for each model (for consistent styling across plots)
+MODEL_COLORS = {
+    "BDF": "dodgerblue",
+    "bayesridge_reg": "orange",
+    "conflgbm": "forestgreen",
+    "confrf": "limegreen",
+    "gaussian_de": "mediumpurple",
+    "bartpy": "crimson",
+    "ngboost_reg": "goldenrod",
+    "gp_reg": "teal",
+}
 
 # Datasets to include (None = all available)
 # Set to a list for a representative subset, e.g.:
@@ -67,8 +92,15 @@ DATASETS = [
 # Metrics configuration
 POINT_METRICS = ["rmse", "mae", "r2"]
 PROB_METRICS = ["crps", "nll", "weighted_interval_score", "dawid_sebastiani_score"]
-CALIBRATION_METRICS = ["pica", "pit_ks_statistic", "coverage_90", "coverage_95"]
-INTERVAL_METRICS = ["ci_width_90", "interval_score_90"]
+CALIBRATION_METRICS = ["pica", "pit_ks_statistic", "coverage_50", "coverage_90", "coverage_95"]
+INTERVAL_METRICS = [
+    "ci_width_50",
+    "ci_width_90",
+    "ci_width_95",
+    "interval_score_50",
+    "interval_score_90",
+    "interval_score_95",
+]
 
 # Metric display names for tables
 METRIC_DISPLAY = {
@@ -131,10 +163,14 @@ def main():
         save_latex_table,
     )
     from .utils.plotting import (
+        plot_calibration_curve,
         plot_coverage_vs_interval_score_grid,
+        plot_coverage_vs_sharpness,
+        plot_coverage_vs_width_rank,
         plot_critical_difference_diagram,
         plot_metric_comparison_bars,
         plot_metric_scatter,
+        plot_pit_histograms,
         plot_rel_to_best,
     )
     from .utils.statistical_tests import (
@@ -146,6 +182,8 @@ def main():
     from .utils.yaml_loader import (
         aggregate_bdf_models,
         build_comparison_dataframe,
+        extract_coverage_curves,
+        extract_pit_histograms,
         get_metric_matrix,
         load_model_results,
     )
@@ -325,6 +363,7 @@ def main():
                 n_datasets=friedman_res.n_datasets,
                 cd=cd,
                 title=f"Critical Difference Diagram ({metric.upper()})",
+                model_display_names=MODEL_DISPLAY_NAMES,
             )
 
     # 7b. Metric scatter plots (dots per dataset, diamond for mean)
@@ -339,6 +378,7 @@ def main():
             datasets=ds_list,
             metric_name=metric.upper(),
             lower_is_better=LOWER_IS_BETTER.get(metric, True),
+            model_display_names=MODEL_DISPLAY_NAMES,
         )
 
     # 7c. Relative-to-best plots
@@ -372,6 +412,8 @@ def main():
                 f"regression_rel_to_best_{metric}",
                 rel_to_best_data=rel_to_best_data,
                 metric=metric,
+                model_colors=MODEL_COLORS,
+                model_display_names=MODEL_DISPLAY_NAMES,
             )
 
     # 7d. Coverage vs Interval Score grid
@@ -426,7 +468,55 @@ def main():
             metric_data=crps_data,
             metric_name="CRPS",
             lower_is_better=True,
+            model_colors=MODEL_COLORS,
+            model_display_names=MODEL_DISPLAY_NAMES,
         )
+
+    # 7f. Calibration curve (empirical vs nominal coverage)
+    coverage_curves = extract_coverage_curves(all_results, datasets=datasets)
+    if coverage_curves:
+        save_fig(
+            plot_calibration_curve,
+            "regression_calibration_curve",
+            coverage_data=coverage_curves,
+            models=models,
+            model_colors=MODEL_COLORS,
+            model_display_names=MODEL_DISPLAY_NAMES,
+        )
+
+    # 7g. PIT histograms (one per model, averaged across datasets)
+    pit_histograms = extract_pit_histograms(all_results, datasets=datasets)
+    if pit_histograms:
+        save_fig(
+            plot_pit_histograms,
+            "regression_pit_histograms",
+            pit_data=pit_histograms,
+            models=models,
+            model_colors=MODEL_COLORS,
+            model_display_names=MODEL_DISPLAY_NAMES,
+        )
+
+    # 7h. Coverage vs Interval Score Rank at 50/90/95% levels
+    save_fig(
+        plot_coverage_vs_sharpness,
+        "regression_coverage_vs_iscore_rank",
+        df=df,
+        models=models,
+        levels=[50, 90, 95],
+        model_colors=MODEL_COLORS,
+        model_display_names=MODEL_DISPLAY_NAMES,
+    )
+
+    # 7i. Coverage vs Width Rank at 50/90% levels
+    save_fig(
+        plot_coverage_vs_width_rank,
+        "regression_coverage_vs_width_rank",
+        df=df,
+        models=models,
+        levels=[50, 90],
+        model_colors=MODEL_COLORS,
+        model_display_names=MODEL_DISPLAY_NAMES,
+    )
 
     # -------------------------------------------------------------------------
     # 8. Generate LaTeX tables
