@@ -78,10 +78,6 @@ impl TopKCandidates {
 
     /// Try to insert a candidate. Returns true if inserted (i.e., in top-k).
     fn try_insert(&mut self, candidate: BestKdeSplit) -> bool {
-        if candidate.gain <= 0.0 {
-            return false;
-        }
-
         if self.candidates.len() < self.k {
             // Not yet full, just insert
             self.candidates.push(candidate);
@@ -199,7 +195,7 @@ pub fn find_best_split(
     let best_results = Mutex::new((
         None as Option<usize>,
         None as Option<f64>,
-        0.0f64,
+        f64::NEG_INFINITY,
         None as Option<Array1<bool>>,
         None as Option<Array1<bool>>
     ));
@@ -232,7 +228,7 @@ pub fn find_best_split(
             let mut left_stats = SufficientStats::default();
             let mut right_stats = parent_stats;
 
-            let mut local_best_loss = 0.0;
+            let mut local_best_loss = f64::NEG_INFINITY;
             let mut local_best_threshold = None;
             let mut local_best_split_idx = None;
 
@@ -298,7 +294,7 @@ pub fn find_best_split(
             // Pre-sort y for direct slicing
             let sorted_y: Vec<f64> = sorted_indices.iter().map(|&i| y[i]).collect();
 
-            let mut local_best_loss = 0.0;
+            let mut local_best_loss = f64::NEG_INFINITY;
             let mut local_best_threshold = None;
             let mut local_best_split_idx = None;
 
@@ -402,7 +398,7 @@ pub fn find_best_split_kde(
     let _ = split_gain_method;
 
     if n_samples < 2 {
-        return (None, None, 0.0, None, None, None, None);
+        return (None, None, f64::NEG_INFINITY, None, None, None, None);
     }
 
     let base_kde = KdeDist {
@@ -488,7 +484,7 @@ pub fn find_best_split_kde(
 
             let mut sum_to_left = vec![0.0f64; n_samples];
 
-            let mut local_best_gain = 0.0;
+            let mut local_best_gain = f64::NEG_INFINITY;
             let mut local_best_threshold = None;
             let mut num_thresholds_tried = 0usize;
 
@@ -581,7 +577,7 @@ pub fn find_best_split_kde(
 
             let sorted_indices = sort_indices_by_feature(&column);
 
-            let mut local_best_gain = 0.0;
+            let mut local_best_gain = f64::NEG_INFINITY;
             let mut local_best_threshold = None;
             let mut num_thresholds_tried = 0usize;
 
@@ -661,7 +657,7 @@ pub fn find_best_split_kde(
     // Extract top-k candidates (sorted by gain descending)
     let top_k_candidates = std::mem::take(&mut *best_results.lock().unwrap()).into_sorted();
     if top_k_candidates.is_empty() {
-        return (None, None, 0.0, None, None, None, None);
+        return (None, None, f64::NEG_INFINITY, None, None, None, None);
     }
 
     // Top-k refinement: refine all k candidates with per-child bandwidth, pick the best.
@@ -726,7 +722,7 @@ pub fn find_best_split_kde(
     }
 
     let Some((best_cand_idx, threshold, final_gain)) = best_refined else {
-        return (None, None, 0.0, None, None, None, None);
+        return (None, None, f64::NEG_INFINITY, None, None, None, None);
     };
 
     let best_cand = &top_k_candidates[best_cand_idx];
@@ -736,7 +732,7 @@ pub fn find_best_split_kde(
     let column = x.slice(s![.., feature_idx]);
     let sorted_indices = sort_indices_by_feature(&column);
     let Some(split_idx) = split_idx_from_threshold(&column, &sorted_indices, threshold) else {
-        return (None, None, 0.0, None, None, None, None);
+        return (None, None, f64::NEG_INFINITY, None, None, None, None);
     };
 
     let mut left_mask = Array1::from_elem(n_samples, false);
@@ -788,7 +784,7 @@ fn find_best_split_kde_fft(
     let n_features = x.shape()[1];
     let n_samples = y.len();
     if n_samples < 2 || !parent_h.is_finite() || parent_h <= 0.0 {
-        return (None, None, 0.0, None, None);
+        return (None, None, f64::NEG_INFINITY, None, None);
     }
 
     let base_kde = KdeDist {
@@ -800,11 +796,11 @@ fn find_best_split_kde_fft(
     // Grid
     let (grid_min, grid_max, n_bins) = pick_fft_grid(y, parent_h, config);
     if n_bins < 8 || !(grid_max > grid_min) {
-        return (None, None, 0.0, None, None);
+        return (None, None, f64::NEG_INFINITY, None, None);
     }
     let dx = (grid_max - grid_min) / (n_bins as f64);
     if !dx.is_finite() || dx <= 0.0 {
-        return (None, None, 0.0, None, None);
+        return (None, None, f64::NEG_INFINITY, None, None);
     }
 
     let fft_len = n_bins.next_power_of_two();
@@ -866,7 +862,7 @@ fn find_best_split_kde_fft(
         kde_plugin_nll_from_hist(&total_counts_bins, &total_conv[..n_bins], n_samples, k0)
     };
     let current_score = kde_apply_score_correction(current_score_base, n_samples, score_corr);
-    if !current_score.is_finite() { return (None, None, 0.0, None, None); }
+    if !current_score.is_finite() { return (None, None, f64::NEG_INFINITY, None, None); }
 
     let feature_idcs: Vec<usize> = match col_idcs {
         Some(ref indices) => indices.to_vec(),
@@ -897,7 +893,7 @@ fn find_best_split_kde_fft(
         let mut conv_left: Vec<f64> = c2r.make_output_vec();
         let mut scratch_inv_local = c2r.make_scratch_vec();
 
-        let mut local_best_gain = 0.0;
+        let mut local_best_gain = f64::NEG_INFINITY;
         let mut local_best_threshold: Option<f64> = None;
         let mut num_thresholds_tried = 0usize;
 
@@ -992,7 +988,7 @@ fn find_best_split_kde_fft(
     // Extract top-k candidates (sorted by gain descending)
     let top_k_candidates = std::mem::take(&mut *best_results.lock().unwrap()).into_sorted();
     if top_k_candidates.is_empty() {
-        return (None, None, 0.0, None, None);
+        return (None, None, f64::NEG_INFINITY, None, None);
     }
 
     // Top-k refinement: refine all k candidates with per-child bandwidth, pick the best.
@@ -1095,7 +1091,7 @@ fn find_best_split_kde_fft(
     }
 
     let Some((best_cand_idx, threshold, final_gain)) = best_refined else {
-        return (None, None, 0.0, None, None);
+        return (None, None, f64::NEG_INFINITY, None, None);
     };
 
     let best_cand = &top_k_candidates[best_cand_idx];
@@ -1105,7 +1101,7 @@ fn find_best_split_kde_fft(
     let column = x.slice(s![.., feature_idx]);
     let sorted_indices = sort_indices_by_feature(&column);
     let Some(split_idx) = split_idx_from_threshold(&column, &sorted_indices, threshold) else {
-        return (None, None, 0.0, None, None);
+        return (None, None, f64::NEG_INFINITY, None, None);
     };
 
     let mut left_mask = Array1::from_elem(n_samples, false);
