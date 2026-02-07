@@ -1,6 +1,6 @@
 # LightGBM regression model config
 
-name: bdf_normalmunormal
+name: bdf_freqstudentt
 target_type: regression
 class_name: BDFRegressor
 probabilistic: true
@@ -8,7 +8,7 @@ probabilistic: true
 compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
 
 fixed_init_kwargs:
-  dist: NormalMuNormal
+  dist: FrequentistStudentT
   random_state: 1234
   verbose: 1
   # max_depth: 50
@@ -23,10 +23,6 @@ tunable_init_kwargs:
     low: 0.00001
     high: 1.0
     log: true
-  # alpha:
-  #   type: float
-  #   low: 0.1
-  #   high: 0.999
   gamma:
     type: float
     low: 0.0001
@@ -63,22 +59,23 @@ tunable_init_kwargs:
     high: 0.1
     log: true
 
-tunable_params:
-  sigma_mu_auto_scale:
-    type: float
-    low: 0.01
-    high: 10.0
-    log: true
-  score_method:
-    type: categorical
-    categories: [nll, nle]
+tunable_params: {}
+  # sigma_mu_auto_scale:
+  #   type: float
+  #   low: 0.01
+  #   high: 10.0
+  #   log: true
+  # score_method:
+  #   type: categorical
+  #   categories: [nll, nle]
   # score_correction:
   #   type: categorical
   #   categories: [bic, null]
 
 fixed_params:
-  mu_mu: 'auto'  # Set prior mean based on data
-  sigma_mu: 'auto'  # Set prior std based on data
+  df: null # estimate from data via MoM
+  # mu_mu: 'auto'  # Set prior mean based on data
+  # sigma_mu: 'auto'  # Set prior std based on data
   tree_prior_mode: 'linear' # bernoulli, linear, defer
   # Should also include loo_cv for normal as 'fast path' is available - missing in Rust
   score_correction: bic  # Bayesian information criterion for score correction if 'nll' is used

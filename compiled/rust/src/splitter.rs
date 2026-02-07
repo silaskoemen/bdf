@@ -13,7 +13,6 @@ use std::f64::consts::PI;
 #[derive(Clone, Copy, Debug)]
 pub enum KdeBackend {
     Pairwise,
-    // Fft, // deferred
     Fft,
     Switch,
 }

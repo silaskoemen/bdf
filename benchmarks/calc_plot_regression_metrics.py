@@ -36,6 +36,7 @@ BDF_MODELS = [
     "bdf_kde",
     "bdf_gammamvlambdapoisson",
     # "bdf_skewnormal",  # uncomment when available
+    "bdf_freqstudentt",
 ]
 
 # Baseline models to compare against

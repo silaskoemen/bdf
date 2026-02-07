@@ -1,5 +1,5 @@
 import warnings
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 import numpy as np
 from pydantic import Field
@@ -28,15 +28,15 @@ class FrequentistStudentTParams(BDFDistributionParams):
         description="Degrees of freedom ν. If None, ν is estimated; otherwise treated as fixed (ν > 2 for finite variance).",
     )
 
-    estimation_method: Literal["em", "mle"] = Field(
-        default="em",
+    estimation_method: Literal["em", "mle", "mom"] = Field(
+        default="mom",
         description=(
             "Parameter estimation method for (μ, σ[, ν]): "
-            "'em' uses a fast IRLS/EM-like scheme; 'mle' uses generic numerical optimization."
+            "'em' uses a fast IRLS/EM-like scheme; 'mle' uses generic numerical optimization, 'mom' uses method of moments (4th moment to obtain nu)."
         ),
     )
 
-    score_method: Literal["nle", "nll"] = Field(
+    score_method: Literal["nll"] = Field(
         default="nll",
         description="Student-t is non-conjugate; only 'nll' (negative log-likelihood) is supported.",
     )
@@ -51,7 +51,7 @@ class FrequentistStudentTParams(BDFDistributionParams):
 # ============================================================================
 
 
-class FrequentistStudentT(BDFDistribution):
+class FrequentistStudentT(BDFDistribution[FrequentistStudentTParams]):
     params_cls: ClassVar[type[BDFDistributionParams]] = FrequentistStudentTParams
 
     _supports_nle = False
@@ -59,10 +59,10 @@ class FrequentistStudentT(BDFDistribution):
     _has_fast_kfold_cv = False
     _supports_posterior_predictive = False
 
-    def __init__(self, params: FrequentistStudentTParams):
+    def __init__(self, params: dict[str, Any] | FrequentistStudentTParams):
         super().__init__(params)
-        self.df = params.df
-        self.estimation_method = params.estimation_method
+        self.df = self.params.df
+        self.estimation_method = self.params.estimation_method
 
     def calc_posterior_params(self, data: np.ndarray) -> dict[str, float]:
         if data.size == 0:
@@ -73,6 +73,8 @@ class FrequentistStudentT(BDFDistribution):
                 mu, sigma, df = self._fit_em(data)
             elif self.estimation_method == "mle":
                 mu, sigma, df = self._fit_mle(data)
+            elif self.estimation_method == "mom":
+                mu, sigma, df = self._fit_mom(data)
             else:
                 raise ValueError(f"Unknown estimation_method: {self.estimation_method}")
         except Exception:
@@ -243,3 +245,25 @@ class FrequentistStudentT(BDFDistribution):
             df_hat = fixed_df
 
         return float(mu_hat), sigma_hat, df_hat
+
+    def _fit_mom(self, data: np.ndarray) -> tuple[float, float, float]:
+        """Fit using method of moments: μ = mean, σ = s * ((v-2)/ν), ν from 4th moment."""
+        y = data.astype(float)
+        n = y.size
+
+        mu = float(np.mean(y))
+        sigma2 = float(np.var(y, ddof=1)) if n > 1 else 1.0
+        sigma2 = max(sigma2, 1e-10)
+
+        if self.df is None:
+            # Method of moments for df using excess kurtosis
+            m4 = np.mean((y - mu) ** 4)
+            excess_kurtosis = m4 / (sigma2**2) - 3
+            if excess_kurtosis <= 0:
+                df = 100.0
+            else:
+                df = max(2.05, min(100.0, 6 / excess_kurtosis + 4))
+        else:
+            df = self.df
+
+        return mu, np.sqrt(sigma2 * (df - 2) / df), float(df)
