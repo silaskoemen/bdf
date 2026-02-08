@@ -267,3 +267,172 @@ class FrequentistStudentT(BDFDistribution[FrequentistStudentTParams]):
             df = self.df
 
         return mu, np.sqrt(sigma2 * (df - 2) / df), float(df)
+
+
+# ============================================================================
+# NORMAL MEAN PRIOR STUDENT-T (CLT moment prior)
+# ============================================================================
+
+
+class NormalMeanStudentTParams(BDFDistributionParams):
+    """Student-t with Normal prior on the mean (CLT moment prior).
+
+    y ~ t_ν(μ, σ)
+
+    Prior: μ ~ N(mu_mean, sigma_mean²)
+    Posterior mean via Normal-Normal conjugate update (CLT approximation).
+    ν estimated via Method of Moments (excess kurtosis) or fixed.
+    σ recovered from variance identity: Var(Y) = σ²ν/(ν-2).
+    """
+
+    mu_mean: float = Field(default=0.0, description="Prior mean for μ.")
+    sigma_mean: float = Field(default=1.0, gt=0, description="Prior std for μ.")
+    sigma_mean_auto_scale: float = Field(
+        default=1.0,
+        gt=0,
+        description="Scale factor for automatic sigma_mean if 'auto' is used. Resolved upon `fit`, discarded from final params.",
+        exclude=True,
+    )
+    df: float | None = Field(
+        default=None,
+        gt=2.0,
+        description="Degrees of freedom ν. If None, ν is estimated via MoM; otherwise treated as fixed (ν > 2 for finite variance).",
+    )
+    score_method: Literal["nll"] = Field(
+        default="nll",
+        description="Student-t is non-conjugate; only 'nll' (negative log-likelihood) is supported.",
+    )
+    use_posterior_predictive: bool = Field(
+        default=False,
+        description="Posterior predictive not supported (no conjugate pair); always use plug-in.",
+    )
+
+
+class NormalMeanStudentT(BDFDistribution[NormalMeanStudentTParams]):
+    """Student-t distribution with Normal prior on the mean (CLT moment prior).
+
+    **String Alias:** ``'NormalMeanStudentT'``
+
+    **Model Specification:**
+
+    .. math::
+
+        y \\sim t_\\nu(\\mu, \\sigma)
+
+        \\mu \\sim \\mathcal{N}(\\mu_0, \\sigma_0^2)
+
+    **Inference:**
+
+    1. Place Normal(mu_mean, sigma_mean²) prior on population mean.
+    2. Bayesian update: posterior mean μ_post via precision-weighted average (CLT).
+    3. Estimate ν from excess kurtosis (Method of Moments) or use fixed value.
+    4. Recover σ from variance identity: σ = √(s² · (ν-2)/ν).
+
+    This provides regularization on the mean while preserving heavy-tail flexibility.
+    """
+
+    params_cls: ClassVar[type[BDFDistributionParams]] = NormalMeanStudentTParams
+
+    _supports_nle = False
+    _has_fast_loo_cv = False
+    _has_fast_kfold_cv = False
+    _supports_posterior_predictive = False
+
+    def __init__(self, params: dict[str, Any] | NormalMeanStudentTParams):
+        super().__init__(params)
+        self.mu_mean = float(self.params.mu_mean)
+        self.sigma_mean = float(self.params.sigma_mean)
+        self.df = self.params.df
+
+    @classmethod
+    def resolve_auto_params(cls, key: str, data: np.ndarray, params: dict[str, Any] | None = None) -> Any:
+        if key == "mu_mean":
+            return float(np.mean(data))
+        if key == "sigma_mean":
+            assert params is not None
+            assert "sigma_mean_auto_scale" in params
+            sample_std = np.std(data, ddof=1)
+            scale = params["sigma_mean_auto_scale"]
+            return float(sample_std * scale)
+        raise ValueError(f"Unknown parameter '{key}' for auto resolution in {cls.__name__}")
+
+    def calc_posterior_params(self, data: np.ndarray) -> dict[str, float]:
+        """Bayesian update on mean, then MoM for df and sigma."""
+        n = float(len(data))
+
+        if n < 2:
+            df = float(self.df) if self.df is not None else 5.0
+            return {"mu": self.mu_mean, "sigma": 1.0, "df": df, "posterior_mean_mu": self.mu_mean}
+
+        sample_mean = float(np.mean(data))
+        sample_var = float(np.var(data, ddof=1))
+        sample_var = max(sample_var, 1e-10)
+
+        # 1. Bayesian update on mean (Normal-Normal conjugate, CLT approximation)
+        prior_prec = 1.0 / (self.sigma_mean**2)
+        data_prec = n / sample_var
+        post_prec = prior_prec + data_prec
+        post_mu = (prior_prec * self.mu_mean + data_prec * sample_mean) / post_prec
+
+        # 2. Estimate df from excess kurtosis (MoM)
+        if self.df is not None:
+            df = float(self.df)
+        else:
+            m4 = float(np.mean((data - sample_mean) ** 4))
+            excess_kurtosis = m4 / (sample_var**2) - 3
+            if excess_kurtosis <= 0:
+                df = 100.0
+            else:
+                df = max(2.05, min(100.0, 6.0 / excess_kurtosis + 4.0))
+
+        # 3. Recover sigma from variance identity: Var(Y) = σ²ν/(ν-2)
+        sigma = float(np.sqrt(sample_var * (df - 2) / df))
+        sigma = max(sigma, 1e-8)
+
+        return {
+            "mu": float(post_mu),
+            "sigma": sigma,
+            "df": df,
+            "posterior_mean_mu": float(post_mu),
+        }
+
+    def _plugin_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
+        return student_t.logpdf(data, df=params["df"], loc=params["mu"], scale=params["sigma"])
+
+    def _num_parameters(self) -> int:
+        return 3 if self.df is None else 2
+
+    def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
+        return np.array(
+            student_t.rvs(
+                df=params["df"], loc=params["mu"], scale=params["sigma"], size=size, random_state=random_state
+            )
+        )
+
+    def validate_targets(self, data: np.ndarray):
+        if data.ndim != 1:
+            raise ValueError("Data must be 1D.")
+        if data.size == 0:
+            raise ValueError("Data cannot be empty.")
+        if not np.all(np.isfinite(data)):
+            raise ValueError("Data contains NaN or infinite values.")
+
+    def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
+        if params is None:
+            if data is None:
+                raise ValueError("Provide either 'data' or 'params'.")
+            params = self.calc_posterior_params(data)
+        return float(params["mu"])
+
+    def get_posterior_variance(
+        self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
+    ) -> float:
+        if params is None:
+            if data is None:
+                raise ValueError("Provide either 'data' or 'params'.")
+            params = self.calc_posterior_params(data)
+        df = params["df"]
+        sigma = params["sigma"]
+        if df <= 2:
+            return float(np.inf)
+        return float(sigma**2 * df / (df - 2))

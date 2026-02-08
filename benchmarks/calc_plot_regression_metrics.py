@@ -101,7 +101,7 @@ DATASETS = [
 
 # Metrics configuration
 POINT_METRICS = ["rmse", "mae", "r2"]
-PROB_METRICS = ["crps", "nll", "weighted_interval_score", "dawid_sebastiani_score"]
+PROB_METRICS = ["crps", "weighted_interval_score", "dawid_sebastiani_score"]
 CALIBRATION_METRICS = ["pica", "pit_ks_statistic", "coverage_50", "coverage_90", "coverage_95"]
 INTERVAL_METRICS = [
     "ci_width_50",
@@ -118,7 +118,6 @@ METRIC_DISPLAY = {
     "mae": "MAE",
     "r2": "R²",
     "crps": "CRPS",
-    "nll": "NLL",
     "weighted_interval_score": "WIS",
     "dawid_sebastiani_score": "DSS",
     "pica": "PICA",
@@ -135,7 +134,6 @@ LOWER_IS_BETTER = {
     "mae": True,
     "r2": False,  # Higher R² is better
     "crps": True,
-    "nll": True,
     "weighted_interval_score": True,
     "dawid_sebastiani_score": True,
     "pica": True,  # Lower PICA = better calibration

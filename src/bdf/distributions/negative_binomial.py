@@ -486,7 +486,7 @@ class GammaMSLambdaNegBin(BDFDistribution[GammaMSLambdaNegBinParams]):
         if sample_var <= sample_mean:
             # No overdispersion: φ = μ² gives Var = μ + 1 (nearly Poisson).
             # Floor at 1e4 so small means don't produce tiny φ.
-            return max(sample_mean**2, 1e4)
+            return float(max(sample_mean**2, 1e-4))
 
         # MoM estimator: φ = μ²/(σ²-μ)
         phi_est = (sample_mean**2) / (sample_var - sample_mean)

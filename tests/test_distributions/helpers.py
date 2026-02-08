@@ -243,4 +243,6 @@ def get_rust_implemented_distributions() -> list[str]:
         "SkewNormalOmega",
         "BayesianSkewNormalOmega",
         "SkewNormalAlpha",
+        "FrequentistStudentT",
+        "NormalMeanStudentT",
     ]

@@ -10,7 +10,7 @@ compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonn
 fixed_init_kwargs:
   dist: NormalMuNormal
   random_state: 1234
-  verbose: 1
+  verbose: 0
   # max_depth: 50
 
 tunable_init_kwargs:

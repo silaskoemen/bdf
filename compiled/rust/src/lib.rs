@@ -204,6 +204,7 @@ fn create_distribution_from_spec(spec: &PyDict, py: Python)
     match dist_type.as_str() {
         "NormalMuNormal" => Ok(Box::new(distributions::normal::NormalMuNormal::from_spec(spec)?)),
         "FrequentistStudentT" => Ok(Box::new(distributions::student_t::FrequentistStudentT::from_spec(spec)?)),
+        "NormalMeanStudentT" => Ok(Box::new(distributions::student_t::NormalMeanStudentT::from_spec(spec)?)),
         "NormalMuInvGammaSigmaNormal" => Ok(Box::new(distributions::normal::NormalMuInvGammaSigmaNormal::from_spec(spec)?)),
         "NormalMeanPseudoAlphaSkewNormal" => Ok(Box::new(distributions::skew_normal::NormalMeanPseudoAlphaSkewNormal::from_spec(spec)?)),
         "NormalMeanNormalGammaSkewNormal" => Ok(Box::new(distributions::skew_normal::NormalMeanNormalGammaSkewNormal::from_spec(spec)?)),

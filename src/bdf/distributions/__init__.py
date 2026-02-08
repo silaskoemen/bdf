@@ -4,6 +4,7 @@ from .normal import (
     NormalMuInvGammaSigmaNormal,
     NormalMuNormal,
 )
+from .student_t import FrequentistStudentT, NormalMeanStudentT
 
 # ... import others ...
 
@@ -13,5 +14,7 @@ __all__ = [
     "BetaABBernoulli",
     "BetaMVBernoulli",
     "BDFDistributionParams",
+    "FrequentistStudentT",
+    "NormalMeanStudentT",
     # ...
 ]
