@@ -37,6 +37,7 @@ BDF_MODELS = [
     "bdf_gammamvlambdapoisson",
     # "bdf_skewnormal",  # uncomment when available
     "bdf_freqstudentt",
+    "bdf_normalmeanstudentt",
 ]
 
 # Baseline models to compare against
@@ -48,7 +49,7 @@ BASELINE_MODELS = [
     # "gp_reg",
     "bartpy",  # Only 2 datasets - excluded
     "ngboost_reg",  # add when available
-    "qrf",
+    # "qrf",  # TODO: crps calculation doesn't seem to work, gets nan
     "catbunc_reg",
     "knnkde",
 ]

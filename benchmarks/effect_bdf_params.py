@@ -841,13 +841,18 @@ def plot_combined_sensitivity(
     if n_params == 1:
         axes = [axes]
 
-    colors = sns.color_palette("husl", len(DGPS))
-    dgp_colors = dict(zip(DGPS.keys(), colors))
+    # Infer DGPs from data
+    all_dgps = set()
+    for p in params:
+        all_dgps.update(all_results[p].to_dataframe()["dgp"].unique())
+    all_dgps = sorted(all_dgps)
+    colors = sns.color_palette("husl", len(all_dgps))
+    dgp_colors = dict(zip(all_dgps, colors))
 
     for ax, param_name in zip(axes, params):
         df = all_results[param_name].to_dataframe()
 
-        for dgp in DGPS.keys():
+        for dgp in df["dgp"].unique():
             dgp_df = df[df["dgp"] == dgp]
             grouped = dgp_df.groupby("param_value")[metric]
             means = grouped.mean()
@@ -917,7 +922,7 @@ def plot_heatmap_summary(
         df = all_results[param_name].to_dataframe()
         default_val = DEFAULT_PARAMS.get(param_name)
 
-        for dgp in DGPS.keys():
+        for dgp in df["dgp"].unique():
             dgp_df = df[df["dgp"] == dgp]
 
             # Get default performance

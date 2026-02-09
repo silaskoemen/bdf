@@ -1,0 +1,81 @@
+# LightGBM regression model config
+
+name: bdf_normalmeanstudentt
+target_type: regression
+class_name: BDFRegressor
+probabilistic: true
+
+compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+
+fixed_init_kwargs:
+  dist: NormalMeanStudentT
+  random_state: 1234
+  verbose: 1
+  # max_depth: 50
+
+tunable_init_kwargs:
+  n_trees:
+    type: int
+    low: 5
+    high: 200
+  alpha:
+    type: float
+    low: 0.00001
+    high: 1.0
+    log: true
+  gamma:
+    type: float
+    low: 0.0001
+    high: 1.0
+    log: true
+  delta:
+    type: float
+    low: 0.0001
+    high: 1.0
+    log: true
+  min_samples_leaf:
+    type: int
+    low: 5
+    high: 50
+  # max_depth:
+  #   type: int
+  #   low: 10
+  #   high: 30
+  # min_samples_split:
+  #   type: int
+  #   low: 10
+  #   high: 100
+  subsample:
+    type: float
+    low: 0.5
+    high: 1.0
+  colsample:
+    type: float
+    low: 0.5
+    high: 1.0
+  eta:
+    type: float
+    low: 0.001
+    high: 0.1
+    log: true
+
+tunable_params:
+  sigma_mean_auto_scale:
+    type: float
+    low: 0.01
+    high: 10.0
+    log: true
+  # score_method:
+  #   type: categorical
+  #   categories: [nll, nle]
+  # score_correction:
+  #   type: categorical
+  #   categories: [bic, null]
+
+fixed_params:
+  df: null # estimate from data via MoM
+  mu_mean: 'auto'  # Set prior mean based on data
+  sigma_mean: 'auto'  # Set prior std based on data
+  tree_prior_mode: 'linear' # bernoulli, linear, defer
+  # Should also include loo_cv for normal as 'fast path' is available - missing in Rust
+  score_correction: bic  # Bayesian information criterion for score correction if 'nll' is used

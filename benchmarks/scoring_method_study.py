@@ -13,6 +13,8 @@ Hypotheses:
 4. NLE is more robust to noise
 5. NLE handles class imbalance better
 
+TODO: Add pyarrow to bench-tools for `to_parquet` call of results
+
 Usage:
     pixi run python benchmarks/scoring_method_study.py              # Full study
     pixi run python benchmarks/scoring_method_study.py regression   # Regression only

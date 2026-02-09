@@ -60,7 +60,7 @@ optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 SEED = 42
 N_SEEDS = 5  # Number of random seeds for confidence intervals
-N_SAMPLES = 1000  # Dataset size
+N_SAMPLES = 5000  # Dataset size
 N_FEATURES = 10  # For make_regression and friedman1
 TEST_SIZE = 0.2
 N_SAMPLES_PRED = 500  # Number of samples for probabilistic predictions
@@ -82,25 +82,25 @@ TREE_PRIOR_SEARCH_SPACES = {
     "linear": {
         # LINEAR mode: alpha is base penalty, delta is depth increment
         # Both can be any non-negative values (typically small)
-        "alpha": {"type": "float", "low": 1e-4, "high": 1.0, "log": True},
-        "delta": {"type": "float", "low": 1e-4, "high": 0.5, "log": True},
+        "alpha": {"type": "float", "low": 1e-5, "high": 1.0, "log": True},
+        "delta": {"type": "float", "low": 1e-5, "high": 1.0, "log": True},
     },
     "defer": {
         # DEFER mode: alpha and delta define p_d = alpha * delta^d
         # Must be in (0, 1) for valid probabilities
-        "alpha": {"type": "float", "low": 0.5, "high": 0.99, "log": False},
-        "delta": {"type": "float", "low": 0.1, "high": 0.95, "log": False},
+        "alpha": {"type": "float", "low": 0.5, "high": 0.999, "log": False},
+        "delta": {"type": "float", "low": 0.1, "high": 0.99, "log": False},
     },
     "bernoulli": {
         # BERNOULLI mode: same constraints as DEFER
-        "alpha": {"type": "float", "low": 0.5, "high": 0.99, "log": False},
-        "delta": {"type": "float", "low": 0.1, "high": 0.95, "log": False},
+        "alpha": {"type": "float", "low": 0.5, "high": 0.999, "log": False},
+        "delta": {"type": "float", "low": 0.1, "high": 0.99, "log": False},
     },
 }
 
 # Default parameters (used when not tuning, e.g., for quick tests)
 TREE_PRIOR_DEFAULTS = {
-    "linear": {"alpha": 0.01, "delta": 0.01},
+    "linear": {"alpha": 0.0001, "delta": 0.001},
     "defer": {"alpha": 0.95, "delta": 0.5},
     "bernoulli": {"alpha": 0.95, "delta": 0.5},
 }
@@ -109,7 +109,7 @@ TREE_PRIOR_DEFAULTS = {
 COMMON_MODEL_PARAMS = {
     "n_trees": 50,
     "max_depth": 50,
-    "min_samples_leaf": 10,
+    "min_samples_leaf": 5,
     "min_samples_split": 20,
     "min_child_weight": 10,
     "subsample": 0.9,
@@ -122,7 +122,7 @@ COMMON_MODEL_PARAMS = {
 DIST_PARAMS = {
     "mu_mu": "auto",
     "sigma_mu": "auto",
-    "sigma_mu_auto_scale": 1.0,
+    "sigma_mu_auto_scale": 3.0,
     "score_method": "nle",
     "score_correction": "bic",
 }

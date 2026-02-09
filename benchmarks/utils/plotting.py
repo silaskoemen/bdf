@@ -109,7 +109,7 @@ def plot_rel_to_best(
     if model_colors:
         colors = [colors_map[n] for n in names]
     else:
-        colors = plt.cm.RdYlGn_r(np.linspace(0, 0.8, len(values)))
+        colors = plt.cm.RdYlGn_r(np.linspace(0, 0.8, len(values)))  # pyright: ignore[reportAttributeAccessIssue]
 
     bars = ax.bar(range(len(names)), values, color=colors, edgecolor="black", linewidth=0.5)
 
@@ -539,6 +539,7 @@ def plot_critical_difference_diagram(
         save_path: Path to save the figure.
         figsize: Figure size.
     """
+    print(avg_ranks)
     from .statistical_tests import nemenyi_critical_difference
 
     # Sort algorithms by rank
