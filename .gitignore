@@ -32,6 +32,11 @@ outputs/figures/
 
 .hypothesis/
 
+**/*.json
+**/*.csv
+**/*.pdf
+**/*.jpg
+
 **/*.png
 benchmarks/plots/
 

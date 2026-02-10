@@ -39,7 +39,7 @@ def test_negative_gain_returned_with_high_gamma():
 
 
 def test_negative_gain_comparison_python_rust():
-    """Test that Python and Rust return similar negative gains."""
+    """Test that Python and Rust return identical gains (MAP method)."""
     np.random.seed(123)
     X = np.random.randn(50, 3)
     y = np.random.randn(50)
@@ -50,27 +50,26 @@ def test_negative_gain_comparison_python_rust():
 
     gamma = 5.0
 
-    # Try Rust first (default)
+    # Rust (uses MAP)
     feat_rust, thresh_rust, gain_rust, left_rust, right_rust, _, _ = node.find_best_split(
         X, y, min_samples_leaf=5, min_child_weight=0.0, gamma=gamma, eta=0.1
     )
 
-    # Force Python fallback
+    # Python fallback (MAP to match Rust)
     feat_py, thresh_py, gain_py, left_py, right_py, _, _ = node._find_best_split_python(
-        X, y, min_samples_leaf=5, min_child_weight=0.0, gamma=gamma, eta=0.1
+        X,
+        y,
+        min_samples_leaf=5,
+        min_child_weight=0.0,
+        gamma=gamma,
+        eta=0.1,
+        split_gain_method="map",
     )
 
-    # Both should return negative gains with high gamma on noise
+    # Both should find the same feature, threshold, and gain
     if feat_rust is not None and feat_py is not None:
-        # Check that gains are close
-        assert np.isclose(
-            gain_rust, gain_py, rtol=0.1
-        ), f"Rust gain {gain_rust:.4f} differs from Python gain {gain_py:.4f}"
-
-        # Both should be negative or both positive
-        assert np.sign(gain_rust) == np.sign(
-            gain_py
-        ), f"Rust gain {gain_rust:.4f} and Python gain {gain_py:.4f} have different signs"
+        assert feat_rust == feat_py, f"Feature mismatch: Rust={feat_rust}, Python={feat_py}"
+        assert np.isclose(gain_rust, gain_py, rtol=1e-6), f"Gain mismatch: Rust={gain_rust:.6f}, Python={gain_py:.6f}"
 
 
 def test_defer_prior_allows_split_with_negative_evidence():

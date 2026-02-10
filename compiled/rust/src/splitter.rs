@@ -706,6 +706,8 @@ pub fn find_best_split_kde(
             }
 
             let mut gain = current_score - (left_score + right_score);
+            // Apply penalty once (was already applied in fast path but this is a
+            // re-scored raw gain with child bandwidths, so apply here)
             if (gamma > 0.0) && (cand.thresholds_tried > 0) {
                 gain -= gamma * ((num_features_tried as f64).ln() + (cand.thresholds_tried as f64).ln());
             }
@@ -1333,10 +1335,12 @@ fn kde_nll_from_row_sums_right(indices: &[usize], sum_to_left: &[f64], rs_total:
     let mut sum_ln = 0.0f64;
     for &idx in indices {
         let s = rs_total[idx] - sum_to_left[idx];
-        if s <= 0.0 || !s.is_finite() {
+        if !s.is_finite() {
             return f64::INFINITY;
         }
-        sum_ln += s.ln();
+        // Floor at tiny positive value to handle compact-support kernels
+        // (e.g. epanechnikov) where a point may receive zero density
+        sum_ln += s.max(1e-300).ln();
     }
     (m as f64) * log_m1 - sum_ln
 }
@@ -1352,10 +1356,12 @@ fn kde_nll_from_row_sums(indices: &[usize], row_sums: &[f64]) -> f64 {
     let mut sum_ln = 0.0f64;
     for &idx in indices {
         let s = row_sums[idx];
-        if s <= 0.0 || !s.is_finite() {
+        if !s.is_finite() {
             return f64::INFINITY;
         }
-        sum_ln += s.ln();
+        // Floor at tiny positive value to handle compact-support kernels
+        // (e.g. epanechnikov) where a point may receive zero density
+        sum_ln += s.max(1e-300).ln();
     }
     (m as f64) * log_m1 - sum_ln
 }
@@ -1369,10 +1375,12 @@ fn kde_full_nll_from_row_sums(row_sums: &[f64]) -> f64 {
     let log_n1 = ((n - 1) as f64).ln();
     let mut sum_ln = 0.0f64;
     for &s in row_sums {
-        if s <= 0.0 || !s.is_finite() {
+        if !s.is_finite() {
             return f64::INFINITY;
         }
-        sum_ln += s.ln();
+        // Floor at tiny positive value to handle compact-support kernels
+        // (e.g. epanechnikov) where a point may receive zero density
+        sum_ln += s.max(1e-300).ln();
     }
     (n as f64) * log_n1 - sum_ln
 }
@@ -1525,6 +1533,12 @@ fn kde_subset_nll(
                 }
             };
 
+            // Skip -inf values: they contribute exp(-inf)=0 to the sum
+            // and would cause NaN via (-inf) - (-inf) in the log-sum-exp trick
+            if v == f64::NEG_INFINITY {
+                continue;
+            }
+
             if v > max_val {
                 sum_exp = sum_exp * (max_val - v).exp() + 1.0;
                 max_val = v;
@@ -1533,10 +1547,13 @@ fn kde_subset_nll(
             }
         }
 
-        if max_val == f64::NEG_INFINITY {
-            return f64::INFINITY;
-        }
-        let ll_i = max_val + sum_exp.ln() - log_m1;
+        let ll_i = if max_val == f64::NEG_INFINITY {
+            // All LOO neighbors outside kernel support (compact-support kernel).
+            // Floor at ln(1e-300) to match kde_nll_from_row_sums behaviour.
+            1e-300_f64.ln() - log_m1
+        } else {
+            max_val + sum_exp.ln() - log_m1
+        };
         total_ll += ll_i;
     }
 
@@ -1588,6 +1605,10 @@ fn kde_subset_nll_plugin(
                     }
                 }
             };
+
+            if v == f64::NEG_INFINITY {
+                continue;
+            }
 
             if v > max_val {
                 sum_exp = sum_exp * (max_val - v).exp() + 1.0;

@@ -183,7 +183,7 @@ class BDFNode:
         if k == 0:
             return None, None, 0.0, None, None, None, None
 
-        n_thresholds = int(np.ceil(1.0 / eta))
+        stride = max(int(n_samples * eta), 1)
 
         # Node-level streaming LSE for evidence (over feature scores g_j)
         node_M = -np.inf
@@ -202,12 +202,10 @@ class BDFNode:
         best_right_evidence = None
         best_feature_log_score = -np.inf  # highest g_j (unpenalized evidence feature score)
 
-        # Loop features once and compute per-cut delta once
+        # Loop features: stride-based O(N) scan matching Rust semantics
         for feature_idx in feature_idcs:
             col = X[:, feature_idx]
-            thresholds = self._generate_candidate_thresholds(col, n_thresholds)
-            if thresholds.size <= 1:
-                continue
+            sorted_indices = np.argsort(col, kind="mergesort")
 
             # Per-feature streaming LSE for deltas (for evidence)
             feat_M = -np.inf
@@ -219,24 +217,30 @@ class BDFNode:
             feat_best_left = None
             feat_best_right = None
 
-            # Counters
-            tried_thresholds = 0  # proposed cutpoints (including those that fail min-sample checks)
-            valid_splits = 0  # actually valid splits that contributed to feat_M/feat_S
+            num_thresholds_tried = 0
 
-            # Iterate candidate midpoints
-            for i in range(1, len(thresholds)):
-                if thresholds[i] == thresholds[i - 1]:
-                    continue
-                tried_thresholds += 1
-                threshold = 0.5 * (thresholds[i] + thresholds[i - 1])
-
-                left_mask = col <= threshold
-                nL = int(np.sum(left_mask))
-                nR = n_samples - nL
-
-                if nL < min_samples_leaf or nR < min_samples_leaf or nL < min_child_weight or nR < min_child_weight:
+            # Walk sorted data at stride intervals (matching Rust fast path)
+            for i in range(n_samples - 1):
+                if (i + 1) % stride != 0:
                     continue
 
+                feat_val = col[sorted_indices[i]]
+                next_feat_val = col[sorted_indices[i + 1]]
+
+                if feat_val >= next_feat_val:
+                    continue
+
+                left_n = i + 1
+                right_n = n_samples - left_n
+
+                if left_n < min_samples_leaf or right_n < min_samples_leaf:
+                    continue
+
+                num_thresholds_tried += 1
+                threshold = 0.5 * (feat_val + next_feat_val)
+
+                left_mask = np.zeros(n_samples, dtype=bool)
+                left_mask[sorted_indices[: i + 1]] = True
                 right_mask = ~left_mask
 
                 # Single delta computation per cut
@@ -261,17 +265,15 @@ class BDFNode:
                 else:
                     feat_S += np.exp(delta - feat_M)
 
-                valid_splits += 1
-
-            # Skip feature if no proposed thresholds or no valid splits
-            if tried_thresholds == 0 or valid_splits == 0:
+            # Skip feature if no valid splits
+            if num_thresholds_tried == 0:
                 continue
 
             # Per-feature log-sum-exp (Σ_c exp(delta_{j,c}))
             log_sum_exp = feat_M + np.log(feat_S)
 
-            # multiplicity m_j: use valid_splits (matching Rust semantics)
-            m_j = valid_splits
+            # multiplicity m_j: valid threshold count (matching Rust semantics)
+            m_j = num_thresholds_tried
 
             # Compute g_j (optionally tempered by gamma)
             if gamma != 1.0:

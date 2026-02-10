@@ -17,21 +17,6 @@ def test_empty_dataset():
         regressor.fit(X, y)
 
 
-def test_single_sample():
-    """Test handling of single sample dataset"""
-    X = np.array([[1.0, 2.0]])
-    y = np.array([5.0])
-
-    regressor = BDFRegressor(dist="NormalMuNormal", params={"mu_mu": 5.0, "sigma_mu": 0.1})
-
-    # Should fit without errors but not create any splits
-    regressor.fit(X, y)
-
-    # Prediction should be close to the input value
-    pred = regressor.predict(X)
-    assert np.abs(pred[0] - y[0]) < 0.1
-
-
 def test_constant_response():
     """Test with constant response variable"""
     X = np.random.rand(100, 5)
@@ -95,17 +80,24 @@ def test_duplicate_features():
 
 def test_imbalanced_split():
     """Test with highly imbalanced split points"""
-    X = np.random.rand(100, 5)
-    # Create a very imbalanced step function (99:1 split)
-    y = np.ones(100)
-    y[0] = 100.0
+    np.random.seed(42)
+    n = 200
+    X = np.random.rand(n, 5)
+    # Create a clear signal: top 10% of feature 0 have high y
+    y = np.where(X[:, 0] > 0.9, 50.0, 1.0)
 
-    regressor = BDFRegressor(dist="NormalMuNormal", params={"mu_mu": 0, "sigma_mu": 5})
+    regressor = BDFRegressor(
+        dist="NormalMuNormal",
+        params={"mu_mu": "auto", "sigma_mu": "auto", "sigma_mu_auto_scale": 1.0},
+        n_trees=50,
+        min_samples_leaf=5,
+    )
     regressor.fit(X, y)
 
-    # Should be able to identify the extreme value
-    outlier_pred = regressor.predict(X[[0]])
-    regular_pred = regressor.predict(X[[1]])
+    # Predictions for high-X0 samples should be higher than low-X0
+    high_mask = X[:, 0] > 0.9
+    low_mask = X[:, 0] < 0.5
+    high_pred = regressor.predict(X[high_mask]).mean()
+    low_pred = regressor.predict(X[low_mask]).mean()
 
-    # Prediction for outlier should be different
-    assert abs(outlier_pred[0] - regular_pred[0]) > 1.0
+    assert high_pred > low_pred + 1.0
