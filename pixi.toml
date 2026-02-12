@@ -31,6 +31,8 @@ scoring-study-clas = "PYTHONPATH=src python -m benchmarks.scoring_method_study c
 scoring-study-quick = "PYTHONPATH=src python -m benchmarks.scoring_method_study --quick"
 effect-tree-prior = "PYTHONPATH=src python -m benchmarks.effect_tree_prior"
 ood = "PYTHONPATH=src python -m benchmarks.effect_out_of_distribution"
+docs-build = "sphinx-build -b html docs/source docs/build/html"
+docs-clean = "rm -rf docs/build"
 
 [feature.bench-models.tasks]
 bench-models = "PYTHONPATH=src python -m benchmarks.run"
@@ -109,17 +111,12 @@ pymc-bart = ">=0.9.2, <0.10"
 torch = ">=2.10.0, <3"
 bartpy = { git = "https://github.com/JakeColtman/bartpy.git" }
 
-# --- DOCS FEATURE (Sphinx) ---
+# --- DOCS (in default env, needs bdf importable) ---
 [feature.docs.dependencies]
 sphinx = "*"
-sphinx-rtd-theme = "*"  # Or pydata-sphinx-theme (used by pandas/numpy)
+sphinx-rtd-theme = "*"
 sphinx-autodoc-typehints = "*"
-numpydoc = "*"  # Essential for scientific docstrings
-
-[feature.docs.tasks]
-docs-start = "sphinx-quickstart docs"
-docs-build = "sphinx-build -b html docs/source docs/build/html"
-docs-clean = "rm -rf docs/build"
+numpydoc = "*"
 
 [feature.dev-tools.dependencies]
 jupyter = "*"
@@ -137,7 +134,7 @@ build-rust = "maturin develop --release --manifest-path compiled/rust/Cargo.toml
 [environments]
 # DEFAULT: Core + Test + Lint + DevTools.
 # Light enough to be fast, complete enough to build/test.
-default = { features = ["prod", "test", "lint", "dev-tools", "bench-tools"], solve-group = "prod" }
+default = { features = ["prod", "test", "lint", "dev-tools", "bench-tools", "docs"], solve-group = "prod" }
 
 # PROD: Minimal runtime check
 prod = { features = ["prod"], solve-group = "prod" }
@@ -150,6 +147,3 @@ lint = { features = ["lint"] }
 
 # BENCHMARK: Heavy plotting/model deps isolated
 benchmark = { features = ["bench-tools", "bench-models", "dev-tools"], solve-group = "bench" }
-
-# DOCS: Isolated documentation build
-docs = { features = ["docs"], solve-group = "prod" }

@@ -6,7 +6,7 @@ Mean = α/β, Variance = α/β²
 Implemented versions:
 - GammaPseudoMean: Pseudo-prior on the mean with strength parameter
 - GammaNormalMean: Normal prior on the CLT mean for regularization
-- GammaMLE: Pure MLE/MoM estimation (no prior, for reference)
+- FrequentistGamma: Pure MLE/MoM estimation (no prior, for reference)
 
 All implementations share the same likelihood/sampling logic through GammaBase.
 """
@@ -285,11 +285,33 @@ class GammaPseudoMeanParams(BDFDistributionParams):
 
 
 class GammaPseudoMean(GammaBase):
-    """Gamma distribution with pseudo-prior on the mean.
+    r"""Gamma distribution with pseudo-prior on the mean.
 
-    The mean is regularized towards a prior mean with configurable strength.
-    Shape α is estimated from data to preserve coefficient of variation.
-    Rate β is adjusted to achieve the regularized mean.
+    **Usage:** ``dist="GammaPseudoMean"``
+
+    **Model:**
+
+    *   **Prior:** Pseudo-prior shrinking the mean toward ``prior_mean`` with
+        strength ``prior_strength``
+    *   **Likelihood:** :math:`y \sim \text{Gamma}(\alpha, \beta)`
+
+    Shape :math:`\alpha` is estimated from data via MoM; rate :math:`\beta` is
+    adjusted to achieve the regularized mean.
+
+    Parameters
+    ----------
+    prior_mean : float, default=1.0
+        Prior belief about the data mean (shrinkage target).
+    prior_strength : float, default=1.0
+        Strength of prior (pseudo-observations). Higher = stronger shrinkage.
+    score_method : {"nll"}
+        Only NLL scoring is supported (non-conjugate model).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    GammaNormalMean : Alternative with Normal prior on the CLT mean.
+    FrequentistGamma : Pure MLE estimation without regularization.
     """
 
     def __init__(self, params: dict | GammaPseudoMeanParams):
@@ -363,11 +385,32 @@ class GammaNormalMeanParams(BDFDistributionParams):
 
 
 class GammaNormalMean(GammaBase):
-    """Gamma distribution with Normal prior on the CLT mean.
+    r"""Gamma distribution with Normal prior on the CLT mean.
 
-    Uses Normal-Normal conjugacy on the sample mean (via CLT).
-    Shape α is estimated from data to preserve coefficient of variation.
-    Rate β is calculated to achieve the posterior mean (MAP estimate).
+    **Usage:** ``dist="GammaNormalMean"``
+
+    **Model:**
+
+    *   **Prior:** :math:`\mu \sim \mathcal{N}(\mu_0, \sigma_0^2)` (CLT approximation)
+    *   **Likelihood:** :math:`y \sim \text{Gamma}(\alpha, \beta)`
+
+    Uses Normal-Normal conjugacy on the sample mean. Shape :math:`\alpha` is
+    estimated from data; rate :math:`\beta` is set to achieve the posterior mean.
+
+    Parameters
+    ----------
+    prior_mean : float, default=1.0
+        Prior mean (center of Normal prior on the data mean).
+    prior_variance : float, default=1.0
+        Prior variance (uncertainty about the data mean).
+    score_method : {"nll"}
+        Only NLL scoring is supported (non-conjugate model).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    GammaPseudoMean : Alternative with pseudo-prior on the mean.
+    FrequentistGamma : Pure MLE estimation without regularization.
     """
 
     def __init__(self, params: dict | GammaNormalMeanParams):
@@ -415,7 +458,7 @@ class GammaNormalMean(GammaBase):
 # =============================================================================
 
 
-class GammaMLEParams(BDFDistributionParams):
+class FrequentistGammaParams(BDFDistributionParams):
     """Parameters for Gamma distribution with pure MLE estimation."""
 
     min_variance: float = Field(default=1e-6, gt=0, description="Minimum variance for numerical stability")
@@ -427,17 +470,32 @@ class GammaMLEParams(BDFDistributionParams):
         validate_by_name = True
 
 
-class GammaMLE(GammaBase):
-    """Gamma distribution with pure MLE/MoM estimation.
+class FrequentistGamma(GammaBase):
+    r"""Gamma distribution with frequentist MoM estimation (no prior).
 
-    Both α and β are estimated from data with no regularization.
-    This is the maximum likelihood approach.
+    **Usage:** ``dist="FrequentistGamma"``
+
+    Both :math:`\alpha` (shape) and :math:`\beta` (rate) are estimated from data
+    via Method of Moments with no regularization.
+
+    .. math:: y \sim \text{Gamma}(\alpha, \beta)
+
+    Parameters
+    ----------
+    score_method : {"nll"}
+        Only NLL scoring is supported (frequentist model).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    GammaPseudoMean : Regularized version with pseudo-prior on the mean.
+    GammaNormalMean : Regularized version with Normal prior on the CLT mean.
     """
 
-    def __init__(self, params: dict | GammaMLEParams):
+    def __init__(self, params: dict | FrequentistGammaParams):
         if isinstance(params, dict):
-            params = GammaMLEParams.model_validate(params)
-        assert isinstance(params, GammaMLEParams), "params must be an instance of GammaMLEParams"
+            params = FrequentistGammaParams.model_validate(params)
+        assert isinstance(params, FrequentistGammaParams), "params must be an instance of FrequentistGammaParams"
         super().__init__(params)
         self.min_variance = params.min_variance
 

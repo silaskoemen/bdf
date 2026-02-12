@@ -16,7 +16,7 @@ from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionP
 from bdf.utils.constants import RANDOM_SEED
 
 
-class NormalMuBetaParams(BDFDistributionParams):
+class NormalMeanBetaParams(BDFDistributionParams):
     """
     Parameters for the Beta distribution reparametrized with mean and shape.
     """
@@ -51,14 +51,37 @@ class NormalMuBetaParams(BDFDistributionParams):
             )
 
 
-class NormalMuBeta(BDFDistribution):
-    """
-    Beta distribution reparametrized with mean mu and shape nu.
-    Related to original parameters via alpha = mu * nu, beta = (1 - mu) * nu.
-    nu in terms of observed quantities is mu * (1 - mu) / var - 1.
+class NormalMeanBeta(BDFDistribution):
+    r"""Beta distribution with Normal prior on the mean.
+
+    **Usage:** ``dist="NormalMeanBeta"``
+
+    **Model:**
+
+    *   **Prior:** :math:`\mu \sim \mathcal{N}(\mu_0, \sigma_0^2)`
+    *   **Likelihood:** :math:`y \sim \text{Beta}(\alpha, \beta)` where
+        :math:`\alpha = \mu \nu,\; \beta = (1-\mu)\nu`
+
+    Reparametrized via mean :math:`\mu` and shape :math:`\nu`. The posterior
+    mean is a precision-weighted average of prior and sample mean;
+    :math:`\nu` is estimated from sample variance.
+
+    Parameters
+    ----------
+    mu_zero : float, default=0.5
+        Prior mean of the Beta distribution (0 < mu < 1). Alias: ``mean``.
+    sigma_zero : float, default=0.5
+        Prior standard deviation for the mean. Alias: ``std``.
+    score_method : {"nll"}
+        Only NLL scoring is supported (non-conjugate model).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    BetaABBernoulli : Beta prior for binary (Bernoulli) data.
     """
 
-    def __init__(self, params: dict | NormalMuBetaParams, var_ddof: int = 1):
+    def __init__(self, params: dict | NormalMeanBetaParams, var_ddof: int = 1):
         """Initialize the Normal distribution with prior parameters.
         Args
         ----
@@ -70,9 +93,9 @@ class NormalMuBeta(BDFDistribution):
             Degrees of freedom for variance calculation, default is 1 (sample standard deviation).
         """
         if isinstance(params, dict):
-            params = NormalMuBetaParams.model_validate(params)
+            params = NormalMeanBetaParams.model_validate(params)
         assert isinstance(
-            params, NormalMuBetaParams
+            params, NormalMeanBetaParams
         ), "params must be an instance of NormalNormalParams after possible conversion from dict."
         super().__init__(params)
         self.mu_zero = params.mu_zero

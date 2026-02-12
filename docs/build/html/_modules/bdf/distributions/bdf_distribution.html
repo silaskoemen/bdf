@@ -7,14 +7,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>bdf.distributions.bdf_distribution &mdash; bdf 0.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
-      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
 
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="../../../_static/documentation_options.js?v=d45e8c67"></script>
-      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
-      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
@@ -72,7 +72,7 @@
 <span></span><span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">get_type_hints</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">TypeVar</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">get_type_hints</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">ConfigDict</span><span class="p">,</span> <span class="n">Field</span>
@@ -83,24 +83,38 @@
 <div class="viewcode-block" id="BDFDistributionParams">
 <a class="viewcode-back" href="../../../generated/bdf.distributions.BDFDistributionParams.html#bdf.distributions.BDFDistributionParams">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">BDFDistributionParams</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">,</span> <span class="n">ABC</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base parameters for all BDF distributions.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Common parameters shared by all BDF distributions.</span>
 
-<span class="sd">    Subclasses add distribution-specific priors AND their valid scoring configurations.</span>
+<span class="sd">    Every distribution inherits these fields and may **override** their defaults</span>
+<span class="sd">    or restrict their allowed values. For example, non-conjugate distributions</span>
+<span class="sd">    lock ``score_method`` to ``&quot;nll&quot;`` and set ``use_posterior_predictive=False``.</span>
+<span class="sd">    When a distribution overrides a default, it is documented in that</span>
+<span class="sd">    distribution&#39;s own docstring; parameters not mentioned there use the</span>
+<span class="sd">    defaults listed below.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    score_method : Literal[&quot;nle&quot;, &quot;nll&quot;]</span>
-<span class="sd">        Scoring for splits: &#39;nle&#39; (Bayesian marginal likelihood, negative log evidence) or &#39;nll&#39; (plug-in negative log likelihood).</span>
-<span class="sd">    score_correction : Literal[&quot;aic&quot;, &quot;bic&quot;, &quot;loo_cv&quot;, &quot;kfold_cv&quot;] | None</span>
-<span class="sd">        Correction for NLL: None, &#39;aic&#39;, &#39;bic&#39;, &#39;loo_cv&#39;, or &#39;kfold_cv&#39; (only used for `nll`).</span>
-<span class="sd">    score_cv_folds : int</span>
-<span class="sd">        K-fold CV folds (only used for kfold_cv).</span>
-<span class="sd">    score_cv_shuffle : bool</span>
-<span class="sd">        Shuffle data before CV splits (only for kfold_cv).</span>
-<span class="sd">    score_cv_seed : int</span>
-<span class="sd">        Random seed for CV (only for kfold_cv).</span>
-<span class="sd">    use_posterior_predictive : bool</span>
-<span class="sd">        Use posterior predictive (True) or plug-in MAP (False) for NLL/inference.</span>
+<span class="sd">    score_method : {&quot;nle&quot;, &quot;nll&quot;}, default=&quot;nle&quot;</span>
+<span class="sd">        Scoring method for split evaluation.</span>
+
+<span class="sd">        * ``&quot;nle&quot;`` — Bayesian marginal likelihood (negative log evidence).</span>
+<span class="sd">          Only available for conjugate distributions.</span>
+<span class="sd">        * ``&quot;nll&quot;`` — Plug-in negative log-likelihood.</span>
+<span class="sd">    score_correction : {&quot;aic&quot;, &quot;bic&quot;, &quot;loo_cv&quot;, &quot;kfold_cv&quot;} or None, default=None</span>
+<span class="sd">        Complexity correction applied when ``score_method=&quot;nll&quot;``.</span>
+<span class="sd">        Ignored when using ``&quot;nle&quot;``.</span>
+<span class="sd">    score_cv_folds : int, default=3</span>
+<span class="sd">        Number of folds for k-fold cross-validation (only used when</span>
+<span class="sd">        ``score_correction=&quot;kfold_cv&quot;``).</span>
+<span class="sd">    score_cv_shuffle : bool, default=True</span>
+<span class="sd">        Shuffle data before creating CV splits.</span>
+<span class="sd">    score_cv_seed : int, default=1234</span>
+<span class="sd">        Random seed for CV fold assignment.</span>
+<span class="sd">    use_posterior_predictive : bool, default=True</span>
+<span class="sd">        If ``True``, use the posterior predictive distribution (integrates out</span>
+<span class="sd">        parameter uncertainty) for scoring and inference. If ``False``, use</span>
+<span class="sd">        plug-in point estimates. Not all distributions support this; those</span>
+<span class="sd">        that don&#39;t override this to ``False``.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># Scoring configuration (common to all distributions)</span>
@@ -120,11 +134,19 @@
         <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Use posterior predictive (True) or plug-in MAP (False) for NLL/inference.&quot;</span>
     <span class="p">)</span>
 
-    <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span><span class="n">extra</span><span class="o">=</span><span class="s2">&quot;forbid&quot;</span><span class="p">,</span> <span class="n">validate_assignment</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+    <span class="n">tree_prior_mode</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;linear&quot;</span><span class="p">,</span> <span class="s2">&quot;defer&quot;</span><span class="p">,</span> <span class="s2">&quot;bernoulli&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Tree prior mode: &#39;linear&#39; (positive penalty terms), &#39;defer&#39; (log params, includes current stop prob), &#39; </span><span class="se">\</span>
+<span class="s2">            &#39;bernoulli&#39; (log params, includes probability of making children leaves).&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span><span class="n">extra</span><span class="o">=</span><span class="s2">&quot;forbid&quot;</span><span class="p">,</span> <span class="n">validate_assignment</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">validate_by_name</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
 
 
-<span class="k">class</span><span class="w"> </span><span class="nc">BDFDistribution</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<span class="n">P</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;P&quot;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">BDFDistributionParams</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">BDFDistribution</span><span class="p">(</span><span class="n">ABC</span><span class="p">,</span> <span class="n">Generic</span><span class="p">[</span><span class="n">P</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Abstract base class for all BDF distributions.</span>
 
 <span class="sd">    Subclasses MUST implement all abstract methods:</span>
@@ -147,6 +169,7 @@
 
     <span class="n">params_cls</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">type</span><span class="p">[</span><span class="n">BDFDistributionParams</span><span class="p">]]</span> <span class="o">=</span> <span class="n">BDFDistributionParams</span>
     <span class="n">_registry</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">type</span><span class="p">[</span><span class="s2">&quot;BDFDistribution&quot;</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">params</span><span class="p">:</span> <span class="n">P</span>
 
     <span class="c1"># Capability flags (override in subclasses)</span>
     <span class="n">_supports_nle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
@@ -154,8 +177,8 @@
     <span class="n">_has_fast_kfold_cv</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="n">_supports_posterior_predictive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">BDFDistributionParams</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">P</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params_cls</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">params</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_validate_scoring_support</span><span class="p">()</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">__init_subclass__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -189,6 +212,13 @@
     <span class="c1"># ============================================================================</span>
     <span class="c1"># VALIDATION &amp; SERIALIZATION</span>
     <span class="c1"># ============================================================================</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_auto_params</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve &#39;auto&#39; parameters based on data.</span>
+
+<span class="sd">        Override in subclasses to implement distribution-specific auto-parameter logic.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> does not implement auto-parameter resolution for &#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_validate_scoring_support</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate that requested scoring is supported by this distribution.&quot;&quot;&quot;</span>
@@ -251,7 +281,7 @@
     <span class="c1"># ============================================================================</span>
 
     <span class="nd">@abstractmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">calc_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">calc_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate posterior parameters from data (REQUIRED).&quot;&quot;&quot;</span>
         <span class="k">pass</span>
 
@@ -270,8 +300,11 @@
         <span class="k">pass</span>
 
     <span class="nd">@abstractmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">_sample_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample from the posterior distribution using provided parameters (REQUIRED).&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sample_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample from the posterior distribution using provided parameters (REQUIRED).</span>
+
+<span class="sd">        Returns a 1D array of `size` i.i.d. samples from the posterior.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">pass</span>
 
     <span class="nd">@abstractmethod</span>
@@ -310,9 +343,9 @@
             <span class="k">case</span> <span class="s2">&quot;bic&quot;</span><span class="p">:</span>
                 <span class="n">score</span> <span class="o">=</span> <span class="n">nll</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_parameters</span><span class="p">()</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
             <span class="k">case</span> <span class="s2">&quot;loo_cv&quot;</span><span class="p">:</span>
-                <span class="n">score</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_loo_cv_log_likelihood</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+                <span class="n">score</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_loo_cv_log_likelihood</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
             <span class="k">case</span> <span class="s2">&quot;kfold_cv&quot;</span><span class="p">:</span>
-                <span class="n">score</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                <span class="n">score</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">_kfold_log_likelihood</span><span class="p">(</span>
                         <span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">score_cv_folds</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">score_cv_shuffle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">score_cv_seed</span>
                     <span class="p">)</span>
@@ -363,7 +396,10 @@
         <span class="n">size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">RANDOM_SEED</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample from posterior (CONCRETE).&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample from posterior (CONCRETE).</span>
+
+<span class="sd">        Returns a 1D array of `size` i.i.d. samples from the posterior.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -441,7 +477,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2025, Silas Koemen.</p>
+    <p>&#169; Copyright 2025-2026, Silas Koemen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

@@ -52,6 +52,30 @@ class FrequentistStudentTParams(BDFDistributionParams):
 
 
 class FrequentistStudentT(BDFDistribution[FrequentistStudentTParams]):
+    r"""Student-t distribution with frequentist estimation.
+
+    **Usage:** ``dist="FrequentistStudentT"``
+
+    Robust alternative to Normal for heavy-tailed data. Parameters are
+    estimated from data via method of moments with no prior regularization.
+
+    .. math:: y \sim t_\nu(\mu, \sigma)
+
+    Parameters
+    ----------
+    df : float or None, default=None
+        Degrees of freedom :math:`\nu`. If None, estimated jointly with
+        :math:`\mu` and :math:`\sigma`. If provided, treated as fixed
+        (must be > 2 for finite variance).
+    score_method : {"nll"}
+        Only NLL scoring is supported (non-conjugate model).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    NormalMeanStudentT : Student-t with Normal prior on the mean.
+    """
+
     params_cls: ClassVar[type[BDFDistributionParams]] = FrequentistStudentTParams
 
     _supports_nle = False
@@ -309,26 +333,40 @@ class NormalMeanStudentTParams(BDFDistributionParams):
 
 
 class NormalMeanStudentT(BDFDistribution[NormalMeanStudentTParams]):
-    """Student-t distribution with Normal prior on the mean (CLT moment prior).
+    r"""Student-t distribution with Normal prior on the mean.
 
-    **String Alias:** ``'NormalMeanStudentT'``
+    **Usage:** ``dist="NormalMeanStudentT"``
 
-    **Model Specification:**
+    Combines heavy-tail flexibility of Student-t with Bayesian regularization
+    on the location parameter via a Normal prior.
 
-    .. math::
+    **Model:**
 
-        y \\sim t_\\nu(\\mu, \\sigma)
+    *   **Prior:** :math:`\mu \sim \mathcal{N}(\mu_0, \sigma_0^2)`
+    *   **Likelihood:** :math:`y \sim t_\nu(\mu, \sigma)`
+    *   **Inference:** Posterior mean via Normal-Normal update (CLT approximation).
+        :math:`\nu` estimated via method of moments or fixed.
 
-        \\mu \\sim \\mathcal{N}(\\mu_0, \\sigma_0^2)
+    Parameters
+    ----------
+    mu_mean : float or "auto", default=0.0
+        Prior mean for :math:`\mu`. If ``"auto"``, set to the sample mean of
+        ``y`` at fit time.
+    sigma_mean : float or "auto", default=1.0
+        Prior standard deviation for :math:`\mu`. If ``"auto"``, set to
+        ``std(y) * sigma_mean_auto_scale`` at fit time.
+    sigma_mean_auto_scale : float, default=1.0
+        Multiplier applied when ``sigma_mean="auto"``. Ignored otherwise.
+    df : float or None, default=None
+        Degrees of freedom :math:`\nu`. If None, estimated via method of
+        moments. If provided, treated as fixed (must be > 2).
+    score_method : {"nll"}
+        Only NLL scoring is supported (non-conjugate model).
 
-    **Inference:**
-
-    1. Place Normal(mu_mean, sigma_mean²) prior on population mean.
-    2. Bayesian update: posterior mean μ_post via precision-weighted average (CLT).
-    3. Estimate ν from excess kurtosis (Method of Moments) or use fixed value.
-    4. Recover σ from variance identity: σ = √(s² · (ν-2)/ν).
-
-    This provides regularization on the mean while preserving heavy-tail flexibility.
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    FrequentistStudentT : Student-t without prior regularization.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = NormalMeanStudentTParams

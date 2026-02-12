@@ -61,9 +61,24 @@ class NormalMeanWeibullParams(BDFDistributionParams):
 
 
 class FrequentistWeibull(BDFDistribution):
-    """Weibull distribution estimated via MLE.
+    r"""Weibull distribution with frequentist MLE estimation (no prior).
 
-    y ~ Weibull(k, λ)
+    **Usage:** ``dist="FrequentistWeibull"``
+
+    Shape :math:`k` and scale :math:`\lambda` are estimated via profile
+    maximum likelihood.
+
+    .. math:: y \sim \text{Weibull}(k, \lambda)
+
+    Parameters
+    ----------
+    score_method : {"nll"}
+        Only NLL scoring is supported (frequentist model).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    NormalMeanWeibull : Bayesian version with Normal prior on the mean.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = FrequentistWeibullParams
@@ -166,10 +181,31 @@ class FrequentistWeibull(BDFDistribution):
 
 
 class NormalMeanWeibull(BDFDistribution):
-    """Weibull distribution with Normal prior on the mean (Hybrid MoM).
+    r"""Weibull distribution with Normal prior on the mean.
 
-    1. Updates prior on Mean (Normal-Normal update).
-    2. Maps Posterior Mean + Sample Variance -> Weibull(k, λ).
+    **Usage:** ``dist="NormalMeanWeibull"``
+
+    **Model:**
+
+    *   **Prior:** :math:`\mu \sim \mathcal{N}(\mu_0, \sigma_0^2)`
+    *   **Likelihood:** :math:`y \sim \text{Weibull}(k, \lambda)`
+
+    Updates the mean via Normal-Normal conjugacy (CLT), then maps
+    :math:`(\mu_\text{post}, s^2) \to (k, \lambda)` via Method of Moments.
+
+    Parameters
+    ----------
+    prior_mean : float, default=1.0
+        Prior mean for the population mean.
+    prior_std : float, default=1.0
+        Prior standard deviation for the population mean.
+    score_method : {"nll"}
+        Only NLL scoring is supported (non-conjugate model).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    FrequentistWeibull : MLE estimation without prior.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = NormalMeanWeibullParams

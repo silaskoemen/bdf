@@ -101,12 +101,30 @@ class GammaMVLambdaPoissonParams(BDFDistributionParams):
 
 
 class GammaABLambdaPoisson(BDFDistribution[GammaABLambdaPoissonParams]):
-    """Poisson-Gamma conjugate model with shape-rate (α, β) parameterization.
+    r"""Poisson-Gamma conjugate model with shape-rate parameterization.
 
-    Supports:
-    - Closed-form Bayesian evidence (NLE)
-    - Negative Binomial posterior predictive (integrates out λ uncertainty)
-    - Efficient conjugate updates
+    **Usage:** ``dist="GammaABLambdaPoisson"``
+
+    **Model:**
+
+    *   **Prior:** :math:`\lambda \sim \text{Gamma}(\alpha, \beta)`
+    *   **Likelihood:** :math:`y \mid \lambda \sim \text{Poisson}(\lambda)`
+    *   **Posterior:** :math:`\lambda \mid y \sim \text{Gamma}(\alpha + \sum y_i, \beta + n)`
+    *   **Posterior Predictive:** :math:`y_\text{new} \mid y \sim \text{NegBin}(\alpha_\text{post}, \beta_\text{post}/(1+\beta_\text{post}))`
+
+    Parameters
+    ----------
+    alpha_lambda : float, default=1.0
+        Shape parameter :math:`\alpha` of the Gamma prior on rate :math:`\lambda`.
+    beta_lambda : float, default=1.0
+        Rate parameter :math:`\beta` of the Gamma prior on rate :math:`\lambda`.
+    raise_on_non_integer : bool, default=True
+        If True, raises an error when non-integer data is provided.
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    GammaMVLambdaPoisson : Same model with more interpretable mean-variance parameterization.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = GammaABLambdaPoissonParams
@@ -301,13 +319,37 @@ class GammaABLambdaPoisson(BDFDistribution[GammaABLambdaPoissonParams]):
 
 
 class GammaMVLambdaPoisson(BDFDistribution[GammaMVLambdaPoissonParams]):
-    """Poisson-Gamma conjugate model with mean-variance parameterization.
+    r"""Poisson-Gamma conjugate model with mean-variance parameterization.
 
-    Same as GammaABLambdaPoisson, but prior specified via:
-    - mean_lambda = E[λ]
-    - var_lambda = Var[λ]
+    **Usage:** ``dist="GammaMVLambdaPoisson"``
 
-    Internally converts to α = mean²/var, β = mean/var.
+    Same conjugate model as :class:`GammaABLambdaPoisson`, but the prior is
+    specified via interpretable mean and variance rather than shape and rate.
+    Internally converts to :math:`\alpha = \mu^2/\sigma^2`, :math:`\beta = \mu/\sigma^2`.
+
+    **Model:**
+
+    *   **Prior:** :math:`\lambda \sim \text{Gamma}(\alpha, \beta)`
+    *   **Likelihood:** :math:`y \mid \lambda \sim \text{Poisson}(\lambda)`
+    *   **Posterior:** :math:`\lambda \mid y \sim \text{Gamma}(\alpha + \sum y_i, \beta + n)`
+
+    Parameters
+    ----------
+    mean_lambda : float or "auto", default=1.0
+        Prior mean :math:`E[\lambda]`. If ``"auto"``, set to the sample mean
+        of ``y`` at fit time.
+    var_lambda : float or "auto", default=1.0
+        Prior variance :math:`\text{Var}[\lambda]`. If ``"auto"``, set to
+        ``mean(y) * var_lambda_auto_scale`` at fit time.
+    var_lambda_auto_scale : float, default=1.0
+        Multiplier applied when ``var_lambda="auto"``. Ignored otherwise.
+    raise_on_non_integer : bool, default=True
+        If True, raises an error when non-integer data is provided.
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    GammaABLambdaPoisson : Same model with shape-rate parameterization.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = GammaMVLambdaPoissonParams

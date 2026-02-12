@@ -1,0 +1,910 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>bdf.distributions.negative_binomial &mdash; bdf 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+
+
+          <a href="../../../index.html" class="icon icon-home">
+            bdf
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">bdf</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">bdf.distributions.negative_binomial</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <h1>Source code for bdf.distributions.negative_binomial</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Negative Binomial distribution implementations for BDF.</span>
+
+<span class="sd">Provides:</span>
+<span class="sd">- FrequentistNegativeBinomial: MLE estimation (no prior)</span>
+<span class="sd">- NormalMeanNegativeBinomial: Normal prior on mean, MoM parameter mapping</span>
+<span class="sd">- GammaMSLambdaNegBin: Gamma prior on mean λ with strength parameterization (conjugate)</span>
+
+<span class="sd">Note: Negative Binomial requires non-negative integer count data (y ∈ {0, 1, 2, ...}).</span>
+
+<span class="sd">Parameterization: NB(r, p) where:</span>
+<span class="sd">- r &gt; 0: number of successes (can be non-integer for overdispersion)</span>
+<span class="sd">- p ∈ (0, 1): success probability</span>
+<span class="sd">- Mean: μ = r(1-p)/p</span>
+<span class="sd">- Variance: σ² = r(1-p)/p²</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">Literal</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.special</span><span class="w"> </span><span class="kn">import</span> <span class="n">digamma</span><span class="p">,</span> <span class="n">gammaln</span><span class="p">,</span> <span class="n">polygamma</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">nbinom</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">bdf.distributions.bdf_distribution</span><span class="w"> </span><span class="kn">import</span> <span class="n">BDFDistribution</span><span class="p">,</span> <span class="n">BDFDistributionParams</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">bdf.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">RANDOM_SEED</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># PARAMS CLASSES</span>
+<span class="c1"># ============================================================================</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">FrequentistNegativeBinomialParams</span><span class="p">(</span><span class="n">BDFDistributionParams</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parameters for Frequentist Negative Binomial (MLE).</span>
+
+<span class="sd">    No priors. Estimates r (dispersion) and p (success probability) via MLE using</span>
+<span class="sd">    Method of Moments for initial values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Scoring defaults</span>
+    <span class="n">score_method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;nll&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s2">&quot;nll&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Frequentist model only supports NLL (plug-in).&quot;</span><span class="p">)</span>
+    <span class="n">use_posterior_predictive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Posterior predictive not supported for frequentist model.&quot;</span>
+    <span class="p">)</span>
+    <span class="n">estimation_method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;mom&quot;</span><span class="p">,</span> <span class="s2">&quot;mle&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="s2">&quot;mom&quot;</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Use closed-form Method of Moments (&#39;mom&#39;) or fast Newton MLE (&#39;mle&#39;).&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">NormalMeanNegativeBinomialParams</span><span class="p">(</span><span class="n">BDFDistributionParams</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parameters for Negative Binomial with Normal prior on the mean.</span>
+
+<span class="sd">    Methodology:</span>
+<span class="sd">    1. Place Normal(μ₀, σ₀²) prior on the population mean.</span>
+<span class="sd">    2. Update posterior mean μ_post using Bayesian update (CLT-based).</span>
+<span class="sd">    3. Estimate NegBinom parameters (r, p) using Method of Moments based on</span>
+<span class="sd">       μ_post and sample variance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">prior_mean</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Prior mean for the population mean (must be &gt; 0).&quot;</span><span class="p">)</span>
+    <span class="n">prior_std</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Prior standard deviation for the population mean.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Scoring defaults</span>
+    <span class="n">score_method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;nle&quot;</span><span class="p">,</span> <span class="s2">&quot;nll&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s2">&quot;nll&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;NLE not supported for this hybrid model.&quot;</span><span class="p">)</span>
+    <span class="n">use_posterior_predictive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Posterior predictive not currently supported.&quot;</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">GammaMSLambdaNegBinParams</span><span class="p">(</span><span class="n">BDFDistributionParams</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parameters for Negative Binomial with Gamma prior on mean λ (Mean-Strength parameterization).</span>
+
+<span class="sd">    Prior: λ ~ Gamma(α₀, β₀) where α₀ = strength·mean, β₀ = strength</span>
+<span class="sd">    Likelihood: y | λ, φ ~ NegativeBinomial(λ, φ)</span>
+<span class="sd">    Posterior: λ | y ~ Gamma(strength·mean + Σy, strength + n)</span>
+
+<span class="sd">    This provides exact linear shrinkage:</span>
+<span class="sd">        E[λ|y] = (strength·mean + n·ȳ) / (strength + n)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mean_lambda : float, default=1.0</span>
+<span class="sd">        Prior mean for rate parameter λ (grand mean, shrinkage target).</span>
+<span class="sd">    strength_lambda : float, default=1.0</span>
+<span class="sd">        Prior strength (pseudo-observations). Higher values = stronger prior.</span>
+<span class="sd">        Interpretation: &quot;strength_lambda pseudo-observations with mean mean_lambda&quot;</span>
+<span class="sd">    phi : float or None, default=None</span>
+<span class="sd">        Dispersion parameter φ (also called r).</span>
+<span class="sd">        - If None: estimated via Method of Moments (φ = μ²/(σ²-μ))</span>
+<span class="sd">        - If provided: treated as fixed hyperparameter</span>
+<span class="sd">        Larger φ → less overdispersion (approaches Poisson as φ→∞).</span>
+<span class="sd">        NB variance: Var[Y] = λ + λ²/φ</span>
+<span class="sd">    score_method : {&#39;nle&#39;, &#39;nll&#39;}, default=&#39;nle&#39;</span>
+<span class="sd">        Scoring method. NLE uses closed-form Bayesian evidence.</span>
+<span class="sd">    use_posterior_predictive : bool, default=True</span>
+<span class="sd">        Use posterior predictive (integrates out λ uncertainty) or plug-in.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    The dispersion parameter φ controls overdispersion:</span>
+<span class="sd">    - Larger φ → less overdispersion (approaches Poisson as φ→∞)</span>
+<span class="sd">    - Smaller φ → more overdispersion</span>
+<span class="sd">    - φ is estimated per-leaf if not provided (allows adaptive overdispersion)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Prior hyperparameters (mean-strength parameterization)</span>
+    <span class="n">mean_lambda</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Prior mean E[λ] (grand mean, shrinkage target)&quot;</span><span class="p">)</span>
+    <span class="n">strength_lambda</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Prior strength (pseudo-observations). Higher = stronger prior.&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Dispersion parameter (None =&gt; estimate via MoM)</span>
+    <span class="n">phi</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Dispersion φ. If None, estimated via Method of Moments; otherwise treated as fixed.&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Scoring defaults for conjugate model</span>
+    <span class="n">score_method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;nle&quot;</span><span class="p">,</span> <span class="s2">&quot;nll&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="s2">&quot;nle&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Conjugate model defaults to nle (Bayesian evidence).&quot;</span>
+    <span class="p">)</span>
+    <span class="n">use_posterior_predictive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Use posterior predictive (marginalizes λ uncertainty) or plug-in Negative Binomial.&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># DISTRIBUTION IMPLEMENTATIONS</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="FrequentistNegativeBinomial">
+<a class="viewcode-back" href="../../../generated/bdf.distributions.FrequentistNegativeBinomial.html#bdf.distributions.FrequentistNegativeBinomial">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FrequentistNegativeBinomial</span><span class="p">(</span><span class="n">BDFDistribution</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Negative Binomial with frequentist estimation (no prior).</span>
+
+<span class="sd">    **Usage:** ``dist=&quot;FrequentistNegativeBinomial&quot;``</span>
+
+<span class="sd">    Parameters :math:`r` (dispersion) and :math:`p` (success probability)</span>
+<span class="sd">    are estimated via method of moments.</span>
+
+<span class="sd">    .. math:: y \sim \text{NegBin}(r, p)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    score_method : {&quot;nll&quot;}</span>
+<span class="sd">        Only NLL scoring is supported (non-conjugate model).</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.</span>
+<span class="sd">    GammaMSLambdaNegBin : Bayesian version with Gamma prior on the mean.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">params_cls</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">type</span><span class="p">[</span><span class="n">BDFDistributionParams</span><span class="p">]]</span> <span class="o">=</span> <span class="n">FrequentistNegativeBinomialParams</span>
+
+    <span class="n">_supports_nle</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_has_fast_loo_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_has_fast_kfold_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_supports_posterior_predictive</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calc_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_targets</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Negative Binomial requires at least two observations.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">estimation_method</span> <span class="o">==</span> <span class="s2">&quot;mom&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_estimate_params_mom</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_estimate_params_mle</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_ensure_overdispersion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mean</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">var</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Clamp variance so NB assumptions hold.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">var</span><span class="p">,</span> <span class="n">mean</span> <span class="o">+</span> <span class="mf">1e-6</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_estimate_params_mle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_overdispersion</span><span class="p">(</span><span class="n">mean</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="p">(</span><span class="n">mean</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">var</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span>  <span class="c1"># MoM init</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">):</span>
+            <span class="n">grad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">digamma</span><span class="p">(</span><span class="n">data</span> <span class="o">+</span> <span class="n">r</span><span class="p">)</span> <span class="o">-</span> <span class="n">digamma</span><span class="p">(</span><span class="n">r</span><span class="p">))</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">r</span> <span class="o">/</span> <span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="n">mean</span><span class="p">))</span>
+            <span class="n">hess</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">polygamma</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">data</span> <span class="o">+</span> <span class="n">r</span><span class="p">)</span> <span class="o">-</span> <span class="n">polygamma</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">r</span><span class="p">))</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">r</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="n">mean</span><span class="p">))</span>
+            <span class="n">delta</span> <span class="o">=</span> <span class="n">grad</span> <span class="o">/</span> <span class="p">(</span><span class="n">hess</span> <span class="o">+</span> <span class="mf">1e-12</span><span class="p">)</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="n">delta</span><span class="p">,</span> <span class="mf">1e-6</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">delta</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-6</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">r</span> <span class="o">/</span> <span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="n">mean</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">r</span><span class="p">),</span> <span class="s2">&quot;p&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="mf">1e-6</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="mf">1e-6</span><span class="p">))}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_estimate_params_mom</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_overdispersion</span><span class="p">(</span><span class="n">mean</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">mean</span> <span class="o">/</span> <span class="n">var</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="p">(</span><span class="n">mean</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">var</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="mf">1e-6</span><span class="p">)),</span> <span class="s2">&quot;p&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="mf">1e-6</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="mf">1e-6</span><span class="p">))}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_plugin_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Negative Binomial log-likelihood.&quot;&quot;&quot;</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;r&quot;</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;p&quot;</span><span class="p">]</span>
+        <span class="c1"># scipy.stats.nbinom uses (n, p) parameterization where n=r</span>
+        <span class="k">return</span> <span class="n">nbinom</span><span class="o">.</span><span class="n">logpmf</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;r and p (2 parameters).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mi">2</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sample_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample from fitted Negative Binomial.&quot;&quot;&quot;</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;r&quot;</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;p&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">nbinom</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_targets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate data for Negative Binomial.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data must be 1D&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data cannot be empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">data</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Negative Binomial requires non-negative count data (y &gt;= 0)&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">data</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Negative Binomial requires integer count data&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Mean of Negative Binomial: μ = r(1-p)/p.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;r&quot;</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;p&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">r</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">p</span><span class="p">)</span> <span class="o">/</span> <span class="n">p</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_variance</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Variance of Negative Binomial: σ² = r(1-p)/p².&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;r&quot;</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;p&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">r</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">p</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">p</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="NormalMeanNegativeBinomial">
+<a class="viewcode-back" href="../../../generated/bdf.distributions.NormalMeanNegativeBinomial.html#bdf.distributions.NormalMeanNegativeBinomial">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NormalMeanNegativeBinomial</span><span class="p">(</span><span class="n">BDFDistribution</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Negative Binomial with Normal prior on the mean.</span>
+
+<span class="sd">    **Usage:** ``dist=&quot;NormalMeanNegativeBinomial&quot;``</span>
+
+<span class="sd">    **Model:**</span>
+
+<span class="sd">    *   **Prior:** :math:`\mu \sim \mathcal{N}(\mu_0, \sigma_0^2)`</span>
+<span class="sd">    *   **Likelihood:** :math:`y \mid r, p \sim \text{NegBin}(r, p)`</span>
+<span class="sd">    *   **Posterior:** Precision-weighted update on :math:`\mu`, then MoM mapping</span>
+<span class="sd">        :math:`(\mu_\text{post}, s^2) \to (r, p)`</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    prior_mean : float, default=1.0</span>
+<span class="sd">        Prior mean for the population mean (must be &gt; 0).</span>
+<span class="sd">    prior_std : float, default=1.0</span>
+<span class="sd">        Prior standard deviation for the population mean.</span>
+<span class="sd">    score_method : {&quot;nll&quot;}</span>
+<span class="sd">        Only NLL scoring is supported (non-conjugate model).</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.</span>
+<span class="sd">    FrequentistNegativeBinomial : MLE estimation without prior.</span>
+<span class="sd">    GammaMSLambdaNegBin : Fully conjugate Gamma prior on rate.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">params_cls</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">type</span><span class="p">[</span><span class="n">BDFDistributionParams</span><span class="p">]]</span> <span class="o">=</span> <span class="n">NormalMeanNegativeBinomialParams</span>
+
+    <span class="n">_supports_nle</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_has_fast_loo_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_has_fast_kfold_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_supports_posterior_predictive</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">NormalMeanNegativeBinomialParams</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prior_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">prior_mean</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prior_std</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">prior_std</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calc_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate posterior mean, then solve for NegBinom params via MoM.&quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1"># Insufficient data: return prior-informed defaults</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;p&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span> <span class="s2">&quot;posterior_mean_mu&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_mean</span><span class="p">}</span>
+
+        <span class="n">sample_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">sample_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Negative Binomial requires variance &gt; mean</span>
+        <span class="k">if</span> <span class="n">sample_var</span> <span class="o">&lt;=</span> <span class="n">sample_mean</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Negative Binomial requires variance &gt; mean. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Got mean=</span><span class="si">{</span><span class="n">sample_mean</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, var=</span><span class="si">{</span><span class="n">sample_var</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Adding variance inflation.&quot;</span><span class="p">,</span>
+                <span class="ne">UserWarning</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">sample_var</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">sample_mean</span> <span class="o">*</span> <span class="mf">1.1</span><span class="p">,</span> <span class="n">sample_var</span> <span class="o">+</span> <span class="mf">0.1</span><span class="p">)</span>
+
+        <span class="c1"># 1. Bayesian update on mean (Normal-Normal conjugate, CLT approximation)</span>
+        <span class="c1"># Precision-weighted average</span>
+        <span class="n">prior_prec</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prior_std</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="c1"># Use sample variance as approximate likelihood variance (CLT)</span>
+        <span class="n">data_prec</span> <span class="o">=</span> <span class="n">n</span> <span class="o">/</span> <span class="n">sample_var</span>
+        <span class="n">post_prec</span> <span class="o">=</span> <span class="n">prior_prec</span> <span class="o">+</span> <span class="n">data_prec</span>
+
+        <span class="n">post_mu</span> <span class="o">=</span> <span class="p">(</span><span class="n">prior_prec</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_mean</span> <span class="o">+</span> <span class="n">data_prec</span> <span class="o">*</span> <span class="n">sample_mean</span><span class="p">)</span> <span class="o">/</span> <span class="n">post_prec</span>
+
+        <span class="c1"># 2. Method of Moments mapping (μ_post, sample_var) → (r, p)</span>
+        <span class="c1"># Using posterior mean but sample variance (not updated by prior)</span>
+        <span class="n">p_est</span> <span class="o">=</span> <span class="n">post_mu</span> <span class="o">/</span> <span class="n">sample_var</span>
+        <span class="n">r_est</span> <span class="o">=</span> <span class="p">(</span><span class="n">post_mu</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">sample_var</span> <span class="o">-</span> <span class="n">post_mu</span><span class="p">)</span>
+
+        <span class="c1"># Safety clamps</span>
+        <span class="n">p_est</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">p_est</span><span class="p">,</span> <span class="mf">1e-6</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="mf">1e-6</span><span class="p">)</span>
+        <span class="n">r_est</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">r_est</span><span class="p">,</span> <span class="mf">1e-4</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">r_est</span><span class="p">),</span>
+            <span class="s2">&quot;p&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">p_est</span><span class="p">),</span>
+            <span class="s2">&quot;posterior_mean_mu&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">post_mu</span><span class="p">),</span>  <span class="c1"># For debugging/inspection</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_plugin_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Negative Binomial log-likelihood.&quot;&quot;&quot;</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;r&quot;</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;p&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">nbinom</span><span class="o">.</span><span class="n">logpmf</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;r and p (2 parameters).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mi">2</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sample_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample from fitted Negative Binomial.&quot;&quot;&quot;</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;r&quot;</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;p&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">nbinom</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_targets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate data for Negative Binomial.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data must be 1D&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data cannot be empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">data</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Negative Binomial requires non-negative count data (y &gt;= 0)&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">data</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Negative Binomial requires integer count data&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Mean of Negative Binomial: μ = r(1-p)/p.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;r&quot;</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;p&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">r</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">p</span><span class="p">)</span> <span class="o">/</span> <span class="n">p</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_variance</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Variance of Negative Binomial: σ² = r(1-p)/p².&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;r&quot;</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;p&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">r</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">p</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">p</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="GammaMSLambdaNegBin">
+<a class="viewcode-back" href="../../../generated/bdf.distributions.GammaMSLambdaNegBin.html#bdf.distributions.GammaMSLambdaNegBin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GammaMSLambdaNegBin</span><span class="p">(</span><span class="n">BDFDistribution</span><span class="p">[</span><span class="n">GammaMSLambdaNegBinParams</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Negative Binomial with Gamma prior on mean λ (Mean-Strength parameterization).</span>
+
+<span class="sd">    **Usage:** ``dist=&quot;GammaMSLambdaNegBin&quot;``</span>
+
+<span class="sd">    **Model Specification:**</span>
+
+<span class="sd">    *   **Prior:** :math:`\\lambda \\sim \\text{Gamma}(\\alpha_0, \\beta_0)` where</span>
+<span class="sd">        :math:`\\alpha_0 = m \\cdot \\lambda_0`, :math:`\\beta_0 = m`</span>
+<span class="sd">    *   **Likelihood:** :math:`y \\mid \\lambda, \\phi \\sim \\text{NegBin}(\\lambda, \\phi)`</span>
+<span class="sd">    *   **Posterior:** :math:`\\lambda \\mid y \\sim \\text{Gamma}(\\alpha_0 + \\sum y_i, \\beta_0 + n)`</span>
+
+<span class="sd">    **Key Properties:**</span>
+
+<span class="sd">    *   **Exact Linear Shrinkage:** :math:`E[\\lambda \\mid y] = \\frac{m \\lambda_0 + n \\bar{y}}{m + n}`</span>
+<span class="sd">    *   **Closed-form Evidence:** Supports NLE scoring via Bayesian marginal likelihood</span>
+<span class="sd">    *   **Posterior Predictive:** Integrates out :math:`\\lambda` uncertainty for robust predictions</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mean_lambda : float, default=1.0</span>
+<span class="sd">        Prior mean for :math:`\\lambda` (:math:`\\lambda_0`). Grand mean, shrinkage target.</span>
+<span class="sd">    strength_lambda : float, default=1.0</span>
+<span class="sd">        Prior strength (pseudo-observations, :math:`m`). Higher = stronger regularization.</span>
+<span class="sd">    phi : float or None, default=None</span>
+<span class="sd">        Dispersion parameter :math:`\\phi`. If None, estimated via MoM per leaf.</span>
+<span class="sd">        If provided, treated as fixed hyperparameter across all leaves.</span>
+<span class="sd">    score_method : {&#39;nle&#39;, &#39;nll&#39;}, default=&#39;nle&#39;</span>
+<span class="sd">        Scoring method. &#39;nle&#39; uses exact Bayesian evidence.</span>
+<span class="sd">    use_posterior_predictive : bool, default=True</span>
+<span class="sd">        If True, uses posterior predictive (marginalizes :math:`\\lambda` uncertainty).</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; from bdf import BDFRegressor</span>
+<span class="sd">    &gt;&gt;&gt; model = BDFRegressor(</span>
+<span class="sd">    ...     dist=&quot;GammaMSLambdaNegBin&quot;,</span>
+<span class="sd">    ...     params={</span>
+<span class="sd">    ...         &quot;mean_lambda&quot;: &quot;auto&quot;,      # Use global mean</span>
+<span class="sd">    ...         &quot;strength_lambda&quot;: 1.0,     # 1 pseudo-observation</span>
+<span class="sd">    ...         &quot;phi&quot;: None,                # Estimate per leaf</span>
+<span class="sd">    ...         &quot;score_method&quot;: &quot;nle&quot;,</span>
+<span class="sd">    ...         &quot;use_posterior_predictive&quot;: True,</span>
+<span class="sd">    ...     }</span>
+<span class="sd">    ... )</span>
+<span class="sd">    &gt;&gt;&gt; model.fit(X, y)  # doctest: +SKIP</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This is a fully conjugate Bayesian model. The Gamma prior on :math:`\\lambda` combined</span>
+<span class="sd">    with the Negative Binomial likelihood gives:</span>
+
+<span class="sd">    - **Exact conjugate updates** (no approximations)</span>
+<span class="sd">    - **Interpretable hyperparameters**: strength_lambda = number of pseudo-observations</span>
+<span class="sd">    - **Linear shrinkage**: :math:`E[\\lambda \\mid y] = \\frac{m \\lambda_0 + n \\bar{y}}{m + n}`</span>
+
+<span class="sd">    The dispersion parameter :math:`\\phi` (also called :math:`r`) is estimated via Method of</span>
+<span class="sd">    Moments when not provided, allowing adaptive overdispersion per leaf.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    :class:`.FrequentistNegativeBinomial` : MLE estimation without prior</span>
+<span class="sd">    :class:`.NormalMeanNegativeBinomial` : Hybrid approach with Normal prior on mean</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">params_cls</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">type</span><span class="p">[</span><span class="n">BDFDistributionParams</span><span class="p">]]</span> <span class="o">=</span> <span class="n">GammaMSLambdaNegBinParams</span>
+
+    <span class="c1"># Capabilities</span>
+    <span class="n">_supports_nle</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">_has_fast_loo_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_has_fast_kfold_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_supports_posterior_predictive</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">GammaMSLambdaNegBinParams</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean_lambda</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mean_lambda</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">strength_lambda</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">strength_lambda</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">phi</span>
+
+        <span class="c1"># Derived shape-rate parameters for Gamma prior</span>
+        <span class="c1"># λ ~ Gamma(α, β) where α = m·λ₀, β = m</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha_lambda</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">strength_lambda</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_lambda</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_lambda</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">strength_lambda</span>
+
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># REQUIRED METHODS</span>
+    <span class="c1"># ========================================================================</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calc_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate Gamma posterior parameters for λ and estimate dispersion φ.</span>
+
+<span class="sd">        Returns dict with:</span>
+<span class="sd">        - posterior_alpha: Posterior shape α_post = m·λ₀ + Σy</span>
+<span class="sd">        - posterior_beta: Posterior rate β_post = m + n</span>
+<span class="sd">        - posterior_lambda: Posterior mean E[λ|y] = α_post/β_post</span>
+<span class="sd">        - phi: Dispersion parameter (estimated or fixed)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">sum_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="c1"># Conjugate update for λ: Gamma(α, β) → Gamma(α + Σy, β + n)</span>
+        <span class="n">alpha_post</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha_lambda</span> <span class="o">+</span> <span class="n">sum_counts</span>
+        <span class="n">beta_post</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_lambda</span> <span class="o">+</span> <span class="n">n</span>
+        <span class="n">lambda_post</span> <span class="o">=</span> <span class="n">alpha_post</span> <span class="o">/</span> <span class="n">beta_post</span>
+
+        <span class="c1"># Use fixed φ or estimate via MoM</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">phi</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phi</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_estimate_phi_mom</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;posterior_alpha&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">),</span>
+            <span class="s2">&quot;posterior_beta&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">beta_post</span><span class="p">),</span>
+            <span class="s2">&quot;posterior_lambda&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">lambda_post</span><span class="p">),</span>
+            <span class="s2">&quot;phi&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">phi</span><span class="p">),</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_estimate_phi_mom</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate dispersion parameter φ using Method of Moments.</span>
+
+<span class="sd">        φ = μ²/(σ²-μ) where μ = sample mean, σ² = sample variance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1"># Insufficient data: use default</span>
+            <span class="k">return</span> <span class="mf">1.0</span>
+
+        <span class="n">sample_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">sample_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Ensure overdispersion (NB requires var &gt; mean)</span>
+        <span class="k">if</span> <span class="n">sample_var</span> <span class="o">&lt;=</span> <span class="n">sample_mean</span><span class="p">:</span>
+            <span class="c1"># No overdispersion: φ = μ² gives Var = μ + 1 (nearly Poisson).</span>
+            <span class="c1"># Floor at 1e4 so small means don&#39;t produce tiny φ.</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">sample_mean</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="mf">1e-4</span><span class="p">))</span>
+
+        <span class="c1"># MoM estimator: φ = μ²/(σ²-μ)</span>
+        <span class="n">phi_est</span> <span class="o">=</span> <span class="p">(</span><span class="n">sample_mean</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">sample_var</span> <span class="o">-</span> <span class="n">sample_mean</span><span class="p">)</span>
+
+        <span class="c1"># Ensure positive and reasonable</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">phi_est</span><span class="p">,</span> <span class="mf">1e-6</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_plugin_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Plug-in Negative Binomial log-likelihood with posterior mean λ.</span>
+
+<span class="sd">        Uses NB(y | λ_post, φ) where λ_post = E[λ|y].</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">lambda_post</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_lambda&quot;</span><span class="p">]</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;phi&quot;</span><span class="p">]</span>
+
+        <span class="c1"># NB parameterization: r=φ, p=φ/(φ+λ)</span>
+        <span class="c1"># scipy.stats.nbinom uses (n, p) where n=r</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">phi</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">phi</span> <span class="o">/</span> <span class="p">(</span><span class="n">phi</span> <span class="o">+</span> <span class="n">lambda_post</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">nbinom</span><span class="o">.</span><span class="n">logpmf</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Number of parameters estimated from data.</span>
+
+<span class="sd">        - If phi=None: 2 parameters (λ and φ both estimated)</span>
+<span class="sd">        - If phi is fixed: 1 parameter (only λ estimated)</span>
+
+<span class="sd">        This affects BIC/AIC corrections which penalize model complexity.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mi">2</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">phi</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">1</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sample_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample from posterior predictive or plug-in Negative Binomial.</span>
+
+<span class="sd">        If use_posterior_predictive=True:</span>
+<span class="sd">            Sample from compound Gamma-NB (marginalizes λ uncertainty)</span>
+<span class="sd">        Else:</span>
+<span class="sd">            Sample from plug-in NB(λ_post, φ)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">use_posterior_predictive</span><span class="p">:</span>
+            <span class="c1"># Posterior predictive: integrate out λ</span>
+            <span class="c1"># This is a Beta-Negative-Binomial distribution</span>
+            <span class="c1"># For simplicity, we use Monte Carlo:</span>
+            <span class="c1"># 1. Sample λ ~ Gamma(α_post, β_post)</span>
+            <span class="c1"># 2. Sample y ~ NB(λ, φ)</span>
+
+            <span class="n">alpha_post</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_alpha&quot;</span><span class="p">]</span>
+            <span class="n">beta_post</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_beta&quot;</span><span class="p">]</span>
+            <span class="n">phi</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;phi&quot;</span><span class="p">]</span>
+
+            <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+
+            <span class="c1"># Sample λ from posterior Gamma</span>
+            <span class="c1"># scipy.stats.gamma uses (a=shape, scale=1/rate)</span>
+            <span class="n">lambda_samples</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">gamma</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">alpha_post</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">beta_post</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">)</span>
+
+            <span class="c1"># Sample y from NB(λ, φ) for each λ</span>
+            <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">lam</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lambda_samples</span><span class="p">):</span>
+                <span class="n">p</span> <span class="o">=</span> <span class="n">phi</span> <span class="o">/</span> <span class="p">(</span><span class="n">phi</span> <span class="o">+</span> <span class="n">lam</span><span class="p">)</span>
+                <span class="n">samples</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">nbinom</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">phi</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">rng</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">samples</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Plug-in: NB(λ_post, φ)</span>
+            <span class="n">lambda_post</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_lambda&quot;</span><span class="p">]</span>
+            <span class="n">phi</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;phi&quot;</span><span class="p">]</span>
+
+            <span class="n">r</span> <span class="o">=</span> <span class="n">phi</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">phi</span> <span class="o">/</span> <span class="p">(</span><span class="n">phi</span> <span class="o">+</span> <span class="n">lambda_post</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">nbinom</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_targets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate data for Negative Binomial distribution.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data must be 1-dimensional, got shape </span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data cannot be empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">data</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Negative Binomial requires non-negative count data (y &gt;= 0)&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">data</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Negative Binomial requires integer count data&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data contains non-finite values&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get posterior mean of the distribution.</span>
+
+<span class="sd">        For Negative Binomial with mean λ: E[Y] = λ</span>
+<span class="sd">        For posterior predictive: E[Y] = E[λ|y] (same as plug-in for NB)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="c1"># Both plug-in and posterior predictive have mean = λ_post</span>
+        <span class="k">return</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_lambda&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_variance</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get posterior variance of the distribution.</span>
+
+<span class="sd">        For plug-in NB(λ, φ): Var[Y] = λ + λ²/φ</span>
+<span class="sd">        For posterior predictive: Var[Y] = E[λ] + E[λ²]/φ (accounts for λ uncertainty)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="n">phi</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;phi&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">use_posterior_predictive</span><span class="p">:</span>
+            <span class="c1"># Posterior predictive variance includes λ uncertainty</span>
+            <span class="c1"># Var[Y] = E[Var[Y|λ]] + Var[E[Y|λ]]</span>
+            <span class="c1"># where E[Y|λ] = λ, Var[Y|λ] = λ + λ²/φ</span>
+
+            <span class="n">alpha_post</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_alpha&quot;</span><span class="p">]</span>
+            <span class="n">beta_post</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_beta&quot;</span><span class="p">]</span>
+
+            <span class="c1"># E[λ] and Var[λ] from Gamma posterior</span>
+            <span class="n">mean_lambda</span> <span class="o">=</span> <span class="n">alpha_post</span> <span class="o">/</span> <span class="n">beta_post</span>
+            <span class="n">var_lambda</span> <span class="o">=</span> <span class="n">alpha_post</span> <span class="o">/</span> <span class="p">(</span><span class="n">beta_post</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+
+            <span class="c1"># E[Var[Y|λ]] = E[λ + λ²/φ] = E[λ] + E[λ²]/φ</span>
+            <span class="c1"># E[λ²] = Var[λ] + E[λ]²</span>
+            <span class="n">mean_lambda_sq</span> <span class="o">=</span> <span class="n">var_lambda</span> <span class="o">+</span> <span class="n">mean_lambda</span><span class="o">**</span><span class="mi">2</span>
+
+            <span class="n">ev_vy</span> <span class="o">=</span> <span class="n">mean_lambda</span> <span class="o">+</span> <span class="n">mean_lambda_sq</span> <span class="o">/</span> <span class="n">phi</span>
+
+            <span class="c1"># Var[E[Y|λ]] = Var[λ]</span>
+            <span class="n">ve_y</span> <span class="o">=</span> <span class="n">var_lambda</span>
+
+            <span class="k">return</span> <span class="n">ev_vy</span> <span class="o">+</span> <span class="n">ve_y</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Plug-in NB variance: λ + λ²/φ</span>
+            <span class="n">lambda_post</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_lambda&quot;</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">lambda_post</span> <span class="o">+</span> <span class="p">(</span><span class="n">lambda_post</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">phi</span>
+
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># OPTIONAL METHODS (OVERRIDE FOR EFFICIENCY)</span>
+    <span class="c1"># ========================================================================</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_evidence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Exact Bayesian evidence for Gamma-NegativeBinomial conjugate.</span>
+
+<span class="sd">        Computes p(y | prior) = ∫ p(y | λ, φ) p(λ) dλ</span>
+
+<span class="sd">        The dispersion φ is estimated from data (not integrated out).</span>
+<span class="sd">        The log evidence integrates over λ only.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">0.0</span>
+
+        <span class="n">sum_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="c1"># Estimate or use fixed φ</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">phi</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phi</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_estimate_phi_mom</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="c1"># Posterior parameters</span>
+        <span class="n">alpha_post</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha_lambda</span> <span class="o">+</span> <span class="n">sum_counts</span>
+        <span class="n">beta_post</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_lambda</span> <span class="o">+</span> <span class="n">n</span>
+
+        <span class="c1"># Log evidence for Gamma-Poisson (core conjugate part):</span>
+        <span class="c1"># log p(y) = log Γ(α_post) - log Γ(α₀) + α₀·log(β₀) - α_post·log(β_post)</span>
+        <span class="n">log_ev</span> <span class="o">=</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">)</span> <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha_lambda</span><span class="p">)</span>
+        <span class="n">log_ev</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha_lambda</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_lambda</span><span class="p">)</span>
+        <span class="n">log_ev</span> <span class="o">-=</span> <span class="n">alpha_post</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">beta_post</span><span class="p">)</span>
+
+        <span class="c1"># NB-specific normalization terms (depend on φ):</span>
+        <span class="c1"># For each y_i: log[Γ(y_i + φ) / (Γ(φ) · y_i!)]</span>
+        <span class="c1"># Plus constant terms involving φ</span>
+        <span class="k">for</span> <span class="n">y_i</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">log_ev</span> <span class="o">+=</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">y_i</span> <span class="o">+</span> <span class="n">phi</span><span class="p">)</span> <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span> <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">y_i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Additional φ-dependent constant (from NB-Gamma convolution)</span>
+        <span class="n">log_ev</span> <span class="o">+=</span> <span class="n">n</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">log_ev</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_posterior_predictive_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Posterior predictive: integrates out λ uncertainty.</span>
+
+<span class="sd">        This is the Beta-Negative-Binomial distribution (also called Gamma-Negative-Binomial).</span>
+
+<span class="sd">        The closed form involves:</span>
+<span class="sd">        p(y_new | y) = ∫ NB(y_new | λ, φ) Gamma(λ | α_post, β_post) dλ</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">alpha_post</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_alpha&quot;</span><span class="p">]</span>
+        <span class="n">beta_post</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_beta&quot;</span><span class="p">]</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;phi&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Beta-NB is a compound distribution</span>
+        <span class="c1"># For computational efficiency, we use the equivalent formulation:</span>
+        <span class="c1"># Y ~ BetaNegBin(r, α, β) where r=φ, α=α_post, β=β_post</span>
+
+        <span class="c1"># The PMF involves:</span>
+        <span class="c1"># p(y) ∝ Γ(y+r) Γ(α+y) Γ(β+r) / [Γ(r) Γ(y+1) Γ(α) Γ(β) Γ(α+β+y+r)]</span>
+
+        <span class="c1"># Simplified computation:</span>
+        <span class="n">log_probs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+            <span class="c1"># Beta-Negative-Binomial PMF (log scale)</span>
+            <span class="n">log_p</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">gammaln</span><span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">phi</span><span class="p">)</span>
+                <span class="o">+</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">alpha_post</span> <span class="o">+</span> <span class="n">y</span><span class="p">)</span>
+                <span class="o">+</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">beta_post</span> <span class="o">+</span> <span class="n">phi</span><span class="p">)</span>
+                <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+                <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">)</span>
+                <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">beta_post</span><span class="p">)</span>
+                <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">alpha_post</span> <span class="o">+</span> <span class="n">beta_post</span> <span class="o">+</span> <span class="n">y</span> <span class="o">+</span> <span class="n">phi</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="c1"># Add normalizing constant</span>
+            <span class="n">log_p</span> <span class="o">+=</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">alpha_post</span> <span class="o">+</span> <span class="n">beta_post</span><span class="p">)</span>
+
+            <span class="n">log_probs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">log_p</span>
+
+        <span class="k">return</span> <span class="n">log_probs</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">sample_prior</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">RANDOM_SEED</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample λ from prior Gamma(α₀, β₀).</span>
+
+<span class="sd">        Returns rate parameters λ (not NB samples).</span>
+<span class="sd">        To get prior predictive samples, draw λ ~ Gamma then y ~ NB(λ, φ).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+        <span class="c1"># scipy.stats.gamma: a=shape, scale=1/rate</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">gamma</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha_lambda</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_lambda</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">))</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_auto_params</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve &#39;auto&#39; parameters based on data.</span>
+
+<span class="sd">        For GammaMSLambdaNegBin:</span>
+<span class="sd">        - &#39;mean_lambda&#39;: Use sample mean (grand mean, natural shrinkage target)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;mean_lambda&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown parameter &#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&#39; for auto resolution in </span><span class="si">{</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">NOTE: Use gamma prior on precision to avoid instability for tiny leaves?</span>
+<span class="sd">Principled? Good idea? Use standalone NormalMean and NormalMeanGammaVariance?</span>
+<span class="sd">def calc_posterior_params(self, data: np.ndarray) -&gt; dict[str, float]:</span>
+<span class="sd">        self.validate_targets(data)</span>
+<span class="sd">        n = float(len(data))</span>
+<span class="sd">        if n &lt; 2:</span>
+<span class="sd">            raise ValueError(&quot;Need at least two observations for NB.&quot;)</span>
+<span class="sd">        sample_mean = float(np.mean(data))</span>
+<span class="sd">        sample_var = float(np.var(data, ddof=1))</span>
+
+<span class="sd">        # Normal-Normal update on μ</span>
+<span class="sd">        prior_prec_mu = 1.0 / (self.prior_std**2)</span>
+<span class="sd">        data_prec_mu = n / np.maximum(sample_var, 1e-6)</span>
+<span class="sd">        post_prec_mu = prior_prec_mu + data_prec_mu</span>
+<span class="sd">        post_mu = (prior_prec_mu * self.prior_mean + data_prec_mu * sample_mean) / post_prec_mu</span>
+
+<span class="sd">        # Gamma prior on precision τ = 1/σ²</span>
+<span class="sd">        alpha_post = self.params.prior_var_shape + 0.5 * (n - 1)</span>
+<span class="sd">        beta_post = self.params.prior_var_rate + 0.5 * (n - 1) * sample_var</span>
+<span class="sd">        post_var = 1.0 / (alpha_post / beta_post)  # E[σ² | data]</span>
+
+<span class="sd">        post_var = float(np.maximum(post_var, post_mu + 1e-6))</span>
+<span class="sd">        p_hat = post_mu / post_var</span>
+<span class="sd">        r_hat = (post_mu**2) / (post_var - post_mu)</span>
+
+<span class="sd">        return {</span>
+<span class="sd">            &quot;r&quot;: float(np.maximum(r_hat, 1e-6)),</span>
+<span class="sd">            &quot;p&quot;: float(np.clip(p_hat, 1e-6, 1 - 1e-6)),</span>
+<span class="sd">            &quot;posterior_mean_mu&quot;: float(post_mu),</span>
+<span class="sd">            &quot;posterior_mean_var&quot;: float(post_var),</span>
+<span class="sd">        }</span>
+<span class="sd">&quot;&quot;&quot;</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025-2026, Silas Koemen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+</body>
+</html>

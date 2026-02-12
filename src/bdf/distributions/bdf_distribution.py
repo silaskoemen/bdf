@@ -10,24 +10,38 @@ from bdf.utils.constants import RANDOM_SEED
 
 
 class BDFDistributionParams(BaseModel, ABC):
-    """Base parameters for all BDF distributions.
+    """Common parameters shared by all BDF distributions.
 
-    Subclasses add distribution-specific priors AND their valid scoring configurations.
+    Every distribution inherits these fields and may **override** their defaults
+    or restrict their allowed values. For example, non-conjugate distributions
+    lock ``score_method`` to ``"nll"`` and set ``use_posterior_predictive=False``.
+    When a distribution overrides a default, it is documented in that
+    distribution's own docstring; parameters not mentioned there use the
+    defaults listed below.
 
     Parameters
     ----------
-    score_method : Literal["nle", "nll"]
-        Scoring for splits: 'nle' (Bayesian marginal likelihood, negative log evidence) or 'nll' (plug-in negative log likelihood).
-    score_correction : Literal["aic", "bic", "loo_cv", "kfold_cv"] | None
-        Correction for NLL: None, 'aic', 'bic', 'loo_cv', or 'kfold_cv' (only used for `nll`).
-    score_cv_folds : int
-        K-fold CV folds (only used for kfold_cv).
-    score_cv_shuffle : bool
-        Shuffle data before CV splits (only for kfold_cv).
-    score_cv_seed : int
-        Random seed for CV (only for kfold_cv).
-    use_posterior_predictive : bool
-        Use posterior predictive (True) or plug-in MAP (False) for NLL/inference.
+    score_method : {"nle", "nll"}, default="nle"
+        Scoring method for split evaluation.
+
+        * ``"nle"`` — Bayesian marginal likelihood (negative log evidence).
+          Only available for conjugate distributions.
+        * ``"nll"`` — Plug-in negative log-likelihood.
+    score_correction : {"aic", "bic", "loo_cv", "kfold_cv"} or None, default=None
+        Complexity correction applied when ``score_method="nll"``.
+        Ignored when using ``"nle"``.
+    score_cv_folds : int, default=3
+        Number of folds for k-fold cross-validation (only used when
+        ``score_correction="kfold_cv"``).
+    score_cv_shuffle : bool, default=True
+        Shuffle data before creating CV splits.
+    score_cv_seed : int, default=1234
+        Random seed for CV fold assignment.
+    use_posterior_predictive : bool, default=True
+        If ``True``, use the posterior predictive distribution (integrates out
+        parameter uncertainty) for scoring and inference. If ``False``, use
+        plug-in point estimates. Not all distributions support this; those
+        that don't override this to ``False``.
     """
 
     # Scoring configuration (common to all distributions)

@@ -1,9 +1,9 @@
-﻿bdf.distributions.NormGammaNormal
+﻿bdf.distributions.BetaMVBernoulli
 =================================
 
 .. currentmodule:: bdf.distributions
 
-.. autoclass:: NormGammaNormal
+.. autoclass:: BetaMVBernoulli
    :no-members:
    :no-undoc-members:
    :show-inheritance:

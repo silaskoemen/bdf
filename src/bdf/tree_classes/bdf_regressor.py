@@ -16,11 +16,64 @@ from .utils import _fit_single_tree
 
 
 class BDFModel(BaseEstimator):
-    """BDFModel class for Bayesian Distributional Forests.
+    """Base class for Bayesian Distributional Forest models.
 
-    Base class for both BDFRegressor and BDFClassifier containing all shared
-    functionality. Does not inherit from RegressorMixin or ClassifierMixin
-    since it serves as a base for both task types.
+    Implements a forest of Bayesian decision trees that provide full predictive
+    distributions rather than point estimates. This is the shared base for
+    :class:`BDFRegressor` and :class:`BDFClassifier`.
+
+    Parameters
+    ----------
+    dist : str, default="NormalMuNormal"
+        Name of the distribution to use. Must match a registered distribution
+        class name (e.g. ``"NormalMuNormal"``, ``"GammaMVLambdaPoisson"``,
+        ``"BetaMVBernoulli"``). See :doc:`distributions` for all options.
+    params : dict, default={"mu_mu": "auto", "sigma_mu": "auto", "sigma_mu_auto_scale": 1.0}
+        Distribution-specific parameters. Values may be ``"auto"`` for
+        data-driven initialization at fit time. See the chosen distribution's
+        documentation for available parameters.
+    n_trees : int, default=50
+        Number of trees in the forest.
+    alpha : float, default=0.0
+        Structural prior strength. For ``tree_prior_mode="linear"`` this is
+        unused (set to 0). For ``"defer"`` or ``"bernoulli"`` modes, must be
+        in (0, 1).
+    gamma : float, default=0.1
+        Complexity penalty applied to each split. Higher values produce
+        simpler trees. Must be in [0, 1].
+    delta : float, default=0.01
+        Depth decay parameter. For ``tree_prior_mode="linear"`` controls
+        per-depth penalty decay. For ``"defer"``/``"bernoulli"`` modes, must
+        be in (0, 1).
+    tree_prior_mode : {"linear", "defer", "bernoulli"}, default="linear"
+        Tree structure prior mode. ``"linear"`` uses additive penalty terms.
+        ``"defer"`` and ``"bernoulli"`` use log-scale priors with stopping
+        probabilities.
+    max_depth : int, default=50
+        Maximum depth of each tree.
+    min_samples_leaf : int, default=10
+        Minimum number of samples required at a leaf node.
+    min_samples_split : int, default=20
+        Minimum number of samples required to split an internal node.
+    min_child_weight : int or float, default=10
+        Minimum sum of instance weight (or sample count) in a child node.
+    subsample : float, default=0.9
+        Fraction of samples used for fitting each tree. Must be in (0, 1].
+    colsample : float, default=0.9
+        Fraction of features considered at each split. Must be in (0, 1].
+    eta : float, default=0.01
+        Quantile step size for generating candidate split thresholds. Smaller
+        values produce more candidates. Must be in (0, 1].
+    bootstrap : bool, default=True
+        Whether to use bootstrap sampling (with replacement) for each tree.
+        If False, uses subsampling without replacement.
+    n_jobs : int, default=-1
+        Number of parallel jobs for tree fitting. ``-1`` uses all available
+        cores.
+    verbose : int, default=0
+        Verbosity level. ``0`` is silent, higher values print progress.
+    random_state : int, default=1234
+        Random seed for reproducibility.
     """
 
     _parameter_constraints = {

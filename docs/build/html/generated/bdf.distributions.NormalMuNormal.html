@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>bdf.distributions.NormalMuNormal &mdash; bdf 0.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
-      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
 
       <script src="../_static/jquery.js?v=5d32c60e"></script>
@@ -20,7 +20,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="bdf.distributions.NormGammaNormal" href="bdf.distributions.NormGammaNormal.html" />
+    <link rel="next" title="bdf.distributions.NormalMuInvGammaSigmaNormal" href="bdf.distributions.NormalMuInvGammaSigmaNormal.html" />
     <link rel="prev" title="bdf.distributions.BDFDistributionParams" href="bdf.distributions.BDFDistributionParams.html" />
 </head>
 
@@ -46,15 +46,19 @@
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="../api.html">API Reference</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="../regressor.html">Regressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../models.html">Models</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="../distributions.html">Distributions</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="../distributions.html#base-parameters">Base Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../distributions.html#common-parameters">Common Parameters</a></li>
 <li class="toctree-l3 current"><a class="reference internal" href="../distributions.html#continuous-distributions">Continuous Distributions</a><ul class="current">
-<li class="toctree-l4 current"><a class="reference internal" href="../distributions.html#normal-normal-known-variance">Normal-Normal (Known Variance)</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../distributions.html#normal-gamma-unknown-mean-variance">Normal-Gamma (Unknown Mean &amp; Variance)</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="../distributions.html#normal">Normal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../distributions.html#student-t">Student-t</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../distributions.html#skew-normal">Skew-Normal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../distributions.html#generalized-hyperbolic">Generalized Hyperbolic</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../distributions.html#count-distributions">Count Distributions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../distributions.html#discrete-classification">Discrete / Classification</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../distributions.html#non-parametric">Non-parametric</a></li>
 </ul>
 </li>
 </ul>
@@ -92,10 +96,10 @@
 <dl class="py class">
 <dt class="sig sig-object py" id="bdf.distributions.NormalMuNormal">
 <em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">bdf.distributions.</span></span><span class="sig-name descname"><span class="pre">NormalMuNormal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/bdf/distributions/normal.html#NormalMuNormal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#bdf.distributions.NormalMuNormal" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BDFDistribution</span></code></p>
-<p>Normal-Normal conjugate model (μ unknown, σ² estimated from data).</p>
-<p><strong>String Alias:</strong> <code class="docutils literal notranslate"><span class="pre">'normal_normal'</span></code></p>
-<p><strong>Model Specification:</strong></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BDFDistribution</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">NormalMuNormalParams</span></code>]</p>
+<p>Normal-Normal conjugate model (unknown mean, variance estimated from data).</p>
+<p><strong>Usage:</strong> <code class="docutils literal notranslate"><span class="pre">dist=&quot;NormalMuNormal&quot;</span></code></p>
+<p><strong>Model:</strong></p>
 <ul class="simple">
 <li><p><strong>Prior:</strong> <span class="math notranslate nohighlight">\(\mu \sim \mathcal{N}(\mu_0, \sigma_\mu^2)\)</span></p></li>
 <li><p><strong>Likelihood:</strong> <span class="math notranslate nohighlight">\(y \mid \mu \sim \mathcal{N}(\mu, \sigma^2)\)</span></p></li>
@@ -104,23 +108,23 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>mu_mu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>default=0.0</em>) – Prior mean for <span class="math notranslate nohighlight">\(\mu\)</span> (<span class="math notranslate nohighlight">\(\mu_0\)</span>).</p></li>
-<li><p><strong>sigma_mu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>default=1.0</em>) – Prior standard deviation for <span class="math notranslate nohighlight">\(\mu\)</span> (<span class="math notranslate nohighlight">\(\sigma_\mu\)</span>).</p></li>
-<li><p><strong>score_method</strong> (<em>{'nle'</em><em>, </em><em>'nll'}</em><em>, </em><em>default='nle'</em>) – <p>Scoring method.
-*   <code class="docutils literal notranslate"><span class="pre">'nle'</span></code>: Uses exact Bayesian evidence (Negative Log Evidence).
-*   <code class="docutils literal notranslate"><span class="pre">'nll'</span></code>: Uses plug-in Negative Log Likelihood.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>This overrides the base default of ‘nll’ because this is a conjugate model.</p>
-</div>
-</p></li>
-<li><p><strong>use_posterior_predictive</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>default=True</em>) – If True, uses the Student’s t posterior predictive distribution for inference.
-If False, uses the plug-in Normal distribution with MAP estimates.</p></li>
-<li><p><strong>score_correction</strong> (<em>{'aic'</em><em>, </em><em>'bic'</em><em>, </em><em>'loo_cv'</em><em>, </em><em>'kfold_cv'}</em><em> or </em><em>None</em><em>, </em><em>default=None</em>) – Correction term for NLL scoring. Ignored if <code class="docutils literal notranslate"><span class="pre">score_method='nle'</span></code>.</p></li>
-<li><p><strong>score_cv_folds</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>default=3</em>) – Number of folds if <code class="docutils literal notranslate"><span class="pre">score_correction='kfold_cv'</span></code>.</p></li>
+<li><p><strong>mu_mu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><em>&quot;auto&quot;</em><em>, </em><em>default=0.0</em>) – Prior mean for <span class="math notranslate nohighlight">\(\mu\)</span>. If <code class="docutils literal notranslate"><span class="pre">&quot;auto&quot;</span></code>, set to the sample mean of
+<code class="docutils literal notranslate"><span class="pre">y</span></code> at fit time.</p></li>
+<li><p><strong>sigma_mu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><em>&quot;auto&quot;</em><em>, </em><em>default=1.0</em>) – Prior standard deviation for <span class="math notranslate nohighlight">\(\mu\)</span>. If <code class="docutils literal notranslate"><span class="pre">&quot;auto&quot;</span></code>, set to
+<code class="docutils literal notranslate"><span class="pre">std(y)</span> <span class="pre">*</span> <span class="pre">sigma_mu_auto_scale</span></code> at fit time.</p></li>
+<li><p><strong>sigma_mu_auto_scale</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>default=1.0</em>) – Multiplier applied when <code class="docutils literal notranslate"><span class="pre">sigma_mu=&quot;auto&quot;</span></code>. Ignored otherwise.</p></li>
 </ul>
 </dd>
 </dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="bdf.distributions.BDFDistributionParams.html#bdf.distributions.BDFDistributionParams" title="bdf.distributions.BDFDistributionParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BDFDistributionParams</span></code></a></dt><dd><p>Common scoring and inference parameters shared by all distributions.</p>
+</dd>
+<dt><a class="reference internal" href="bdf.distributions.NormalMuInvGammaSigmaNormal.html#bdf.distributions.NormalMuInvGammaSigmaNormal" title="bdf.distributions.NormalMuInvGammaSigmaNormal"><code class="xref py py-obj docutils literal notranslate"><span class="pre">NormalMuInvGammaSigmaNormal</span></code></a></dt><dd><p>Full conjugate model with unknown mean and variance.</p>
+</dd>
+</dl>
+</div>
 </dd></dl>
 
 </section>
@@ -130,13 +134,13 @@ If False, uses the plug-in Normal distribution with MAP estimates.</p></li>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="bdf.distributions.BDFDistributionParams.html" class="btn btn-neutral float-left" title="bdf.distributions.BDFDistributionParams" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="bdf.distributions.NormGammaNormal.html" class="btn btn-neutral float-right" title="bdf.distributions.NormGammaNormal" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="bdf.distributions.NormalMuInvGammaSigmaNormal.html" class="btn btn-neutral float-right" title="bdf.distributions.NormalMuInvGammaSigmaNormal" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2025, Silas Koemen.</p>
+    <p>&#169; Copyright 2025-2026, Silas Koemen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

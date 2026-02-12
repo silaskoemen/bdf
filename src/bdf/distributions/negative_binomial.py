@@ -131,15 +131,24 @@ class GammaMSLambdaNegBinParams(BDFDistributionParams):
 
 
 class FrequentistNegativeBinomial(BDFDistribution):
-    """Negative Binomial distribution estimated via MLE (Method of Moments initialization).
+    r"""Negative Binomial with frequentist estimation (no prior).
 
-    y ~ NegativeBinomial(r, p)
+    **Usage:** ``dist="FrequentistNegativeBinomial"``
 
-    Uses MoM for fast closed-form estimation:
-    - r = μ² / (σ² - μ)  (dispersion parameter)
-    - p = μ / σ²         (success probability)
+    Parameters :math:`r` (dispersion) and :math:`p` (success probability)
+    are estimated via method of moments.
 
-    where μ = sample mean, σ² = sample variance.
+    .. math:: y \sim \text{NegBin}(r, p)
+
+    Parameters
+    ----------
+    score_method : {"nll"}
+        Only NLL scoring is supported (non-conjugate model).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    GammaMSLambdaNegBin : Bayesian version with Gamma prior on the mean.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = FrequentistNegativeBinomialParams
@@ -234,14 +243,31 @@ class FrequentistNegativeBinomial(BDFDistribution):
 
 
 class NormalMeanNegativeBinomial(BDFDistribution):
-    """Negative Binomial with Normal prior on the mean (Hybrid MoM approach).
+    r"""Negative Binomial with Normal prior on the mean.
 
-    Methodology:
-    1. Place Normal(μ₀, σ₀²) prior on population mean.
-    2. Bayesian update: posterior mean μ_post via precision-weighted average.
-    3. Map (μ_post, sample_var) → NegBinom(r, p) via Method of Moments.
+    **Usage:** ``dist="NormalMeanNegativeBinomial"``
 
-    This provides regularization on the mean while respecting overdispersion structure.
+    **Model:**
+
+    *   **Prior:** :math:`\mu \sim \mathcal{N}(\mu_0, \sigma_0^2)`
+    *   **Likelihood:** :math:`y \mid r, p \sim \text{NegBin}(r, p)`
+    *   **Posterior:** Precision-weighted update on :math:`\mu`, then MoM mapping
+        :math:`(\mu_\text{post}, s^2) \to (r, p)`
+
+    Parameters
+    ----------
+    prior_mean : float, default=1.0
+        Prior mean for the population mean (must be > 0).
+    prior_std : float, default=1.0
+        Prior standard deviation for the population mean.
+    score_method : {"nll"}
+        Only NLL scoring is supported (non-conjugate model).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    FrequentistNegativeBinomial : MLE estimation without prior.
+    GammaMSLambdaNegBin : Fully conjugate Gamma prior on rate.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = NormalMeanNegativeBinomialParams
@@ -354,7 +380,7 @@ class NormalMeanNegativeBinomial(BDFDistribution):
 class GammaMSLambdaNegBin(BDFDistribution[GammaMSLambdaNegBinParams]):
     """Negative Binomial with Gamma prior on mean λ (Mean-Strength parameterization).
 
-    **String Alias:** ``'GammaMSLambdaNegBin'``
+    **Usage:** ``dist="GammaMSLambdaNegBin"``
 
     **Model Specification:**
 

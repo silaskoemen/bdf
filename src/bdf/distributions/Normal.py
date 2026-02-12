@@ -78,11 +78,11 @@ class NormalMuInvGammaSigmaNormalParams(BDFDistributionParams):
 
 
 class NormalMuNormal(BDFDistribution[NormalMuNormalParams]):
-    r"""Normal-Normal conjugate model (μ unknown, σ² estimated from data).
+    r"""Normal-Normal conjugate model (unknown mean, variance estimated from data).
 
-    **String Alias:** ``'normal_normal'``
+    **Usage:** ``dist="NormalMuNormal"``
 
-    **Model Specification:**
+    **Model:**
 
     *   **Prior:** :math:`\mu \sim \mathcal{N}(\mu_0, \sigma_\mu^2)`
     *   **Likelihood:** :math:`y \mid \mu \sim \mathcal{N}(\mu, \sigma^2)`
@@ -90,28 +90,19 @@ class NormalMuNormal(BDFDistribution[NormalMuNormalParams]):
 
     Parameters
     ----------
-    mu_mu : float, default=0.0
-        Prior mean for :math:`\mu` (:math:`\mu_0`).
+    mu_mu : float or "auto", default=0.0
+        Prior mean for :math:`\mu`. If ``"auto"``, set to the sample mean of
+        ``y`` at fit time.
+    sigma_mu : float or "auto", default=1.0
+        Prior standard deviation for :math:`\mu`. If ``"auto"``, set to
+        ``std(y) * sigma_mu_auto_scale`` at fit time.
+    sigma_mu_auto_scale : float, default=1.0
+        Multiplier applied when ``sigma_mu="auto"``. Ignored otherwise.
 
-    sigma_mu : float, default=1.0
-        Prior standard deviation for :math:`\mu` (:math:`\sigma_\mu`).
-
-    score_method : {'nle', 'nll'}, default='nle'
-        Scoring method.
-        *   ``'nle'``: Uses exact Bayesian evidence (Negative Log Evidence).
-        *   ``'nll'``: Uses plug-in Negative Log Likelihood.
-
-        .. note:: This overrides the base default of 'nll' because this is a conjugate model.
-
-    use_posterior_predictive : bool, default=True
-        If True, uses the Student's t posterior predictive distribution for inference.
-        If False, uses the plug-in Normal distribution with MAP estimates.
-
-    score_correction : {'aic', 'bic', 'loo_cv', 'kfold_cv'} or None, default=None
-        Correction term for NLL scoring. Ignored if ``score_method='nle'``.
-
-    score_cv_folds : int, default=3
-        Number of folds if ``score_correction='kfold_cv'``.
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    NormalMuInvGammaSigmaNormal : Full conjugate model with unknown mean and variance.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = NormalMuNormalParams
@@ -332,11 +323,33 @@ class NormalMuNormal(BDFDistribution[NormalMuNormalParams]):
 
 
 class NormalMuInvGammaSigmaNormal(BDFDistribution[NormalMuInvGammaSigmaNormalParams]):
-    """Normal-Inverse-Gamma conjugate model (μ and σ² both unknown).
+    r"""Normal-Inverse-Gamma conjugate model (unknown mean and variance).
 
-    Supports:
-    - Closed-form Bayesian evidence
-    - Student's t posterior predictive
+    **Usage:** ``dist="NormalMuInvGammaSigmaNormal"``
+
+    **Model:**
+
+    *   **Prior:** :math:`\mu \mid \sigma^2 \sim \mathcal{N}(\mu_0, \sigma^2/n_0)`,
+        :math:`\sigma^2 \sim \text{InvGamma}(\nu_0/2, \nu_0 \phi_0/2)`
+    *   **Likelihood:** :math:`y \mid \mu, \sigma^2 \sim \mathcal{N}(\mu, \sigma^2)`
+    *   **Posterior Predictive:** :math:`y_\text{new} \mid y \sim t_{\nu_n}(\mu_n, \phi_n(1+1/n_n))`
+
+    Parameters
+    ----------
+    mu_mu : float, default=0.0
+        Prior mean :math:`\mu_0` for :math:`\mu`.
+    n_mu : float, default=1.0
+        Prior precision scale :math:`n_0`. Acts as pseudo-sample-size
+        weighting the prior mean.
+    nu_sigma : float, default=3.0
+        Prior degrees of freedom :math:`\nu_0` for :math:`\sigma^2`.
+    phi_sigma : float, default=1.0
+        Prior scale parameter :math:`\phi_0` for :math:`\sigma^2`.
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    NormalMuNormal : Simpler model with known variance.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = NormalMuInvGammaSigmaNormalParams

@@ -1,0 +1,604 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>bdf.distributions.multinomial &mdash; bdf 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+
+
+          <a href="../../../index.html" class="icon icon-home">
+            bdf
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">bdf</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">bdf.distributions.multinomial</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <h1>Source code for bdf.distributions.multinomial</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Multinomial distribution implementations for BDF.</span>
+
+<span class="sd">Provides conjugate Multinomial-Dirichlet models:</span>
+<span class="sd">- DirichletAlphaMultinomial: Dirichlet(α) prior on category probabilities (concentration parameterization)</span>
+<span class="sd">- DirichletMeanMultinomial: Dirichlet prior via mean probabilities + strength (more interpretable)</span>
+
+<span class="sd">Both support:</span>
+<span class="sd">- Closed-form Bayesian evidence (NLE)</span>
+<span class="sd">- Dirichlet-Multinomial posterior predictive</span>
+<span class="sd">- Efficient inference (conjugate updates)</span>
+
+<span class="sd">Note: Data format is categorical (integer labels 0, 1, ..., K-1), not one-hot.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">Literal</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Field</span><span class="p">,</span> <span class="n">field_validator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.special</span><span class="w"> </span><span class="kn">import</span> <span class="n">gammaln</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">dirichlet</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">bdf.distributions.bdf_distribution</span><span class="w"> </span><span class="kn">import</span> <span class="n">BDFDistribution</span><span class="p">,</span> <span class="n">BDFDistributionParams</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">bdf.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">RANDOM_SEED</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># PARAMS CLASSES</span>
+<span class="c1"># ============================================================================</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DirichletAlphaMultinomialParams</span><span class="p">(</span><span class="n">BDFDistributionParams</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parameters for Multinomial with Dirichlet(α) prior on probabilities p.</span>
+
+<span class="sd">    Prior: p ~ Dirichlet(α) where α = [α₁, ..., αₖ]</span>
+<span class="sd">    Likelihood: n | p ~ Multinomial(N, p) where n = [n₁, ..., nₖ]</span>
+<span class="sd">    Posterior: p | n ~ Dirichlet(α + n)</span>
+<span class="sd">    Posterior predictive: n_new | data ~ Dirichlet-Multinomial(α_post, N)</span>
+
+<span class="sd">    Notes:</span>
+<span class="sd">    - α (alpha): Concentration parameters (all αᵢ &gt; 0)</span>
+<span class="sd">    - E[pᵢ] = αᵢ / Σαⱼ</span>
+<span class="sd">    - Larger Σα → more concentrated around E[p]</span>
+<span class="sd">    - α = [1, 1, ..., 1] → uniform prior (Jeffreys prior is α = 0.5 each)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Prior hyperparameters</span>
+    <span class="n">alpha</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">],</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Concentration parameters α for each category (length K)&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Scoring defaults for conjugate model</span>
+    <span class="n">score_method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;nle&quot;</span><span class="p">,</span> <span class="s2">&quot;nll&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="s2">&quot;nle&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Conjugate model defaults to nle (Bayesian evidence).&quot;</span>
+    <span class="p">)</span>
+    <span class="n">use_posterior_predictive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Use Dirichlet-Multinomial posterior predictive (marginalizes p uncertainty).&quot;</span>
+    <span class="p">)</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;alpha&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_alpha</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate concentration parameters.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;alpha must have at least one element&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">a</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">v</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;All concentration parameters alpha must be positive&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">v</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DirichletMeanMultinomialParams</span><span class="p">(</span><span class="n">BDFDistributionParams</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parameters for Multinomial with Dirichlet prior specified via mean probabilities + strength.</span>
+
+<span class="sd">    Prior: p ~ Dirichlet(α) where α = m · μ</span>
+<span class="sd">    - μ (mean_probs): Prior mean probabilities E[p] = μ (must sum to 1)</span>
+<span class="sd">    - m (strength): Total concentration = Σαᵢ (like pseudo-sample-size)</span>
+
+<span class="sd">    This parameterization is more interpretable:</span>
+<span class="sd">    - mean_probs: Your prior belief about category distribution</span>
+<span class="sd">    - strength: How confident you are (higher → less variance in posterior)</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        mean_probs=[0.5, 0.3, 0.2], strength=10.0</span>
+<span class="sd">        → α = [5.0, 3.0, 2.0]</span>
+<span class="sd">        → Prior expects 50% cat 0, 30% cat 1, 20% cat 2</span>
+<span class="sd">        → Equivalent to 10 prior pseudo-observations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Prior hyperparameters (mean-strength parameterization)</span>
+    <span class="n">mean_probs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">],</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Prior mean probabilities μ for each category (must sum to 1)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">strength</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Total concentration m = Σαᵢ (pseudo-sample-size)&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Scoring defaults</span>
+    <span class="n">score_method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;nle&quot;</span><span class="p">,</span> <span class="s2">&quot;nll&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s2">&quot;nle&quot;</span><span class="p">)</span>
+    <span class="n">use_posterior_predictive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Use Dirichlet-Multinomial posterior predictive.&quot;</span><span class="p">)</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;mean_probs&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_mean_probs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate mean probabilities.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;mean_probs must have at least one element&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">p</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">v</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;All mean_probs must be positive&quot;</span><span class="p">)</span>
+        <span class="n">prob_sum</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">prob_sum</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mean_probs must sum to 1.0, got </span><span class="si">{</span><span class="n">prob_sum</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">v</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># DISTRIBUTION IMPLEMENTATIONS</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="DirichletAlphaMultinomial">
+<a class="viewcode-back" href="../../../generated/bdf.distributions.DirichletAlphaMultinomial.html#bdf.distributions.DirichletAlphaMultinomial">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">DirichletAlphaMultinomial</span><span class="p">(</span><span class="n">BDFDistribution</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Multinomial-Dirichlet conjugate model (concentration parameterization).</span>
+
+<span class="sd">    **Usage:** ``dist=&quot;DirichletAlphaMultinomial&quot;``</span>
+
+<span class="sd">    **Model:**</span>
+
+<span class="sd">    *   **Prior:** :math:`p \sim \text{Dirichlet}(\alpha_1, \ldots, \alpha_K)`</span>
+<span class="sd">    *   **Likelihood:** :math:`n \mid p \sim \text{Multinomial}(N, p)`</span>
+<span class="sd">    *   **Posterior:** :math:`p \mid n \sim \text{Dirichlet}(\alpha + n)`</span>
+
+<span class="sd">    Data format: integer labels in :math:`\{0, 1, \ldots, K-1\}`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    alpha : list[float], default=[1.0]</span>
+<span class="sd">        Concentration parameters :math:`\alpha` for each category (length K).</span>
+<span class="sd">        Uniform prior: ``[1, 1, ..., 1]``; Jeffreys prior: ``[0.5, ..., 0.5]``.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.</span>
+<span class="sd">    DirichletMeanMultinomial : Alternative mean-strength parameterization.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">params_cls</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">type</span><span class="p">[</span><span class="n">BDFDistributionParams</span><span class="p">]]</span> <span class="o">=</span> <span class="n">DirichletAlphaMultinomialParams</span>
+
+    <span class="c1"># Capabilities</span>
+    <span class="n">_supports_nle</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">_has_fast_loo_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_has_fast_kfold_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_supports_posterior_predictive</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">DirichletAlphaMultinomialParams</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span>
+
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># REQUIRED METHODS</span>
+    <span class="c1"># ========================================================================</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calc_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate Dirichlet posterior parameters for p.</span>
+
+<span class="sd">        Returns dict with:</span>
+<span class="sd">        - posterior_alpha: List of posterior concentrations [α₁ + n₁, ..., αₖ + nₖ]</span>
+<span class="sd">        - posterior_probs: Posterior mean E[p | data] = α_post / Σα_post</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Count occurrences of each category</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">)</span>
+
+        <span class="c1"># Handle case where data has more categories than prior</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">counts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Data contains </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">counts</span><span class="p">)</span><span class="si">}</span><span class="s2"> categories but prior only has </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="si">}</span><span class="s2">. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Adjust alpha to match.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Conjugate update: Dirichlet(α) + Multinomial counts → Dirichlet(α + n)</span>
+        <span class="n">alpha_post</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">counts</span><span class="p">[:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">]</span>
+
+        <span class="c1"># Posterior mean probabilities</span>
+        <span class="n">probs_post</span> <span class="o">=</span> <span class="n">alpha_post</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;posterior_alpha&quot;</span><span class="p">:</span> <span class="n">alpha_post</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+            <span class="s2">&quot;posterior_probs&quot;</span><span class="p">:</span> <span class="n">probs_post</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_plugin_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Plug-in Categorical likelihood: log p(y | p_post).</span>
+
+<span class="sd">        Uses posterior mean probabilities as point estimate.</span>
+<span class="sd">        For each data point yᵢ, returns log p(yᵢ = k) = log(p_post[k])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">probs_post</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_probs&quot;</span><span class="p">])</span>
+
+        <span class="c1"># Categorical log-likelihood for each observation</span>
+        <span class="c1"># data[i] is the category index, so log p(y[i]) = log(probs[y[i]])</span>
+        <span class="n">log_probs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">probs_post</span> <span class="o">+</span> <span class="mf">1e-10</span><span class="p">)</span>  <span class="c1"># Add epsilon for numerical stability</span>
+        <span class="k">return</span> <span class="n">log_probs</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Number of free parameters: K - 1 (probabilities sum to 1).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span> <span class="o">-</span> <span class="mi">1</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sample_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample from posterior predictive (Dirichlet-Multinomial).</span>
+
+<span class="sd">        If use_posterior_predictive=True:</span>
+<span class="sd">            Sample p ~ Dirichlet(α_post), then y ~ Categorical(p)</span>
+<span class="sd">        Else:</span>
+<span class="sd">            Sample y ~ Categorical(p_post) where p_post = E[p | data]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">use_posterior_predictive</span><span class="p">:</span>
+            <span class="c1"># Posterior predictive: integrate out p</span>
+            <span class="c1"># For single draws, equivalent to: p ~ Dir(α_post), y ~ Cat(p)</span>
+            <span class="n">alpha_post</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_alpha&quot;</span><span class="p">])</span>
+
+            <span class="c1"># Sample from Dirichlet-Multinomial (equivalent to sampling p then y)</span>
+            <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">size</span><span class="p">):</span>
+                <span class="c1"># Sample probabilities from posterior Dirichlet</span>
+                <span class="n">p_sample</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">dirichlet</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">)</span>
+                <span class="c1"># Sample category from Categorical(p_sample)</span>
+                <span class="n">samples</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p_sample</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">samples</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Plug-in: Categorical(p_post)</span>
+            <span class="n">probs_post</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_probs&quot;</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">probs_post</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_targets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate data for Multinomial distribution.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data must be 1-dimensional, got shape </span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data cannot be empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">data</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Multinomial data must be non-negative integers (category labels)&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">data</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Multinomial data must be integers (category labels)&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data contains non-finite values&quot;</span><span class="p">)</span>
+
+        <span class="n">max_category</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">max_category</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Data contains category </span><span class="si">{</span><span class="n">max_category</span><span class="si">}</span><span class="s2"> but only </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="si">}</span><span class="s2"> categories in prior. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Increase alpha length or check data encoding.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get posterior mean category (mode of posterior probabilities).</span>
+
+<span class="sd">        Returns the category index with highest posterior probability.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="n">probs_post</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_probs&quot;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">probs_post</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_variance</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get posterior variance (entropy of categorical distribution).</span>
+
+<span class="sd">        Returns the entropy H[p] = -Σ pᵢ log pᵢ as a measure of uncertainty.</span>
+<span class="sd">        Higher entropy → more uniform distribution → higher variance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="n">probs_post</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_probs&quot;</span><span class="p">])</span>
+        <span class="c1"># Entropy (use as variance proxy for categorical)</span>
+        <span class="n">entropy</span> <span class="o">=</span> <span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">probs_post</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">probs_post</span> <span class="o">+</span> <span class="mf">1e-10</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">entropy</span>
+
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># OPTIONAL METHODS (OVERRIDE FOR EFFICIENCY)</span>
+    <span class="c1"># ========================================================================</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_evidence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Exact Bayesian evidence for Multinomial-Dirichlet conjugate.</span>
+
+<span class="sd">        p(n | prior) = ∫ p(n | p) p(p) dp</span>
+
+<span class="sd">        Closed form for Dirichlet-Multinomial:</span>
+<span class="sd">        log p(n) = log B(α + n) - log B(α) + log N!/(n₁! n₂! ... nₖ!)</span>
+<span class="sd">        where B(α) = Π Γ(αᵢ) / Γ(Σαᵢ)</span>
+
+<span class="sd">        Simplifies to:</span>
+<span class="sd">        log p(n) = [Σ log Γ(αᵢ + nᵢ) - Σ log Γ(αᵢ)] - [log Γ(Σαᵢ + N) - log Γ(Σαᵢ)]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">)</span>
+        <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="n">alpha_post</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">counts</span><span class="p">[:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">]</span>
+
+        <span class="c1"># Log evidence using Beta function identity</span>
+        <span class="n">log_ev</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="c1"># Numerator: log B(α + n) = Σ log Γ(αᵢ + nᵢ) - log Γ(Σ(αᵢ + nᵢ))</span>
+        <span class="n">log_ev</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gammaln</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">))</span> <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">))</span>
+
+        <span class="c1"># Denominator: log B(α) = Σ log Γ(αᵢ) - log Γ(Σαᵢ)</span>
+        <span class="n">log_ev</span> <span class="o">-=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gammaln</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">))</span> <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">))</span>
+
+        <span class="c1"># Note: Multinomial coefficient log(N!/(n₁!...nₖ!)) cancels in marginal</span>
+        <span class="c1"># (already accounted for in Dirichlet-Multinomial formula)</span>
+
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">log_ev</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_posterior_predictive_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Posterior predictive: Dirichlet-Multinomial (Pólya distribution).</span>
+
+<span class="sd">        For a single new observation y_new:</span>
+<span class="sd">        p(y_new = k | data) = (αₖ + nₖ) / (Σαᵢ + N)</span>
+
+<span class="sd">        This is the predictive distribution integrating out p ~ Dirichlet(α_post).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">alpha_post</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_alpha&quot;</span><span class="p">])</span>
+        <span class="n">alpha_sum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">)</span>
+
+        <span class="c1"># Predictive probabilities for each category</span>
+        <span class="n">predictive_probs</span> <span class="o">=</span> <span class="n">alpha_post</span> <span class="o">/</span> <span class="n">alpha_sum</span>
+
+        <span class="c1"># Log-likelihood for each data point</span>
+        <span class="n">log_probs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">predictive_probs</span> <span class="o">+</span> <span class="mf">1e-10</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">log_probs</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">sample_prior</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">RANDOM_SEED</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample p from prior Dirichlet(α).</span>
+
+<span class="sd">        Returns probability vectors p (not categorical samples).</span>
+<span class="sd">        To get prior predictive samples, draw p ~ Dir(α) then y ~ Cat(p).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+        <span class="c1"># Returns (size, n_categories) array of probability vectors</span>
+        <span class="k">return</span> <span class="n">dirichlet</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">rng</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="DirichletMeanMultinomial">
+<a class="viewcode-back" href="../../../generated/bdf.distributions.DirichletMeanMultinomial.html#bdf.distributions.DirichletMeanMultinomial">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">DirichletMeanMultinomial</span><span class="p">(</span><span class="n">BDFDistribution</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Multinomial-Dirichlet conjugate model (mean-strength parameterization).</span>
+
+<span class="sd">    **Usage:** ``dist=&quot;DirichletMeanMultinomial&quot;``</span>
+
+<span class="sd">    **Model:**</span>
+
+<span class="sd">    *   **Prior:** :math:`p \sim \text{Dirichlet}(m \cdot \mu)` where :math:`\mu`</span>
+<span class="sd">        are prior mean probabilities and :math:`m` is the total concentration</span>
+<span class="sd">    *   **Likelihood:** :math:`n \mid p \sim \text{Multinomial}(N, p)`</span>
+<span class="sd">    *   **Posterior:** :math:`p \mid n \sim \text{Dirichlet}(m \mu + n)`</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mean_probs : list[float], default=[1.0]</span>
+<span class="sd">        Prior mean probabilities :math:`\mu` (must sum to 1).</span>
+<span class="sd">    strength : float, default=1.0</span>
+<span class="sd">        Total concentration :math:`m = \sum \alpha_i` (pseudo-sample-size).</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.</span>
+<span class="sd">    DirichletAlphaMultinomial : Alternative concentration parameterization.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">params_cls</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">type</span><span class="p">[</span><span class="n">BDFDistributionParams</span><span class="p">]]</span> <span class="o">=</span> <span class="n">DirichletMeanMultinomialParams</span>
+
+    <span class="n">_supports_nle</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">_has_fast_loo_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_has_fast_kfold_cv</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_supports_posterior_predictive</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">DirichletMeanMultinomialParams</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean_probs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">mean_probs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">strength</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">strength</span>
+
+        <span class="c1"># Convert mean-strength to concentration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">strength</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_probs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span>
+
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># REQUIRED METHODS (identical to DirichletAlphaMultinomial after conversion)</span>
+    <span class="c1"># ========================================================================</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calc_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate Dirichlet posterior parameters.&quot;&quot;&quot;</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">counts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data contains </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">counts</span><span class="p">)</span><span class="si">}</span><span class="s2"> categories but prior only has </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+        <span class="n">alpha_post</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">counts</span><span class="p">[:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">]</span>
+        <span class="n">probs_post</span> <span class="o">=</span> <span class="n">alpha_post</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;posterior_alpha&quot;</span><span class="p">:</span> <span class="n">alpha_post</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+            <span class="s2">&quot;posterior_probs&quot;</span><span class="p">:</span> <span class="n">probs_post</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_plugin_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Plug-in Categorical likelihood.&quot;&quot;&quot;</span>
+        <span class="n">probs_post</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_probs&quot;</span><span class="p">])</span>
+        <span class="n">log_probs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">probs_post</span> <span class="o">+</span> <span class="mf">1e-10</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">log_probs</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span> <span class="o">-</span> <span class="mi">1</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sample_posterior_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample from posterior predictive or plug-in.&quot;&quot;&quot;</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">use_posterior_predictive</span><span class="p">:</span>
+            <span class="n">alpha_post</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_alpha&quot;</span><span class="p">])</span>
+
+            <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">size</span><span class="p">):</span>
+                <span class="n">p_sample</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">dirichlet</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">)</span>
+                <span class="n">samples</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p_sample</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">samples</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">probs_post</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_probs&quot;</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">probs_post</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_targets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate data.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data must be 1-dimensional, got shape </span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data cannot be empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">data</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Multinomial data must be non-negative integers&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">data</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Multinomial data must be integers&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Data contains non-finite values&quot;</span><span class="p">)</span>
+
+        <span class="n">max_category</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">max_category</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data contains category </span><span class="si">{</span><span class="n">max_category</span><span class="si">}</span><span class="s2"> but only </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="si">}</span><span class="s2"> categories in prior.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get posterior mean category.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="n">probs_post</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_probs&quot;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">probs_post</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_posterior_variance</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get posterior variance (entropy).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Provide either &#39;data&#39; or &#39;params&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_posterior_params</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="n">probs_post</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_probs&quot;</span><span class="p">])</span>
+        <span class="n">entropy</span> <span class="o">=</span> <span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">probs_post</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">probs_post</span> <span class="o">+</span> <span class="mf">1e-10</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">entropy</span>
+
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># OPTIONAL METHODS</span>
+    <span class="c1"># ========================================================================</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_evidence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Exact Bayesian evidence.&quot;&quot;&quot;</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">)</span>
+        <span class="n">alpha_post</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">+</span> <span class="n">counts</span><span class="p">[:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_categories</span><span class="p">]</span>
+
+        <span class="n">log_ev</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gammaln</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">))</span> <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">))</span>
+        <span class="n">log_ev</span> <span class="o">-=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gammaln</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">))</span> <span class="o">-</span> <span class="n">gammaln</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">log_ev</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_posterior_predictive_log_likelihood</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Posterior predictive: Dirichlet-Multinomial.&quot;&quot;&quot;</span>
+        <span class="n">alpha_post</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;posterior_alpha&quot;</span><span class="p">])</span>
+        <span class="n">predictive_probs</span> <span class="o">=</span> <span class="n">alpha_post</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">alpha_post</span><span class="p">)</span>
+        <span class="n">log_probs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">predictive_probs</span> <span class="o">+</span> <span class="mf">1e-10</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">log_probs</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">sample_prior</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">RANDOM_SEED</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample p from prior Dirichlet(α).&quot;&quot;&quot;</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dirichlet</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">rng</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025-2026, Silas Koemen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+</body>
+</html>

@@ -160,30 +160,38 @@ class NormalXiNormalAlphaSkewNormalMAPParams(BDFDistributionParams):
 
 
 class NormalMeanPseudoAlphaSkewNormal(BDFDistribution[NormalMeanPseudoAlphaSkewNormalParams]):
-    r"""Skew-Normal distribution with Normal prior on mean and pseudo-prior on alpha.
+    r"""Skew-Normal with Normal prior on mean and pseudo-prior on skewness.
 
-    **String Alias:** ``'skewnormal_pseudo_alpha'``
+    **Usage:** ``dist="NormalMeanPseudoAlphaSkewNormal"``
 
-    Uses modular Bayesian inference:
-    1. Updates location (ξ) using Normal posterior assuming symmetric data
-    2. Updates skewness (α) via moment-matching with shrinkage toward prior
-    3. Estimates scale (ω) from sample variance adjusted for skewness
+    **Model:**
+
+    *   **Prior on mean:** :math:`\mu \sim \mathcal{N}(\mu_\mu, \sigma_\mu^2)`
+    *   **Pseudo-prior on skewness:** :math:`\alpha` shrunk toward :math:`\alpha_0`
+        with strength :math:`m`
+    *   **Likelihood:** :math:`y \mid \alpha, \xi, \omega \sim \text{SkewNormal}(\alpha, \xi, \omega)`
 
     Parameters
     ----------
-    mu_mu : float, default=0.0
-        Prior mean for data mean.
-    sigma_mu : float, default=1.0
-        Prior std for data mean.
+    mu_mu : float or "auto", default=0.0
+        Prior mean for the data mean. If ``"auto"``, set to the sample mean at
+        fit time.
+    sigma_mu : float or "auto", default=1.0
+        Prior standard deviation for the data mean. If ``"auto"``, set to the
+        sample standard deviation times ``sigma_mu_auto_scale`` at fit time.
+    sigma_mu_auto_scale : float, default=1.0
+        Multiplier applied when ``sigma_mu="auto"``. Ignored otherwise.
     prior_alpha : float, default=0.0
-        Shrinkage target for skewness α.
+        Shrinkage target for skewness :math:`\alpha`.
     m_alpha : float, default=10.0
-        Shrinkage strength for α.
+        Shrinkage strength (pseudo sample size) for :math:`\alpha`.
+    score_method : {"nll"}
+        Only NLL scoring is supported (non-conjugate model).
 
-    Notes
-    -----
-    This is the fastest inference method but provides no uncertainty quantification
-    for parameters, hence posterior predictive is not available.
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    NormalMeanNormalGammaSkewNormal : Alternative with Normal prior on skewness gamma.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = NormalMeanPseudoAlphaSkewNormalParams
@@ -341,26 +349,37 @@ class NormalMeanPseudoAlphaSkewNormal(BDFDistribution[NormalMeanPseudoAlphaSkewN
 
 
 class NormalMeanNormalGammaSkewNormal(BDFDistribution[NormalMeanNormalGammaSkewNormalParams]):
-    r"""Skew-Normal distribution with Normal prior on mean and Normal prior on skewness gamma.
+    r"""Skew-Normal with Normal priors on mean and skewness gamma.
 
-    **String Alias:** ``'skewnormal_normal_gamma'``
+    **Usage:** ``dist="NormalMeanNormalGammaSkewNormal"``
 
-    Uses modular Bayesian inference:
-    1. Updates location using Normal posterior update
-    2. Updates skewness gamma using Normal posterior on sample skewness
-    3. Converts gamma to alpha parameterization via moment-matching
-    4. Estimates scale (ω) from adjusted sample variance
+    **Model:**
+
+    *   **Prior on mean:** :math:`\mu \sim \mathcal{N}(\mu_\mu, \sigma_\mu^2)`
+    *   **Prior on skewness:** :math:`\gamma \sim \mathcal{N}(\mu_\gamma, \sigma_\gamma^2)`
+    *   **Likelihood:** :math:`y \mid \alpha, \xi, \omega \sim \text{SkewNormal}(\alpha, \xi, \omega)`
 
     Parameters
     ----------
-    mu_mu : float, default=0.0
-        Prior mean for data mean.
-    sigma_mu : float, default=1.0
-        Prior std for data mean.
+    mu_mu : float or "auto", default=0.0
+        Prior mean for the data mean. If ``"auto"``, set to the sample mean at
+        fit time.
+    sigma_mu : float or "auto", default=1.0
+        Prior standard deviation for the data mean. If ``"auto"``, set to the
+        sample standard deviation times ``sigma_mu_auto_scale`` at fit time.
+    sigma_mu_auto_scale : float, default=1.0
+        Multiplier applied when ``sigma_mu="auto"``. Ignored otherwise.
     mu_gamma : float, default=0.0
-        Prior mean for skewness gamma.
+        Prior mean for skewness :math:`\gamma`.
     sigma_gamma : float, default=0.5
-        Prior std for skewness gamma.
+        Prior standard deviation for skewness :math:`\gamma`.
+    score_method : {"nll"}
+        Only NLL scoring is supported (non-conjugate model).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    NormalMeanPseudoAlphaSkewNormal : Alternative with pseudo-prior on alpha.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = NormalMeanNormalGammaSkewNormalParams
@@ -523,30 +542,39 @@ class NormalMeanNormalGammaSkewNormal(BDFDistribution[NormalMeanNormalGammaSkewN
 
 
 class NormalXiNormalAlphaSkewNormalMAP(BDFDistribution[NormalXiNormalAlphaSkewNormalMAPParams]):
-    r"""Skew-Normal distribution with Normal priors on xi and alpha using MAP estimation.
+    r"""Skew-Normal with Normal priors on location and skewness via MAP estimation.
 
-    **String Alias:** ``'skewnormal_map'``
+    **Usage:** ``dist="NormalXiNormalAlphaSkewNormalMAP"``
 
-    Uses numerical optimization (Nelder-Mead) to find MAP estimates:
-    1. Initializes from moment-matching estimates
-    2. Optimizes negative log posterior over (ξ, α) with ω fixed
-    3. Returns MAP estimates for all three parameters
+    **Model:**
+
+    *   **Prior on location:** :math:`\xi \sim \mathcal{N}(\mu_\xi, \sigma_\xi^2)`
+    *   **Prior on skewness:** :math:`\alpha \sim \mathcal{N}(\mu_\alpha, \sigma_\alpha^2)`
+    *   **Likelihood:** :math:`y \mid \alpha, \xi, \omega \sim \text{SkewNormal}(\alpha, \xi, \omega)`
+
+    Uses Nelder-Mead optimization to find MAP estimates of :math:`(\xi, \alpha)`.
 
     Parameters
     ----------
-    mu_xi : float, default=0.0
-        Prior mean for location ξ.
-    sigma_xi : float, default=1.0
-        Prior std for location ξ.
+    mu_xi : float or "auto", default=0.0
+        Prior mean for location :math:`\xi`. If ``"auto"``, set to the sample
+        mean at fit time.
+    sigma_xi : float or "auto", default=1.0
+        Prior standard deviation for location :math:`\xi`. If ``"auto"``, set to
+        the sample standard deviation times ``sigma_xi_auto_scale`` at fit time.
+    sigma_xi_auto_scale : float, default=1.0
+        Multiplier applied when ``sigma_xi="auto"``. Ignored otherwise.
     mu_alpha : float, default=0.0
-        Prior mean for skewness α.
+        Prior mean for skewness :math:`\alpha`.
     sigma_alpha : float, default=5.0
-        Prior std for skewness α.
+        Prior standard deviation for skewness :math:`\alpha`.
+    score_method : {"nll"}
+        Only NLL scoring is supported (non-conjugate model).
 
-    Notes
-    -----
-    MAP estimation is slower than modular inference but provides a proper joint
-    optimization of the posterior. Still no uncertainty quantification available.
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    NormalMeanPseudoAlphaSkewNormal : Faster modular inference alternative.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = NormalXiNormalAlphaSkewNormalMAPParams

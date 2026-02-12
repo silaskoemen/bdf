@@ -82,12 +82,28 @@ class GammaMVLambdaExponentialParams(BDFDistributionParams):
 
 
 class GammaABLambdaExponential(BDFDistribution[GammaABLambdaExponentialParams]):
-    """Exponential-Gamma conjugate model with shape-rate (α, β) parameterization.
+    r"""Exponential-Gamma conjugate model with shape-rate parameterization.
 
-    Supports:
-    - Closed-form Bayesian evidence (NLE)
-    - Lomax posterior predictive (integrates out λ uncertainty)
-    - Efficient conjugate updates
+    **Usage:** ``dist="GammaABLambdaExponential"``
+
+    **Model:**
+
+    *   **Prior:** :math:`\lambda \sim \text{Gamma}(\alpha, \beta)`
+    *   **Likelihood:** :math:`y \mid \lambda \sim \text{Exp}(\lambda)`
+    *   **Posterior:** :math:`\lambda \mid y \sim \text{Gamma}(\alpha + n, \beta + \sum y_i)`
+    *   **Posterior Predictive:** :math:`y_\text{new} \mid y \sim \text{Lomax}(\alpha_\text{post}, \beta_\text{post})`
+
+    Parameters
+    ----------
+    alpha_lambda : float, default=1.0
+        Shape parameter :math:`\alpha` of the Gamma prior on rate :math:`\lambda`.
+    beta_lambda : float, default=1.0
+        Rate parameter :math:`\beta` of the Gamma prior on rate :math:`\lambda`.
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    GammaMVLambdaExponential : Same model with mean-variance parameterization.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = GammaABLambdaExponentialParams
@@ -290,13 +306,26 @@ class GammaABLambdaExponential(BDFDistribution[GammaABLambdaExponentialParams]):
 
 
 class GammaMVLambdaExponential(BDFDistribution[GammaMVLambdaExponentialParams]):
-    """Exponential-Gamma conjugate model with mean-variance parameterization.
+    r"""Exponential-Gamma conjugate model with mean-variance parameterization.
 
-    Same as GammaABExponential, but prior specified via:
-    - mean_lambda = E[λ]
-    - var_lambda = Var[λ]
+    **Usage:** ``dist="GammaMVLambdaExponential"``
 
-    Internally converts to α = mean²/var, β = mean/var.
+    Same conjugate model as :class:`GammaABLambdaExponential`, but the prior is
+    specified via mean and variance. Internally converts to
+    :math:`\alpha = \mu^2/\sigma^2`, :math:`\beta = \mu/\sigma^2`.
+
+    Parameters
+    ----------
+    mean_lambda : float or "auto", default=1.0
+        Prior mean :math:`E[\lambda]`. If ``"auto"``, set to the sample mean
+        of ``y`` at fit time.
+    var_lambda : float, default=1.0
+        Prior variance :math:`\text{Var}[\lambda]`.
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    GammaABLambdaExponential : Same model with shape-rate parameterization.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = GammaMVLambdaExponentialParams

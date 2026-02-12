@@ -115,15 +115,28 @@ class BetaMVBernoulliParams(BDFDistributionParams):
 
 
 class BetaABBernoulli(BDFDistribution[BetaABBernoulliParams]):
-    """Bernoulli-Beta conjugate model with concentration (α, β) parameterization.
+    r"""Bernoulli-Beta conjugate model with concentration parameterization.
 
-    Supports:
-    - Closed-form Bayesian evidence (NLE)
-    - Beta-Bernoulli posterior predictive (integrates out p uncertainty)
-    - Efficient conjugate updates
+    **Usage:** ``dist="BetaABBernoulli"``
 
-    Data format: Binary labels {0, 1}
-    Example: np.array([0, 1, 0, 1, 1]) → 5 observations, 3 successes
+    **Model:**
+
+    *   **Prior:** :math:`p \sim \text{Beta}(\alpha, \beta)`
+    *   **Likelihood:** :math:`y \mid p \sim \text{Bernoulli}(p)`
+    *   **Posterior:** :math:`p \mid y \sim \text{Beta}(\alpha + k, \beta + n - k)` where :math:`k = \sum y_i`
+    *   **Posterior Predictive:** :math:`P(y_\text{new}=1 \mid y) = (\alpha+k)/(\alpha+\beta+n)`
+
+    Parameters
+    ----------
+    alpha_p : float, default=1.0
+        Concentration :math:`\alpha` for successes (pseudo-count of 1s).
+    beta_p : float, default=1.0
+        Concentration :math:`\beta` for failures (pseudo-count of 0s).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    BetaMVBernoulli : Same model with more interpretable mean-variance parameterization.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = BetaABBernoulliParams
@@ -334,16 +347,35 @@ class BetaABBernoulli(BDFDistribution[BetaABBernoulliParams]):
 
 
 class BetaMVBernoulli(BDFDistribution[BetaMVBernoulliParams]):
-    """Bernoulli-Beta conjugate model with mean-variance parameterization.
+    r"""Bernoulli-Beta conjugate model with mean-variance parameterization.
 
-    Same as BetaABBernoulli, but prior specified via:
-    - mean_p = E[p] (expected success probability)
-    - var_p = Var[p] (uncertainty about p)
+    **Usage:** ``dist="BetaMVBernoulli"``
 
-    Internally converts to α, β using:
-    m = mean_p(1-mean_p)/var_p - 1
-    α = mean_p · m
-    β = (1-mean_p) · m
+    Same conjugate model as :class:`BetaABBernoulli`, but the prior is specified
+    via interpretable mean and variance rather than concentrations.
+
+    **Model:**
+
+    *   **Prior:** :math:`p \sim \text{Beta}(\alpha, \beta)`
+    *   **Likelihood:** :math:`y \mid p \sim \text{Bernoulli}(p)`
+    *   **Posterior:** :math:`p \mid y \sim \text{Beta}(\alpha + k, \beta + n - k)`
+
+    Parameters
+    ----------
+    mean_p : float or "auto", default=0.5
+        Prior mean :math:`E[p]` (expected success probability). If ``"auto"``,
+        set to the empirical proportion of 1s at fit time.
+    var_p : float, default=0.1
+        Prior variance :math:`\text{Var}[p]`. Must satisfy
+        ``var_p < mean_p * (1 - mean_p)``.
+    raise_on_invalid_var : bool, default=False
+        If True, raises an error when ``var_p`` exceeds the maximum valid
+        variance. If False, silently adjusts to the maximum valid value.
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    BetaABBernoulli : Same model with concentration parameterization.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = BetaMVBernoulliParams
