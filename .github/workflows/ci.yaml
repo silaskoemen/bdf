@@ -55,6 +55,9 @@ jobs:
           cache: true
           environments: docs
 
+      - name: Install Python Package
+        run: pixi run setup
+
       - name: Build Docs
         run: pixi run docs-build
 
