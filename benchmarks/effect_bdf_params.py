@@ -6,9 +6,9 @@ and scoring methods. This script investigates the sensitivity of BDF performance
 to its key hyperparameters.
 
 Parameters ablated:
-- reg_lambda: Prior split probability penalty (0, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1.0)
-- reg_gamma: Multiplicity correction (0, 1e-3, 0.01, 0.1, 0.5, 1.0)
-- reg_nu: Depth penalty (0, 1e-3, 0.01, 0.1, 0.5, 1.0)
+- alpha: Prior split probability penalty (0, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1.0)
+- gamma: Multiplicity correction (0, 1e-3, 0.01, 0.1, 0.5, 1.0)
+- delta: Depth penalty (0, 1e-3, 0.01, 0.1, 0.5, 1.0)
 - min_samples_leaf: Minimum samples per leaf (5, 10, 25, 50)
 - score_method: nle (Bayesian), nll+bic, nll (plug-in only)
 
@@ -77,9 +77,9 @@ PLOTS_DIR = Path("benchmarks/plots/effect_bdf_params")
 
 # Default values (used when varying other parameters)
 DEFAULT_PARAMS = {
-    "reg_lambda": 0.01,
-    "reg_gamma": 0.1,
-    "reg_nu": 0.01,
+    "alpha": 0.01,
+    "gamma": 0.1,
+    "delta": 0.01,
     "min_samples_leaf": 10,
     "n_trees": 50,
     "max_depth": 50,
@@ -107,9 +107,9 @@ DEFAULT_CLAS_DIST_PARAMS = {
 
 # Parameter grids for ablation
 ABLATION_GRIDS = {
-    "reg_lambda": [0.0, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1.0],
-    "reg_gamma": [0.0, 1e-3, 0.01, 0.1, 0.5, 1.0],
-    "reg_nu": [0.0, 1e-3, 0.01, 0.1, 0.5, 1.0],
+    "alpha": [0.0, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1.0],
+    "gamma": [0.0, 1e-3, 0.01, 0.1, 0.5, 1.0],
+    "delta": [0.0, 1e-3, 0.01, 0.1, 0.5, 1.0],
     "min_samples_leaf": [5, 10, 25, 50],
 }
 
@@ -841,13 +841,18 @@ def plot_combined_sensitivity(
     if n_params == 1:
         axes = [axes]
 
-    colors = sns.color_palette("husl", len(DGPS))
-    dgp_colors = dict(zip(DGPS.keys(), colors))
+    # Infer DGPs from data
+    all_dgps = set()
+    for p in params:
+        all_dgps.update(all_results[p].to_dataframe()["dgp"].unique())
+    all_dgps = sorted(all_dgps)
+    colors = sns.color_palette("husl", len(all_dgps))
+    dgp_colors = dict(zip(all_dgps, colors))
 
     for ax, param_name in zip(axes, params):
         df = all_results[param_name].to_dataframe()
 
-        for dgp in DGPS.keys():
+        for dgp in df["dgp"].unique():
             dgp_df = df[df["dgp"] == dgp]
             grouped = dgp_df.groupby("param_value")[metric]
             means = grouped.mean()
@@ -917,7 +922,7 @@ def plot_heatmap_summary(
         df = all_results[param_name].to_dataframe()
         default_val = DEFAULT_PARAMS.get(param_name)
 
-        for dgp in DGPS.keys():
+        for dgp in df["dgp"].unique():
             dgp_df = df[df["dgp"] == dgp]
 
             # Get default performance

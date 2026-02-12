@@ -14,18 +14,18 @@ This benchmark answers key questions for a publication:
 
 | Parameter | Description | Grid Values |
 |-----------|-------------|-------------|
-| `reg_lambda` | Prior split probability penalty | 0, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1.0 |
-| `reg_gamma` | Multiplicity correction | 0, 1e-3, 0.01, 0.1, 0.5, 1.0 |
-| `reg_nu` | Depth penalty | 0, 1e-3, 0.01, 0.1, 0.5, 1.0 |
+| `alpha` | Prior split probability penalty | 0, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1.0 |
+| `gamma` | Multiplicity correction | 0, 1e-3, 0.01, 0.1, 0.5, 1.0 |
+| `delta` | Depth penalty | 0, 1e-3, 0.01, 0.1, 0.5, 1.0 |
 | `min_samples_leaf` | Minimum samples per leaf | 5, 10, 25, 50 |
 | Scoring method | NLE vs NLL+BIC vs NLL | nle, nll_bic, nll |
 
 ## Default Values
 
 When varying one parameter, others are held at:
-- `reg_lambda`: 0.01
-- `reg_gamma`: 0.1
-- `reg_nu`: 0.01
+- `alpha`: 0.01
+- `gamma`: 0.1
+- `delta`: 0.01
 - `min_samples_leaf`: 10
 - `n_trees`: 50
 
@@ -110,9 +110,9 @@ Edit constants at the top of `effect_bdf_params.py`:
 ```
 benchmarks/
 ├── results/effect_bdf_params/
-│   ├── ablation_reg_lambda.json
-│   ├── ablation_reg_gamma.json
-│   ├── ablation_reg_nu.json
+│   ├── ablation_alpha.json
+│   ├── ablation_gamma.json
+│   ├── ablation_delta.json
 │   ├── ablation_min_samples_leaf.json
 │   ├── ablation_scoring.json
 │   ├── tables/

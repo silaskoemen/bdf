@@ -1,0 +1,195 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>bdf.distributions.GammaMSLambdaNegBin &mdash; bdf 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="bdf.distributions.BetaABBernoulli" href="bdf.distributions.BetaABBernoulli.html" />
+    <link rel="prev" title="bdf.distributions.NormalMeanNegativeBinomial" href="bdf.distributions.NormalMeanNegativeBinomial.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+
+
+          <a href="../index.html" class="icon icon-home">
+            bdf
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../models.html">Models</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../distributions.html">Distributions</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../distributions.html#common-parameters">Common Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../distributions.html#continuous-distributions">Continuous Distributions</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="../distributions.html#count-distributions">Count Distributions</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="../distributions.html#poisson">Poisson</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../distributions.html#exponential">Exponential</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="../distributions.html#negative-binomial">Negative Binomial</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../distributions.html#discrete-classification">Discrete / Classification</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../distributions.html#non-parametric">Non-parametric</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">bdf</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">API Reference</a></li>
+          <li class="breadcrumb-item"><a href="../distributions.html">Distributions</a></li>
+      <li class="breadcrumb-item active">bdf.distributions.GammaMSLambdaNegBin</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/generated/bdf.distributions.GammaMSLambdaNegBin.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <section id="bdf-distributions-gammamslambdanegbin">
+<h1>bdf.distributions.GammaMSLambdaNegBin<a class="headerlink" href="#bdf-distributions-gammamslambdanegbin" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="bdf.distributions.GammaMSLambdaNegBin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">bdf.distributions.</span></span><span class="sig-name descname"><span class="pre">GammaMSLambdaNegBin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/bdf/distributions/negative_binomial.html#GammaMSLambdaNegBin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#bdf.distributions.GammaMSLambdaNegBin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BDFDistribution</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">GammaMSLambdaNegBinParams</span></code>]</p>
+<p>Negative Binomial with Gamma prior on mean λ (Mean-Strength parameterization).</p>
+<p><strong>Usage:</strong> <code class="docutils literal notranslate"><span class="pre">dist=&quot;GammaMSLambdaNegBin&quot;</span></code></p>
+<p><strong>Model Specification:</strong></p>
+<ul class="simple">
+<li><p><strong>Prior:</strong> <span class="math notranslate nohighlight">\(\lambda \sim \text{Gamma}(\alpha_0, \beta_0)\)</span> where
+<span class="math notranslate nohighlight">\(\alpha_0 = m \cdot \lambda_0\)</span>, <span class="math notranslate nohighlight">\(\beta_0 = m\)</span></p></li>
+<li><p><strong>Likelihood:</strong> <span class="math notranslate nohighlight">\(y \mid \lambda, \phi \sim \text{NegBin}(\lambda, \phi)\)</span></p></li>
+<li><p><strong>Posterior:</strong> <span class="math notranslate nohighlight">\(\lambda \mid y \sim \text{Gamma}(\alpha_0 + \sum y_i, \beta_0 + n)\)</span></p></li>
+</ul>
+<p><strong>Key Properties:</strong></p>
+<ul class="simple">
+<li><p><strong>Exact Linear Shrinkage:</strong> <span class="math notranslate nohighlight">\(E[\lambda \mid y] = \frac{m \lambda_0 + n \bar{y}}{m + n}\)</span></p></li>
+<li><p><strong>Closed-form Evidence:</strong> Supports NLE scoring via Bayesian marginal likelihood</p></li>
+<li><p><strong>Posterior Predictive:</strong> Integrates out <span class="math notranslate nohighlight">\(\lambda\)</span> uncertainty for robust predictions</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mean_lambda</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>default=1.0</em>) – Prior mean for <span class="math notranslate nohighlight">\(\lambda\)</span> (<span class="math notranslate nohighlight">\(\lambda_0\)</span>). Grand mean, shrinkage target.</p></li>
+<li><p><strong>strength_lambda</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>default=1.0</em>) – Prior strength (pseudo-observations, <span class="math notranslate nohighlight">\(m\)</span>). Higher = stronger regularization.</p></li>
+<li><p><strong>phi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><em>None</em><em>, </em><em>default=None</em>) – Dispersion parameter <span class="math notranslate nohighlight">\(\phi\)</span>. If None, estimated via MoM per leaf.
+If provided, treated as fixed hyperparameter across all leaves.</p></li>
+<li><p><strong>score_method</strong> (<em>{'nle'</em><em>, </em><em>'nll'}</em><em>, </em><em>default='nle'</em>) – Scoring method. ‘nle’ uses exact Bayesian evidence.</p></li>
+<li><p><strong>use_posterior_predictive</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>default=True</em>) – If True, uses posterior predictive (marginalizes <span class="math notranslate nohighlight">\(\lambda\)</span> uncertainty).</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">bdf</span><span class="w"> </span><span class="kn">import</span> <span class="n">BDFRegressor</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">BDFRegressor</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">dist</span><span class="o">=</span><span class="s2">&quot;GammaMSLambdaNegBin&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">params</span><span class="o">=</span><span class="p">{</span>
+<span class="gp">... </span>        <span class="s2">&quot;mean_lambda&quot;</span><span class="p">:</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>      <span class="c1"># Use global mean</span>
+<span class="gp">... </span>        <span class="s2">&quot;strength_lambda&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>     <span class="c1"># 1 pseudo-observation</span>
+<span class="gp">... </span>        <span class="s2">&quot;phi&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>                <span class="c1"># Estimate per leaf</span>
+<span class="gp">... </span>        <span class="s2">&quot;score_method&quot;</span><span class="p">:</span> <span class="s2">&quot;nle&quot;</span><span class="p">,</span>
+<span class="gp">... </span>        <span class="s2">&quot;use_posterior_predictive&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="p">}</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="rubric">Notes</p>
+<p>This is a fully conjugate Bayesian model. The Gamma prior on <span class="math notranslate nohighlight">\(\lambda\)</span> combined
+with the Negative Binomial likelihood gives:</p>
+<ul class="simple">
+<li><p><strong>Exact conjugate updates</strong> (no approximations)</p></li>
+<li><p><strong>Interpretable hyperparameters</strong>: strength_lambda = number of pseudo-observations</p></li>
+<li><p><strong>Linear shrinkage</strong>: <span class="math notranslate nohighlight">\(E[\lambda \mid y] = \frac{m \lambda_0 + n \bar{y}}{m + n}\)</span></p></li>
+</ul>
+<p>The dispersion parameter <span class="math notranslate nohighlight">\(\phi\)</span> (also called <span class="math notranslate nohighlight">\(r\)</span>) is estimated via Method of
+Moments when not provided, allowing adaptive overdispersion per leaf.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="bdf.distributions.FrequentistNegativeBinomial.html#bdf.distributions.FrequentistNegativeBinomial" title="bdf.distributions.FrequentistNegativeBinomial"><code class="xref py py-class docutils literal notranslate"><span class="pre">FrequentistNegativeBinomial</span></code></a></dt><dd><p>MLE estimation without prior</p>
+</dd>
+<dt><a class="reference internal" href="bdf.distributions.NormalMeanNegativeBinomial.html#bdf.distributions.NormalMeanNegativeBinomial" title="bdf.distributions.NormalMeanNegativeBinomial"><code class="xref py py-class docutils literal notranslate"><span class="pre">NormalMeanNegativeBinomial</span></code></a></dt><dd><p>Hybrid approach with Normal prior on mean</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="bdf.distributions.NormalMeanNegativeBinomial.html" class="btn btn-neutral float-left" title="bdf.distributions.NormalMeanNegativeBinomial" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="bdf.distributions.BetaABBernoulli.html" class="btn btn-neutral float-right" title="bdf.distributions.BetaABBernoulli" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025-2026, Silas Koemen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+</body>
+</html>

@@ -5,9 +5,9 @@ datasets:
       eta: 0.06418895870825522
       min_samples_leaf: 15
       n_trees: 138
-      reg_gamma: 0.06873021648617786
-      reg_lambda: 0.09472392317569571
-      reg_nu: 0.028039627032310104
+      gamma: 0.06873021648617786
+      alpha: 0.09472392317569571
+      delta: 0.028039627032310104
       subsample: 0.6852193334673732
       var_lambda: 7.487374843931898
     fitting_times:
@@ -335,9 +335,9 @@ datasets:
       eta: 0.001002653254747638
       min_samples_leaf: 45
       n_trees: 156
-      reg_gamma: 0.0021218425876677015
-      reg_lambda: 0.00022705473437446326
-      reg_nu: 0.0003284571477506257
+      gamma: 0.0021218425876677015
+      alpha: 0.00022705473437446326
+      delta: 0.0003284571477506257
       subsample: 0.62588304948916
       var_lambda: 19.92437797167664
     fitting_times:
@@ -665,9 +665,9 @@ datasets:
       eta: 0.09893755800209883
       min_samples_leaf: 15
       n_trees: 185
-      reg_gamma: 0.39718471023768753
-      reg_lambda: 0.000351471297106119
-      reg_nu: 0.00025513171835246824
+      gamma: 0.39718471023768753
+      alpha: 0.000351471297106119
+      delta: 0.00025513171835246824
       subsample: 0.9599915687417797
       var_lambda: 7.655607431714626
     fitting_times:
@@ -995,9 +995,9 @@ datasets:
       eta: 0.009242494282850185
       min_samples_leaf: 27
       n_trees: 51
-      reg_gamma: 0.19466144006054453
-      reg_lambda: 0.16192002580201464
-      reg_nu: 0.009938812911431455
+      gamma: 0.19466144006054453
+      alpha: 0.16192002580201464
+      delta: 0.009938812911431455
       subsample: 0.6132803274407259
       var_lambda: 18.148762518383116
     fitting_times:
@@ -1325,9 +1325,9 @@ datasets:
       eta: 0.007022694495877365
       min_samples_leaf: 13
       n_trees: 181
-      reg_gamma: 0.6181156766986979
-      reg_lambda: 0.006861698487923649
-      reg_nu: 0.00024514246247713694
+      gamma: 0.6181156766986979
+      alpha: 0.006861698487923649
+      delta: 0.00024514246247713694
       subsample: 0.9366801882396608
       var_lambda: 19.308315015527327
     fitting_times:
@@ -1655,9 +1655,9 @@ datasets:
       eta: 0.004748021062954756
       min_samples_leaf: 6
       n_trees: 67
-      reg_gamma: 0.0001358071613632916
-      reg_lambda: 0.07522690539181008
-      reg_nu: 0.00843506965158745
+      gamma: 0.0001358071613632916
+      alpha: 0.07522690539181008
+      delta: 0.00843506965158745
       subsample: 0.8265306849603595
       var_lambda: 19.279980583713805
     fitting_times:
@@ -1985,9 +1985,9 @@ datasets:
       eta: 0.0025509923440558504
       min_samples_leaf: 17
       n_trees: 173
-      reg_gamma: 0.0003378934371462356
-      reg_lambda: 0.06965894578134454
-      reg_nu: 0.0024231758897091445
+      gamma: 0.0003378934371462356
+      alpha: 0.06965894578134454
+      delta: 0.0024231758897091445
       subsample: 0.9993846600460087
       var_lambda: 0.5508981793172301
     fitting_times:
@@ -2315,9 +2315,9 @@ datasets:
       eta: 0.0019346777821005752
       min_samples_leaf: 5
       n_trees: 93
-      reg_gamma: 0.00035623328200931614
-      reg_lambda: 0.00021480224387084013
-      reg_nu: 0.0016015939815043063
+      gamma: 0.00035623328200931614
+      alpha: 0.00021480224387084013
+      delta: 0.0016015939815043063
       subsample: 0.7120839220280978
       var_lambda: 9.46697507297889
     fitting_times:
@@ -2645,9 +2645,9 @@ datasets:
       eta: 0.0025070358326977674
       min_samples_leaf: 5
       n_trees: 176
-      reg_gamma: 0.300858711424432
-      reg_lambda: 0.007176959215570689
-      reg_nu: 0.00023045864790514632
+      gamma: 0.300858711424432
+      alpha: 0.007176959215570689
+      delta: 0.00023045864790514632
       subsample: 0.7970489659860666
       var_lambda: 9.16865247363794
     fitting_times:
@@ -3009,17 +3009,17 @@ model_config:
       high: 200
       low: 5
       type: int
-    reg_gamma:
+    gamma:
       high: 1.0
       log: true
       low: 0.0001
       type: float
-    reg_lambda:
+    alpha:
       high: 1.0
       log: true
       low: 1.0e-05
       type: float
-    reg_nu:
+    delta:
       high: 1.0
       log: true
       low: 0.0001

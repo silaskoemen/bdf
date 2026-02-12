@@ -114,15 +114,28 @@ class DirichletMeanMultinomialParams(BDFDistributionParams):
 
 
 class DirichletAlphaMultinomial(BDFDistribution):
-    """Multinomial-Dirichlet conjugate model with concentration (α) parameterization.
+    r"""Multinomial-Dirichlet conjugate model (concentration parameterization).
 
-    Supports:
-    - Closed-form Bayesian evidence (NLE)
-    - Dirichlet-Multinomial posterior predictive (integrates out p uncertainty)
-    - Efficient conjugate updates
+    **Usage:** ``dist="DirichletAlphaMultinomial"``
 
-    Data format: Integer labels in {0, 1, ..., K-1}
-    Example: np.array([0, 1, 0, 2, 1]) → 5 observations, 3 categories
+    **Model:**
+
+    *   **Prior:** :math:`p \sim \text{Dirichlet}(\alpha_1, \ldots, \alpha_K)`
+    *   **Likelihood:** :math:`n \mid p \sim \text{Multinomial}(N, p)`
+    *   **Posterior:** :math:`p \mid n \sim \text{Dirichlet}(\alpha + n)`
+
+    Data format: integer labels in :math:`\{0, 1, \ldots, K-1\}`.
+
+    Parameters
+    ----------
+    alpha : list[float], default=[1.0]
+        Concentration parameters :math:`\alpha` for each category (length K).
+        Uniform prior: ``[1, 1, ..., 1]``; Jeffreys prior: ``[0.5, ..., 0.5]``.
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    DirichletMeanMultinomial : Alternative mean-strength parameterization.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = DirichletAlphaMultinomialParams
@@ -332,13 +345,28 @@ class DirichletAlphaMultinomial(BDFDistribution):
 
 
 class DirichletMeanMultinomial(BDFDistribution):
-    """Multinomial-Dirichlet conjugate model with mean-strength parameterization.
+    r"""Multinomial-Dirichlet conjugate model (mean-strength parameterization).
 
-    Same as DirichletAlphaMultinomial, but prior specified via:
-    - mean_probs = E[p] (prior mean probabilities)
-    - strength = Σαᵢ (total concentration, like pseudo-sample-size)
+    **Usage:** ``dist="DirichletMeanMultinomial"``
 
-    Internally converts to α = strength · mean_probs.
+    **Model:**
+
+    *   **Prior:** :math:`p \sim \text{Dirichlet}(m \cdot \mu)` where :math:`\mu`
+        are prior mean probabilities and :math:`m` is the total concentration
+    *   **Likelihood:** :math:`n \mid p \sim \text{Multinomial}(N, p)`
+    *   **Posterior:** :math:`p \mid n \sim \text{Dirichlet}(m \mu + n)`
+
+    Parameters
+    ----------
+    mean_probs : list[float], default=[1.0]
+        Prior mean probabilities :math:`\mu` (must sum to 1).
+    strength : float, default=1.0
+        Total concentration :math:`m = \sum \alpha_i` (pseudo-sample-size).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    DirichletAlphaMultinomial : Alternative concentration parameterization.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = DirichletMeanMultinomialParams

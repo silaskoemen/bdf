@@ -126,12 +126,12 @@ def test_rust_python_split_equivalence():
     dist = DistributionManager.create_distribution("NormalMuNormal", {"mu_mu": 0.0, "sigma_mu": 1.0})
     node = BDFNode(distribution=dist, depth=0, random_state=42)
 
-    # Use Python implementation with split_gain_method="map" and reg_gamma=1.0 to match Rust
+    # Use Python implementation with split_gain_method="map" and gamma=1.0 to match Rust
     py_feature_idx, py_threshold, py_loss, py_left, py_right, py_left_params, py_right_params = (
-        node._find_best_split_python(X, y, 2, 0.0, None, reg_gamma=1.0, split_gain_method="map")
+        node._find_best_split_python(X, y, 2, 0.0, None, gamma=1.0, split_gain_method="map")
     )
 
-    # Use Rust implementation with matching reg_gamma=1.0
+    # Use Rust implementation with matching gamma=1.0
     rust_spec = DistributionManager.to_rust_spec(dist)
     rust_feature_idx, rust_threshold, rust_loss, rust_left, rust_right, _, _ = bdf_rs.find_best_split(  # type: ignore
         X, y, 2, 0.0, rust_spec, 0.1, 1.0, None, "map"

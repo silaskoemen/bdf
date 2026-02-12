@@ -1,0 +1,1390 @@
+{
+  "config": {
+    "task_type": "classification",
+    "param_name": "scoring",
+    "scoring_configs": {
+      "nle": {
+        "score_method": "nle",
+        "score_correction": "bic"
+      },
+      "nll_bic": {
+        "score_method": "nll",
+        "score_correction": "bic"
+      },
+      "nll": {
+        "score_method": "nll",
+        "score_correction": null
+      }
+    },
+    "n_seeds": 10,
+    "default_params": {
+      "alpha": 0.01,
+      "gamma": 0.1,
+      "delta": 0.01,
+      "min_samples_leaf": 10,
+      "n_trees": 50,
+      "max_depth": 50,
+      "subsample": 0.9,
+      "colsample": 0.9,
+      "eta": 0.01
+    },
+    "dgps": [
+      "make_classification",
+      "moons",
+      "circles"
+    ]
+  },
+  "timestamp": "2026-02-08T21:07:13.781341",
+  "results": [
+    {
+      "dgp": "make_classification",
+      "seed": 42,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.2791560285200411,
+        "brier": 0.08214776072784566,
+        "auroc": 0.9588958895889589,
+        "ece": 0.06700883837674551,
+        "accuracy": 0.89
+      },
+      "fit_time": 0.18714213371276855
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 43,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.26999169305070625,
+        "brier": 0.07632257951359529,
+        "auroc": 0.9574,
+        "ece": 0.06300507397680608,
+        "accuracy": 0.915
+      },
+      "fit_time": 0.23062777519226074
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 44,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.3996324630460527,
+        "brier": 0.11858183468004141,
+        "auroc": 0.90315,
+        "ece": 0.08525311629305263,
+        "accuracy": 0.855
+      },
+      "fit_time": 0.29767608642578125
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 45,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.3923413004437919,
+        "brier": 0.12291076178710852,
+        "auroc": 0.9090909090909091,
+        "ece": 0.07821048154442364,
+        "accuracy": 0.815
+      },
+      "fit_time": 0.28221583366394043
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 46,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.3178747116716151,
+        "brier": 0.09818987960654145,
+        "auroc": 0.9403999999999999,
+        "ece": 0.05800193715572592,
+        "accuracy": 0.855
+      },
+      "fit_time": 0.21854805946350098
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 47,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.31157753549043,
+        "brier": 0.09212090874584414,
+        "auroc": 0.9426942694269427,
+        "ece": 0.05843899378526479,
+        "accuracy": 0.87
+      },
+      "fit_time": 0.23128914833068848
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 48,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.32578024642991094,
+        "brier": 0.09598435286269177,
+        "auroc": 0.9393,
+        "ece": 0.06862968556353925,
+        "accuracy": 0.88
+      },
+      "fit_time": 0.24155616760253906
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 49,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.4358150132833073,
+        "brier": 0.13709764360425214,
+        "auroc": 0.8778,
+        "ece": 0.06429825614063521,
+        "accuracy": 0.83
+      },
+      "fit_time": 0.219757080078125
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 50,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.2543905245296735,
+        "brier": 0.07267539971136214,
+        "auroc": 0.9638,
+        "ece": 0.04614395211006258,
+        "accuracy": 0.915
+      },
+      "fit_time": 0.18504905700683594
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 51,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.3161946132587309,
+        "brier": 0.09579892786874529,
+        "auroc": 0.9412765106042417,
+        "ece": 0.0516563247203195,
+        "accuracy": 0.87
+      },
+      "fit_time": 0.34020519256591797
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 42,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.283117841258461,
+        "brier": 0.08338505441261684,
+        "auroc": 0.9576957695769577,
+        "ece": 0.06584842902308227,
+        "accuracy": 0.895
+      },
+      "fit_time": 0.17656397819519043
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 43,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.2710434093446967,
+        "brier": 0.07620751341053233,
+        "auroc": 0.9566,
+        "ece": 0.06143577231561223,
+        "accuracy": 0.915
+      },
+      "fit_time": 0.1662750244140625
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 44,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.39797602148751127,
+        "brier": 0.11858266532232907,
+        "auroc": 0.9034000000000001,
+        "ece": 0.08121317273837957,
+        "accuracy": 0.865
+      },
+      "fit_time": 0.1760849952697754
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 45,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.39121720677039823,
+        "brier": 0.12209430547932573,
+        "auroc": 0.9077907790779077,
+        "ece": 0.07459370874216131,
+        "accuracy": 0.815
+      },
+      "fit_time": 0.20898818969726562
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 46,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.31560732417514503,
+        "brier": 0.09759415421154591,
+        "auroc": 0.9406000000000001,
+        "ece": 0.07256581387149981,
+        "accuracy": 0.855
+      },
+      "fit_time": 0.1768960952758789
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 47,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.3145112462003254,
+        "brier": 0.09308174604774401,
+        "auroc": 0.9416941694169417,
+        "ece": 0.060990416375510434,
+        "accuracy": 0.875
+      },
+      "fit_time": 0.17714500427246094
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 48,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.3276070320233944,
+        "brier": 0.09588021162893778,
+        "auroc": 0.9396,
+        "ece": 0.06861406415854078,
+        "accuracy": 0.875
+      },
+      "fit_time": 0.22071290016174316
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 49,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.44282538201454974,
+        "brier": 0.13986962341652354,
+        "auroc": 0.8727,
+        "ece": 0.05028999138207277,
+        "accuracy": 0.815
+      },
+      "fit_time": 0.3862791061401367
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 50,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.25295807424276756,
+        "brier": 0.07286462347502616,
+        "auroc": 0.9634,
+        "ece": 0.05252339208686131,
+        "accuracy": 0.92
+      },
+      "fit_time": 0.18775701522827148
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 51,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.31838858060916025,
+        "brier": 0.09629989448901469,
+        "auroc": 0.9411764705882353,
+        "ece": 0.049292615352512795,
+        "accuracy": 0.87
+      },
+      "fit_time": 0.18927788734436035
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 42,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.28240830520744015,
+        "brier": 0.08272148938789636,
+        "auroc": 0.9582958295829582,
+        "ece": 0.07238660852642625,
+        "accuracy": 0.895
+      },
+      "fit_time": 0.17610383033752441
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 43,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.27036604562103317,
+        "brier": 0.07631578490752566,
+        "auroc": 0.9578000000000001,
+        "ece": 0.06322901004715448,
+        "accuracy": 0.915
+      },
+      "fit_time": 0.16600799560546875
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 44,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.40114134876582613,
+        "brier": 0.11882114437804774,
+        "auroc": 0.9022999999999999,
+        "ece": 0.09531933885018018,
+        "accuracy": 0.85
+      },
+      "fit_time": 0.18813180923461914
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 45,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.3930114939320092,
+        "brier": 0.12301248499816646,
+        "auroc": 0.9074907490749075,
+        "ece": 0.08849762472868646,
+        "accuracy": 0.805
+      },
+      "fit_time": 0.1993710994720459
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 46,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.31072527387198595,
+        "brier": 0.09611791512717563,
+        "auroc": 0.9436,
+        "ece": 0.07021616191926149,
+        "accuracy": 0.855
+      },
+      "fit_time": 0.1752479076385498
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 47,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.31377414570855144,
+        "brier": 0.09201939825884325,
+        "auroc": 0.9421942194219421,
+        "ece": 0.06339456640720456,
+        "accuracy": 0.88
+      },
+      "fit_time": 0.1755352020263672
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 48,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.3319492587439775,
+        "brier": 0.09742447578423605,
+        "auroc": 0.9390999999999999,
+        "ece": 0.07311489466501511,
+        "accuracy": 0.88
+      },
+      "fit_time": 0.18469715118408203
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 49,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.44620576410255575,
+        "brier": 0.1404600920429093,
+        "auroc": 0.8713,
+        "ece": 0.05380345032250773,
+        "accuracy": 0.815
+      },
+      "fit_time": 0.23764395713806152
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 50,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.25188839729408774,
+        "brier": 0.0730450771325702,
+        "auroc": 0.966,
+        "ece": 0.05055193803632653,
+        "accuracy": 0.91
+      },
+      "fit_time": 0.15538787841796875
+    },
+    {
+      "dgp": "make_classification",
+      "seed": 51,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.31881581709517176,
+        "brier": 0.09632621910941666,
+        "auroc": 0.9423769507803121,
+        "ece": 0.06098694863589434,
+        "accuracy": 0.865
+      },
+      "fit_time": 0.1771841049194336
+    },
+    {
+      "dgp": "moons",
+      "seed": 42,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.07000644281000462,
+        "brier": 0.015221940641467901,
+        "auroc": 0.9985,
+        "ece": 0.04152604147946314,
+        "accuracy": 0.985
+      },
+      "fit_time": 0.056839942932128906
+    },
+    {
+      "dgp": "moons",
+      "seed": 43,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.17179091798848753,
+        "brier": 0.03574956471579328,
+        "auroc": 0.9690500000000001,
+        "ece": 0.04577462332375947,
+        "accuracy": 0.965
+      },
+      "fit_time": 0.05614113807678223
+    },
+    {
+      "dgp": "moons",
+      "seed": 44,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.10915888271924523,
+        "brier": 0.026626162093188358,
+        "auroc": 0.9893,
+        "ece": 0.03373620021341652,
+        "accuracy": 0.955
+      },
+      "fit_time": 0.11701822280883789
+    },
+    {
+      "dgp": "moons",
+      "seed": 45,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.1238359836447879,
+        "brier": 0.0273140892199312,
+        "auroc": 0.9841,
+        "ece": 0.04100887291384615,
+        "accuracy": 0.965
+      },
+      "fit_time": 0.09010481834411621
+    },
+    {
+      "dgp": "moons",
+      "seed": 46,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.1014831771098324,
+        "brier": 0.025492464201853436,
+        "auroc": 0.9962000000000001,
+        "ece": 0.059884671401220294,
+        "accuracy": 0.97
+      },
+      "fit_time": 0.06904792785644531
+    },
+    {
+      "dgp": "moons",
+      "seed": 47,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.1615368798997523,
+        "brier": 0.04492672147448892,
+        "auroc": 0.9856999999999999,
+        "ece": 0.048751509540543435,
+        "accuracy": 0.93
+      },
+      "fit_time": 0.06737828254699707
+    },
+    {
+      "dgp": "moons",
+      "seed": 48,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.0810932402875585,
+        "brier": 0.017248770468761578,
+        "auroc": 0.9963,
+        "ece": 0.039093714663583266,
+        "accuracy": 0.98
+      },
+      "fit_time": 0.06547808647155762
+    },
+    {
+      "dgp": "moons",
+      "seed": 49,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.10219473586163867,
+        "brier": 0.02299147276144291,
+        "auroc": 0.99015,
+        "ece": 0.03402856949603185,
+        "accuracy": 0.97
+      },
+      "fit_time": 0.05674099922180176
+    },
+    {
+      "dgp": "moons",
+      "seed": 50,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.14240768695928907,
+        "brier": 0.03500233410729148,
+        "auroc": 0.9826,
+        "ece": 0.03974838268081707,
+        "accuracy": 0.96
+      },
+      "fit_time": 0.055779218673706055
+    },
+    {
+      "dgp": "moons",
+      "seed": 51,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.12289572207398869,
+        "brier": 0.032361440422954336,
+        "auroc": 0.99095,
+        "ece": 0.04187572396287815,
+        "accuracy": 0.96
+      },
+      "fit_time": 0.05576014518737793
+    },
+    {
+      "dgp": "moons",
+      "seed": 42,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.06877218856008936,
+        "brier": 0.014849284624287744,
+        "auroc": 0.9989,
+        "ece": 0.04188747884874218,
+        "accuracy": 0.985
+      },
+      "fit_time": 0.045060157775878906
+    },
+    {
+      "dgp": "moons",
+      "seed": 43,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.1663828919945166,
+        "brier": 0.03536754003002652,
+        "auroc": 0.97055,
+        "ece": 0.04508815457664413,
+        "accuracy": 0.965
+      },
+      "fit_time": 0.044512033462524414
+    },
+    {
+      "dgp": "moons",
+      "seed": 44,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.10967505264569542,
+        "brier": 0.02670313329176366,
+        "auroc": 0.98925,
+        "ece": 0.03646746282580509,
+        "accuracy": 0.955
+      },
+      "fit_time": 0.04528999328613281
+    },
+    {
+      "dgp": "moons",
+      "seed": 45,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.12470784916330668,
+        "brier": 0.027454623519134646,
+        "auroc": 0.984,
+        "ece": 0.04254165261836703,
+        "accuracy": 0.965
+      },
+      "fit_time": 0.04478597640991211
+    },
+    {
+      "dgp": "moons",
+      "seed": 46,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.09570382755024553,
+        "brier": 0.024439096464352654,
+        "auroc": 0.99685,
+        "ece": 0.05287498229192116,
+        "accuracy": 0.97
+      },
+      "fit_time": 0.05480003356933594
+    },
+    {
+      "dgp": "moons",
+      "seed": 47,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.15945142463722953,
+        "brier": 0.04431217418589271,
+        "auroc": 0.9856999999999999,
+        "ece": 0.04438577828505543,
+        "accuracy": 0.93
+      },
+      "fit_time": 0.05611586570739746
+    },
+    {
+      "dgp": "moons",
+      "seed": 48,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.08075707663667461,
+        "brier": 0.017312659580706477,
+        "auroc": 0.9964,
+        "ece": 0.03760758004262499,
+        "accuracy": 0.98
+      },
+      "fit_time": 0.054818153381347656
+    },
+    {
+      "dgp": "moons",
+      "seed": 49,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.10529990617733397,
+        "brier": 0.023872959399008416,
+        "auroc": 0.9897,
+        "ece": 0.03355058109301929,
+        "accuracy": 0.97
+      },
+      "fit_time": 0.04406404495239258
+    },
+    {
+      "dgp": "moons",
+      "seed": 50,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.13985807478261164,
+        "brier": 0.03426399431855805,
+        "auroc": 0.9826500000000001,
+        "ece": 0.04456493932405085,
+        "accuracy": 0.965
+      },
+      "fit_time": 0.045613765716552734
+    },
+    {
+      "dgp": "moons",
+      "seed": 51,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.12236473863595425,
+        "brier": 0.03285321129556807,
+        "auroc": 0.99115,
+        "ece": 0.045306175909543216,
+        "accuracy": 0.96
+      },
+      "fit_time": 0.05500197410583496
+    },
+    {
+      "dgp": "moons",
+      "seed": 42,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.06814070491494839,
+        "brier": 0.01460909648247615,
+        "auroc": 0.9991,
+        "ece": 0.04828574511894134,
+        "accuracy": 0.985
+      },
+      "fit_time": 0.05617117881774902
+    },
+    {
+      "dgp": "moons",
+      "seed": 43,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.16048191126226619,
+        "brier": 0.03531053349817803,
+        "auroc": 0.9731000000000001,
+        "ece": 0.04563429337697422,
+        "accuracy": 0.965
+      },
+      "fit_time": 0.055320024490356445
+    },
+    {
+      "dgp": "moons",
+      "seed": 44,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.11223077525156086,
+        "brier": 0.027082156221360548,
+        "auroc": 0.99005,
+        "ece": 0.040959248086553456,
+        "accuracy": 0.955
+      },
+      "fit_time": 0.055165767669677734
+    },
+    {
+      "dgp": "moons",
+      "seed": 45,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.12748512536104195,
+        "brier": 0.02763330601239267,
+        "auroc": 0.984,
+        "ece": 0.04562576801381744,
+        "accuracy": 0.97
+      },
+      "fit_time": 0.043895721435546875
+    },
+    {
+      "dgp": "moons",
+      "seed": 46,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.09511287421974858,
+        "brier": 0.02413854343429315,
+        "auroc": 0.9966999999999999,
+        "ece": 0.05875534835206901,
+        "accuracy": 0.97
+      },
+      "fit_time": 0.05380725860595703
+    },
+    {
+      "dgp": "moons",
+      "seed": 47,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.15697202660866474,
+        "brier": 0.04371228019776249,
+        "auroc": 0.987,
+        "ece": 0.04558356769521183,
+        "accuracy": 0.93
+      },
+      "fit_time": 0.044986724853515625
+    },
+    {
+      "dgp": "moons",
+      "seed": 48,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.079174777377708,
+        "brier": 0.01731716579731548,
+        "auroc": 0.997,
+        "ece": 0.04385908761809615,
+        "accuracy": 0.98
+      },
+      "fit_time": 0.04407000541687012
+    },
+    {
+      "dgp": "moons",
+      "seed": 49,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.1088167180744189,
+        "brier": 0.02439310192347728,
+        "auroc": 0.9896000000000001,
+        "ece": 0.036561118043458574,
+        "accuracy": 0.97
+      },
+      "fit_time": 0.044888973236083984
+    },
+    {
+      "dgp": "moons",
+      "seed": 50,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.14289430601889766,
+        "brier": 0.034815225634380054,
+        "auroc": 0.98285,
+        "ece": 0.04443822513229911,
+        "accuracy": 0.965
+      },
+      "fit_time": 0.055891990661621094
+    },
+    {
+      "dgp": "moons",
+      "seed": 51,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.12350809866505742,
+        "brier": 0.033541237762224306,
+        "auroc": 0.99125,
+        "ece": 0.04754043234910213,
+        "accuracy": 0.95
+      },
+      "fit_time": 0.05663704872131348
+    },
+    {
+      "dgp": "circles",
+      "seed": 42,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.0513101246631013,
+        "brier": 0.011422454257403127,
+        "auroc": 0.9985999999999999,
+        "ece": 0.023746185693200295,
+        "accuracy": 0.99
+      },
+      "fit_time": 0.0448307991027832
+    },
+    {
+      "dgp": "circles",
+      "seed": 43,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.06942114042846503,
+        "brier": 0.017594185446320087,
+        "auroc": 0.9978,
+        "ece": 0.022471698317551754,
+        "accuracy": 0.975
+      },
+      "fit_time": 0.04534101486206055
+    },
+    {
+      "dgp": "circles",
+      "seed": 44,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.06030021997936117,
+        "brier": 0.014541410116017435,
+        "auroc": 0.9986,
+        "ece": 0.03242661766033649,
+        "accuracy": 0.985
+      },
+      "fit_time": 0.04349112510681152
+    },
+    {
+      "dgp": "circles",
+      "seed": 45,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.09233640255266488,
+        "brier": 0.027142683835834323,
+        "auroc": 0.9955,
+        "ece": 0.038723554354720996,
+        "accuracy": 0.96
+      },
+      "fit_time": 0.04386091232299805
+    },
+    {
+      "dgp": "circles",
+      "seed": 46,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.06070581602974941,
+        "brier": 0.014742913814763925,
+        "auroc": 0.9994,
+        "ece": 0.03905514926588121,
+        "accuracy": 0.98
+      },
+      "fit_time": 0.04502987861633301
+    },
+    {
+      "dgp": "circles",
+      "seed": 47,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.08457440184721994,
+        "brier": 0.023841801564989447,
+        "auroc": 0.9973,
+        "ece": 0.04172792521413911,
+        "accuracy": 0.97
+      },
+      "fit_time": 0.04456806182861328
+    },
+    {
+      "dgp": "circles",
+      "seed": 48,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.057749653340446676,
+        "brier": 0.01320494476190631,
+        "auroc": 0.9994,
+        "ece": 0.04396006744243407,
+        "accuracy": 0.98
+      },
+      "fit_time": 0.04460620880126953
+    },
+    {
+      "dgp": "circles",
+      "seed": 49,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.04822719853843042,
+        "brier": 0.00826068215535797,
+        "auroc": 0.9997999999999999,
+        "ece": 0.038757848789131945,
+        "accuracy": 0.99
+      },
+      "fit_time": 0.04463696479797363
+    },
+    {
+      "dgp": "circles",
+      "seed": 50,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.06948215829667115,
+        "brier": 0.018668483633799988,
+        "auroc": 0.9989,
+        "ece": 0.03580982228323213,
+        "accuracy": 0.975
+      },
+      "fit_time": 0.04433417320251465
+    },
+    {
+      "dgp": "circles",
+      "seed": 51,
+      "param_name": "scoring",
+      "param_value": "nle",
+      "scoring_config": "nle",
+      "metrics": {
+        "log_loss": 0.04429200433231178,
+        "brier": 0.009863178433247228,
+        "auroc": 0.9994000000000001,
+        "ece": 0.025129360995380955,
+        "accuracy": 0.99
+      },
+      "fit_time": 0.04500412940979004
+    },
+    {
+      "dgp": "circles",
+      "seed": 42,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.05138370686235855,
+        "brier": 0.011454389751952876,
+        "auroc": 0.9987000000000001,
+        "ece": 0.019761227094106572,
+        "accuracy": 0.985
+      },
+      "fit_time": 0.03324103355407715
+    },
+    {
+      "dgp": "circles",
+      "seed": 43,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.06941477297329401,
+        "brier": 0.017666919183686416,
+        "auroc": 0.9978,
+        "ece": 0.018288867506812755,
+        "accuracy": 0.975
+      },
+      "fit_time": 0.04432368278503418
+    },
+    {
+      "dgp": "circles",
+      "seed": 44,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.06053652617862579,
+        "brier": 0.014538949206180825,
+        "auroc": 0.9985999999999999,
+        "ece": 0.032467880575436966,
+        "accuracy": 0.985
+      },
+      "fit_time": 0.04498410224914551
+    },
+    {
+      "dgp": "circles",
+      "seed": 45,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.09212462909536842,
+        "brier": 0.027042795738675546,
+        "auroc": 0.9955,
+        "ece": 0.02237172267800503,
+        "accuracy": 0.96
+      },
+      "fit_time": 0.03370189666748047
+    },
+    {
+      "dgp": "circles",
+      "seed": 46,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.0610279135587019,
+        "brier": 0.014884547015707768,
+        "auroc": 0.9994,
+        "ece": 0.040355076510381574,
+        "accuracy": 0.98
+      },
+      "fit_time": 0.044930219650268555
+    },
+    {
+      "dgp": "circles",
+      "seed": 47,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.08322702503879378,
+        "brier": 0.023043806545665686,
+        "auroc": 0.9976,
+        "ece": 0.037405727082430694,
+        "accuracy": 0.97
+      },
+      "fit_time": 0.04532504081726074
+    },
+    {
+      "dgp": "circles",
+      "seed": 48,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.0583173452823774,
+        "brier": 0.013473743008095087,
+        "auroc": 0.9994000000000001,
+        "ece": 0.044388372863760094,
+        "accuracy": 0.98
+      },
+      "fit_time": 0.03412318229675293
+    },
+    {
+      "dgp": "circles",
+      "seed": 49,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.049611005553176026,
+        "brier": 0.008616334814320746,
+        "auroc": 0.9997999999999999,
+        "ece": 0.039750733554546155,
+        "accuracy": 0.99
+      },
+      "fit_time": 0.03375983238220215
+    },
+    {
+      "dgp": "circles",
+      "seed": 50,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.06878531240573993,
+        "brier": 0.018254040500190125,
+        "auroc": 0.9986,
+        "ece": 0.03555944351985439,
+        "accuracy": 0.975
+      },
+      "fit_time": 0.04505801200866699
+    },
+    {
+      "dgp": "circles",
+      "seed": 51,
+      "param_name": "scoring",
+      "param_value": "nll_bic",
+      "scoring_config": "nll_bic",
+      "metrics": {
+        "log_loss": 0.0429067449083311,
+        "brier": 0.009486363526499208,
+        "auroc": 0.9994,
+        "ece": 0.024291109824641652,
+        "accuracy": 0.99
+      },
+      "fit_time": 0.04416394233703613
+    },
+    {
+      "dgp": "circles",
+      "seed": 42,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.051715452118007404,
+        "brier": 0.011667731435175377,
+        "auroc": 0.9984999999999999,
+        "ece": 0.021690828283915626,
+        "accuracy": 0.985
+      },
+      "fit_time": 0.04360508918762207
+    },
+    {
+      "dgp": "circles",
+      "seed": 43,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.06813175483063015,
+        "brier": 0.017513133425975123,
+        "auroc": 0.9978000000000001,
+        "ece": 0.022123316528890997,
+        "accuracy": 0.975
+      },
+      "fit_time": 0.033432960510253906
+    },
+    {
+      "dgp": "circles",
+      "seed": 44,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.0602441466745834,
+        "brier": 0.014267149154776004,
+        "auroc": 0.9985999999999999,
+        "ece": 0.031068532898690757,
+        "accuracy": 0.985
+      },
+      "fit_time": 0.04523801803588867
+    },
+    {
+      "dgp": "circles",
+      "seed": 45,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.09258329964868356,
+        "brier": 0.027320020770178907,
+        "auroc": 0.9955999999999999,
+        "ece": 0.029035891703664884,
+        "accuracy": 0.96
+      },
+      "fit_time": 0.04531288146972656
+    },
+    {
+      "dgp": "circles",
+      "seed": 46,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.060503497164415644,
+        "brier": 0.01449309658919034,
+        "auroc": 0.9994,
+        "ece": 0.040400714876022245,
+        "accuracy": 0.985
+      },
+      "fit_time": 0.04469490051269531
+    },
+    {
+      "dgp": "circles",
+      "seed": 47,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.08208130844714301,
+        "brier": 0.022535394434748425,
+        "auroc": 0.9974000000000001,
+        "ece": 0.0397118558335067,
+        "accuracy": 0.975
+      },
+      "fit_time": 0.043440818786621094
+    },
+    {
+      "dgp": "circles",
+      "seed": 48,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.05765356649631288,
+        "brier": 0.013305311208518163,
+        "auroc": 0.9994,
+        "ece": 0.04400922915437899,
+        "accuracy": 0.98
+      },
+      "fit_time": 0.044827938079833984
+    },
+    {
+      "dgp": "circles",
+      "seed": 49,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.052202334007471235,
+        "brier": 0.009343667172793673,
+        "auroc": 0.9998,
+        "ece": 0.04094679722310844,
+        "accuracy": 0.99
+      },
+      "fit_time": 0.04526805877685547
+    },
+    {
+      "dgp": "circles",
+      "seed": 50,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.06625940538943294,
+        "brier": 0.01776602884136285,
+        "auroc": 0.9987,
+        "ece": 0.02948867543940639,
+        "accuracy": 0.975
+      },
+      "fit_time": 0.04456281661987305
+    },
+    {
+      "dgp": "circles",
+      "seed": 51,
+      "param_name": "scoring",
+      "param_value": "nll",
+      "scoring_config": "nll",
+      "metrics": {
+        "log_loss": 0.04317505794789029,
+        "brier": 0.009674883926102232,
+        "auroc": 0.9994000000000001,
+        "ece": 0.028387758603292044,
+        "accuracy": 0.99
+      },
+      "fit_time": 0.0450441837310791
+    }
+  ]
+}

@@ -10,6 +10,7 @@ compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonn
 fixed_init_kwargs:
   dist: NormalMuNormal
   random_state: 1234
+  verbose: 0
   # max_depth: 50
 
 tunable_init_kwargs:
@@ -17,17 +18,21 @@ tunable_init_kwargs:
     type: int
     low: 5
     high: 200
-  reg_lambda:
+  alpha:
     type: float
     low: 0.00001
     high: 1.0
     log: true
-  reg_gamma:
+  # alpha:
+  #   type: float
+  #   low: 0.1
+  #   high: 0.999
+  gamma:
     type: float
     low: 0.0001
     high: 1.0
     log: true
-  reg_nu:
+  delta:
     type: float
     low: 0.0001
     high: 1.0
@@ -74,5 +79,6 @@ tunable_params:
 fixed_params:
   mu_mu: 'auto'  # Set prior mean based on data
   sigma_mu: 'auto'  # Set prior std based on data
+  tree_prior_mode: 'linear' # bernoulli, linear, defer
   # Should also include loo_cv for normal as 'fast path' is available - missing in Rust
   score_correction: bic  # Bayesian information criterion for score correction if 'nll' is used

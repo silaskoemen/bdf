@@ -1,10 +1,12 @@
 import warnings
+from numbers import Integral, Real
 from typing import Literal, cast
 
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
+from sklearn.utils._param_validation import Interval, StrOptions
 
 from bdf.distributions.distribution_manager import DistributionManager as DM
 from bdf.tree_classes.bdf_tree import BDFTree
@@ -14,21 +16,96 @@ from .utils import _fit_single_tree
 
 
 class BDFModel(BaseEstimator):
-    """BDFModel class for Bayesian Distributional Forests.
+    """Base class for Bayesian Distributional Forest models.
 
-    Base class for both BDFRegressor and BDFClassifier containing all shared
-    functionality. Does not inherit from RegressorMixin or ClassifierMixin
-    since it serves as a base for both task types.
+    Implements a forest of Bayesian decision trees that provide full predictive
+    distributions rather than point estimates. This is the shared base for
+    :class:`BDFRegressor` and :class:`BDFClassifier`.
+
+    Parameters
+    ----------
+    dist : str, default="NormalMuNormal"
+        Name of the distribution to use. Must match a registered distribution
+        class name (e.g. ``"NormalMuNormal"``, ``"GammaMVLambdaPoisson"``,
+        ``"BetaMVBernoulli"``). See :doc:`distributions` for all options.
+    params : dict, default={"mu_mu": "auto", "sigma_mu": "auto", "sigma_mu_auto_scale": 1.0}
+        Distribution-specific parameters. Values may be ``"auto"`` for
+        data-driven initialization at fit time. See the chosen distribution's
+        documentation for available parameters.
+    n_trees : int, default=50
+        Number of trees in the forest.
+    alpha : float, default=0.0
+        Structural prior strength. For ``tree_prior_mode="linear"`` this is
+        unused (set to 0). For ``"defer"`` or ``"bernoulli"`` modes, must be
+        in (0, 1).
+    gamma : float, default=0.1
+        Complexity penalty applied to each split. Higher values produce
+        simpler trees. Must be in [0, 1].
+    delta : float, default=0.01
+        Depth decay parameter. For ``tree_prior_mode="linear"`` controls
+        per-depth penalty decay. For ``"defer"``/``"bernoulli"`` modes, must
+        be in (0, 1).
+    tree_prior_mode : {"linear", "defer", "bernoulli"}, default="linear"
+        Tree structure prior mode. ``"linear"`` uses additive penalty terms.
+        ``"defer"`` and ``"bernoulli"`` use log-scale priors with stopping
+        probabilities.
+    max_depth : int, default=50
+        Maximum depth of each tree.
+    min_samples_leaf : int, default=10
+        Minimum number of samples required at a leaf node.
+    min_samples_split : int, default=20
+        Minimum number of samples required to split an internal node.
+    min_child_weight : int or float, default=10
+        Minimum sum of instance weight (or sample count) in a child node.
+    subsample : float, default=0.9
+        Fraction of samples used for fitting each tree. Must be in (0, 1].
+    colsample : float, default=0.9
+        Fraction of features considered at each split. Must be in (0, 1].
+    eta : float, default=0.01
+        Quantile step size for generating candidate split thresholds. Smaller
+        values produce more candidates. Must be in (0, 1].
+    bootstrap : bool, default=True
+        Whether to use bootstrap sampling (with replacement) for each tree.
+        If False, uses subsampling without replacement.
+    n_jobs : int, default=-1
+        Number of parallel jobs for tree fitting. ``-1`` uses all available
+        cores.
+    verbose : int, default=0
+        Verbosity level. ``0`` is silent, higher values print progress.
+    random_state : int, default=1234
+        Random seed for reproducibility.
     """
+
+    _parameter_constraints = {
+        "dist": [str],
+        "params": [dict],
+        "n_trees": [Interval(Integral, 1, None, closed="left")],
+        "alpha": [Interval(Real, 0, None, closed="left")],
+        "gamma": [Interval(Real, 0, 1, closed="both")],
+        "delta": [Interval(Real, 0, 1, closed="both")],
+        "tree_prior_mode": [StrOptions({"linear", "defer", "bernoulli"})],
+        "max_depth": [Interval(Integral, 1, None, closed="left")],
+        "min_samples_leaf": [Interval(Integral, 1, None, closed="left")],
+        "min_samples_split": [Interval(Integral, 2, None, closed="left")],
+        "min_child_weight": [Interval(Real, 0, None, closed="left")],
+        "subsample": [Interval(Real, 0, 1, closed="right")],
+        "colsample": [Interval(Real, 0, 1, closed="right")],
+        "eta": [Interval(Real, 0, 1, closed="right")],
+        "bootstrap": ["boolean"],
+        "n_jobs": [Integral],
+        "verbose": [Interval(Integral, -1, None, closed="left")],
+        "random_state": [Interval(Integral, 0, None, closed="left")],
+    }
 
     def __init__(
         self,
         dist: str = "NormalMuNormal",
         params: dict = {"mu_mu": "auto", "sigma_mu": "auto", "sigma_mu_auto_scale": 1.0},
         n_trees: int = 50,
-        reg_lambda: float = 0.0,
-        reg_gamma: float = 0.1,
-        reg_nu: float = 0.01,
+        alpha: float = 0.0,
+        gamma: float = 0.1,
+        delta: float = 0.01,
+        tree_prior_mode: Literal["linear", "defer", "bernoulli"] = "linear",
         max_depth: int = 50,
         min_samples_leaf: int = 10,
         min_samples_split: int = 20,
@@ -41,49 +118,38 @@ class BDFModel(BaseEstimator):
         verbose: int = 0,
         random_state: int = RANDOM_SEED,
     ):
-        """
-        Initialize the BDFRegressor with prior parameters.
-        Args
-        ----
-        `data_dist` : str | BDFDistribution.BDFDistribution, optional
-            Data distribution type or instance, default is 'normal'.
-        `params` : str | BDFDistribution.BDFDistribution | dict, optional
-            Prior parameters for the distribution, can be string name or 'auto', a BDFDistribution instance, or a dictionary parameters as keys. Default is 'auto'.
-        `n_trees` : int, optional
-            Number of trees in the forest, default is 100.
-        `reg_gamma` : float, optional
-            Regularization parameter for the gamma term, default is 0.
-        `reg_lambda` : float, optional
-            Regularization parameter for the lambda term, default is 0.
-        `max_depth` : int, optional
-            Maximum depth of the regression tree, default is 10.
-        `min_samples_leaf` : int, optional
-            Minimum number of samples required to be at a leaf node, default is 10.
-        `min_samples_split` : int, optional
-            Minimum number of samples required to split an internal node, default is 20.
-        `min_child_weight` : int | float, optional
-            Minimum sum of instance weight (hessian) needed in a child, default is 10.
-        """
         self.is_fitted_ = False
-        self.dist, self.params = dist, params
+        self.dist = dist
+        self.params = params
+        self.n_trees = n_trees
+        self.alpha = alpha
+        self.gamma = gamma
+        self.delta = delta
+        self.tree_prior_mode = tree_prior_mode
+        self.max_depth = max_depth
+        self.min_samples_leaf = min_samples_leaf
+        self.min_samples_split = min_samples_split
+        self.min_child_weight = min_child_weight
+        self.subsample = subsample
+        self.colsample = colsample
+        self.eta = eta
+        self.bootstrap = bootstrap
+        self.n_jobs = n_jobs
+        self.verbose = verbose
+        self.random_state = random_state
         self.rng = np.random.default_rng(random_state)
-        self._validate_init_params(
-            n_trees=n_trees,
-            reg_gamma=reg_gamma,
-            reg_lambda=reg_lambda,
-            reg_nu=reg_nu,
-            max_depth=max_depth,
-            min_samples_leaf=min_samples_leaf,
-            min_samples_split=min_samples_split,
-            min_child_weight=min_child_weight,
-            subsample=subsample,
-            colsample=colsample,
-            eta=eta,
-            random_state=random_state,
-            n_jobs=n_jobs,
-            bootstrap=bootstrap,
-            verbose=verbose,
-        )
+
+    def _validate_cross_params(self):
+        """Validate cross-parameter constraints that can't be expressed declaratively."""
+        if self.tree_prior_mode in ("defer", "bernoulli"):
+            if not (0 < self.alpha < 1):
+                raise ValueError(
+                    f"For tree_prior_mode='{self.tree_prior_mode}', alpha must be in (0, 1), got {self.alpha}"
+                )
+            if not (0 < self.delta < 1):
+                raise ValueError(
+                    f"For tree_prior_mode='{self.tree_prior_mode}', delta must be in (0, 1), got {self.delta}"
+                )
 
     def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False):
         """Fit the model to the training data.
@@ -94,6 +160,8 @@ class BDFModel(BaseEstimator):
         `y` : np.ndarray | pd.Series
             Training data target values.
         """
+        self._validate_params()
+        self._validate_cross_params()
         # Seed for reproducibility of subsample and colsample, reseed for each fit call
         self.rng = np.random.default_rng(self.random_state)
         np.random.seed(self.random_state)
@@ -113,7 +181,7 @@ class BDFModel(BaseEstimator):
 
         # Otherwise regularization depends on size of the dataset (NLL as sum)
         # n_features_iter = int(np.ceil(X.shape[1] * self.colsample))
-        penalty = self.reg_lambda  # * np.log(np.ceil(X.shape[0] * self.subsample))  # before had n
+        penalty = self.alpha  # * np.log(np.ceil(X.shape[0] * self.subsample))  # before had n
 
         trees = Parallel(n_jobs=self.n_jobs)(
             delayed(_fit_single_tree)(
@@ -121,9 +189,10 @@ class BDFModel(BaseEstimator):
                 y=y,
                 verbose=verbose,
                 distribution=self.distribution,
-                reg_lambda=self.reg_lambda,
-                reg_gamma=self.reg_gamma,
-                reg_nu=self.reg_nu,
+                alpha=self.alpha,
+                gamma=self.gamma,
+                delta=self.delta,
+                tree_prior_mode=self.tree_prior_mode,
                 penalty=penalty,
                 max_depth=self.max_depth,
                 min_samples_leaf=self.min_samples_leaf,
@@ -426,85 +495,6 @@ class BDFModel(BaseEstimator):
                 print(f"Error with alternative rendering: {e2}")
                 print("Displaying DOT source instead:")
                 print(dot.source)
-
-    def _validate_init_params(
-        self,
-        n_trees: int,
-        reg_lambda: float,
-        reg_gamma: float,
-        reg_nu: float,
-        max_depth: int,
-        min_samples_leaf: int,
-        min_samples_split: int,
-        min_child_weight: int | float,
-        subsample: float,
-        colsample: float,
-        eta: float,
-        bootstrap: bool,
-        random_state: int,
-        n_jobs: int,
-        verbose: int,
-    ):
-        """Validate the initialization parameters."""
-        assert (
-            isinstance(reg_gamma, (float, int)) and reg_gamma >= 0.0 and reg_gamma <= 1.0
-        ), f"reg_gamma must be float and non-negative, got {reg_gamma} of type {type(reg_gamma)}"
-        assert isinstance(
-            reg_lambda, (float, int)
-        ), f"reg_lambda must be a float, got {reg_lambda} of type {type(reg_lambda)}"
-        assert (
-            isinstance(reg_nu, (float, int)) and reg_nu >= 0.0 and reg_nu <= 1.0
-        ), f"reg_nu must be a float in [0, 1], got {reg_nu} of type {type(reg_nu)}"
-        assert (
-            isinstance(n_trees, int) and n_trees > 0
-        ), f"n_trees must be a positive integer, got {n_trees} of type {type(n_trees)}"
-        assert (
-            isinstance(max_depth, int) and max_depth > 0
-        ), f"max_depth must be a positive integer, got {max_depth} of type {type(max_depth)}"
-        assert (
-            isinstance(min_samples_leaf, int) and min_samples_leaf > 0
-        ), f"min_samples_leaf must be a positive integer, got {min_samples_leaf} of type {type(min_samples_leaf)}"
-        assert (
-            isinstance(min_samples_split, int) and min_samples_split >= 2
-        ), f"min_samples_split must be an integer >= 2, got {min_samples_split} of type {type(min_samples_split)}"
-        assert (
-            isinstance(min_child_weight, (int, float)) and min_child_weight >= 0
-        ), f"min_child_weight must be a non-negative integer or float, got {min_child_weight} of type {type(min_child_weight)}"
-        assert (
-            isinstance(subsample, float) and 0 < subsample <= 1
-        ), f"subsample must be a float between 0 and 1, got {subsample} of type {type(subsample)}"
-        assert (
-            isinstance(colsample, float) and 0 < colsample <= 1
-        ), f"colsample must be a float between 0 and 1, got {colsample} of type {type(colsample)}"
-        assert (
-            isinstance(eta, float) and 0 < eta <= 1
-        ), f"eta must be a float between 0 and 1, got {eta} of type {type(eta)}"
-        assert (
-            isinstance(random_state, int) and random_state >= 0
-        ), f"random_state must be a non-negative integer, got {random_state} of type {type(random_state)}"
-        assert (
-            isinstance(n_jobs, int) and n_jobs != 0
-        ), f"n_jobs must be a non-zero integer, got {n_jobs} of type {type(n_jobs)}"
-        assert isinstance(bootstrap, bool), f"bootstrap must be a boolean, got {bootstrap} of type {type(bootstrap)}"
-        assert (
-            isinstance(verbose, int) and verbose >= -1
-        ), f"verbose must be an integer >= -1, got {verbose} of type {type(verbose)}"
-        self.verbose = verbose
-        self.bootstrap = bootstrap
-        self.random_state = random_state
-        self.eta = eta
-        self.reg_lambda = reg_lambda
-        self.reg_gamma = reg_gamma
-        self.reg_nu = reg_nu
-        self.n_trees = n_trees
-        self.max_depth = max_depth
-        self.min_samples_leaf = min_samples_leaf
-        self.min_samples_split = min_samples_split
-        self.min_child_weight = min_child_weight
-        self.subsample = subsample
-        self.colsample = colsample
-        self.n_jobs = n_jobs
-        self.verbose = verbose
 
     def _validate_prediction_input(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
         """Validate the input for prediction."""

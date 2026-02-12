@@ -56,14 +56,29 @@ class BetaBinomialParams(BDFDistributionParams):
 
 
 class BetaBinomial(BDFDistribution):
-    """Beta-Binomial conjugate model for binomial count data.
+    r"""Beta-Binomial conjugate model for binomial count data.
 
-    Supports:
-    - Closed-form Bayesian evidence (NLE)
-    - Beta-Binomial posterior predictive
-    - Efficient analytical inference (0 iterations)
+    **Usage:** ``dist="BetaBinomial"``
 
-    Use case: Binary trials with fixed n (e.g., n=1 for Bernoulli, n>1 for grouped binomial)
+    **Model:**
+
+    *   **Prior:** :math:`p \sim \text{Beta}(\alpha, \beta)`
+    *   **Likelihood:** :math:`k \mid p \sim \text{Binomial}(n, p)`
+    *   **Posterior:** :math:`p \mid k \sim \text{Beta}(\alpha + \sum k_i, \beta + nN - \sum k_i)`
+
+    Parameters
+    ----------
+    alpha : float, default=1.0
+        Prior alpha parameter (prior successes).
+    beta : float, default=1.0
+        Prior beta parameter (prior failures).
+    n_trials : int, default=1
+        Number of trials per observation. Set to 1 for Bernoulli-like data.
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    BetaABBernoulli : Specialized for binary (Bernoulli) outcomes.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = BetaBinomialParams

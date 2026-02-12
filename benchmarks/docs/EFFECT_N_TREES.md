@@ -40,9 +40,9 @@ Fixed sample size: n=2000
 ### Hyperparameter Tuning
 
 For each n_trees value, tune on fold 0 using Optuna (50 trials, CRPS objective):
-- `reg_lambda`: [1e-5, 0.1] (log scale)
-- `reg_gamma`: [1e-4, 1.0] (log scale)
-- `reg_nu`: [1e-4, 1.0] (log scale)
+- `alpha`: [1e-5, 0.1] (log scale)
+- `gamma`: [1e-4, 1.0] (log scale)
+- `delta`: [1e-4, 1.0] (log scale)
 - `min_samples_leaf`: [5, 50]
 - `subsample`: [0.5, 1.0]
 - `colsample`: [0.5, 1.0]

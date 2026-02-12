@@ -10,9 +10,10 @@ class BDFTree:
     def __init__(
         self,
         distribution: BDFDistribution,
-        reg_lambda: float,
-        reg_gamma: float,
-        reg_nu: float,
+        alpha: float,
+        gamma: float,
+        delta: float,
+        tree_prior_mode: str,
         max_depth: int,
         min_samples_leaf: int,
         penalty: float,
@@ -26,10 +27,14 @@ class BDFTree:
         ----
         `distribution` : BDFDistribution
             The distribution to use for the tree.
-        `reg_gamma` : float
+        `gamma` : float
             Regularization parameter for the tree.
-        `reg_lambda` : float
+        `alpha` : float
             Additional regularization parameter
+        `delta` : float
+            Depth penalty parameter (linear mode) or decay parameter (defer/bernoulli modes)
+        `tree_prior_mode` : str
+            Tree structure prior: 'linear', 'defer', or 'bernoulli'
         `max_depth` : int
             Maximum depth of the tree
         `min_samples_leaf` : int
@@ -41,15 +46,58 @@ class BDFTree:
         """
         self.root = BDFNode(distribution=distribution, depth=0, random_state=random_state)
         self.distribution = distribution
-        self.reg_lambda = reg_lambda
-        self.reg_gamma = reg_gamma
-        self.reg_nu = reg_nu
+        self.alpha = alpha
+        self.gamma = gamma
+        self.delta = delta
+        self.tree_prior_mode = tree_prior_mode
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
         self.min_samples_split = min_samples_split
         self.min_child_weight = min_child_weight
         self.random_state = random_state
         self.penalty = penalty
+
+    def _calculate_depth_penalty(self, depth: int) -> float:
+        """Calculate depth-dependent penalty based on tree prior mode.
+
+        Args
+        ----
+        depth : int
+            Current node depth
+
+        Returns
+        -------
+        float
+            The penalty threshold for splitting at this depth
+
+        Notes
+        -----
+        Three modes are supported:
+        - 'linear': penalty = alpha + delta * depth (original BDF formulation)
+        - 'defer': log-odds against splitting at current node using CART prior
+                   p_d = alpha * delta^d, penalty = log((1-p_d)/p_d)
+        - 'bernoulli': Full branching process including children's stopping probability
+                       penalty = log((1-p_d)/p_d) + 2*log(1-p_{d+1})
+        """
+        if self.tree_prior_mode == "linear":
+            return self.penalty + self.delta * depth if self.delta > 0.0 else self.penalty
+
+        elif self.tree_prior_mode == "defer":
+            # CART prior: p_d = alpha * delta^depth
+            p_d = self.alpha * (self.delta**depth)
+            p_d = np.clip(p_d, 1e-10, 1 - 1e-10)
+            return np.log((1 - p_d) / p_d)
+
+        elif self.tree_prior_mode == "bernoulli":
+            # Full branching process prior
+            p_d = self.alpha * (self.delta**depth)
+            p_d1 = self.alpha * (self.delta ** (depth + 1))
+            p_d = np.clip(p_d, 1e-10, 1 - 1e-10)
+            p_d1 = np.clip(p_d1, 1e-10, 1 - 1e-10)
+            return np.log((1 - p_d) / p_d) + 2 * np.log(1 - p_d1)
+
+        else:
+            raise ValueError(f"Unknown tree_prior_mode: {self.tree_prior_mode}")
 
     def fit(
         self,
@@ -60,9 +108,9 @@ class BDFTree:
         verbose: int = 0,
         eta: float = 0.025,
     ) -> "BDFTree":
-        # NOTE: if reg_lambda is 0, each loss component is fully seperable, meaning each
-        # node can be split simply by considering NLL reduction and including reg_gamma; no need for a queue.
-        # TODO: Implement separate fit functions given reg_lambda == 0 and reg_lambda > 0.
+        # NOTE: if alpha is 0, each loss component is fully seperable, meaning each
+        # node can be split simply by considering NLL reduction and including gamma; no need for a queue.
+        # TODO: Implement separate fit functions given alpha == 0 and alpha > 0.
         # Create root node
         self.root.estimate_posterior(y)
 
@@ -73,7 +121,7 @@ class BDFTree:
                 X=X,
                 y=y,
                 penalty=self.penalty,
-                reg_nu=self.reg_nu,
+                delta=self.delta,
                 colsample=colsample,
                 rng=rng,
                 eta=eta,
@@ -86,7 +134,7 @@ class BDFTree:
         X: np.ndarray,
         y: np.ndarray,
         penalty: float,
-        reg_nu: float,
+        delta: float,
         colsample: float,
         rng: np.random.Generator,
         eta: float = 0.025,
@@ -99,14 +147,11 @@ class BDFTree:
         col_idcs = rng.choice(X.shape[1], n_features_iter, replace=False) if n_features_iter < X.shape[1] else None
         feature_idx, threshold, loss_reduction, left_indices, right_indices, left_params, right_params = (
             node.find_best_split(
-                X, y, self.min_samples_leaf, self.min_child_weight, col_idcs=col_idcs, eta=eta, reg_gamma=self.reg_gamma
+                X, y, self.min_samples_leaf, self.min_child_weight, col_idcs=col_idcs, eta=eta, gamma=self.gamma
             )
         )
-        if reg_nu > 0.0:
-            # Add nu * d penalty for depth d
-            depth_penalty = penalty + self.reg_nu * node.depth
-        else:
-            depth_penalty = penalty
+        # Calculate depth-dependent penalty based on tree prior mode
+        depth_penalty = self._calculate_depth_penalty(node.depth)
 
         # Check if valid split found (feature_idx is not None) AND gain > penalty
         if feature_idx is not None and loss_reduction > depth_penalty:
@@ -132,7 +177,7 @@ class BDFTree:
                 X=X[left_indices],
                 y=y[left_indices],
                 penalty=penalty,
-                reg_nu=reg_nu,
+                delta=delta,
                 colsample=colsample,
                 rng=rng,
                 eta=eta,
@@ -142,7 +187,7 @@ class BDFTree:
                 X=X[right_indices],
                 y=y[right_indices],
                 penalty=penalty,
-                reg_nu=reg_nu,
+                delta=delta,
                 colsample=colsample,
                 rng=rng,
                 eta=eta,

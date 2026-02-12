@@ -62,9 +62,9 @@ BDF_CONFIG = {
     "n_trees": 50,
     "max_depth": 20,
     "min_samples_leaf": 10,
-    "reg_lambda": 0.001,
-    "reg_gamma": 0.1,
-    "reg_nu": 0.01,
+    "alpha": 0.001,
+    "gamma": 0.1,
+    "delta": 0.01,
     "subsample": 0.9,
     "colsample": 0.9,
 }

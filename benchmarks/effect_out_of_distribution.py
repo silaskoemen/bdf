@@ -13,7 +13,7 @@ Shift Configurations:
 - none: train [0,1], test [0,1] (baseline, no shift)
 - mild: train [0, 0.85], test [0.15, 1.0] (15% OOD)
 - moderate: train [0, 0.7], test [0.3, 1.0] (30% OOD)
-- strong: train [0, 0.5], test [0.5, 1.0] (50% extrapolation)
+- strong: train [0, 0.55], test [0.45, 1.0] (10% overlap, 45% OOD)
 
 Key Questions:
 1. Does uncertainty increase in OOD regions? (desirable for UQ)
@@ -25,6 +25,7 @@ Following benchmark pattern: tune on fold 0, evaluate on folds 1-9.
 
 import json
 import os
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from time import time
@@ -36,7 +37,9 @@ import optuna
 import seaborn as sns
 from loguru import logger
 from optuna.samplers import TPESampler
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.exceptions import ConvergenceWarning
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF, Matern, RationalQuadratic, WhiteKernel
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.model_selection import KFold
 from tqdm import tqdm
@@ -77,7 +80,7 @@ SHIFT_CONFIGS: dict[ShiftLevel, dict[str, tuple[float, float]]] = {
     "none": {"train": (0.0, 1.0), "test": (0.0, 1.0)},
     "mild": {"train": (0.0, 0.85), "test": (0.15, 1.0)},
     "moderate": {"train": (0.0, 0.7), "test": (0.3, 1.0)},
-    "strong": {"train": (0.0, 0.5), "test": (0.5, 1.0)},
+    "strong": {"train": (0.0, 0.55), "test": (0.45, 1.0)},
 }
 
 
@@ -220,8 +223,48 @@ def generate_data(
 # =============================================================================
 
 
+GP_KERNELS = {
+    "RBF": lambda: RBF() + WhiteKernel(),
+    "Matern": lambda: Matern() + WhiteKernel(),
+    "RBF+RQ": lambda: RBF() + RationalQuadratic() + WhiteKernel(),
+}
+
+
+class _GPWrapper(GaussianProcessRegressor):
+    """Thin wrapper adding predict_samples to sklearn GP."""
+
+    def __init__(self, kernel_name: str = "RBF", random_state=None, max_samples: int = 2000, **kwargs):
+        self.kernel_name = kernel_name
+        self.max_samples = max_samples
+        kernel = GP_KERNELS.get(kernel_name, GP_KERNELS["RBF"])()
+        super().__init__(kernel=kernel, normalize_y=True, random_state=random_state, **kwargs)
+
+    def fit(self, X, y):
+        if len(X) > self.max_samples:
+            rng = np.random.RandomState(self.random_state)
+            idx = rng.choice(len(X), self.max_samples, replace=False)
+            X, y = X[idx], y[idx]
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=ConvergenceWarning)
+            return super().fit(X, y)
+
+    def predict_samples(self, X, n_samples: int = 500, batch_size: int = 100) -> np.ndarray:
+        """Return shape (n_obs, n_samples)."""
+        n_obs = len(X)
+        samples = np.empty((n_obs, n_samples))
+        for start in range(0, n_obs, batch_size):
+            end = min(start + batch_size, n_obs)
+            mean, std = self.predict(X[start:end], return_std=True)
+            std = np.maximum(std, 1e-10)
+            samples[start:end] = np.random.normal(mean[:, None], std[:, None], (end - start, n_samples))
+        return samples
+
+
 def get_available_models() -> dict[str, dict[str, Any]]:
-    """Detect available models in current environment."""
+    """Detect available models in current environment.
+
+    Focused on BDF variants + GP as the gold standard for OOD uncertainty.
+    """
     available = {}
 
     # BDF Models
@@ -233,9 +276,9 @@ def get_available_models() -> dict[str, dict[str, Any]]:
             "fixed_init_kwargs": {"dist": "NormalMuNormal", "random_state": SEED},
             "tunable_init_kwargs": {
                 "n_trees": {"type": "int", "low": 15, "high": 100},
-                "reg_lambda": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
-                "reg_gamma": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
-                "reg_nu": {"type": "float", "low": 0.0001, "high": 0.5, "log": True},
+                "alpha": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
+                "gamma": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
+                "delta": {"type": "float", "low": 0.0001, "high": 0.5, "log": True},
                 "min_samples_leaf": {"type": "int", "low": 5, "high": 50},
                 "subsample": {"type": "float", "low": 0.7, "high": 1.0},
                 "colsample": {"type": "float", "low": 0.7, "high": 1.0},
@@ -255,9 +298,9 @@ def get_available_models() -> dict[str, dict[str, Any]]:
             "fixed_init_kwargs": {"dist": "KDE", "random_state": SEED},
             "tunable_init_kwargs": {
                 "n_trees": {"type": "int", "low": 15, "high": 100},
-                "reg_lambda": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
-                "reg_gamma": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
-                "reg_nu": {"type": "float", "low": 0.0001, "high": 0.1, "log": True},
+                "alpha": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
+                "gamma": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
+                "delta": {"type": "float", "low": 0.0001, "high": 0.1, "log": True},
                 "min_samples_leaf": {"type": "int", "low": 10, "high": 100},
                 "subsample": {"type": "float", "low": 0.7, "high": 1.0},
                 "colsample": {"type": "float", "low": 0.7, "high": 1.0},
@@ -279,70 +322,26 @@ def get_available_models() -> dict[str, dict[str, Any]]:
             "probabilistic": True,
         }
 
-        # RandomForest baseline
-        available["RandomForest"] = {
-            "class": RandomForestRegressor,
-            "fixed_init_kwargs": {"random_state": SEED},
-            "tunable_init_kwargs": {
-                "criterion": {"type": "categorical", "categories": ["squared_error", "absolute_error"]},
-                "max_depth": {"type": "int", "low": 5, "high": 30},
-                "min_samples_leaf": {"type": "int", "low": 5, "high": 50},
-                "min_samples_split": {"type": "int", "low": 10, "high": 100},
-                "max_features": {"type": "float", "low": 0.1, "high": 1.0},
-                "n_estimators": {"type": "int", "low": 25, "high": 200},
-            },
-            "tunable_params": {},
-            "fixed_params": {},
-            "has_params_dict": False,
-            "probabilistic": False,
-        }
-        logger.info("✓ BDF and RandomForest available")
+        logger.info("✓ BDF available")
     except ImportError:
         logger.info("✗ BDF not available")
 
-    # NGBoost
-    try:
-        from benchmarks.models.wrappers import NGBRegressorWrapper
-
-        available["NGBoost"] = {
-            "class": NGBRegressorWrapper,
-            "fixed_init_kwargs": {"random_state": SEED, "verbose": False, "dist_name": "Normal"},
-            "tunable_init_kwargs": {
-                "n_estimators": {"type": "int", "low": 50, "high": 300},
-                "learning_rate": {"type": "float", "low": 0.01, "high": 0.3},
-                "minibatch_frac": {"type": "float", "low": 0.5, "high": 1.0},
+    # Gaussian Process — gold standard for OOD uncertainty
+    available["GP"] = {
+        "class": _GPWrapper,
+        "fixed_init_kwargs": {"random_state": SEED, "max_samples": N_TRAIN_SAMPLES},
+        "tunable_init_kwargs": {
+            "kernel_name": {
+                "type": "categorical",
+                "categories": list(GP_KERNELS.keys()),
             },
-            "tunable_params": {},
-            "fixed_params": {},
-            "has_params_dict": False,
-            "probabilistic": True,
-        }
-        logger.info("✓ NGBoost available")
-    except ImportError:
-        pass
-
-    # Conformalized LightGBM
-    try:
-        from benchmarks.models.wrappers import ConformalizedLGBMWrapper
-
-        available["ConformalLGBM"] = {
-            "class": ConformalizedLGBMWrapper,
-            "fixed_init_kwargs": {"random_state": SEED, "verbose": -1},
-            "tunable_init_kwargs": {
-                "n_estimators": {"type": "int", "low": 50, "high": 300},
-                "learning_rate": {"type": "float", "low": 0.01, "high": 0.3},
-                "max_depth": {"type": "int", "low": 3, "high": 10},
-                "num_leaves": {"type": "int", "low": 15, "high": 100},
-                "min_child_samples": {"type": "int", "low": 10, "high": 100},
-            },
-            "tunable_params": {},
-            "fixed_params": {},
-            "has_params_dict": False,
-            "probabilistic": True,
-        }
-        logger.info("✓ ConformalLGBM available")
-    except ImportError:
-        pass
+        },
+        "tunable_params": {},
+        "fixed_params": {},
+        "has_params_dict": False,
+        "probabilistic": True,
+    }
+    logger.info("✓ GP available")
 
     return available
 
@@ -407,20 +406,20 @@ def tune_model(
     config = MODEL_CONFIGS[model_name]
     model_cls = config["class"]
     fixed_init_kwargs = config["fixed_init_kwargs"]
-    has_params_dict = config.get("has_params_dict", False)
+    has_params_dict = config["has_params_dict"]
 
     def objective(trial: optuna.Trial) -> float:
         np.random.seed(SEED + trial.number)
         init_kwargs, params = suggest_hyperparameters(trial, model_name)
 
         try:
-            if has_params_dict and params:
+            if has_params_dict:
                 model = model_cls(**fixed_init_kwargs, **init_kwargs, params=params)
             else:
                 model = model_cls(**fixed_init_kwargs, **init_kwargs)
             model.fit(X_train, y_train)
-            y_pred = model.predict(X_val)
-            return np.sqrt(mean_squared_error(y_val, y_pred))
+            y_samples = model.predict_samples(X_val, n_samples=200)
+            return crps_wrapper(y_val, y_samples)
         except Exception as e:
             logger.warning(f"Trial failed: {e}")
             return float("inf")
@@ -548,12 +547,11 @@ def evaluate_fold(
     config = MODEL_CONFIGS[model_name]
     model_cls = config["class"]
     fixed_init_kwargs = config["fixed_init_kwargs"]
-    has_params_dict = config.get("has_params_dict", False)
-    is_probabilistic = config.get("probabilistic", False)
+    has_params_dict = config["has_params_dict"]
 
     np.random.seed(SEED)
 
-    if has_params_dict and params:
+    if has_params_dict:
         model = model_cls(**fixed_init_kwargs, **init_kwargs, params=params)
     else:
         model = model_cls(**fixed_init_kwargs, **init_kwargs)
@@ -563,18 +561,7 @@ def evaluate_fold(
     fit_time = time() - start_time
 
     y_pred = model.predict(X_test)
-
-    # Get samples for probabilistic models
-    y_samples = None
-    if is_probabilistic:
-        try:
-            if hasattr(model, "predict_samples"):
-                y_samples = model.predict_samples(X_test, n_samples=N_POSTERIOR_SAMPLES)
-            elif hasattr(model, "pred_dist"):
-                dist = model.pred_dist(X_test)
-                y_samples = dist.sample(N_POSTERIOR_SAMPLES).T
-        except Exception as e:
-            logger.warning(f"Failed to get samples: {e}")
+    y_samples = model.predict_samples(X_test, n_samples=N_POSTERIOR_SAMPLES)
 
     # Get region masks
     overlap_mask, ood_mask = get_region_masks(X_test, train_range, test_range)
@@ -677,9 +664,6 @@ def plot_coverage_degradation(
 
     for ax, dgp_name in zip(axes, dgp_names):
         for model_name in MODEL_CONFIGS.keys():
-            if not MODEL_CONFIGS[model_name].get("probabilistic", False):
-                continue
-
             coverages_ood = []
             coverages_overlap = []
             for shift in shift_levels:
@@ -722,7 +706,6 @@ def plot_coverage_degradation(
         ax.set_xlabel("Shift Level")
         ax.set_ylabel("Coverage @ 90%")
         ax.set_title(f"{dgp_name}")
-        ax.set_ylim(0.5, 1.0)
         ax.legend(loc="best", fontsize=8)
 
     plt.suptitle("Coverage Degradation in OOD Regions", fontsize=14)
@@ -734,11 +717,11 @@ def plot_coverage_degradation(
     plt.close()
 
 
-def plot_rmse_by_region(
+def plot_crps_by_region(
     results: dict,
     save_dir: Path,
 ):
-    """Plot RMSE comparison between overlap and OOD regions."""
+    """Plot CRPS comparison between overlap and OOD regions."""
     setup_plot_style()
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -750,46 +733,97 @@ def plot_rmse_by_region(
 
     for ax, dgp_name in zip(axes, dgp_names):
         for model_name in MODEL_CONFIGS.keys():
-            rmse_ood = []
-            rmse_overlap = []
+            crps_ood = []
+            crps_overlap = []
             for shift in shift_levels:
                 key = f"{dgp_name}_{shift}"
                 if key in results and model_name in results[key].get("models", {}):
                     agg = results[key]["models"][model_name].get("aggregated_metrics", {})
 
-                    ood_rmse = agg.get("ood", {}).get("rmse", {}).get("mean", np.nan)
-                    overlap_rmse = agg.get("overlap", {}).get("rmse", {}).get("mean", np.nan)
+                    ood_crps = agg.get("ood", {}).get("crps", {}).get("mean", np.nan)
+                    overlap_crps = agg.get("overlap", {}).get("crps", {}).get("mean", np.nan)
 
-                    rmse_ood.append(ood_rmse)
-                    rmse_overlap.append(overlap_rmse)
+                    crps_ood.append(ood_crps)
+                    crps_overlap.append(overlap_crps)
                 else:
-                    rmse_ood.append(np.nan)
-                    rmse_overlap.append(np.nan)
+                    crps_ood.append(np.nan)
+                    crps_overlap.append(np.nan)
 
             ax.plot(
                 range(len(shift_levels)),
-                rmse_ood,
+                crps_ood,
                 "o-",
                 label=f"{model_name} (OOD)",
                 color=model_colors[model_name],
                 linewidth=2,
                 markersize=6,
             )
+            ax.plot(
+                range(len(shift_levels)),
+                crps_overlap,
+                "s--",
+                label=f"{model_name} (Overlap)",
+                color=model_colors[model_name],
+                linewidth=1.5,
+                markersize=5,
+                alpha=0.6,
+            )
 
         ax.set_xticks(range(len(shift_levels)))
         ax.set_xticklabels(shift_levels)
         ax.set_xlabel("Shift Level")
-        ax.set_ylabel("RMSE (OOD Region)")
+        ax.set_ylabel("CRPS")
         ax.set_title(f"{dgp_name}")
-        ax.legend(loc="best")
+        ax.legend(loc="best", fontsize=8)
 
-    plt.suptitle("Prediction Error in OOD Regions", fontsize=14)
+    plt.suptitle("CRPS by Region under Covariate Shift", fontsize=14)
     plt.tight_layout()
 
     save_dir.mkdir(parents=True, exist_ok=True)
-    plt.savefig(save_dir / "rmse_ood_by_shift.png")
-    logger.info(f"Saved plot to {save_dir / 'rmse_ood_by_shift.png'}")
+    plt.savefig(save_dir / "crps_by_shift.png")
+    logger.info(f"Saved plot to {save_dir / 'crps_by_shift.png'}")
     plt.close()
+
+
+def generate_summary_table(results: dict, save_dir: Path):
+    """Generate a summary table of key metrics across all experiments."""
+    import pandas as pd
+
+    rows = []
+    for experiment_key, experiment in results.items():
+        dgp = experiment["dgp_name"]
+        shift = experiment["shift_level"]
+
+        for model_name, model_data in experiment.get("models", {}).items():
+            agg = model_data.get("aggregated_metrics", {})
+            if not agg:
+                continue
+
+            row = {
+                "Model": model_name,
+                "DGP": dgp,
+                "Shift": shift,
+                "CRPS (Overlap)": agg.get("overlap", {}).get("crps", {}).get("mean", np.nan),
+                "CRPS (OOD)": agg.get("ood", {}).get("crps", {}).get("mean", np.nan),
+                "Coverage (Overlap)": agg.get("overlap", {}).get("coverage_90", {}).get("mean", np.nan),
+                "Coverage (OOD)": agg.get("ood", {}).get("coverage_90", {}).get("mean", np.nan),
+                "CI Width (Overlap)": agg.get("overlap", {}).get("ci_width_90", {}).get("mean", np.nan),
+                "CI Width (OOD)": agg.get("ood", {}).get("ci_width_90", {}).get("mean", np.nan),
+                "Uncertainty Ratio": agg.get("uncertainty_ratio_ood_vs_overlap", {}).get("mean", np.nan),
+            }
+            rows.append(row)
+
+    df = pd.DataFrame(rows)
+
+    save_dir.mkdir(parents=True, exist_ok=True)
+    df.to_csv(save_dir / "ood_summary.csv", index=False, float_format="%.4f")
+
+    # Also save markdown for easy inspection
+    md = df.to_markdown(index=False, floatfmt=".4f") or ""
+    (save_dir / "ood_summary.md").write_text(md)
+
+    logger.info(f"Summary table saved to {save_dir / 'ood_summary.csv'}")
+    return df
 
 
 # =============================================================================
@@ -807,11 +841,6 @@ def run_benchmark():
     logger.info(f"Available models: {', '.join(available_models)}")
     logger.info(f"DGPs: {list(DGPS.keys())}")
     logger.info(f"Shift levels: {list(SHIFT_CONFIGS.keys())}")
-
-    # Detect environment
-    core_models = {"BDFNormal", "BDFKDE", "RandomForest"}
-    has_extended = any(m not in core_models for m in available_models)
-    env_suffix = "" if has_extended else "_core"
 
     all_results = {}
 
@@ -938,12 +967,9 @@ def run_benchmark():
 
                     # Log summary
                     logger.info(
-                        f"    Overall RMSE: {aggregated.get('overall', {}).get('rmse', {}).get('mean', 'N/A'):.4f}"
+                        f"    Overall CRPS: {aggregated['overall']['crps']['mean']:.4f}"
+                        f"  |  Uncertainty ratio: {aggregated['uncertainty_ratio_ood_vs_overlap']['mean']:.2f}"
                     )
-                    if "uncertainty_ratio_ood_vs_overlap" in aggregated:
-                        logger.info(
-                            f"    Uncertainty ratio (OOD/Overlap): {aggregated['uncertainty_ratio_ood_vs_overlap']['mean']:.2f}"
-                        )
 
                 experiment_results["models"][model_name] = model_results
 
@@ -951,13 +977,13 @@ def run_benchmark():
 
             # Save incrementally
             RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-            output_file = RESULTS_DIR / f"{experiment_key}_results{env_suffix}.json"
+            output_file = RESULTS_DIR / f"{experiment_key}_results.json"
             with open(output_file, "w") as f:
                 json.dump(experiment_results, f, indent=2)
             logger.info(f"  Saved to {output_file}")
 
     # Save combined results
-    combined_file = RESULTS_DIR / f"all_results{env_suffix}.json"
+    combined_file = RESULTS_DIR / "all_results.json"
     with open(combined_file, "w") as f:
         json.dump(all_results, f, indent=2)
     logger.info(f"\nSaved combined results to {combined_file}")
@@ -966,7 +992,8 @@ def run_benchmark():
     logger.info("\nGenerating plots...")
     plot_uncertainty_by_shift(all_results, PLOTS_DIR)
     plot_coverage_degradation(all_results, PLOTS_DIR)
-    plot_rmse_by_region(all_results, PLOTS_DIR)
+    plot_crps_by_region(all_results, PLOTS_DIR)
+    generate_summary_table(all_results, RESULTS_DIR)
 
     logger.success("\n" + "=" * 80)
     logger.success("OOD Benchmark Complete!")

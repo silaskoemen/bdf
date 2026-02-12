@@ -1,6 +1,6 @@
 {
   "config": {
-    "param_name": "reg_gamma",
+    "param_name": "gamma",
     "param_grid": [
       0.0,
       0.001,
@@ -11,9 +11,9 @@
     ],
     "n_seeds": 10,
     "default_params": {
-      "reg_lambda": 0.01,
-      "reg_gamma": 0.1,
-      "reg_nu": 0.01,
+      "alpha": 0.01,
+      "gamma": 0.1,
+      "delta": 0.01,
       "min_samples_leaf": 10,
       "n_trees": 50,
       "max_depth": 50,
@@ -33,7 +33,7 @@
     {
       "dgp": "friedman1",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -47,7 +47,7 @@
     {
       "dgp": "friedman1",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -61,7 +61,7 @@
     {
       "dgp": "friedman1",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -75,7 +75,7 @@
     {
       "dgp": "friedman1",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -89,7 +89,7 @@
     {
       "dgp": "friedman1",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -103,7 +103,7 @@
     {
       "dgp": "friedman1",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -117,7 +117,7 @@
     {
       "dgp": "friedman1",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -131,7 +131,7 @@
     {
       "dgp": "friedman1",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -145,7 +145,7 @@
     {
       "dgp": "friedman1",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -159,7 +159,7 @@
     {
       "dgp": "friedman1",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -173,7 +173,7 @@
     {
       "dgp": "friedman1",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -187,7 +187,7 @@
     {
       "dgp": "friedman1",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -201,7 +201,7 @@
     {
       "dgp": "friedman1",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -215,7 +215,7 @@
     {
       "dgp": "friedman1",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -229,7 +229,7 @@
     {
       "dgp": "friedman1",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -243,7 +243,7 @@
     {
       "dgp": "friedman1",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -257,7 +257,7 @@
     {
       "dgp": "friedman1",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -271,7 +271,7 @@
     {
       "dgp": "friedman1",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -285,7 +285,7 @@
     {
       "dgp": "friedman1",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -299,7 +299,7 @@
     {
       "dgp": "friedman1",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -313,7 +313,7 @@
     {
       "dgp": "friedman1",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -327,7 +327,7 @@
     {
       "dgp": "friedman1",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -341,7 +341,7 @@
     {
       "dgp": "friedman1",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -355,7 +355,7 @@
     {
       "dgp": "friedman1",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -369,7 +369,7 @@
     {
       "dgp": "friedman1",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -383,7 +383,7 @@
     {
       "dgp": "friedman1",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -397,7 +397,7 @@
     {
       "dgp": "friedman1",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -411,7 +411,7 @@
     {
       "dgp": "friedman1",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -425,7 +425,7 @@
     {
       "dgp": "friedman1",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -439,7 +439,7 @@
     {
       "dgp": "friedman1",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -453,7 +453,7 @@
     {
       "dgp": "friedman1",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -467,7 +467,7 @@
     {
       "dgp": "friedman1",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -481,7 +481,7 @@
     {
       "dgp": "friedman1",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -495,7 +495,7 @@
     {
       "dgp": "friedman1",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -509,7 +509,7 @@
     {
       "dgp": "friedman1",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -523,7 +523,7 @@
     {
       "dgp": "friedman1",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -537,7 +537,7 @@
     {
       "dgp": "friedman1",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -551,7 +551,7 @@
     {
       "dgp": "friedman1",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -565,7 +565,7 @@
     {
       "dgp": "friedman1",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -579,7 +579,7 @@
     {
       "dgp": "friedman1",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -593,7 +593,7 @@
     {
       "dgp": "friedman1",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -607,7 +607,7 @@
     {
       "dgp": "friedman1",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -621,7 +621,7 @@
     {
       "dgp": "friedman1",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -635,7 +635,7 @@
     {
       "dgp": "friedman1",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -649,7 +649,7 @@
     {
       "dgp": "friedman1",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -663,7 +663,7 @@
     {
       "dgp": "friedman1",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -677,7 +677,7 @@
     {
       "dgp": "friedman1",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -691,7 +691,7 @@
     {
       "dgp": "friedman1",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -705,7 +705,7 @@
     {
       "dgp": "friedman1",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -719,7 +719,7 @@
     {
       "dgp": "friedman1",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -733,7 +733,7 @@
     {
       "dgp": "friedman1",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -747,7 +747,7 @@
     {
       "dgp": "friedman1",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -761,7 +761,7 @@
     {
       "dgp": "friedman1",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -775,7 +775,7 @@
     {
       "dgp": "friedman1",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -789,7 +789,7 @@
     {
       "dgp": "friedman1",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -803,7 +803,7 @@
     {
       "dgp": "friedman1",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -817,7 +817,7 @@
     {
       "dgp": "friedman1",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -831,7 +831,7 @@
     {
       "dgp": "friedman1",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -845,7 +845,7 @@
     {
       "dgp": "friedman1",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -859,7 +859,7 @@
     {
       "dgp": "friedman1",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -873,7 +873,7 @@
     {
       "dgp": "friedman2",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -887,7 +887,7 @@
     {
       "dgp": "friedman2",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -901,7 +901,7 @@
     {
       "dgp": "friedman2",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -915,7 +915,7 @@
     {
       "dgp": "friedman2",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -929,7 +929,7 @@
     {
       "dgp": "friedman2",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -943,7 +943,7 @@
     {
       "dgp": "friedman2",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -957,7 +957,7 @@
     {
       "dgp": "friedman2",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -971,7 +971,7 @@
     {
       "dgp": "friedman2",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -985,7 +985,7 @@
     {
       "dgp": "friedman2",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -999,7 +999,7 @@
     {
       "dgp": "friedman2",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1013,7 +1013,7 @@
     {
       "dgp": "friedman2",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1027,7 +1027,7 @@
     {
       "dgp": "friedman2",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1041,7 +1041,7 @@
     {
       "dgp": "friedman2",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1055,7 +1055,7 @@
     {
       "dgp": "friedman2",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1069,7 +1069,7 @@
     {
       "dgp": "friedman2",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1083,7 +1083,7 @@
     {
       "dgp": "friedman2",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1097,7 +1097,7 @@
     {
       "dgp": "friedman2",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1111,7 +1111,7 @@
     {
       "dgp": "friedman2",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1125,7 +1125,7 @@
     {
       "dgp": "friedman2",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1139,7 +1139,7 @@
     {
       "dgp": "friedman2",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1153,7 +1153,7 @@
     {
       "dgp": "friedman2",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -1167,7 +1167,7 @@
     {
       "dgp": "friedman2",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -1181,7 +1181,7 @@
     {
       "dgp": "friedman2",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -1195,7 +1195,7 @@
     {
       "dgp": "friedman2",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -1209,7 +1209,7 @@
     {
       "dgp": "friedman2",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -1223,7 +1223,7 @@
     {
       "dgp": "friedman2",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -1237,7 +1237,7 @@
     {
       "dgp": "friedman2",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -1251,7 +1251,7 @@
     {
       "dgp": "friedman2",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -1265,7 +1265,7 @@
     {
       "dgp": "friedman2",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -1279,7 +1279,7 @@
     {
       "dgp": "friedman2",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -1293,7 +1293,7 @@
     {
       "dgp": "friedman2",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -1307,7 +1307,7 @@
     {
       "dgp": "friedman2",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -1321,7 +1321,7 @@
     {
       "dgp": "friedman2",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -1335,7 +1335,7 @@
     {
       "dgp": "friedman2",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -1349,7 +1349,7 @@
     {
       "dgp": "friedman2",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -1363,7 +1363,7 @@
     {
       "dgp": "friedman2",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -1377,7 +1377,7 @@
     {
       "dgp": "friedman2",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -1391,7 +1391,7 @@
     {
       "dgp": "friedman2",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -1405,7 +1405,7 @@
     {
       "dgp": "friedman2",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -1419,7 +1419,7 @@
     {
       "dgp": "friedman2",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -1433,7 +1433,7 @@
     {
       "dgp": "friedman2",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -1447,7 +1447,7 @@
     {
       "dgp": "friedman2",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -1461,7 +1461,7 @@
     {
       "dgp": "friedman2",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -1475,7 +1475,7 @@
     {
       "dgp": "friedman2",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -1489,7 +1489,7 @@
     {
       "dgp": "friedman2",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -1503,7 +1503,7 @@
     {
       "dgp": "friedman2",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -1517,7 +1517,7 @@
     {
       "dgp": "friedman2",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -1531,7 +1531,7 @@
     {
       "dgp": "friedman2",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -1545,7 +1545,7 @@
     {
       "dgp": "friedman2",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -1559,7 +1559,7 @@
     {
       "dgp": "friedman2",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -1573,7 +1573,7 @@
     {
       "dgp": "friedman2",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1587,7 +1587,7 @@
     {
       "dgp": "friedman2",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1601,7 +1601,7 @@
     {
       "dgp": "friedman2",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1615,7 +1615,7 @@
     {
       "dgp": "friedman2",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1629,7 +1629,7 @@
     {
       "dgp": "friedman2",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1643,7 +1643,7 @@
     {
       "dgp": "friedman2",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1657,7 +1657,7 @@
     {
       "dgp": "friedman2",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1671,7 +1671,7 @@
     {
       "dgp": "friedman2",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1685,7 +1685,7 @@
     {
       "dgp": "friedman2",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1699,7 +1699,7 @@
     {
       "dgp": "friedman2",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1713,7 +1713,7 @@
     {
       "dgp": "friedman3",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1727,7 +1727,7 @@
     {
       "dgp": "friedman3",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1741,7 +1741,7 @@
     {
       "dgp": "friedman3",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1755,7 +1755,7 @@
     {
       "dgp": "friedman3",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1769,7 +1769,7 @@
     {
       "dgp": "friedman3",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1783,7 +1783,7 @@
     {
       "dgp": "friedman3",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1797,7 +1797,7 @@
     {
       "dgp": "friedman3",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1811,7 +1811,7 @@
     {
       "dgp": "friedman3",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1825,7 +1825,7 @@
     {
       "dgp": "friedman3",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1839,7 +1839,7 @@
     {
       "dgp": "friedman3",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -1853,7 +1853,7 @@
     {
       "dgp": "friedman3",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1867,7 +1867,7 @@
     {
       "dgp": "friedman3",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1881,7 +1881,7 @@
     {
       "dgp": "friedman3",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1895,7 +1895,7 @@
     {
       "dgp": "friedman3",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1909,7 +1909,7 @@
     {
       "dgp": "friedman3",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1923,7 +1923,7 @@
     {
       "dgp": "friedman3",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1937,7 +1937,7 @@
     {
       "dgp": "friedman3",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1951,7 +1951,7 @@
     {
       "dgp": "friedman3",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1965,7 +1965,7 @@
     {
       "dgp": "friedman3",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1979,7 +1979,7 @@
     {
       "dgp": "friedman3",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -1993,7 +1993,7 @@
     {
       "dgp": "friedman3",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2007,7 +2007,7 @@
     {
       "dgp": "friedman3",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2021,7 +2021,7 @@
     {
       "dgp": "friedman3",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2035,7 +2035,7 @@
     {
       "dgp": "friedman3",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2049,7 +2049,7 @@
     {
       "dgp": "friedman3",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2063,7 +2063,7 @@
     {
       "dgp": "friedman3",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2077,7 +2077,7 @@
     {
       "dgp": "friedman3",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2091,7 +2091,7 @@
     {
       "dgp": "friedman3",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2105,7 +2105,7 @@
     {
       "dgp": "friedman3",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2119,7 +2119,7 @@
     {
       "dgp": "friedman3",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2133,7 +2133,7 @@
     {
       "dgp": "friedman3",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -2147,7 +2147,7 @@
     {
       "dgp": "friedman3",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -2161,7 +2161,7 @@
     {
       "dgp": "friedman3",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -2175,7 +2175,7 @@
     {
       "dgp": "friedman3",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -2189,7 +2189,7 @@
     {
       "dgp": "friedman3",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -2203,7 +2203,7 @@
     {
       "dgp": "friedman3",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -2217,7 +2217,7 @@
     {
       "dgp": "friedman3",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -2231,7 +2231,7 @@
     {
       "dgp": "friedman3",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -2245,7 +2245,7 @@
     {
       "dgp": "friedman3",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -2259,7 +2259,7 @@
     {
       "dgp": "friedman3",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -2273,7 +2273,7 @@
     {
       "dgp": "friedman3",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -2287,7 +2287,7 @@
     {
       "dgp": "friedman3",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -2301,7 +2301,7 @@
     {
       "dgp": "friedman3",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -2315,7 +2315,7 @@
     {
       "dgp": "friedman3",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -2329,7 +2329,7 @@
     {
       "dgp": "friedman3",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -2343,7 +2343,7 @@
     {
       "dgp": "friedman3",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -2357,7 +2357,7 @@
     {
       "dgp": "friedman3",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -2371,7 +2371,7 @@
     {
       "dgp": "friedman3",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -2385,7 +2385,7 @@
     {
       "dgp": "friedman3",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -2399,7 +2399,7 @@
     {
       "dgp": "friedman3",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -2413,7 +2413,7 @@
     {
       "dgp": "friedman3",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2427,7 +2427,7 @@
     {
       "dgp": "friedman3",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2441,7 +2441,7 @@
     {
       "dgp": "friedman3",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2455,7 +2455,7 @@
     {
       "dgp": "friedman3",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2469,7 +2469,7 @@
     {
       "dgp": "friedman3",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2483,7 +2483,7 @@
     {
       "dgp": "friedman3",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2497,7 +2497,7 @@
     {
       "dgp": "friedman3",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2511,7 +2511,7 @@
     {
       "dgp": "friedman3",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2525,7 +2525,7 @@
     {
       "dgp": "friedman3",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2539,7 +2539,7 @@
     {
       "dgp": "friedman3",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2553,7 +2553,7 @@
     {
       "dgp": "make_regression",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2567,7 +2567,7 @@
     {
       "dgp": "make_regression",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2581,7 +2581,7 @@
     {
       "dgp": "make_regression",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2595,7 +2595,7 @@
     {
       "dgp": "make_regression",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2609,7 +2609,7 @@
     {
       "dgp": "make_regression",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2623,7 +2623,7 @@
     {
       "dgp": "make_regression",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2637,7 +2637,7 @@
     {
       "dgp": "make_regression",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2651,7 +2651,7 @@
     {
       "dgp": "make_regression",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2665,7 +2665,7 @@
     {
       "dgp": "make_regression",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2679,7 +2679,7 @@
     {
       "dgp": "make_regression",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.0,
       "scoring_config": "nle",
       "metrics": {
@@ -2693,7 +2693,7 @@
     {
       "dgp": "make_regression",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -2707,7 +2707,7 @@
     {
       "dgp": "make_regression",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -2721,7 +2721,7 @@
     {
       "dgp": "make_regression",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -2735,7 +2735,7 @@
     {
       "dgp": "make_regression",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -2749,7 +2749,7 @@
     {
       "dgp": "make_regression",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -2763,7 +2763,7 @@
     {
       "dgp": "make_regression",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -2777,7 +2777,7 @@
     {
       "dgp": "make_regression",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -2791,7 +2791,7 @@
     {
       "dgp": "make_regression",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -2805,7 +2805,7 @@
     {
       "dgp": "make_regression",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -2819,7 +2819,7 @@
     {
       "dgp": "make_regression",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.001,
       "scoring_config": "nle",
       "metrics": {
@@ -2833,7 +2833,7 @@
     {
       "dgp": "make_regression",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2847,7 +2847,7 @@
     {
       "dgp": "make_regression",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2861,7 +2861,7 @@
     {
       "dgp": "make_regression",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2875,7 +2875,7 @@
     {
       "dgp": "make_regression",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2889,7 +2889,7 @@
     {
       "dgp": "make_regression",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2903,7 +2903,7 @@
     {
       "dgp": "make_regression",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2917,7 +2917,7 @@
     {
       "dgp": "make_regression",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2931,7 +2931,7 @@
     {
       "dgp": "make_regression",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2945,7 +2945,7 @@
     {
       "dgp": "make_regression",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2959,7 +2959,7 @@
     {
       "dgp": "make_regression",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.01,
       "scoring_config": "nle",
       "metrics": {
@@ -2973,7 +2973,7 @@
     {
       "dgp": "make_regression",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -2987,7 +2987,7 @@
     {
       "dgp": "make_regression",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -3001,7 +3001,7 @@
     {
       "dgp": "make_regression",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -3015,7 +3015,7 @@
     {
       "dgp": "make_regression",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -3029,7 +3029,7 @@
     {
       "dgp": "make_regression",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -3043,7 +3043,7 @@
     {
       "dgp": "make_regression",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -3057,7 +3057,7 @@
     {
       "dgp": "make_regression",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -3071,7 +3071,7 @@
     {
       "dgp": "make_regression",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -3085,7 +3085,7 @@
     {
       "dgp": "make_regression",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -3099,7 +3099,7 @@
     {
       "dgp": "make_regression",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.1,
       "scoring_config": "nle",
       "metrics": {
@@ -3113,7 +3113,7 @@
     {
       "dgp": "make_regression",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -3127,7 +3127,7 @@
     {
       "dgp": "make_regression",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -3141,7 +3141,7 @@
     {
       "dgp": "make_regression",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -3155,7 +3155,7 @@
     {
       "dgp": "make_regression",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -3169,7 +3169,7 @@
     {
       "dgp": "make_regression",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -3183,7 +3183,7 @@
     {
       "dgp": "make_regression",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -3197,7 +3197,7 @@
     {
       "dgp": "make_regression",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -3211,7 +3211,7 @@
     {
       "dgp": "make_regression",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -3225,7 +3225,7 @@
     {
       "dgp": "make_regression",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -3239,7 +3239,7 @@
     {
       "dgp": "make_regression",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 0.5,
       "scoring_config": "nle",
       "metrics": {
@@ -3253,7 +3253,7 @@
     {
       "dgp": "make_regression",
       "seed": 42,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -3267,7 +3267,7 @@
     {
       "dgp": "make_regression",
       "seed": 43,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -3281,7 +3281,7 @@
     {
       "dgp": "make_regression",
       "seed": 44,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -3295,7 +3295,7 @@
     {
       "dgp": "make_regression",
       "seed": 45,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -3309,7 +3309,7 @@
     {
       "dgp": "make_regression",
       "seed": 46,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -3323,7 +3323,7 @@
     {
       "dgp": "make_regression",
       "seed": 47,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -3337,7 +3337,7 @@
     {
       "dgp": "make_regression",
       "seed": 48,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -3351,7 +3351,7 @@
     {
       "dgp": "make_regression",
       "seed": 49,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -3365,7 +3365,7 @@
     {
       "dgp": "make_regression",
       "seed": 50,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {
@@ -3379,7 +3379,7 @@
     {
       "dgp": "make_regression",
       "seed": 51,
-      "param_name": "reg_gamma",
+      "param_name": "gamma",
       "param_value": 1.0,
       "scoring_config": "nle",
       "metrics": {

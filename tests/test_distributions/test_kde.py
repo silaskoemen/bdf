@@ -111,7 +111,7 @@ def _rust_like_best_split_kde(
     eta: float,
     min_samples_leaf: int,
     min_child_weight: float,
-    reg_gamma: float,
+    gamma: float,
     kernel: str,
     h: float,
     compact_support: bool,
@@ -121,7 +121,7 @@ def _rust_like_best_split_kde(
     - Parent bandwidth
     - Dense kernel matrix
     - Candidate splits at (i+1)%stride==0 along sorted feature
-    - Penalty: reg_gamma*(ln(num_features_tried)+ln(num_thresholds_tried))
+    - Penalty: gamma*(ln(num_features_tried)+ln(num_thresholds_tried))
     Returns (best_feature, best_threshold, best_gain).
     """
     X = np.asarray(X, dtype=float)
@@ -187,8 +187,8 @@ def _rust_like_best_split_kde(
                 local_best_gain = gain
                 local_best_threshold = 0.5 * (feat_val + next_feat_val)
 
-        if reg_gamma > 0.0 and num_thresholds_tried > 0 and local_best_threshold is not None:
-            local_best_gain -= reg_gamma * (math.log(float(num_features_tried)) + math.log(float(num_thresholds_tried)))
+        if gamma > 0.0 and num_thresholds_tried > 0 and local_best_threshold is not None:
+            local_best_gain -= gamma * (math.log(float(num_features_tried)) + math.log(float(num_thresholds_tried)))
 
         if local_best_threshold is not None and local_best_gain > best_gain:
             best_gain = float(local_best_gain)
@@ -333,7 +333,7 @@ def test_rust_python_split_equivalence_pairwise_parent(kernel: Literal["gaussian
     X = np.column_stack([X0, X1]).astype(float, copy=False)
 
     eta = 0.1
-    reg_gamma = 0.2
+    gamma = 0.2
     min_samples_leaf = 5
     min_child_weight = 5.0
 
@@ -353,7 +353,7 @@ def test_rust_python_split_equivalence_pairwise_parent(kernel: Literal["gaussian
     spec = dist.to_rust_spec()
 
     feat_r, thr_r, gain_r, left_r, right_r, _, _ = bdf_rs.find_best_split(  # type: ignore[attr-defined]
-        X, y, min_samples_leaf, float(min_child_weight), spec, eta, float(reg_gamma), None, "map"
+        X, y, min_samples_leaf, float(min_child_weight), spec, eta, float(gamma), None, "map"
     )
 
     feat_p, thr_p, gain_p = _rust_like_best_split_kde(
@@ -362,7 +362,7 @@ def test_rust_python_split_equivalence_pairwise_parent(kernel: Literal["gaussian
         eta=eta,
         min_samples_leaf=min_samples_leaf,
         min_child_weight=min_child_weight,
-        reg_gamma=reg_gamma,
+        gamma=gamma,
         kernel=kernel,
         h=h,
         compact_support=False,
@@ -389,7 +389,7 @@ def test_rust_compact_support_close_to_exact_gaussian():
     h = 0.6
     min_samples_leaf = 10
     min_child_weight = 10.0
-    reg_gamma = 0.0
+    gamma = 0.0
 
     dist_exact = KDE(
         KDEParams(
@@ -414,10 +414,10 @@ def test_rust_compact_support_close_to_exact_gaussian():
     spec_compact = dist_compact.to_rust_spec()
 
     feat_e, thr_e, gain_e, _, _, _, _ = bdf_rs.find_best_split(  # type: ignore[attr-defined]
-        X, y, min_samples_leaf, min_child_weight, spec_exact, eta, reg_gamma, None, "map"
+        X, y, min_samples_leaf, min_child_weight, spec_exact, eta, gamma, None, "map"
     )
     feat_c, thr_c, gain_c, _, _, _, _ = bdf_rs.find_best_split(  # type: ignore[attr-defined]
-        X, y, min_samples_leaf, min_child_weight, spec_compact, eta, reg_gamma, None, "map"
+        X, y, min_samples_leaf, min_child_weight, spec_compact, eta, gamma, None, "map"
     )
 
     assert feat_e == feat_c
@@ -437,7 +437,7 @@ def test_rust_fft_close_to_pairwise_gaussian():
     h = 0.7
     min_samples_leaf = 20
     min_child_weight = 20.0
-    reg_gamma = 0.0
+    gamma = 0.0
 
     dist_pairwise = KDE(
         KDEParams(
@@ -462,10 +462,10 @@ def test_rust_fft_close_to_pairwise_gaussian():
     spec_fft = dist_fft.to_rust_spec()
 
     feat_p, thr_p, gain_p, _, _, _, _ = bdf_rs.find_best_split(  # type: ignore[attr-defined]
-        X, y, min_samples_leaf, min_child_weight, spec_pairwise, eta, reg_gamma, None, "map"
+        X, y, min_samples_leaf, min_child_weight, spec_pairwise, eta, gamma, None, "map"
     )
     feat_f, thr_f, gain_f, _, _, _, _ = bdf_rs.find_best_split(  # type: ignore[attr-defined]
-        X, y, min_samples_leaf, min_child_weight, spec_fft, eta, reg_gamma, None, "map"
+        X, y, min_samples_leaf, min_child_weight, spec_fft, eta, gamma, None, "map"
     )
 
     # Approximation checks: same feature, threshold & gain reasonably close.
@@ -621,7 +621,7 @@ def test_bandwidth_policy_parent_vs_per_split(dataset_name, n_samples, n_feature
         n_trees=1,
         max_depth=4,
         min_samples_leaf=15,
-        reg_gamma=0.0,
+        gamma=0.0,
         random_state=42,
     )
 
@@ -631,7 +631,7 @@ def test_bandwidth_policy_parent_vs_per_split(dataset_name, n_samples, n_feature
         n_trees=1,
         max_depth=4,
         min_samples_leaf=15,
-        reg_gamma=0.0,
+        gamma=0.0,
         random_state=42,
     )
 
@@ -641,7 +641,7 @@ def test_bandwidth_policy_parent_vs_per_split(dataset_name, n_samples, n_feature
         n_trees=1,
         max_depth=4,
         min_samples_leaf=15,
-        reg_gamma=0.0,
+        gamma=0.0,
         random_state=42,
     )
 
@@ -766,7 +766,7 @@ def test_parent_bw_refine_top_k_produces_valid_trees(top_k):
         n_trees=1,
         max_depth=4,
         min_samples_leaf=15,
-        reg_gamma=0.0,
+        gamma=0.0,
         random_state=42,
     )
 
@@ -826,7 +826,7 @@ def test_top_k_refinement_across_backends(backend):
         n_trees=1,
         max_depth=4,
         min_samples_leaf=15,
-        reg_gamma=0.0,
+        gamma=0.0,
         random_state=42,
     )
 
@@ -875,7 +875,7 @@ def test_top_k_debug_logging():
             n_trees=1,
             max_depth=2,  # Shallow tree for easier debugging
             min_samples_leaf=20,
-            reg_gamma=0.0,
+            gamma=0.0,
             random_state=42,
         )
 
@@ -953,7 +953,7 @@ def test_top_k_can_catch_ranking_inversions():
             n_trees=1,
             max_depth=3,
             min_samples_leaf=30,
-            reg_gamma=0.0,  # No regularization to avoid penalizing splits differently
+            gamma=0.0,  # No regularization to avoid penalizing splits differently
             random_state=42,
         )
 
@@ -1022,7 +1022,7 @@ def test_extreme_top_k_values():
                 n_trees=1,
                 max_depth=4,
                 min_samples_leaf=15,
-                reg_gamma=0.0,
+                gamma=0.0,
                 random_state=42,
             )
 
@@ -1095,7 +1095,7 @@ def test_top_k_ranking_stability():
             n_trees=1,
             max_depth=4,
             min_samples_leaf=15,
-            reg_gamma=0.0,
+            gamma=0.0,
             random_state=42,
         )
         model.fit(X, y)

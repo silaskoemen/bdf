@@ -23,18 +23,18 @@
         "low": 5,
         "high": 200
       },
-      "reg_lambda": {
+      "alpha": {
         "type": "float",
         "low": 1e-05,
         "high": 100.0,
         "log": true
       },
-      "reg_gamma": {
+      "gamma": {
         "type": "float",
         "low": 0.0,
         "high": 1.0
       },
-      "reg_nu": {
+      "delta": {
         "type": "float",
         "low": 0.0,
         "high": 1.0
@@ -96,9 +96,9 @@
       "metrics": {},
       "best_params": {
         "n_trees": 42,
-        "reg_lambda": 0.22634004467821947,
-        "reg_gamma": 0.4377277390071145,
-        "reg_nu": 0.7853585837137692,
+        "alpha": 0.22634004467821947,
+        "gamma": 0.4377277390071145,
+        "delta": 0.7853585837137692,
         "min_samples_leaf": 40,
         "min_samples_split": 34,
         "subsample": 0.6382321275715483,

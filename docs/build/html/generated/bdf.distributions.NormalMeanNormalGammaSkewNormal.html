@@ -1,0 +1,166 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>bdf.distributions.NormalMeanNormalGammaSkewNormal &mdash; bdf 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="bdf.distributions.FrequentistGenHyperbolic" href="bdf.distributions.FrequentistGenHyperbolic.html" />
+    <link rel="prev" title="bdf.distributions.NormalMeanPseudoAlphaSkewNormal" href="bdf.distributions.NormalMeanPseudoAlphaSkewNormal.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+
+
+          <a href="../index.html" class="icon icon-home">
+            bdf
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../models.html">Models</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../distributions.html">Distributions</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../distributions.html#common-parameters">Common Parameters</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="../distributions.html#continuous-distributions">Continuous Distributions</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="../distributions.html#normal">Normal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../distributions.html#student-t">Student-t</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="../distributions.html#skew-normal">Skew-Normal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../distributions.html#generalized-hyperbolic">Generalized Hyperbolic</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../distributions.html#count-distributions">Count Distributions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../distributions.html#discrete-classification">Discrete / Classification</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../distributions.html#non-parametric">Non-parametric</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">bdf</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">API Reference</a></li>
+          <li class="breadcrumb-item"><a href="../distributions.html">Distributions</a></li>
+      <li class="breadcrumb-item active">bdf.distributions.NormalMeanNormalGammaSkewNormal</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/generated/bdf.distributions.NormalMeanNormalGammaSkewNormal.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <section id="bdf-distributions-normalmeannormalgammaskewnormal">
+<h1>bdf.distributions.NormalMeanNormalGammaSkewNormal<a class="headerlink" href="#bdf-distributions-normalmeannormalgammaskewnormal" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="bdf.distributions.NormalMeanNormalGammaSkewNormal">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">bdf.distributions.</span></span><span class="sig-name descname"><span class="pre">NormalMeanNormalGammaSkewNormal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/bdf/distributions/skew_normal.html#NormalMeanNormalGammaSkewNormal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#bdf.distributions.NormalMeanNormalGammaSkewNormal" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BDFDistribution</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">NormalMeanNormalGammaSkewNormalParams</span></code>]</p>
+<p>Skew-Normal with Normal priors on mean and skewness gamma.</p>
+<p><strong>Usage:</strong> <code class="docutils literal notranslate"><span class="pre">dist=&quot;NormalMeanNormalGammaSkewNormal&quot;</span></code></p>
+<p><strong>Model:</strong></p>
+<ul class="simple">
+<li><p><strong>Prior on mean:</strong> <span class="math notranslate nohighlight">\(\mu \sim \mathcal{N}(\mu_\mu, \sigma_\mu^2)\)</span></p></li>
+<li><p><strong>Prior on skewness:</strong> <span class="math notranslate nohighlight">\(\gamma \sim \mathcal{N}(\mu_\gamma, \sigma_\gamma^2)\)</span></p></li>
+<li><p><strong>Likelihood:</strong> <span class="math notranslate nohighlight">\(y \mid \alpha, \xi, \omega \sim \text{SkewNormal}(\alpha, \xi, \omega)\)</span></p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mu_mu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><em>&quot;auto&quot;</em><em>, </em><em>default=0.0</em>) – Prior mean for the data mean. If <code class="docutils literal notranslate"><span class="pre">&quot;auto&quot;</span></code>, set to the sample mean at
+fit time.</p></li>
+<li><p><strong>sigma_mu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><em>&quot;auto&quot;</em><em>, </em><em>default=1.0</em>) – Prior standard deviation for the data mean. If <code class="docutils literal notranslate"><span class="pre">&quot;auto&quot;</span></code>, set to the
+sample standard deviation times <code class="docutils literal notranslate"><span class="pre">sigma_mu_auto_scale</span></code> at fit time.</p></li>
+<li><p><strong>sigma_mu_auto_scale</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>default=1.0</em>) – Multiplier applied when <code class="docutils literal notranslate"><span class="pre">sigma_mu=&quot;auto&quot;</span></code>. Ignored otherwise.</p></li>
+<li><p><strong>mu_gamma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>default=0.0</em>) – Prior mean for skewness <span class="math notranslate nohighlight">\(\gamma\)</span>.</p></li>
+<li><p><strong>sigma_gamma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>default=0.5</em>) – Prior standard deviation for skewness <span class="math notranslate nohighlight">\(\gamma\)</span>.</p></li>
+<li><p><strong>score_method</strong> (<em>{&quot;nll&quot;}</em>) – Only NLL scoring is supported (non-conjugate model).</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="bdf.distributions.BDFDistributionParams.html#bdf.distributions.BDFDistributionParams" title="bdf.distributions.BDFDistributionParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BDFDistributionParams</span></code></a></dt><dd><p>Common scoring and inference parameters shared by all distributions.</p>
+</dd>
+<dt><a class="reference internal" href="bdf.distributions.NormalMeanPseudoAlphaSkewNormal.html#bdf.distributions.NormalMeanPseudoAlphaSkewNormal" title="bdf.distributions.NormalMeanPseudoAlphaSkewNormal"><code class="xref py py-obj docutils literal notranslate"><span class="pre">NormalMeanPseudoAlphaSkewNormal</span></code></a></dt><dd><p>Alternative with pseudo-prior on alpha.</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="bdf.distributions.NormalMeanPseudoAlphaSkewNormal.html" class="btn btn-neutral float-left" title="bdf.distributions.NormalMeanPseudoAlphaSkewNormal" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="bdf.distributions.FrequentistGenHyperbolic.html" class="btn btn-neutral float-right" title="bdf.distributions.FrequentistGenHyperbolic" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025-2026, Silas Koemen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+</body>
+</html>

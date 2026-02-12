@@ -102,7 +102,11 @@ class TestAllDistributionsBasicContract:
         assert dist is not None
         assert isinstance(dist, BDFDistribution)
 
-    @pytest.mark.parametrize("dist_name", TESTABLE_DISTRIBUTIONS)
+    # KDE/BayesianKDE don't have parametric posteriors; calc_posterior_params
+    # returns a non-dict representation, so exclude from this contract test.
+    DICT_POSTERIOR_DISTRIBUTIONS = [d for d in TESTABLE_DISTRIBUTIONS if d not in {"KDE", "BayesianKDE"}]
+
+    @pytest.mark.parametrize("dist_name", DICT_POSTERIOR_DISTRIBUTIONS)
     def test_calc_posterior_params_returns_dict(self, dist_name: str):
         """Test that calc_posterior_params returns a dict with float values."""
         params = get_default_params_for_distribution(dist_name)
@@ -343,13 +347,13 @@ class TestConjugateDistributionsNLE:
 class TestPosteriorPredictiveDistributions:
     """Tests for distributions supporting posterior predictive."""
 
+    # Bernoulli distributions excluded: plugin and PP likelihoods are mathematically
+    # identical for Beta-Bernoulli conjugate models (the predictive is the same functional form).
     PP_DISTRIBUTIONS = [
         "NormalMuNormal",
         "NormalMuInvGammaSigmaNormal",
         "GammaABLambdaPoisson",
         "GammaMVLambdaPoisson",
-        "BetaABBernoulli",
-        "BetaMVBernoulli",
         "GammaABLambdaExponential",
         "GammaMVLambdaExponential",
     ]

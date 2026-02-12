@@ -147,21 +147,32 @@ K = TypeVar("K", bound=KDEParams)
 
 
 class KDE(BDFDistribution[K]):
-    """Kernel Density Estimation distribution.
+    r"""Non-parametric Kernel Density Estimation.
 
-    **String Alias:** ``'kde'``
+    **Usage:** ``dist="KDE"``
 
-    Non-parametric density estimation using kernel smoothing.
-    Supports both direct evaluation and FFT-based computation.
+    Estimates the density non-parametrically via kernel smoothing. No prior is
+    placed on the density; instead, the bandwidth controls the bias-variance
+    trade-off.
 
     Parameters
     ----------
-    bandwidth : float or {'scott', 'silverman'}, default='scott'
-        Bandwidth selection method or fixed value.
-    kernel : {'gaussian', 'epanechnikov'}, default='gaussian'
-        Kernel function.
-    kde_backend : {'pairwise','fft','auto'}, default='pairwise'
-        Backend used for Rust split scoring (FFT is Gaussian-only for now).
+    bandwidth : float or {"scott", "silverman"}, default="scott"
+        Bandwidth selection method or fixed positive float.
+    kernel : {"gaussian", "epanechnikov"}, default="gaussian"
+        Kernel function used for density estimation.
+    kde_backend : {"pairwise", "fft", "switch"}, default="pairwise"
+        Backend for Rust split scoring. FFT is Gaussian-only.
+    bandwidth_policy : {"parent", "per_split"}, default="parent"
+        Whether to recompute bandwidth per candidate split child.
+    score_method : {"nll"}
+        Only NLL scoring is supported (non-parametric model).
+    score_correction : {"aic", "bic", "loo_cv", "kfold_cv"} or None, default="loo_cv"
+        Defaults to LOO-CV, which is natural for KDE.
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = KDEParams

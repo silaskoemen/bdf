@@ -72,13 +72,14 @@ def test_distribution_specific_methods():
     regressor = BDFRegressor(dist="NormalMuNormal", n_trees=10, params={"mu_mu": y.mean(), "sigma_mu": y.std()})
     regressor.fit(X, y)
 
-    # Call method to get variance estimates
-    means, variances = regressor.predict(X, method="params")
+    # predict_params returns (n_obs, n_trees) array of param dicts
+    params_array = regressor.predict(X, method="params")
 
     # Check results
-    assert means.shape == (100,)
-    assert variances.shape == (100,)
-    assert np.all(variances > 0)  # Variances should be positive
+    assert params_array.shape[0] == 100
+    assert params_array.shape[1] == regressor.n_trees
+    # Each element should be a dict with posterior parameters
+    assert isinstance(params_array[0, 0], dict)
 
 
 def test_categorical_features():

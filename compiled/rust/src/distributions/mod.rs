@@ -10,6 +10,8 @@ pub mod poisson;
 pub mod exponential;
 pub mod kde;
 pub mod skew_normal;
+pub mod student_t;
+pub mod negative_binomial;
 pub mod python_callback;
 
 use pyo3::PyResult;

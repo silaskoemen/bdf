@@ -1,0 +1,8 @@
+# Sensitivity Ranking
+
+| Parameter        |   Avg LOG_LOSS Range |   Relative Sensitivity (%) |
+|:-----------------|---------------------:|---------------------------:|
+| gamma            |               0.0076 |                        4.4 |
+| min_samples_leaf |               0.0615 |                       32.7 |
+| delta            |               0.0054 |                        3.2 |
+| alpha            |               0.0009 |                        0.5 |

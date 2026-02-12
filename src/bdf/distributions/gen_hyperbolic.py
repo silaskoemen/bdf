@@ -116,14 +116,26 @@ class FrequentistGenHyperbolicParams(BDFDistributionParams):
 
 
 class FrequentistGenHyperbolic(BDFDistribution):
-    """Generalized Hyperbolic distribution with frequentist MLE estimation.
+    r"""Generalized Hyperbolic distribution with frequentist MLE estimation.
 
-    Uses unconstrained re-parameterization:
-    - log(δ) for scale (δ > 0)
-    - log(a) for concentration (a > 0)
-    - arctanh(b/a) for asymmetry ratio (|b| < a)
+    **Usage:** ``dist="FrequentistGenHyperbolic"``
 
-    Initialization via polynomial regression on (skewness, kurtosis).
+    Extremely flexible distribution nesting Normal, Student-t, Laplace,
+    Hyperbolic, NIG, and VG as special cases. All 5 parameters
+    :math:`(p, a, b, \mu, \delta)` are estimated via MLE with moment-based
+    initialization.
+
+    .. math:: y \sim \text{GH}(p, a, b, \mu, \delta)
+
+    Parameters
+    ----------
+    score_method : {"nll"}
+        Only NLL scoring is supported (frequentist model).
+
+    See Also
+    --------
+    BDFDistributionParams : Common scoring and inference parameters shared by all distributions.
+    FrequentistStudentT : Simpler heavy-tailed alternative (nested in GH).
     """
 
     params_cls: ClassVar[type[BDFDistributionParams]] = FrequentistGenHyperbolicParams
