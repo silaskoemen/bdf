@@ -1,6 +1,7 @@
 /data/
 
 *.egg-info/
+dist/
 *.egg
 *.whl
 *.tar.gz
