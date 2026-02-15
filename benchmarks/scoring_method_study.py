@@ -469,7 +469,7 @@ def run_regression_experiment(
     dist_params = REG_DIST_PARAMS.copy()
     dist_params.update(SCORING_CONFIGS[scoring_name])
 
-    model = BDFRegressor(dist="NormalMuNormal", params=dist_params, **MODEL_CONFIG)
+    model = BDFRegressor(dist="NormalMuNormal", params=dist_params, **MODEL_CONFIG)  # ty:ignore[invalid-argument-type]
 
     start_time = time.time()
     model.fit(X_train, y_train)
@@ -505,7 +505,9 @@ def run_classification_experiment(
     dist_params = CLAS_DIST_PARAMS.copy()
     dist_params.update(SCORING_CONFIGS[scoring_name])
 
-    model = BDFClassifier(dist="BetaABBernoulli", params=dist_params, **MODEL_CONFIG)
+    model = BDFClassifier(
+        dist="BetaABBernoulli", params=dist_params, **MODEL_CONFIG
+    )  # ty:ignore[invalid-argument-type]
 
     start_time = time.time()
     model.fit(X_train, y_train)
@@ -704,7 +706,9 @@ def run_real_data_study(
 
                     try:
                         if task == "regression":
-                            model = BDFRegressor(dist="NormalMuNormal", params=dist_params, **MODEL_CONFIG)
+                            model = BDFRegressor(
+                                dist="NormalMuNormal", params=dist_params, **MODEL_CONFIG
+                            )  # ty:ignore[invalid-argument-type]
                             start_time = time.time()
                             model.fit(X_train, y_train)
                             fit_time = time.time() - start_time
@@ -713,7 +717,9 @@ def run_real_data_study(
                             metrics = compute_regression_metrics(model, X_test, y_test)
                             predict_time = time.time() - start_time
                         else:
-                            model = BDFClassifier(dist="BetaABBernoulli", params=dist_params, **MODEL_CONFIG)
+                            model = BDFClassifier(
+                                dist="BetaABBernoulli", params=dist_params, **MODEL_CONFIG
+                            )  # ty:ignore[invalid-argument-type]
                             start_time = time.time()
                             model.fit(X_train, y_train)
                             fit_time = time.time() - start_time

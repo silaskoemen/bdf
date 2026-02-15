@@ -3,11 +3,11 @@
 | BDFNormal | friedman1 | none     |           1.1170 |     nan      |               0.9651 |         nan      |               8.5000 |         nan      |            nan      |
 | BDFKDE    | friedman1 | none     |           1.1680 |     nan      |               0.9659 |         nan      |               8.9352 |         nan      |            nan      |
 | GP        | friedman1 | none     |           0.6723 |     nan      |               0.8959 |         nan      |               3.9155 |         nan      |            nan      |
-| BDFNormal | friedman1 | mild     |           1.3095 |       1.9270 |               0.8562 |           0.6624 |               6.9178 |           6.3274 |              0.9152 |
-| BDFKDE    | friedman1 | mild     |           1.3240 |       1.9161 |               0.8820 |           0.6994 |               7.4993 |           6.8946 |              0.9197 |
+| BDFNormal | friedman1 | mild     |           1.3095 |       1.9270 |               0.8562 |           0.6624 |               6.9177 |           6.3274 |              0.9152 |
+| BDFKDE    | friedman1 | mild     |           1.3240 |       1.9161 |               0.8820 |           0.6994 |               7.4991 |           6.8946 |              0.9197 |
 | GP        | friedman1 | mild     |           0.7545 |       1.5672 |               0.8694 |           0.6624 |               3.9982 |           4.4231 |              1.1062 |
-| BDFNormal | friedman1 | moderate |           2.8657 |       2.9432 |               0.4421 |           0.3656 |               5.9760 |           5.2271 |              0.8763 |
-| BDFKDE    | friedman1 | moderate |           2.9121 |       2.9777 |               0.4577 |           0.3845 |               6.3550 |           5.5823 |              0.8821 |
+| BDFNormal | friedman1 | moderate |           2.8655 |       2.9430 |               0.4421 |           0.3656 |               5.9759 |           5.2269 |              0.8763 |
+| BDFKDE    | friedman1 | moderate |           2.9121 |       2.9777 |               0.4577 |           0.3845 |               6.3551 |           5.5823 |              0.8821 |
 | GP        | friedman1 | moderate |           1.1942 |       2.0747 |               0.7852 |           0.6394 |               5.0677 |           5.6565 |              1.1159 |
 | BDFNormal | friedman1 | strong   |           7.5513 |       7.5441 |               0.0081 |           0.0334 |               4.4145 |           4.2817 |              0.9626 |
 | BDFKDE    | friedman1 | strong   |           7.6025 |       7.5770 |               0.0077 |           0.0340 |               4.5781 |           4.4812 |              0.9745 |
@@ -27,7 +27,7 @@
 | BDFNormal | friedman3 | none     |           0.0655 |     nan      |               0.9077 |         nan      |               0.4153 |         nan      |            nan      |
 | BDFKDE    | friedman3 | none     |           0.0671 |     nan      |               0.9404 |         nan      |               0.4742 |         nan      |            nan      |
 | GP        | friedman3 | none     |           0.0677 |     nan      |               0.9221 |         nan      |               0.4208 |         nan      |            nan      |
-| BDFNormal | friedman3 | mild     |           0.0592 |       0.0638 |               0.9024 |           0.9047 |               0.3598 |           0.3840 |              1.0644 |
+| BDFNormal | friedman3 | mild     |           0.0592 |       0.0638 |               0.9026 |           0.9047 |               0.3598 |           0.3840 |              1.0644 |
 | BDFKDE    | friedman3 | mild     |           0.0595 |       0.0644 |               0.9242 |           0.9115 |               0.3895 |           0.3995 |              1.0263 |
 | GP        | friedman3 | mild     |           0.0633 |       0.0721 |               0.9589 |           0.9759 |               0.4655 |           0.5759 |              1.2365 |
 | BDFNormal | friedman3 | moderate |           0.0592 |       0.0608 |               0.8734 |           0.8520 |               0.3231 |           0.3233 |              0.9866 |
