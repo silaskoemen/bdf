@@ -1,0 +1,44 @@
+schema_version: 1
+
+context:
+  name: bdf
+  version: "0.1.0"
+
+package:
+  name: ${{ name }}
+  version: ${{ version }}
+
+source:
+  url: https://pypi.org/packages/source/b/${{ name }}/${{ name }}-${{ version }}.tar.gz
+  sha256: PASTE_THE_HASH_HERE
+
+build:
+  noarch: python
+  script: python -m pip install . -vv --no-deps --no-build-isolation
+
+requirements:
+  host:
+    - python >=3.11,<3.14
+    - pip
+    - hatchling
+  run:
+    - python >=3.11,<3.14
+    - numpy
+    - pandas >=2.0
+    - scikit-learn >=1.4.4
+    - scipy >=1.10
+    - pydantic >=2.0
+    - tqdm
+    - graphviz
+    - python-graphviz
+
+tests:
+  - python:
+      imports:
+        - bdf
+
+about:
+  homepage: https://github.com/YOUR_USERNAME/BayesianDistributionalForest
+  license: MIT
+  license_file: LICENSE
+  summary: Bayesian Distributional Forest implementation in Python.

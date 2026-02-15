@@ -5,7 +5,6 @@
 - [ ] Allow numpy and pandas inputs
 
 ## BDFRegressor
-- [ ] Could use `t`, `skew-t`, `Weibull`, `NegBin`, `Skew-Normal`, `Gamma`, `Beta` distributions to appendix as commonly used distributions, some freq, some approx Bayesian
 - [ ] Could think about `HurdleDistribution` (like KDE) which wraps classification with positive values for zero-inflation - only use if benchmark datasets have this property
 
 ## BDFClassifier

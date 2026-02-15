@@ -50,14 +50,10 @@ load-data = "PYTHONPATH=src python -m benchmarks.load_save_datasets"
 # ==========================================
 [feature.prod.dependencies]
 python = ">=3.11,<=3.13"  # hydra argparse issue with 3.14
-numpy = "*"
-pandas = ">=2.0"
-scikit-learn = ">=1.4.4"
-scipy = ">=1.10"
-pydantic = ">=2.0"
-tqdm = "*"
-graphviz = "*"
-python-graphviz = "*"
+python-graphviz = "*"  # conda-only dep that has no PyPI equivalent
+
+[feature.prod.pypi-dependencies]
+bdf = { path = ".", editable = true }
 
 # ==========================================
 # 2. FEATURES

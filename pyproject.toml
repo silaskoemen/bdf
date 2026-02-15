@@ -1,33 +1,34 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+build-backend = "hatchling.build"
+requires = ["hatchling"]
 
 [project]
 name = "bdf"
 version = "0.1.0"
 description = "Bayesian Distributional Forest"
 authors = [
-    {name = "Silas Koemen", email = "silaskoemen@icloud.com"},
+    {name = "Silas Koemen", email = "research@silaskoemen.com"},
 ]
 readme = "README.md"
-requires-python = ">=3.11,<=3.14"
+requires-python = ">=3.11,<3.14"
+license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = []
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
+dependencies = [
+    "numpy",
+    "pandas>=2.0",
+    "scikit-learn>=1.4.4",
+    "scipy>=1.10",
+    "pydantic>=2.0",
+    "tqdm",
+    "graphviz",
 ]
 
-#[tool.setuptools]
-#package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/bdf"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -47,17 +48,4 @@ line-length = 120
 include = ["src/**/*.py", "compiled/**/*.py", "benchmarks/**/*.py", "tests/**/*.py"]
 exclude = ["examples", ".git", "__pycache__", "*.pyc", "venv*"]
 target-version = "py311"
-# select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "PLW"]
 ignore = ["E501", "E402"]
-
-[mypy]
-python_version = 3.11
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-explicit_package_bases = true
-warn_redundant_casts = true
-warn_return_any = true
-warn_unused_ignores = true
