@@ -19,7 +19,7 @@ Training and test data are generated from known Friedman functions, but with dif
 | `none` | [0, 1] | [0, 1] | 100% | 0% |
 | `mild` | [0, 0.85] | [0.15, 1.0] | 70% | 15% |
 | `moderate` | [0, 0.7] | [0.3, 1.0] | 40% | 30% |
-| `strong` | [0, 0.5] | [0.5, 1.0] | 0% | 50% |
+| `strong` | [0, 0.55] | [0.45, 1.0] | 10% | 45% |
 
 ### DGPs
 
@@ -108,6 +108,20 @@ pixi run -e bench-models python benchmarks/effect_out_of_distribution.py
 - Shows predictive accuracy degradation
 - Useful for comparing models' extrapolation robustness
 
+## Statistical Tests
+
+The `compare_ood_results.py` script runs the following significance tests using fold-level data (9 folds per cell):
+
+| Test | Purpose | Applied to |
+|------|---------|-----------|
+| Friedman (Iman-Davenport) | Do models differ significantly? | Per (DGP, shift) on OOD CRPS |
+| Nemenyi post-hoc | Which model pairs differ? | After significant Friedman |
+| Pairwise Wilcoxon + Holm | Best model vs each other | Per (DGP, shift) on OOD CRPS |
+| One-sample Wilcoxon (one-sided) | Is uncertainty ratio > 1? | Per (DGP, shift, model) |
+
+Only probabilistic models (with CRPS) are included in Friedman/Wilcoxon tests.
+Outputs: `tables/statistical_tests.json` and `tables/statistical_tests.md`.
+
 ## Expected Results
 
 For well-calibrated probabilistic models:
@@ -115,6 +129,17 @@ For well-calibrated probabilistic models:
 2. **Coverage in OOD** may drop, but should not collapse
 3. **Uncertainty ratio** should increase with shift level
 4. **RMSE ratio** (OOD/overlap) should also increase, but less than uncalibrated models
+
+## Known Limitations
+
+**BDF uncertainty does not always increase in OOD regions.** Unlike Gaussian Processes, which have an explicit distance-aware covariance structure, BDF's uncertainty comes from Bayesian leaf posteriors conditioned on the data falling into each leaf. Under strong covariate shift, OOD points may land in leaves that happen to contain sufficient training data (from the overlap region), producing uncertainty estimates comparable to in-distribution predictions. This is a structural property of tree-based methods: they partition the feature space into discrete regions and cannot extrapolate uncertainty beyond the partition boundaries.
+
+Specifically:
+- **GP** consistently shows uncertainty ratio > 1 across all shifts (significant at p < 0.01)
+- **BDF** shows significant uncertainty increase only for mild shifts on some DGPs (e.g., friedman3), but fails to increase uncertainty under moderate-to-strong shift for most DGPs
+- This limitation is shared with other tree-based distributional methods and is not unique to BDF
+
+The main text should discuss this as a known trade-off: BDF provides better calibrated predictive distributions in-distribution and on mildly shifted data, while GP provides better OOD uncertainty awareness at the cost of scalability and in-distribution flexibility.
 
 ## Aggregate Analysis
 

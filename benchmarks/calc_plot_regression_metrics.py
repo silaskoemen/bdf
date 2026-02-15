@@ -84,6 +84,9 @@ MODEL_COLORS = {
     "knnkde": "brown",
 }
 
+# BDF default distribution for timing comparison (loaded separately alongside BDF selected)
+BDF_DEFAULT_DIST = "bdf_normalmunormal"
+
 # Datasets to include (None = all available)
 # Set to a list for a representative subset, e.g.:
 DATASETS = [
@@ -168,6 +171,7 @@ def main():
         generate_main_results_table,
         generate_per_dataset_table,
         generate_ranking_table,
+        generate_speedup_table,
         generate_win_tie_loss_table,
         save_latex_table,
     )
@@ -191,8 +195,10 @@ def main():
     from .utils.yaml_loader import (
         aggregate_bdf_models,
         build_comparison_dataframe,
+        compute_speedup_table,
         extract_coverage_curves,
         extract_pit_histograms,
+        extract_timing_data,
         get_metric_matrix,
         load_model_results,
     )
@@ -345,9 +351,57 @@ def main():
             )
 
     # -------------------------------------------------------------------------
-    # 7. Generate plots
+    # 7. Timing analysis (geometric mean speedup)
     # -------------------------------------------------------------------------
-    print("\n[7] Generating plots...")
+    print("\n[7] Computing timing speedup table...")
+
+    # Load default distribution separately for timing comparison
+    bdf_default_results = load_model_results(RESULTS_DIR, [BDF_DEFAULT_DIST])
+    bdf_default_data = bdf_default_results.get(BDF_DEFAULT_DIST)
+    if bdf_default_data is None:
+        raise FileNotFoundError(f"Default BDF distribution '{BDF_DEFAULT_DIST}' not found in {RESULTS_DIR}")
+
+    timing_results = {
+        "BDF": bdf_aggregated,
+        "BDF_default": bdf_default_data,
+        **baseline_results,
+    }
+
+    timing_data = extract_timing_data(timing_results, datasets=datasets)
+
+    # Print raw timing summary
+    timing_display = {**MODEL_DISPLAY_NAMES, "BDF_default": "BDF (Normal)"}
+    for model_name, model_timing in sorted(timing_data.items()):
+        ds_count = len(model_timing)
+        if ds_count == 0:
+            continue
+        fit_times = [v["mean_fit_time"] for v in model_timing.values() if "mean_fit_time" in v]
+        tune_times = [v["tuning_time"] for v in model_timing.values() if "tuning_time" in v]
+        fit_str = f"fit={np.mean(fit_times):.2f}s" if fit_times else "fit=N/A"
+        tune_str = f"tune={np.mean(tune_times):.1f}s" if tune_times else "tune=N/A"
+        display = timing_display.get(model_name, model_name)
+        print(f"    {display}: {ds_count} datasets, {fit_str}, {tune_str}")
+
+    # Compute speedup relative to both BDF variants
+    speedup_selected = compute_speedup_table(timing_data, control_model="BDF")
+    speedup_normal = compute_speedup_table(timing_data, control_model="BDF_default")
+
+    for label, spd_data in [("BDF (selected)", speedup_selected), ("BDF (Normal)", speedup_normal)]:
+        if not spd_data:
+            continue
+        print(f"\n    Geometric mean speedup ({label} vs baselines):")
+        for model, data in sorted(spd_data.items(), key=lambda x: x[1].get("fit_speedup", 0), reverse=True):
+            display = timing_display.get(model, model)
+            fit_spd = data.get("fit_speedup")
+            tune_spd = data.get("tune_speedup")
+            fit_str = f"{fit_spd:.2f}x" if fit_spd is not None else "N/A"
+            tune_str = f"{tune_spd:.2f}x" if tune_spd is not None else "N/A"
+            print(f"      {display}: fit={fit_str}, tune={tune_str}")
+
+    # -------------------------------------------------------------------------
+    # 8. Generate plots
+    # -------------------------------------------------------------------------
+    print("\n[8] Generating plots...")
 
     # Helper to save in both formats if configured
     def save_fig(plot_func, base_name: str, **kwargs):
@@ -528,9 +582,9 @@ def main():
     )
 
     # -------------------------------------------------------------------------
-    # 8. Generate LaTeX tables
+    # 9. Generate LaTeX tables
     # -------------------------------------------------------------------------
-    print("\n[8] Generating LaTeX tables...")
+    print("\n[9] Generating LaTeX tables...")
 
     # Main results table
     main_metrics = ["rmse", "crps", "coverage_90", "pica"]
@@ -621,6 +675,27 @@ def main():
             label="tab:rankings-crps",
         )
         save_latex_table(ranking_table, TABLES_DIR / "rankings_crps.tex")
+
+    # Speedup tables (selected distribution and default Normal)
+    if speedup_selected:
+        speedup_sel_tex = generate_speedup_table(
+            speedup_data=speedup_selected,
+            control_name="BDF",
+            model_display_names=timing_display,
+            caption="Geometric mean speedup of BDF (best distribution per dataset) relative to baselines",
+            label="tab:speedup-selected",
+        )
+        save_latex_table(speedup_sel_tex, TABLES_DIR / "speedup_selected.tex")
+
+    if speedup_normal:
+        speedup_norm_tex = generate_speedup_table(
+            speedup_data=speedup_normal,
+            control_name="BDF_default",
+            model_display_names=timing_display,
+            caption="Geometric mean speedup of BDF (Normal) relative to baselines",
+            label="tab:speedup-normal",
+        )
+        save_latex_table(speedup_norm_tex, TABLES_DIR / "speedup_normal.tex")
 
     # -------------------------------------------------------------------------
     # Summary

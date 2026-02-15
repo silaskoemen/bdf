@@ -438,6 +438,119 @@ def extract_pit_histograms(
     return pit_data
 
 
+def extract_timing_data(
+    model_results: dict[str, dict[str, Any]],
+    datasets: list[str] | None = None,
+) -> dict[str, dict[str, dict[str, float]]]:
+    """Extract fitting and tuning times from model results.
+
+    Args:
+        model_results: Dict mapping model_name -> result dict.
+        datasets: List of datasets to include. If None, includes all.
+
+    Returns:
+        Nested dict: model -> dataset -> {"mean_fit_time": ..., "tuning_time": ...}
+
+    Raises:
+        TypeError: If fitting_times is not a list or tuning_time_seconds is not numeric.
+    """
+    timing_data = {}
+
+    for model_name, model_data in model_results.items():
+        timing_data[model_name] = {}
+
+        for ds_name, ds_data in model_data.get("datasets", {}).items():
+            if datasets is not None and ds_name not in datasets:
+                continue
+
+            entry = {}
+
+            fitting_times = ds_data.get("fitting_times")
+            if fitting_times is not None:
+                if not isinstance(fitting_times, list):
+                    raise TypeError(
+                        f"fitting_times for {model_name}/{ds_name} must be a list, "
+                        f"got {type(fitting_times).__name__}"
+                    )
+                entry["mean_fit_time"] = float(np.mean(fitting_times))
+
+            tuning_time = ds_data.get("tuning_time_seconds")
+            if tuning_time is not None:
+                if not isinstance(tuning_time, (int, float)):
+                    raise TypeError(
+                        f"tuning_time_seconds for {model_name}/{ds_name} must be numeric, "
+                        f"got {type(tuning_time).__name__}"
+                    )
+                entry["tuning_time"] = float(tuning_time)
+
+            if entry:
+                timing_data[model_name][ds_name] = entry
+
+    return timing_data
+
+
+def compute_speedup_table(
+    timing_data: dict[str, dict[str, dict[str, float]]],
+    control_model: str = "BDF",
+) -> dict[str, dict[str, float]]:
+    """Compute geometric mean speedup of control vs each other model.
+
+    For each dataset where both the control and challenger have timing data,
+    computes the ratio challenger_time / control_time. Then aggregates across
+    datasets using the geometric mean.
+
+    A speedup > 1 means the control is faster.
+
+    Args:
+        timing_data: Output of extract_timing_data.
+        control_model: Name of the control model.
+
+    Returns:
+        Dict mapping model -> {"fit_speedup": ..., "tune_speedup": ...,
+        "n_datasets_fit": ..., "n_datasets_tune": ...}
+    """
+    from scipy.stats import gmean
+
+    control_timing = timing_data.get(control_model, {})
+    if not control_timing:
+        return {}
+
+    results = {}
+
+    for model_name, model_timing in timing_data.items():
+        if model_name == control_model:
+            continue
+
+        fit_ratios = []
+        tune_ratios = []
+
+        for ds_name in control_timing:
+            if ds_name not in model_timing:
+                continue
+
+            ctrl = control_timing[ds_name]
+            chal = model_timing[ds_name]
+
+            if "mean_fit_time" in ctrl and "mean_fit_time" in chal:
+                if ctrl["mean_fit_time"] > 0:
+                    fit_ratios.append(chal["mean_fit_time"] / ctrl["mean_fit_time"])
+
+            if "tuning_time" in ctrl and "tuning_time" in chal:
+                if ctrl["tuning_time"] > 0:
+                    tune_ratios.append(chal["tuning_time"] / ctrl["tuning_time"])
+
+        entry = {"n_datasets_fit": len(fit_ratios), "n_datasets_tune": len(tune_ratios)}
+
+        if fit_ratios:
+            entry["fit_speedup"] = float(gmean(fit_ratios))
+        if tune_ratios:
+            entry["tune_speedup"] = float(gmean(tune_ratios))
+
+        results[model_name] = entry
+
+    return results
+
+
 def build_coverage_level_dataframe(
     model_results: dict[str, dict[str, Any]],
     levels: list[float] | None = None,

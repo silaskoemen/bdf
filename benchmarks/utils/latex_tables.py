@@ -408,6 +408,85 @@ def generate_ranking_table(
     return "\n".join(lines)
 
 
+def generate_speedup_table(
+    speedup_data: dict[str, dict[str, float]],
+    control_name: str = "BDF",
+    model_display_names: dict[str, str] | None = None,
+    caption: str = "Geometric mean speedup of BDF relative to baselines",
+    label: str = "tab:speedup",
+) -> str:
+    """Generate table showing BDF speedup vs each baseline.
+
+    Args:
+        speedup_data: Output of compute_speedup_table.
+            Maps model -> {"fit_speedup": ..., "tune_speedup": ..., "n_datasets_fit": ..., ...}
+        control_name: Name of the control model.
+        model_display_names: Optional display name mapping.
+        caption: Table caption.
+        label: LaTeX label.
+
+    Returns:
+        LaTeX table string.
+    """
+    if model_display_names is None:
+        model_display_names = {}
+
+    lines = [
+        r"\begin{table}[htbp]",
+        r"\centering",
+        r"\caption{" + caption + r"}",
+        r"\label{" + label + r"}",
+        r"\begin{tabular}{lcccc}",
+        r"\toprule",
+        r"Model & Fit Speedup & $N$ & Tune Speedup & $N$ \\",
+        r"\midrule",
+    ]
+
+    # Sort by fit speedup descending (BDF fastest first)
+    sorted_models = sorted(
+        speedup_data.items(),
+        key=lambda x: x[1].get("fit_speedup", 0),
+        reverse=True,
+    )
+
+    for model, data in sorted_models:
+        display = model_display_names.get(model, model).replace("_", r"\_")
+
+        fit_spd = data.get("fit_speedup")
+        n_fit = data.get("n_datasets_fit", 0)
+        tune_spd = data.get("tune_speedup")
+        n_tune = data.get("n_datasets_tune", 0)
+
+        fit_str = _format_speedup(fit_spd) if fit_spd is not None else "---"
+        tune_str = _format_speedup(tune_spd) if tune_spd is not None else "---"
+
+        lines.append(f"{display} & {fit_str} & {n_fit} & {tune_str} & {n_tune} \\\\")
+
+    control_display = model_display_names.get(control_name, control_name)
+    lines.extend(
+        [
+            r"\bottomrule",
+            r"\end{tabular}",
+            rf"\par\smallskip\footnotesize{{Geometric mean of per-dataset time ratios (model / {control_display}). "
+            r"Values $>1$: \mbox{" + control_display + r"} is faster. $N$ = number of shared datasets.}}",
+            r"\end{table}",
+        ]
+    )
+
+    return "\n".join(lines)
+
+
+def _format_speedup(value: float) -> str:
+    """Format a speedup factor for display."""
+    if value >= 100:
+        return f"{value:.0f}$\\times$"
+    if value >= 10:
+        return f"{value:.1f}$\\times$"
+    if value >= 0.01:
+        return f"{value:.2f}$\\times$"
+    return f"{value:.1e}$\\times$"
+
+
 def save_latex_table(table_str: str, path: Path) -> None:
     """Save LaTeX table to file.
 

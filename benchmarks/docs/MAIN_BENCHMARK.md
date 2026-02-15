@@ -444,6 +444,56 @@ Reduce `sample_size` if memory is constrained:
 pixi run bench-bdf sample_size=500
 ```
 
+## Timing Analysis
+
+The analysis script (`calc_plot_regression_metrics.py`) computes training speed comparisons using **geometric mean speedup ratios** across datasets.
+
+### What's Computed
+
+For each baseline model M and each dataset where both BDF and M have timing data:
+
+```
+ratio_i = time_M(dataset_i) / time_BDF(dataset_i)
+speedup = geometric_mean(ratio_1, ..., ratio_k)
+```
+
+A speedup > 1 means BDF is faster. The geometric mean is used because it's robust to scale (a single large dataset doesn't dominate) and symmetric (inverting the ratio inverts the result cleanly).
+
+### Two Comparison Tables
+
+| Table | Control Model | Purpose |
+|-------|--------------|---------|
+| `speedup_selected.tex` | BDF (best distribution per dataset) | Matches the prediction quality tables — same model selection |
+| `speedup_normal.tex` | BDF (Normal, default config) | Shows speed of the default/fastest BDF configuration |
+
+The default distribution for the second table is configured via `BDF_DEFAULT_DIST` in the script (set to `bdf_normalmunormal`).
+
+### Timing Fields
+
+Two fields are extracted from each YAML result file:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `fitting_times` | `list[float]` | Per-fold training times (folds 1-9), averaged to get mean fit time |
+| `tuning_time_seconds` | `float` | Total Optuna hyperparameter search time (fold 0) |
+
+Both fields must be present and correctly typed — models with mismatched types raise a `TypeError` rather than silently converting.
+
+### Output
+
+Each table contains per-model rows sorted by fit speedup:
+
+```
+Model        | Fit Speedup | N  | Tune Speedup | N
+-------------|-------------|----|--------------|---
+BART         | 11.9x       | 11 | 11.1x        | 11
+CatBoostUnc  | 2.32x       | 11 | 7.46x        | 11
+NGBoost      | 2.16x       | 11 | 0.64x        | 11
+ConfRF       | 1.00x       | 11 | 0.56x        | 11
+```
+
+N = number of shared datasets used for comparison. Models with `---` lack `fitting_times` lists in their YAML files.
+
 ## Comparison with Synthetic DGP Benchmark
 
 The main benchmark (`run.py`) differs from the synthetic DGP benchmark (`synthetic_dgp_benchmark.py`):

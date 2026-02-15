@@ -20,7 +20,7 @@ from enum import Enum
 from typing import Callable, Optional
 
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import expon, norm, poisson
 from scipy.stats import t as student_t
 
 
@@ -32,6 +32,10 @@ class DGPType(Enum):
     BIMODAL_MIXTURE = "bimodal_mixture"
     HEAVY_TAILED = "heavy_tailed"
     SPARSE_SAMPLING = "sparse_sampling"
+    GAUSSIAN_HETEROSCEDASTIC = "gaussian_heteroscedastic"
+    POISSON_COUNT = "poisson_count"
+    EXPONENTIAL_WAITING_TIME = "exponential_waiting_time"
+    MULTIMODAL_MIXTURE_FIXED = "multimodal_mixture_fixed"
 
 
 @dataclass
@@ -594,6 +598,378 @@ def generate_sparse_sampling(
 
 
 # =============================================================================
+# DGP 6: Gaussian Heteroscedastic (home for NormalMuNormal)
+# =============================================================================
+
+
+def generate_gaussian_heteroscedastic(
+    n_samples: int = 5000,
+    seed: int = 42,
+) -> SyntheticDataset:
+    """Generate data from a heteroscedastic Gaussian model.
+
+    The model is:
+        y = 2*x1 + sin(3*x2) + N(0, sigma(x)^2)
+        sigma(x) = 0.3 + 0.2*|x1|
+
+    This is the "home" DGP for NormalMuNormal in the misspecification study.
+
+    Args:
+        n_samples: Number of samples
+        seed: Random seed
+
+    Returns:
+        SyntheticDataset with ground truth functions
+    """
+    rng = np.random.RandomState(seed)
+    X = rng.uniform(-2, 2, size=(n_samples, 2))
+
+    def mean_fn(x):
+        """E[Y|X=x] = 2*x1 + sin(3*x2)."""
+        return 2 * x[:, 0] + np.sin(3 * x[:, 1])
+
+    def std_fn(x):
+        """sigma(x) = 0.3 + 0.2*|x1|."""
+        return 0.3 + 0.2 * np.abs(x[:, 0])
+
+    def variance_fn(x):
+        return std_fn(x) ** 2
+
+    def quantile_fn(x, tau):
+        return mean_fn(x) + std_fn(x) * norm.ppf(tau)
+
+    def density_fn(y, x):
+        return norm.pdf(y, loc=mean_fn(x), scale=std_fn(x))
+
+    def sample_fn(x, n_samples_per_x):
+        n_x = x.shape[0]
+        samples = np.zeros((n_x, n_samples_per_x))
+        for i in range(n_x):
+            samples[i] = norm.rvs(
+                loc=mean_fn(x[i : i + 1]),
+                scale=std_fn(x[i : i + 1]),
+                size=n_samples_per_x,
+                random_state=seed + i,
+            )
+        return samples
+
+    y_mean = mean_fn(X)
+    y_std = std_fn(X)
+    y = y_mean + rng.randn(n_samples) * y_std
+
+    ground_truth = GroundTruthFunctions(
+        mean_fn=mean_fn,
+        variance_fn=variance_fn,
+        quantile_fn=quantile_fn,
+        density_fn=density_fn,
+        sample_fn=sample_fn,
+    )
+
+    return SyntheticDataset(
+        X=X,
+        y=y,
+        dgp_type=DGPType.GAUSSIAN_HETEROSCEDASTIC,
+        name="gaussian_heteroscedastic",
+        ground_truth=ground_truth,
+        seed=seed,
+        n_features=2,
+        n_informative=2,
+        noise_level=0.3,
+        metadata={
+            "mean_function": "2*x1 + sin(3*x2)",
+            "std_function": "0.3 + 0.2*|x1|",
+            "noise_distribution": "Normal",
+        },
+    )
+
+
+# =============================================================================
+# DGP 7: Poisson Count (home for GammaMVLambdaPoisson)
+# =============================================================================
+
+
+def generate_poisson_count(
+    n_samples: int = 5000,
+    seed: int = 42,
+) -> SyntheticDataset:
+    """Generate count data from a Poisson model with log-linear rate.
+
+    The model is:
+        log(lambda(x)) = 0.5 + 0.8*x1 + 0.3*x2
+        y | x ~ Poisson(lambda(x))
+
+    Lambda ranges from ~1.6 (x near 0) to ~45 (x near 3).
+    This is the "home" DGP for GammaMVLambdaPoisson in the misspecification study.
+
+    Args:
+        n_samples: Number of samples
+        seed: Random seed
+
+    Returns:
+        SyntheticDataset with ground truth functions
+    """
+    rng = np.random.RandomState(seed)
+    X = rng.uniform(0, 3, size=(n_samples, 2))
+
+    def rate_fn(x):
+        """lambda(x) = exp(0.5 + 0.8*x1 + 0.3*x2)."""
+        return np.exp(0.5 + 0.8 * x[:, 0] + 0.3 * x[:, 1])
+
+    def mean_fn(x):
+        return rate_fn(x)
+
+    def variance_fn(x):
+        return rate_fn(x)  # Poisson: variance = mean
+
+    def quantile_fn(x, tau):
+        return poisson.ppf(tau, mu=rate_fn(x))
+
+    def density_fn(y, x):
+        return poisson.pmf(np.round(y).astype(int), mu=rate_fn(x))
+
+    def sample_fn(x, n_samples_per_x):
+        n_x = x.shape[0]
+        samples = np.zeros((n_x, n_samples_per_x))
+        for i in range(n_x):
+            lam = rate_fn(x[i : i + 1])[0]
+            samples[i] = poisson.rvs(mu=lam, size=n_samples_per_x, random_state=seed + i)
+        return samples
+
+    lam = rate_fn(X)
+    y = rng.poisson(lam).astype(float)
+
+    ground_truth = GroundTruthFunctions(
+        mean_fn=mean_fn,
+        variance_fn=variance_fn,
+        quantile_fn=quantile_fn,
+        density_fn=density_fn,
+        sample_fn=sample_fn,
+    )
+
+    return SyntheticDataset(
+        X=X,
+        y=y,
+        dgp_type=DGPType.POISSON_COUNT,
+        name="poisson_count",
+        ground_truth=ground_truth,
+        seed=seed,
+        n_features=2,
+        n_informative=2,
+        noise_level=0.0,
+        metadata={
+            "rate_function": "exp(0.5 + 0.8*x1 + 0.3*x2)",
+            "noise_distribution": "Poisson",
+            "lambda_range": "~1.6 to ~45",
+        },
+    )
+
+
+# =============================================================================
+# DGP 8: Exponential Waiting Time (home for GammaMVLambdaExponential)
+# =============================================================================
+
+
+def generate_exponential_waiting_time(
+    n_samples: int = 5000,
+    seed: int = 42,
+) -> SyntheticDataset:
+    """Generate waiting-time data from an Exponential model with linear rate.
+
+    The model is:
+        rate(x) = 0.5 + 0.3*x1 + 0.2*x2
+        y | x ~ Exponential(rate=rate(x))     [mean = 1/rate(x)]
+
+    X in [0.5, 3]^2, so rate ranges from ~0.75 to ~1.9, mean from ~0.5 to ~1.3.
+    All y values are strictly positive.
+    This is the "home" DGP for GammaMVLambdaExponential in the misspecification study.
+
+    Args:
+        n_samples: Number of samples
+        seed: Random seed
+
+    Returns:
+        SyntheticDataset with ground truth functions
+    """
+    rng = np.random.RandomState(seed)
+    X = rng.uniform(0.5, 3, size=(n_samples, 2))
+
+    def rate_fn(x):
+        """rate(x) = 0.5 + 0.3*x1 + 0.2*x2."""
+        return 0.5 + 0.3 * x[:, 0] + 0.2 * x[:, 1]
+
+    def mean_fn(x):
+        return 1.0 / rate_fn(x)
+
+    def variance_fn(x):
+        return 1.0 / rate_fn(x) ** 2
+
+    def quantile_fn(x, tau):
+        return expon.ppf(tau, scale=1.0 / rate_fn(x))
+
+    def density_fn(y, x):
+        return expon.pdf(y, scale=1.0 / rate_fn(x))
+
+    def sample_fn(x, n_samples_per_x):
+        n_x = x.shape[0]
+        samples = np.zeros((n_x, n_samples_per_x))
+        for i in range(n_x):
+            scale = 1.0 / rate_fn(x[i : i + 1])[0]
+            samples[i] = expon.rvs(scale=scale, size=n_samples_per_x, random_state=seed + i)
+        return samples
+
+    rates = rate_fn(X)
+    y = rng.exponential(scale=1.0 / rates)
+
+    ground_truth = GroundTruthFunctions(
+        mean_fn=mean_fn,
+        variance_fn=variance_fn,
+        quantile_fn=quantile_fn,
+        density_fn=density_fn,
+        sample_fn=sample_fn,
+    )
+
+    return SyntheticDataset(
+        X=X,
+        y=y,
+        dgp_type=DGPType.EXPONENTIAL_WAITING_TIME,
+        name="exponential_waiting_time",
+        ground_truth=ground_truth,
+        seed=seed,
+        n_features=2,
+        n_informative=2,
+        noise_level=0.0,
+        metadata={
+            "rate_function": "0.5 + 0.3*x1 + 0.2*x2",
+            "noise_distribution": "Exponential",
+            "rate_range": "~0.75 to ~1.9",
+        },
+    )
+
+
+# =============================================================================
+# DGP 9: Multimodal Mixture with Fixed Weights (home for KDE)
+# =============================================================================
+
+
+def generate_multimodal_mixture_fixed(
+    n_samples: int = 5000,
+    seed: int = 42,
+    sigma: float = 0.2,
+) -> SyntheticDataset:
+    """Generate bimodal mixture data with equal weights and oscillating separation.
+
+    The model is:
+        y | x ~ 0.5 * N(2x, sigma^2) + 0.5 * N(2x + 2*sin(2*pi*x), sigma^2)
+
+    The second mode oscillates relative to the first, creating varying separation.
+    No parametric BDF distribution can capture this — KDE is the natural fit.
+    This is the "home" DGP for KDE in the misspecification study.
+
+    Args:
+        n_samples: Number of samples
+        seed: Random seed
+        sigma: Standard deviation within each component
+
+    Returns:
+        SyntheticDataset with ground truth functions
+    """
+    rng = np.random.RandomState(seed)
+    X = rng.uniform(0, 1, size=(n_samples, 1))
+
+    def mu1_fn(x):
+        """First mode center: 2x."""
+        return 2 * x.flatten()
+
+    def mu2_fn(x):
+        """Second mode center: 2x + 2*sin(2*pi*x)."""
+        return 2 * x.flatten() + 2 * np.sin(2 * np.pi * x.flatten())
+
+    def mean_fn(x):
+        """E[Y|X=x] = 0.5*(mu1 + mu2)."""
+        return 0.5 * (mu1_fn(x) + mu2_fn(x))
+
+    def variance_fn(x):
+        """Var[Y|X=x] = sigma^2 + 0.25*(mu1 - mu2)^2."""
+        diff = mu1_fn(x) - mu2_fn(x)
+        return np.full_like(diff, sigma**2) + 0.25 * diff**2
+
+    def quantile_fn(x, tau):
+        """Numerically invert mixture CDF."""
+        m1 = mu1_fn(x)
+        m2 = mu2_fn(x)
+        # Use bisection on a fine grid
+        y_low = np.minimum(m1, m2) - 5 * sigma
+        y_high = np.maximum(m1, m2) + 5 * sigma
+        y_grid = np.linspace(y_low, y_high, 2000).T  # (n_x, 2000)
+        result = np.zeros(x.shape[0])
+        for i in range(x.shape[0]):
+            cdf_vals = 0.5 * norm.cdf(y_grid[i], loc=m1[i], scale=sigma) + 0.5 * norm.cdf(
+                y_grid[i], loc=m2[i], scale=sigma
+            )
+            idx = np.searchsorted(cdf_vals, tau)
+            idx = min(idx, len(y_grid[i]) - 1)
+            result[i] = y_grid[i, idx]
+        return result
+
+    def density_fn(y, x):
+        """Mixture density."""
+        m1 = mu1_fn(x)
+        m2 = mu2_fn(x)
+        return 0.5 * norm.pdf(y, loc=m1, scale=sigma) + 0.5 * norm.pdf(y, loc=m2, scale=sigma)
+
+    def sample_fn(x, n_samples_per_x):
+        n_x = x.shape[0]
+        samples = np.zeros((n_x, n_samples_per_x))
+        for i in range(n_x):
+            m1 = mu1_fn(x[i : i + 1])[0]
+            m2 = mu2_fn(x[i : i + 1])[0]
+            component = rng.binomial(1, 0.5, size=n_samples_per_x)
+            samples[i] = np.where(
+                component,
+                norm.rvs(loc=m1, scale=sigma, size=n_samples_per_x, random_state=seed + i),
+                norm.rvs(loc=m2, scale=sigma, size=n_samples_per_x, random_state=seed + i + n_samples),
+            )
+        return samples
+
+    # Generate y from mixture
+    y = np.zeros(n_samples)
+    for i in range(n_samples):
+        m1 = mu1_fn(X[i : i + 1])[0]
+        m2 = mu2_fn(X[i : i + 1])[0]
+        if rng.rand() < 0.5:
+            y[i] = m1 + rng.randn() * sigma
+        else:
+            y[i] = m2 + rng.randn() * sigma
+
+    ground_truth = GroundTruthFunctions(
+        mean_fn=mean_fn,
+        variance_fn=variance_fn,
+        quantile_fn=quantile_fn,
+        density_fn=density_fn,
+        sample_fn=sample_fn,
+    )
+
+    return SyntheticDataset(
+        X=X,
+        y=y,
+        dgp_type=DGPType.MULTIMODAL_MIXTURE_FIXED,
+        name="multimodal_mixture_fixed",
+        ground_truth=ground_truth,
+        seed=seed,
+        n_features=1,
+        n_informative=1,
+        noise_level=sigma,
+        metadata={
+            "mixing_weight": 0.5,
+            "mu1_function": "2x",
+            "mu2_function": "2x + 2*sin(2*pi*x)",
+            "component_sigma": sigma,
+            "noise_distribution": "Gaussian mixture",
+        },
+    )
+
+
+# =============================================================================
 # DGP Registry
 # =============================================================================
 
@@ -603,6 +979,10 @@ DGP_REGISTRY = {
     "bimodal_mixture": generate_bimodal_mixture,
     "heavy_tailed": generate_heavy_tailed,
     "sparse_sampling": generate_sparse_sampling,
+    "gaussian_heteroscedastic": generate_gaussian_heteroscedastic,
+    "poisson_count": generate_poisson_count,
+    "exponential_waiting_time": generate_exponential_waiting_time,
+    "multimodal_mixture_fixed": generate_multimodal_mixture_fixed,
 }
 
 

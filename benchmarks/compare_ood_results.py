@@ -20,6 +20,14 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
+from scipy import stats
+
+from benchmarks.utils.statistical_tests import (
+    friedman_test,
+    holm_correction,
+    nemenyi_test,
+    wilcoxon_signed_rank_test,
+)
 
 # =============================================================================
 # Configuration
@@ -538,59 +546,265 @@ def generate_all_plots(df: pd.DataFrame, output_dir: Path):
 # =============================================================================
 
 
-def run_statistical_tests(df: pd.DataFrame) -> pd.DataFrame:
-    """Run statistical significance tests between models."""
-    results = []
+def extract_fold_level_data(all_results: dict[str, Any]) -> pd.DataFrame:
+    """Extract fold-level metrics from raw JSON results into a tidy DataFrame.
 
-    # For each (dgp, shift, region), compare models pairwise
-    for dgp in df["dgp"].unique():
-        for shift in df["shift"].unique():
-            subset = df[(df["dgp"] == dgp) & (df["shift"] == shift)]
-            models = subset["model"].unique()
+    Each row is one (dgp, shift, model, fold) observation with all metrics.
+    """
+    rows = []
+    for experiment_key, experiment in all_results.items():
+        dgp = experiment["dgp_name"]
+        shift = experiment["shift_level"]
 
+        for model_name, model_data in experiment["models"].items():
+            for fold_idx, fold_metrics in enumerate(model_data["fold_metrics"]):
+                row = {
+                    "dgp": dgp,
+                    "shift": shift,
+                    "model": model_name,
+                    "fold": fold_idx,
+                }
+                for region in ["overall", "overlap", "ood"]:
+                    region_data = fold_metrics[region]
+                    for metric_key, value in region_data.items():
+                        if metric_key == "n_samples":
+                            continue
+                        row[f"{region}_{metric_key}"] = value
+
+                # uncertainty_ratio may be absent for shift=none (no OOD region)
+                ratio = fold_metrics.get("uncertainty_ratio_ood_vs_overlap")
+                row["uncertainty_ratio"] = ratio if ratio is not None else np.nan
+
+                rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+def run_statistical_tests(
+    all_results: dict[str, Any],
+    fold_df: pd.DataFrame | None = None,
+) -> dict[str, Any]:
+    """Run proper statistical significance tests using fold-level data.
+
+    Tests performed:
+    1. Friedman test per (DGP, shift): are models significantly different on OOD CRPS?
+    2. Nemenyi post-hoc: which model pairs differ?
+    3. Pairwise Wilcoxon signed-rank: best model vs each other on OOD CRPS
+    4. One-sample Wilcoxon: is uncertainty ratio significantly > 1.0?
+    """
+    if fold_df is None:
+        fold_df = extract_fold_level_data(all_results)
+
+    assert not fold_df.empty, "No fold-level data available for statistical tests"
+
+    results: dict[str, Any] = {
+        "friedman_tests": [],
+        "nemenyi_tests": [],
+        "pairwise_wilcoxon": [],
+        "uncertainty_ratio_tests": [],
+    }
+
+    # -------------------------------------------------------------------------
+    # 1 & 2. Friedman + Nemenyi per (DGP, shift) on OOD CRPS
+    # -------------------------------------------------------------------------
+    for dgp in fold_df["dgp"].unique():
+        for shift in fold_df["shift"].unique():
+            subset = fold_df[(fold_df["dgp"] == dgp) & (fold_df["shift"] == shift)]
+            if subset.empty:
+                continue
+
+            # Only include models with OOD CRPS data (probabilistic models)
+            all_models = sorted(subset["model"].unique())
+            models = []
+            for m in all_models:
+                m_data = subset[subset["model"] == m]
+                if m_data["ood_crps"].notna().sum() > 0:
+                    models.append(m)
             if len(models) < 2:
                 continue
 
-            # Compare using CRPS in OOD region
-            metric = "ood_crps_mean"
-            if metric not in subset.columns:
+            # Build metric matrix: rows = folds, columns = models
+            folds = sorted(subset["fold"].unique())
+            metric_matrix = np.full((len(folds), len(models)), np.nan)
+            for j, model in enumerate(models):
+                model_data = subset[subset["model"] == model].set_index("fold")
+                for i, fold in enumerate(folds):
+                    if fold in model_data.index:
+                        metric_matrix[i, j] = model_data.loc[fold, "ood_crps"]
+
+            # Skip if too few valid rows
+            valid_rows = ~np.isnan(metric_matrix).any(axis=1)
+            if valid_rows.sum() < 3:
                 continue
 
-            # Find best model
-            best_idx = subset[metric].idxmin()
-            if pd.isna(best_idx):
-                continue
+            # Friedman test
+            friedman_result = friedman_test(metric_matrix, models, lower_is_better=True)
+            results["friedman_tests"].append(
+                {
+                    "dgp": dgp,
+                    "shift": shift,
+                    "statistic": friedman_result.statistic,
+                    "p_value": friedman_result.p_value,
+                    "iman_davenport_p": friedman_result.iman_davenport_p_value,
+                    "avg_ranks": friedman_result.avg_ranks,
+                    "n_folds": friedman_result.n_datasets,
+                    "reject_null": friedman_result.reject_null,
+                }
+            )
 
-            best_model = subset.loc[best_idx, "model"]
-            best_value = subset.loc[best_idx, metric]
-
-            # Compare to others (simplified - would need fold-level data for proper test)
-            for model in models:
-                if model == best_model:
-                    continue
-
-                other_value = subset[subset["model"] == model][metric].values
-                if len(other_value) == 0:
-                    continue
-                other_value = other_value[0]
-
-                diff = other_value - best_value
-                rel_diff = 100 * diff / best_value if best_value != 0 else np.nan
-
-                results.append(
+            # Nemenyi post-hoc (only if Friedman rejects)
+            if friedman_result.reject_null:
+                nemenyi_result = nemenyi_test(metric_matrix, models, lower_is_better=True)
+                results["nemenyi_tests"].append(
                     {
                         "dgp": dgp,
                         "shift": shift,
-                        "best_model": best_model,
-                        "compared_model": model,
-                        "best_crps": best_value,
-                        "compared_crps": other_value,
-                        "absolute_diff": diff,
-                        "relative_diff_pct": rel_diff,
+                        "critical_difference": nemenyi_result.critical_difference,
+                        "significant_pairs": [list(p) for p in nemenyi_result.significant_pairs],
+                        "non_significant_pairs": [list(p) for p in nemenyi_result.non_significant_pairs],
+                        "avg_ranks": nemenyi_result.avg_ranks,
                     }
                 )
 
-    return pd.DataFrame(results)
+            # -----------------------------------------------------------------
+            # 3. Pairwise Wilcoxon: best model vs each other
+            # -----------------------------------------------------------------
+            clean_matrix = metric_matrix[valid_rows]
+            mean_crps = np.nanmean(clean_matrix, axis=0)
+            best_idx = int(np.argmin(mean_crps))
+            best_model = models[best_idx]
+            best_values = clean_matrix[:, best_idx]
+
+            p_values_for_holm = []
+            wilcoxon_entries = []
+
+            for j, model in enumerate(models):
+                if j == best_idx:
+                    continue
+                other_values = clean_matrix[:, j]
+                wresult = wilcoxon_signed_rank_test(best_values, other_values)
+                entry = {
+                    "dgp": dgp,
+                    "shift": shift,
+                    "best_model": best_model,
+                    "compared_model": model,
+                    "best_mean_crps": float(np.mean(best_values)),
+                    "other_mean_crps": float(np.mean(other_values)),
+                    "wilcoxon_statistic": wresult.statistic,
+                    "p_value": wresult.p_value,
+                    "effect_size_r": wresult.effect_size_r,
+                    "a12": wresult.a12,
+                    "n_folds": wresult.n_samples,
+                }
+                p_values_for_holm.append(wresult.p_value)
+                wilcoxon_entries.append(entry)
+
+            # Apply Holm correction for multiple comparisons
+            if p_values_for_holm:
+                rejections = holm_correction(p_values_for_holm)
+                for entry, reject in zip(wilcoxon_entries, rejections):
+                    entry["significant_holm"] = reject
+                results["pairwise_wilcoxon"].extend(wilcoxon_entries)
+
+    # -------------------------------------------------------------------------
+    # 4. One-sample Wilcoxon: uncertainty ratio > 1.0
+    # -------------------------------------------------------------------------
+    for dgp in fold_df["dgp"].unique():
+        for shift in fold_df["shift"].unique():
+            if shift == "none":
+                continue  # No meaningful OOD region
+
+            subset = fold_df[(fold_df["dgp"] == dgp) & (fold_df["shift"] == shift)]
+
+            for model in sorted(subset["model"].unique()):
+                model_data = subset[subset["model"] == model]
+                ratios = model_data["uncertainty_ratio"].dropna().values
+
+                if len(ratios) < 5:
+                    continue
+
+                # One-sample Wilcoxon: test if median > 1.0
+                shifted = ratios - 1.0
+                n_positive = int((shifted > 0).sum())
+                nonzero = shifted[shifted != 0]
+
+                if len(nonzero) < 2:
+                    stat, p_value = np.nan, 1.0
+                else:
+                    stat, p_value = stats.wilcoxon(nonzero, alternative="greater")
+
+                results["uncertainty_ratio_tests"].append(
+                    {
+                        "dgp": dgp,
+                        "shift": shift,
+                        "model": model,
+                        "mean_ratio": float(np.mean(ratios)),
+                        "median_ratio": float(np.median(ratios)),
+                        "std_ratio": float(np.std(ratios)),
+                        "n_folds": len(ratios),
+                        "n_above_1": n_positive,
+                        "wilcoxon_statistic": float(stat) if not np.isnan(stat) else None,
+                        "p_value": float(p_value),
+                        "significant_at_05": bool(p_value < 0.05),
+                    }
+                )
+
+    return results
+
+
+def format_statistical_tests_summary(test_results: dict[str, Any]) -> str:
+    """Format statistical test results as a readable markdown summary."""
+    lines = ["# Statistical Significance Tests — OOD Study\n"]
+
+    # Friedman
+    lines.append("## Friedman Tests (OOD CRPS, per DGP x shift)\n")
+    lines.append("Tests whether models differ significantly.\n")
+    for ft in test_results["friedman_tests"]:
+        sig = "**SIGNIFICANT**" if ft["reject_null"] else "not significant"
+        lines.append(
+            f"- **{ft['dgp']} / {ft['shift']}**: " f"p={ft['iman_davenport_p']:.4f} ({sig}, n={ft['n_folds']} folds)"
+        )
+        ranks_str = ", ".join(f"{k}: {v:.2f}" for k, v in ft["avg_ranks"].items())
+        lines.append(f"  - Avg ranks: {ranks_str}")
+
+    # Nemenyi
+    if test_results["nemenyi_tests"]:
+        lines.append("\n## Nemenyi Post-Hoc Tests\n")
+        for nt in test_results["nemenyi_tests"]:
+            lines.append(f"- **{nt['dgp']} / {nt['shift']}**: " f"CD={nt['critical_difference']:.3f}")
+            if nt["significant_pairs"]:
+                pairs = [f"{a} vs {b}" for a, b in nt["significant_pairs"]]
+                lines.append(f"  - Significant: {', '.join(pairs)}")
+            if nt["non_significant_pairs"]:
+                pairs = [f"{a} vs {b}" for a, b in nt["non_significant_pairs"]]
+                lines.append(f"  - Non-significant: {', '.join(pairs)}")
+
+    # Pairwise Wilcoxon
+    if test_results["pairwise_wilcoxon"]:
+        lines.append("\n## Pairwise Wilcoxon (best model vs others, Holm-corrected)\n")
+        for pw in test_results["pairwise_wilcoxon"]:
+            sig = "sig" if pw["significant_holm"] else "n.s."
+            lines.append(
+                f"- **{pw['dgp']} / {pw['shift']}**: "
+                f"{pw['best_model']} (CRPS={pw['best_mean_crps']:.4f}) vs "
+                f"{pw['compared_model']} (CRPS={pw['other_mean_crps']:.4f}), "
+                f"p={pw['p_value']:.4f}, A12={pw['a12']:.3f} [{sig}]"
+            )
+
+    # Uncertainty ratio
+    if test_results["uncertainty_ratio_tests"]:
+        lines.append("\n## Uncertainty Ratio > 1.0 (one-sided Wilcoxon)\n")
+        lines.append("Tests whether models significantly increase uncertainty in OOD regions.\n")
+        for ur in test_results["uncertainty_ratio_tests"]:
+            sig = "sig" if ur["significant_at_05"] else "n.s."
+            lines.append(
+                f"- **{ur['dgp']} / {ur['shift']} / {ur['model']}**: "
+                f"ratio={ur['mean_ratio']:.3f}+/-{ur['std_ratio']:.3f}, "
+                f"{ur['n_above_1']}/{ur['n_folds']} folds > 1, "
+                f"p={ur['p_value']:.4f} [{sig}]"
+            )
+
+    return "\n".join(lines)
 
 
 # =============================================================================
@@ -635,12 +849,49 @@ def main():
     logger.info("\nGenerating aggregate plots...")
     generate_all_plots(combined_df, PLOTS_DIR / "aggregate")
 
-    # Statistical tests
-    logger.info("\nRunning statistical comparisons...")
-    stats_df = run_statistical_tests(combined_df)
-    if not stats_df.empty:
-        stats_df.to_csv(TABLES_DIR / "statistical_comparisons.csv", index=False)
-        logger.info(f"Saved statistical comparisons to {TABLES_DIR / 'statistical_comparisons.csv'}")
+    # Statistical tests (using fold-level data)
+    logger.info("\nRunning statistical significance tests...")
+    # Merge raw results from all environments, combining models from both
+    merged_raw = {}
+    for env_name, raw_results in all_results.items():
+        for key, experiment in raw_results.items():
+            if key not in merged_raw:
+                merged_raw[key] = experiment
+            else:
+                # Merge models from this env into existing experiment
+                for model_name, model_data in experiment["models"].items():
+                    if model_name not in merged_raw[key]["models"]:
+                        merged_raw[key]["models"][model_name] = model_data
+
+    fold_df = extract_fold_level_data(merged_raw)
+    logger.info(f"Extracted {len(fold_df)} fold-level observations")
+
+    if not fold_df.empty:
+        # Save fold-level data for downstream use
+        fold_df.to_csv(TABLES_DIR / "fold_level_data.csv", index=False)
+
+        test_results = run_statistical_tests(merged_raw, fold_df)
+
+        # Save as JSON
+        TABLES_DIR.mkdir(parents=True, exist_ok=True)
+        with open(TABLES_DIR / "statistical_tests.json", "w") as f:
+            json.dump(test_results, f, indent=2)
+
+        # Save readable summary
+        summary_md = format_statistical_tests_summary(test_results)
+        (TABLES_DIR / "statistical_tests.md").write_text(summary_md)
+
+        logger.info(f"Saved statistical tests to {TABLES_DIR / 'statistical_tests.json'}")
+        logger.info(f"Saved readable summary to {TABLES_DIR / 'statistical_tests.md'}")
+
+        # Log highlights
+        n_friedman_sig = sum(1 for ft in test_results["friedman_tests"] if ft["reject_null"])
+        n_friedman = len(test_results["friedman_tests"])
+        logger.info(f"Friedman: {n_friedman_sig}/{n_friedman} (DGP, shift) cells significant")
+
+        n_ratio_sig = sum(1 for ur in test_results["uncertainty_ratio_tests"] if ur["significant_at_05"])
+        n_ratio = len(test_results["uncertainty_ratio_tests"])
+        logger.info(f"Uncertainty ratio > 1: {n_ratio_sig}/{n_ratio} cells significant")
 
     # Print summary to console
     logger.info("\n" + "=" * 80)

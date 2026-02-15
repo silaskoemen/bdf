@@ -966,10 +966,12 @@ def run_benchmark():
                     model_results["mean_fit_time"] = float(np.mean(model_results["fold_fit_times"]))
 
                     # Log summary
-                    logger.info(
-                        f"    Overall CRPS: {aggregated['overall']['crps']['mean']:.4f}"
-                        f"  |  Uncertainty ratio: {aggregated['uncertainty_ratio_ood_vs_overlap']['mean']:.2f}"
-                    )
+                    summary = f"    Overall CRPS: {aggregated['overall']['crps']['mean']:.4f}"
+                    if "uncertainty_ratio_ood_vs_overlap" in aggregated:
+                        summary += (
+                            f"  |  Uncertainty ratio: {aggregated['uncertainty_ratio_ood_vs_overlap']['mean']:.2f}"
+                        )
+                    logger.info(summary)
 
                 experiment_results["models"][model_name] = model_results
 
