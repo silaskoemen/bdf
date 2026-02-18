@@ -11,6 +11,8 @@ fixed_init_kwargs:
   dist: NormalMuNormal
   random_state: 1234
   verbose: 0
+  oob_weights: true
+  bootstrap: false
   # max_depth: 50
 
 tunable_init_kwargs:
@@ -52,7 +54,7 @@ tunable_init_kwargs:
   subsample:
     type: float
     low: 0.5
-    high: 1.0
+    high: 0.9
   colsample:
     type: float
     low: 0.5
@@ -62,9 +64,6 @@ tunable_init_kwargs:
     low: 0.001
     high: 0.1
     log: true
-  oob_weights:
-    type: categorical
-    categories: [true, false]
   oob_temperature:
     type: float
     low: 0.1

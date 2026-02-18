@@ -102,17 +102,17 @@ class BDFModel(BaseEstimator):
     def __init__(
         self,
         dist: str = "NormalMuNormal",
-        params: dict = {"mu_mu": "auto", "sigma_mu": "auto", "sigma_mu_auto_scale": 1.0},
+        params: dict = {"mu_mu": "auto", "sigma_mu": "auto", "sigma_mu_auto_scale": 5.0},
         n_trees: int = 50,
         alpha: float = 0.0,
-        gamma: float = 0.1,
-        delta: float = 0.01,
+        gamma: float = 0.01,
+        delta: float = 0.001,
         tree_prior_mode: Literal["linear", "defer", "bernoulli"] = "linear",
         max_depth: int = 50,
         min_samples_leaf: int = 10,
         min_samples_split: int = 20,
         min_child_weight: int | float = 10,
-        subsample: float = 0.9,
+        subsample: float = 0.75,
         colsample: float = 0.9,
         eta: float = 0.01,
         bootstrap: bool = True,
@@ -156,6 +156,13 @@ class BDFModel(BaseEstimator):
                 raise ValueError(
                     f"For tree_prior_mode='{self.tree_prior_mode}', delta must be in (0, 1), got {self.delta}"
                 )
+        if self.oob_weights and self.bootstrap:
+            warnings.warn(
+                "oob_weights=True with bootstrap=True may produce unreliable OOB scores "
+                "because bootstrap duplicates tighten leaf posteriors. "
+                "Consider setting bootstrap=False.",
+                stacklevel=2,
+            )
         if self.oob_weights and self.subsample >= 1.0:
             warnings.warn(
                 "oob_weights=True has no effect when subsample >= 1.0 (no out-of-bag samples). "
