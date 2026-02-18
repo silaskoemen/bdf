@@ -491,6 +491,28 @@ class BDFNode:
 
         return preds
 
+    def predict_log_likelihood(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
+        """Compute log-likelihood of y under the leaf posterior for each observation."""
+        if self._is_leaf():
+            return self.distribution.log_likelihood(y, self.posterior_params)
+
+        left_mask = X[:, self.best_feature] <= self.best_threshold
+        right_mask = ~left_mask
+
+        result = np.empty(X.shape[0], dtype=float)
+
+        if self.left_node:
+            result[left_mask] = self.left_node.predict_log_likelihood(X[left_mask], y[left_mask])
+        else:
+            result[left_mask] = self.distribution.log_likelihood(y[left_mask], self.posterior_params)
+
+        if self.right_node:
+            result[right_mask] = self.right_node.predict_log_likelihood(X[right_mask], y[right_mask])
+        else:
+            result[right_mask] = self.distribution.log_likelihood(y[right_mask], self.posterior_params)
+
+        return result
+
     def predict_samples(self, X, size: int = 1) -> np.ndarray:
         """Draw samples for each observation in X.
 

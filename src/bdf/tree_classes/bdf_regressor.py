@@ -92,6 +92,8 @@ class BDFModel(BaseEstimator):
         "colsample": [Interval(Real, 0, 1, closed="right")],
         "eta": [Interval(Real, 0, 1, closed="right")],
         "bootstrap": ["boolean"],
+        "oob_weights": ["boolean"],
+        "oob_temperature": [Interval(Real, 0, None, closed="neither")],
         "n_jobs": [Integral],
         "verbose": [Interval(Integral, -1, None, closed="left")],
         "random_state": [Interval(Integral, 0, None, closed="left")],
@@ -114,6 +116,8 @@ class BDFModel(BaseEstimator):
         colsample: float = 0.9,
         eta: float = 0.01,
         bootstrap: bool = True,
+        oob_weights: bool = False,
+        oob_temperature: float = 1.0,
         n_jobs: int = -1,
         verbose: int = 0,
         random_state: int = RANDOM_SEED,
@@ -134,6 +138,8 @@ class BDFModel(BaseEstimator):
         self.colsample = colsample
         self.eta = eta
         self.bootstrap = bootstrap
+        self.oob_weights = oob_weights
+        self.oob_temperature = oob_temperature
         self.n_jobs = n_jobs
         self.verbose = verbose
         self.random_state = random_state
@@ -150,6 +156,12 @@ class BDFModel(BaseEstimator):
                 raise ValueError(
                     f"For tree_prior_mode='{self.tree_prior_mode}', delta must be in (0, 1), got {self.delta}"
                 )
+        if self.oob_weights and self.subsample >= 1.0:
+            warnings.warn(
+                "oob_weights=True has no effect when subsample >= 1.0 (no out-of-bag samples). "
+                "Falling back to uniform weights.",
+                stacklevel=2,
+            )
 
     def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False):
         """Fit the model to the training data.
@@ -183,7 +195,7 @@ class BDFModel(BaseEstimator):
         # n_features_iter = int(np.ceil(X.shape[1] * self.colsample))
         penalty = self.alpha  # * np.log(np.ceil(X.shape[0] * self.subsample))  # before had n
 
-        trees = Parallel(n_jobs=self.n_jobs)(
+        results = Parallel(n_jobs=self.n_jobs)(
             delayed(_fit_single_tree)(
                 X=X,
                 y=y,
@@ -202,11 +214,22 @@ class BDFModel(BaseEstimator):
                 colsample=self.colsample,
                 bootstrap=self.bootstrap,
                 eta=self.eta,
-                random_state=self.random_state + i,  # Ensure distinct seeds per tree
+                random_state=self.random_state + i,
+                return_oob_mask=self.oob_weights,
             )
             for i in range(self.n_trees)
         )
-        self.trees = cast(list[BDFTree], trees)
+
+        if self.oob_weights:
+            trees_and_masks = cast(list[tuple[BDFTree, np.ndarray | None]], results)
+            self.trees = [t for t, _ in trees_and_masks]
+            oob_masks = [m for _, m in trees_and_masks]
+            self.oob_scores_, self.tree_weights_ = self._compute_oob_weights(X, y, self.trees, oob_masks)
+        else:
+            self.trees = cast(list[BDFTree], results)
+            self.oob_scores_ = None
+            self.tree_weights_ = None
+
         self.is_fitted_ = True
 
         # temporary debug: print average number of nodes and depth
@@ -214,6 +237,72 @@ class BDFModel(BaseEstimator):
             avg_nodes = np.mean([tree.count_nodes() for tree in self.trees])
             avg_depth = np.mean([tree.get_max_depth() for tree in self.trees])
             print(f"Fitted {self.n_trees} trees with average nodes: {avg_nodes:.2f}, average depth: {avg_depth:.2f}")
+
+    def _compute_oob_weights(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        trees: list[BDFTree],
+        oob_masks: list[np.ndarray | None],
+        min_oob_samples: int = 50,
+    ) -> tuple[np.ndarray | None, np.ndarray | None]:
+        """Compute OOB NLL scores and softmax weights for each tree.
+
+        Falls back to uniform weights (returns None, None) when too few
+        trees have enough OOB samples for reliable scoring.
+        """
+        n_total = X.shape[0]
+        expected_oob = n_total * (1 - self.subsample)
+        if expected_oob < min_oob_samples:
+            warnings.warn(
+                f"Expected ~{expected_oob:.0f} OOB samples per tree (subsample={self.subsample}), "
+                f"which is below {min_oob_samples}. Falling back to uniform weights. "
+                f"Consider lowering subsample or increasing the dataset size.",
+                stacklevel=2,
+            )
+            return None, None
+
+        scores = np.full(len(trees), np.inf)
+        n_valid = 0
+        for i, (tree, mask) in enumerate(zip(trees, oob_masks)):
+            if mask is None:
+                continue
+            n_oob = int(mask.sum())
+            if n_oob < min_oob_samples:
+                continue
+            n_valid += 1
+            X_oob, y_oob = X[mask], y[mask]
+            log_liks = tree.predict_log_likelihood(X_oob, y_oob)
+            # Use median NLL — robust to outlier observations that produce
+            # extreme log-likelihoods (e.g. tight-posterior leaf seeing an
+            # out-of-distribution OOB point).
+            scores[i] = -np.median(log_liks)  # median NLL (lower = better)
+
+        if n_valid < len(trees) // 2:
+            warnings.warn(
+                f"Only {n_valid}/{len(trees)} trees had >= {min_oob_samples} OOB samples. "
+                f"Falling back to uniform weights.",
+                stacklevel=2,
+            )
+            return None, None
+
+        # For trees without enough OOB samples, assign median score (neutral weight)
+        valid_mask = np.isfinite(scores)
+        if not valid_mask.all():
+            scores[~valid_mask] = np.median(scores[valid_mask])
+
+        # Softmax: lower NLL → higher weight
+        shifted = -scores / self.oob_temperature
+        shifted -= shifted.max()  # numerical stability
+        weights = np.exp(shifted)
+        weights /= weights.sum()
+        return scores, weights
+
+    def _weighted_mean(self, values: np.ndarray) -> np.ndarray:
+        """Weighted or uniform mean across trees (axis=0)."""
+        if self.tree_weights_ is not None:
+            return np.average(values, axis=0, weights=self.tree_weights_)
+        return np.mean(values, axis=0)
 
     def _standardize_y(self, y: np.ndarray) -> np.ndarray:
         """Standardize the target variable y.
@@ -246,18 +335,23 @@ class BDFModel(BaseEstimator):
         Internal helper to draw and pool samples from all trees.
 
         Returns an array of shape (n_obs, n_samples).
+        When OOB weights are active, each tree contributes samples proportional
+        to its weight.
         """
-        # To get a total of `n_samples` samples, we need to draw `ceil(n_samples / n_trees)` from each.
+        if self.tree_weights_ is not None:
+            # Draw samples per tree proportional to weight
+            counts = self.rng.multinomial(n_samples, self.tree_weights_)
+            all_samples = []
+            for tree, count in zip(self.trees, counts):
+                if count > 0:
+                    all_samples.append(tree.predict_samples(X, n_samples=count))
+            # Shape: (n_obs, n_samples)
+            return np.concatenate(all_samples, axis=1)
+
+        # Uniform: draw equal samples from each tree
         per_tree_size = int(np.ceil(n_samples / self.n_trees))
-
-        # Shape: (n_trees, n_obs, per_tree_size)
         tree_samples = np.array([tree.predict_samples(X, n_samples=per_tree_size) for tree in self.trees])
-
-        # Transpose and reshape to pool samples across trees
-        # Shape: (n_obs, n_trees * per_tree_size)
         pooled_samples = tree_samples.transpose(1, 0, 2).reshape(X.shape[0], -1)
-
-        # Return exactly `n_samples` but draw randomly
         indices = self.rng.choice(pooled_samples.shape[1], size=n_samples, replace=False)
         return pooled_samples[:, indices]
 
@@ -270,7 +364,7 @@ class BDFModel(BaseEstimator):
         X_validated = self._validate_prediction_input(X)
         # Shape: (n_trees, n_obs) -> (n_obs,)
         tree_means = np.array([tree.predict_mean(X_validated) for tree in self.trees])
-        forest_mean = np.mean(tree_means, axis=0)
+        forest_mean = self._weighted_mean(tree_means)
         return self._unstandardize_y(forest_mean)
 
     def predict_weighted_mean(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
@@ -281,8 +375,10 @@ class BDFModel(BaseEstimator):
         tree_means = np.array([tree.predict_mean(X_validated) for tree in self.trees])
         tree_vars = np.array([tree.predict_variance(X_validated) for tree in self.trees])
 
-        # Inverse variance weighting
+        # Inverse variance weighting, optionally combined with OOB weights
         weights = 1.0 / tree_vars
+        if self.tree_weights_ is not None:
+            weights *= self.tree_weights_[:, np.newaxis]
         weighted_mean = np.sum(tree_means * weights, axis=0) / np.sum(weights, axis=0)
 
         return self._unstandardize_y(weighted_mean)
@@ -350,10 +446,14 @@ class BDFModel(BaseEstimator):
         tree_means = np.array([tree.predict_mean(X_validated) for tree in self.trees])
         tree_vars = np.array([tree.predict_variance(X_validated) for tree in self.trees])
 
-        # E[Var(Y|T)]: Mean of variances from each tree. Shape: (n_obs,)
-        expected_variance = np.mean(tree_vars, axis=0)
-        # Var(E[Y|T]): Variance of means from each tree. Shape: (n_obs,)
-        variance_of_expectation = np.var(tree_means, axis=0)
+        # E[Var(Y|T)]: (Weighted) mean of variances from each tree. Shape: (n_obs,)
+        expected_variance = self._weighted_mean(tree_vars)
+        # Var(E[Y|T]): (Weighted) variance of means from each tree. Shape: (n_obs,)
+        if self.tree_weights_ is not None:
+            weighted_mu = np.average(tree_means, axis=0, weights=self.tree_weights_)
+            variance_of_expectation = np.average((tree_means - weighted_mu) ** 2, axis=0, weights=self.tree_weights_)
+        else:
+            variance_of_expectation = np.var(tree_means, axis=0)
 
         total_variance = expected_variance + variance_of_expectation
 

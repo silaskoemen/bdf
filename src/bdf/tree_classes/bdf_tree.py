@@ -227,6 +227,10 @@ class BDFTree:
         """Predict the parameters for each observation in X."""
         return np.array([self._find_leaf_node(x).predict_params() for x in X], dtype=object)
 
+    def predict_log_likelihood(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
+        """Compute log-likelihood of y under each observation's leaf posterior."""
+        return self.root.predict_log_likelihood(X, y)
+
     def predict_samples(self, X: np.ndarray, n_samples: int = 1) -> np.ndarray:
         """Draw samples for each observation in X."""
         return self.root.predict_samples(X, n_samples)

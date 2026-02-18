@@ -62,6 +62,14 @@ tunable_init_kwargs:
     low: 0.001
     high: 0.1
     log: true
+  oob_weights:
+    type: categorical
+    categories: [true, false]
+  oob_temperature:
+    type: float
+    low: 0.1
+    high: 100.0
+    log: true
 
 tunable_params:
   sigma_mu_auto_scale:

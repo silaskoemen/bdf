@@ -20,11 +20,16 @@ def _fit_single_tree(
     subsample: float,
     penalty: float,
     eta: float,
-    # col_idcs: list | np.ndarray | None = None,
     verbose: bool = False,
     bootstrap: bool = True,
-) -> BDFTree:
-    """Helper function to fit a single tree, used for parallel fitting."""
+    return_oob_mask: bool = False,
+) -> BDFTree | tuple[BDFTree, np.ndarray | None]:
+    """Helper function to fit a single tree, used for parallel fitting.
+
+    When ``return_oob_mask=True``, returns ``(tree, oob_mask)`` where
+    ``oob_mask`` is a boolean array of shape ``(n_total,)`` indicating
+    out-of-bag samples (``True`` = not used for fitting this tree).
+    """
     rng = np.random.default_rng(random_state)
     iter_tree = BDFTree(
         distribution=distribution,
@@ -39,10 +44,10 @@ def _fit_single_tree(
         penalty=penalty,
         random_state=random_state,
     )
+    oob_mask = None
     # Subsample rows and columns if specified
     if subsample < 1.0:
         n_samples = int(X.shape[0] * subsample)
-        # Could allow kw bootstrap to allow replacement, do replacement below too
         row_indices = rng.choice(
             X.shape[0],
             n_samples,
@@ -50,11 +55,16 @@ def _fit_single_tree(
         )
         X_iter = X[row_indices]
         y_iter = y[row_indices]
+        if return_oob_mask:
+            in_bag = np.zeros(X.shape[0], dtype=bool)
+            in_bag[row_indices] = True
+            oob_mask = ~in_bag
     else:
         X_iter = X
         y_iter = y
-    # col_idcs = rng.choice(X.shape[1], n_features_iter, replace=False) if colsample < 1.0 else None
     iter_tree.fit(X_iter, y_iter, rng=rng, colsample=colsample, verbose=verbose, eta=eta)
+    if return_oob_mask:
+        return iter_tree, oob_mask
     return iter_tree
 
 
