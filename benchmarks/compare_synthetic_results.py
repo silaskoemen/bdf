@@ -15,7 +15,7 @@ from typing import Optional
 
 from loguru import logger
 
-from benchmarks.utils.synthetic_plotting import create_synthetic_benchmark_summary
+from benchmarks.utils.synthetic_plotting import _order_models, create_synthetic_benchmark_summary
 
 # Configuration
 RESULTS_DIR = Path("benchmarks/results/synthetic_dgp")
@@ -122,7 +122,7 @@ def generate_comparison_plots():
     for dgp_results in all_results.values():
         all_models.update(dgp_results.get("models", {}).keys())
 
-    models = sorted(list(all_models))
+    models = _order_models(list(all_models))
     logger.info(f"  Found models across all DGPs: {', '.join(models)}")
 
     if not models:

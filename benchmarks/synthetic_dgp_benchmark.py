@@ -25,7 +25,6 @@ import numpy as np
 import optuna
 from loguru import logger
 from optuna.samplers import TPESampler
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import KFold
 from tqdm import tqdm
@@ -34,6 +33,7 @@ from .metrics.regression import (
     crps_wrapper,
     interval_score_samples,
     pica,
+    pit_histogram,
     pit_ks_statistic,
     quantile_loss,
 )
@@ -41,6 +41,7 @@ from .pipeline.synthetic_dgps import DGP_REGISTRY, SyntheticDataset
 from .utils.synthetic_plotting import (
     plot_conditional_densities,
     plot_coverage_by_region,
+    plot_pit_histogram,
     plot_predictions_with_ground_truth,
 )
 
@@ -67,6 +68,9 @@ DGPS_TO_RUN = [
 
 # Quantiles for evaluation
 EVAL_QUANTILES = [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]
+
+# Coverage levels for calibration curves (19 levels: 0.05, 0.10, ..., 0.95)
+COVERAGE_LEVELS = [round(0.05 * i, 2) for i in range(1, 20)]
 
 # =============================================================================
 # Dynamic Model Loading based on Available Dependencies
@@ -151,34 +155,36 @@ def get_available_models() -> dict[str, dict[str, Any]]:
             "probabilistic": True,
         }
 
-        # =============================================================================
-        # Sklearn Baseline - Always Available
-        # =============================================================================
-
-        available["RandomForest"] = {
-            "class": RandomForestRegressor,
-            "fixed_init_kwargs": {
-                "random_state": SEED,
-            },
-            "tunable_init_kwargs": {
-                "criterion": {"type": "categorical", "categories": ["squared_error", "absolute_error"]},
-                "max_depth": {"type": "int", "low": 5, "high": 30},
-                "min_samples_leaf": {"type": "int", "low": 5, "high": 50},
-                "min_samples_split": {"type": "int", "low": 10, "high": 100},
-                "max_features": {"type": "float", "low": 0.1, "high": 1.0},
-                "n_estimators": {"type": "int", "low": 25, "high": 200},
-            },
-            "tunable_params": {},
-            "fixed_params": {},
-            "has_params_dict": False,
-            "probabilistic": False,
-        }
     except (ImportError, ModuleNotFoundError):
-        logger.info("✗ BDF/RF not available (run in default environment)")
+        logger.info("✗ BDF not available (run in default environment)")
 
     # =============================================================================
     # Optional Models (bench-models environment)
     # =============================================================================
+
+    # Conformal RF
+    try:
+        from .models.wrappers import ConformalizedRFWrapper
+
+        available["ConformalRF"] = {
+            "class": ConformalizedRFWrapper,
+            "fixed_init_kwargs": {
+                "random_state": SEED,
+            },
+            "tunable_init_kwargs": {
+                "n_estimators": {"type": "int", "low": 25, "high": 200},
+                "max_depth": {"type": "int", "low": 5, "high": 30},
+                "min_samples_leaf": {"type": "int", "low": 5, "high": 50},
+                "max_features": {"type": "float", "low": 0.1, "high": 1.0},
+            },
+            "tunable_params": {},
+            "fixed_params": {},
+            "has_params_dict": False,
+            "probabilistic": True,
+        }
+        logger.info("✓ ConformalRF available")
+    except ImportError:
+        logger.info("✗ ConformalRF not available (run in benchmark environment)")
 
     # NGBoost
     try:
@@ -206,36 +212,28 @@ def get_available_models() -> dict[str, dict[str, Any]]:
     except ImportError:
         logger.info("✗ NGBoost not available (install ngboost or run in bench-models environment)")
 
-    # Conformalized LightGBM
+    # BART (Bayesian Additive Regression Trees)
     try:
-        from .models.wrappers import ConformalizedLGBMWrapper
+        from .models.wrappers import BARTPyRegressorWrapper
 
-        available["ConformalLGBM"] = {
-            "class": ConformalizedLGBMWrapper,
-            "fixed_init_kwargs": {
-                "random_state": SEED,
-                "verbose": -1,
-            },
+        available["BART"] = {
+            "class": BARTPyRegressorWrapper,
+            "fixed_init_kwargs": {},
             "tunable_init_kwargs": {
-                "n_estimators": {"type": "int", "low": 50, "high": 300},
-                "learning_rate": {"type": "float", "low": 0.01, "high": 0.3},
-                "max_depth": {"type": "int", "low": 3, "high": 10},
-                "num_leaves": {"type": "int", "low": 15, "high": 100},
-                "min_child_samples": {"type": "int", "low": 10, "high": 100},
-                "subsample": {"type": "float", "low": 0.6, "high": 1.0},
-                "colsample_bytree": {"type": "float", "low": 0.6, "high": 1.0},
+                "n_trees": {"type": "int", "low": 20, "high": 200},
+                "n_burn": {"type": "int", "low": 50, "high": 250},
+                "n_samples": {"type": "int", "low": 100, "high": 500},
+                "alpha": {"type": "float", "low": 0.5, "high": 0.99},
+                "beta": {"type": "float", "low": 0.5, "high": 3.0},
             },
             "tunable_params": {},
             "fixed_params": {},
             "has_params_dict": False,
             "probabilistic": True,
         }
-        logger.info("✓ Conformalized LightGBM available")
+        logger.info("✓ BART available")
     except ImportError:
-        logger.info("✗ Conformalized LightGBM not available (install lightgbm or run in bench-models environment)")
-
-    # Add other optional models here as needed
-    # Example: XGBoost, QuantileForest, etc.
+        logger.info("✗ BART not available (install bartpy or run in bench-models environment)")
 
     return available
 
@@ -514,8 +512,21 @@ def evaluate_fold(
                 try:
                     metrics["pica"] = float(pica(y_test, y_samples))
                     metrics["pit_ks_statistic"] = float(pit_ks_statistic(y_test, y_samples))
+                    pit_data = pit_histogram(y_test, y_samples, n_bins=20)
+                    bin_proportions = (np.array(pit_data["bin_counts"]) / sum(pit_data["bin_counts"])).tolist()
+                    metrics["pit_bin_proportions"] = bin_proportions
                 except Exception as e:
                     logger.warning(f"Calibration metric calculation failed: {e}")
+
+                # Coverage curve for calibration plots (19 levels)
+                coverage_curve = []
+                for level in COVERAGE_LEVELS:
+                    alpha = 1 - level
+                    y_lower = np.quantile(y_samples, alpha / 2, axis=-1)
+                    y_upper = np.quantile(y_samples, 1 - alpha / 2, axis=-1)
+                    coverage_curve.append(float(np.mean((y_test >= y_lower) & (y_test <= y_upper))))
+                metrics["coverage_curve_levels"] = COVERAGE_LEVELS
+                metrics["coverage_curve_empirical"] = coverage_curve
 
                 # Ground truth metrics
                 gt_metrics = compute_ground_truth_metrics(dataset, X_test, y_pred, y_pred_std)
@@ -578,6 +589,24 @@ def evaluate_fold(
                     save_path=dgp_plot_dir / f"{model_name}_local_calibration.png",
                 )
 
+            # 4. PIT histogram (works for any dimensionality)
+            plot_pit_histogram(
+                y_test=y_test,
+                y_samples=y_samples,
+                model_name=model_name,
+                dgp_name=dgp_name,
+                save_path=dgp_plot_dir / f"{model_name}_pit_histogram.png",
+            )
+
+            # Save fold-1 data for predictions grid figure
+            np.savez_compressed(
+                dgp_plot_dir / f"{model_name}_fold1_data.npz",
+                X_test=X_test,
+                y_test=y_test,
+                y_pred=y_pred,
+                y_samples=y_samples,
+            )
+
             logger.info(f"    Generated diagnostic plots in {dgp_plot_dir}")
 
         except Exception as e:
@@ -602,7 +631,7 @@ def run_benchmark(dgps: list[dict], models: list[str], output_dir: str = "benchm
     os.makedirs(output_dir, exist_ok=True)
 
     # Detect environment: core models only vs full comparison
-    core_models = {"BDFNormal", "BDFKDE", "RandomForest"}
+    core_models = {"BDFNormal", "BDFKDE"}
     has_extended_models = any(m not in core_models for m in models)
     env_suffix = "" if has_extended_models else "_core"
 
@@ -701,7 +730,20 @@ def run_benchmark(dgps: list[dict], models: list[str], output_dir: str = "benchm
                 aggregated_metrics = {}
                 metric_keys = model_results["fold_metrics"][0].keys()
                 for key in metric_keys:
-                    values = [m[key] for m in model_results["fold_metrics"] if key in m and not np.isnan(m[key])]
+                    raw = [m[key] for m in model_results["fold_metrics"] if key in m]
+                    if not raw:
+                        continue
+
+                    # List-valued metrics (e.g. pit_bin_proportions): average element-wise
+                    if isinstance(raw[0], list):
+                        arr = np.array(raw)
+                        aggregated_metrics[key] = {
+                            "mean": np.mean(arr, axis=0).tolist(),
+                            "std": np.std(arr, axis=0).tolist(),
+                        }
+                        continue
+
+                    values = [v for v in raw if not np.isnan(v)]
                     if values:
                         aggregated_metrics[key] = {
                             "mean": float(np.mean(values)),
