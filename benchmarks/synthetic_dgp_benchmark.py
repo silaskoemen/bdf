@@ -562,7 +562,7 @@ def evaluate_fold(
                 y_pred=y_pred,
                 y_samples=y_samples,
                 model_name=model_name,
-                save_path=dgp_plot_dir / f"{model_name}_predictions.png",
+                save_path=dgp_plot_dir / f"{model_name}_predictions.pdf",
             )
 
             # 2. Conditional densities (if 1D)
@@ -576,7 +576,7 @@ def evaluate_fold(
                         y_test=y_test,
                         x_values=x_values,
                         model_name=model_name,
-                        save_path=dgp_plot_dir / f"{model_name}_conditional_densities.png",
+                        save_path=dgp_plot_dir / f"{model_name}_conditional_densities.pdf",
                     )
 
                 # 3. Local calibration by region
@@ -586,7 +586,7 @@ def evaluate_fold(
                     y_test=y_test,
                     y_samples=y_samples,
                     model_name=model_name,
-                    save_path=dgp_plot_dir / f"{model_name}_local_calibration.png",
+                    save_path=dgp_plot_dir / f"{model_name}_local_calibration.pdf",
                 )
 
             # 4. PIT histogram (works for any dimensionality)
@@ -595,7 +595,7 @@ def evaluate_fold(
                 y_samples=y_samples,
                 model_name=model_name,
                 dgp_name=dgp_name,
-                save_path=dgp_plot_dir / f"{model_name}_pit_histogram.png",
+                save_path=dgp_plot_dir / f"{model_name}_pit_histogram.pdf",
             )
 
             # Save fold-1 data for predictions grid figure

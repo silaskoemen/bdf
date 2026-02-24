@@ -53,39 +53,43 @@ def reference_nig_posterior_params(
     """Reference implementation for Normal-Inverse-Gamma posterior.
 
     This matches the parameterization used in the actual implementation:
-        nₙ = n₀ + n
+        κₙ = κ₀ + n
         νₙ = ν₀ + n
-        μₙ = (n₀μ₀ + n*ȳ) / nₙ
-        φₙ = ν₀φ₀ + (n-1)s² + (n*n₀/nₙ)(ȳ - μ₀)²
+        μₙ = (κ₀μ₀ + n*ȳ) / κₙ
+        φₙ = S / νₙ  (normalized)
 
-    Note: post_phi is the UNNORMALIZED sum (not divided by post_nu).
+    where S = ν₀φ₀ + SSD + (κ₀n/κₙ)(ȳ - μ₀)²
+
+    Note: posterior_phi uses the NORMALIZED convention (S/νₙ).
     """
     n = len(data)
     if n == 0:
         return {
-            "post_mu": mu_mu,
-            "post_n": n_mu,
-            "post_nu": nu_sigma,
-            "post_phi": phi_sigma,
+            "posterior_mu": mu_mu,
+            "posterior_n": n_mu,
+            "posterior_nu": nu_sigma,
+            "posterior_phi": phi_sigma,  # prior phi is already "normalized"
         }
 
     sample_mean = np.mean(data)
-    sample_var = np.var(data, ddof=1) if n > 1 else 1e-10
 
-    post_n = n_mu + n
-    post_nu = nu_sigma + n
-    post_mu = (n_mu * mu_mu + n * sample_mean) / post_n
+    posterior_n = n_mu + n
+    posterior_nu = nu_sigma + n
+    posterior_mu = (n_mu * mu_mu + n * sample_mean) / posterior_n
 
-    # Sum of squared deviations (UNNORMALIZED - not divided by post_nu)
-    ssd = (n - 1) * sample_var
-    interaction = (n * n_mu / post_n) * (sample_mean - mu_mu) ** 2
-    post_phi = nu_sigma * phi_sigma + ssd + interaction
+    # Unnormalized sum S
+    ssd = np.sum((data - sample_mean) ** 2)
+    interaction = (n * n_mu / posterior_n) * (sample_mean - mu_mu) ** 2
+    post_sum_sq = nu_sigma * phi_sigma + ssd + interaction
+
+    # Normalized: φₙ = S/νₙ
+    posterior_phi = post_sum_sq / posterior_nu
 
     return {
-        "post_mu": post_mu,
-        "post_n": post_n,
-        "post_nu": post_nu,
-        "post_phi": post_phi,
+        "posterior_mu": posterior_mu,
+        "posterior_n": posterior_n,
+        "posterior_nu": posterior_nu,
+        "posterior_phi": posterior_phi,
     }
 
 
@@ -103,18 +107,19 @@ def reference_nig_log_evidence(data: np.ndarray, mu_mu: float, n_mu: float, nu_s
         return 0.0
 
     post = reference_nig_posterior_params(data, mu_mu, n_mu, nu_sigma, phi_sigma)
-    post_n = post["post_n"]
-    post_nu = post["post_nu"]
-    post_phi = post["post_phi"]  # = nu_sigma * phi_sigma + ssd + interaction
+    posterior_n = post["posterior_n"]
+    posterior_nu = post["posterior_nu"]
+    posterior_phi = post["posterior_phi"]  # normalized: S/νₙ
 
     alpha_0 = nu_sigma / 2
-    alpha_n = post_nu / 2
+    alpha_n = posterior_nu / 2
     # Murphy's parameterization: β = νφ/2
+    # Since posterior_phi is normalized (S/νₙ), unnormalized S = posterior_phi * posterior_nu
     beta_0 = nu_sigma * phi_sigma / 2
-    beta_n = post_phi / 2  # post_phi already includes the nu_sigma * phi_sigma term
+    beta_n = posterior_phi * posterior_nu / 2  # = S/2
 
     log_ev = -0.5 * n * np.log(2 * np.pi)
-    log_ev += 0.5 * (np.log(n_mu) - np.log(post_n))
+    log_ev += 0.5 * (np.log(n_mu) - np.log(posterior_n))
     log_ev += gammaln(alpha_n) - gammaln(alpha_0)
     log_ev += alpha_0 * np.log(beta_0) - alpha_n * np.log(beta_n)
 
@@ -140,7 +145,7 @@ class TestNormalInvGammaMath:
         expected = reference_nig_posterior_params(data, mu_mu, n_mu, nu_sigma, phi_sigma)
 
         assert_close(
-            params["posterior_mu"], expected["post_mu"], rtol=RTOL_TIGHT, msg="Posterior μ doesn't match formula"
+            params["posterior_mu"], expected["posterior_mu"], rtol=RTOL_TIGHT, msg="Posterior μ doesn't match formula"
         )
 
     def test_posterior_n_formula(self):
@@ -152,7 +157,7 @@ class TestNormalInvGammaMath:
         params = dist.calc_posterior_params(data)
 
         expected_n = n_mu + len(data)
-        assert_close(params["post_n"], expected_n, rtol=RTOL_TIGHT)
+        assert_close(params["posterior_n"], expected_n, rtol=RTOL_TIGHT)
 
     def test_posterior_nu_formula(self):
         """Posterior ν_n = ν_0 + n."""
@@ -163,7 +168,7 @@ class TestNormalInvGammaMath:
         params = dist.calc_posterior_params(data)
 
         expected_nu = nu_sigma + len(data)
-        assert_close(params["post_nu"], expected_nu, rtol=RTOL_TIGHT)
+        assert_close(params["posterior_nu"], expected_nu, rtol=RTOL_TIGHT)
 
     @pytest.mark.parametrize(
         "mu_mu,n_mu,nu_sigma,phi_sigma",
@@ -184,11 +189,11 @@ class TestNormalInvGammaMath:
 
         expected = reference_nig_posterior_params(data, mu_mu, n_mu, nu_sigma, phi_sigma)
 
-        assert_close(params["posterior_mu"], expected["post_mu"], rtol=RTOL_TIGHT)
-        assert_close(params["post_n"], expected["post_n"], rtol=RTOL_TIGHT)
-        assert_close(params["post_nu"], expected["post_nu"], rtol=RTOL_TIGHT)
+        assert_close(params["posterior_mu"], expected["posterior_mu"], rtol=RTOL_TIGHT)
+        assert_close(params["posterior_n"], expected["posterior_n"], rtol=RTOL_TIGHT)
+        assert_close(params["posterior_nu"], expected["posterior_nu"], rtol=RTOL_TIGHT)
         # phi has more complex formula, use looser tolerance
-        assert_close(params["post_phi"], expected["post_phi"], rtol=RTOL_NUMERICAL)
+        assert_close(params["posterior_phi"], expected["posterior_phi"], rtol=RTOL_NUMERICAL)
 
     def test_log_evidence_formula(self):
         """Log evidence matches analytical formula."""
@@ -233,7 +238,7 @@ class TestNormalInvGammaStatisticalProperties:
         # Should be close to MLE (sample mean and variance)
         assert np.abs(params["posterior_mu"] - np.mean(data)) < 0.01
         # sigma_mu is the posterior std of σ, which should reflect the true σ
-        assert np.abs(params["posterior_sigma_mu"] - np.std(data, ddof=1)) < 0.1
+        assert np.abs(params["posterior_sigma"] - np.std(data, ddof=1)) < 0.1
 
     def test_num_parameters_is_two(self):
         """Number of parameters should be 2 (μ and σ²)."""
@@ -255,7 +260,7 @@ class TestNormalInvGammaLogLikelihood:
 
         plugin_ll = dist._plugin_log_likelihood(data, params)
         # Use the MAP sigma from params
-        scipy_ll = stats.norm.logpdf(data, loc=params["posterior_mu"], scale=params["posterior_sigma_mu"])
+        scipy_ll = stats.norm.logpdf(data, loc=params["posterior_mu"], scale=params["posterior_sigma"])
 
         assert_array_close(plugin_ll, scipy_ll, rtol=RTOL_TIGHT)
 
@@ -271,10 +276,10 @@ class TestNormalInvGammaLogLikelihood:
         pp_ll = dist._posterior_predictive_log_likelihood(data, params)
 
         # Manual calculation using Student's t
-        # Actual implementation: df=post_nu, scale=sqrt(post_phi/post_nu * (1+1/post_n))
-        df = params["post_nu"]
+        # With normalized phi: scale = sqrt(φₙ * (1 + 1/κₙ)) = posterior_pred_scale
+        df = params["posterior_nu"]
         loc = params["posterior_mu"]
-        scale = np.sqrt(params["post_phi"] / params["post_nu"] * (1 + 1 / params["post_n"]))
+        scale = params["posterior_pred_scale"]
         expected_ll = stats.t.logpdf(data, df=df, loc=loc, scale=scale)
 
         assert_array_close(pp_ll, expected_ll, rtol=RTOL_NUMERICAL)
@@ -379,8 +384,8 @@ class TestNormalInvGammaEdgeCases:
 
         # Should return finite values
         assert np.isfinite(params["posterior_mu"])
-        assert np.isfinite(params["posterior_sigma_mu"])
-        assert params["posterior_sigma_mu"] > 0
+        assert np.isfinite(params["posterior_sigma"])
+        assert params["posterior_sigma"] > 0
 
     def test_two_samples(self):
         """Two samples (minimum for variance)."""
@@ -390,8 +395,8 @@ class TestNormalInvGammaEdgeCases:
         params = dist.calc_posterior_params(data)
 
         assert np.isfinite(params["posterior_mu"])
-        assert np.isfinite(params["posterior_sigma_mu"])
-        assert np.isfinite(params["post_phi"])
+        assert np.isfinite(params["posterior_sigma"])
+        assert np.isfinite(params["posterior_phi"])
 
     def test_constant_data(self):
         """All values identical (zero sample variance)."""
@@ -424,7 +429,7 @@ class TestNormalInvGammaEdgeCases:
         params = dist.calc_posterior_params(data)
 
         assert np.isfinite(params["posterior_mu"])
-        assert np.isfinite(params["posterior_sigma_mu"])
+        assert np.isfinite(params["posterior_sigma"])
 
         # NLL should be finite
         nll = dist.nll(data)
@@ -476,7 +481,7 @@ class TestNormalInvGammaPriorSensitivity:
 
         # With stronger prior on variance, posterior sigma should be more influenced by prior phi
         # This is a qualitative test - the exact behavior depends on the parameterization
-        assert weak_params["post_phi"] != strong_params["post_phi"]
+        assert weak_params["posterior_phi"] != strong_params["posterior_phi"]
 
 
 class TestNormalInvGammaValidation:
@@ -509,9 +514,11 @@ class TestNormalInvGammaValidation:
             NormalMuInvGammaSigmaNormal({"mu_mu": 0.0, "n_mu": -1.0, "nu_sigma": 3.0, "phi_sigma": 1.0})
 
     def test_invalid_nu_sigma_raises(self):
-        """Non-positive nu_sigma should raise."""
+        """nu_sigma <= 2 should raise (must be > 2)."""
         with pytest.raises(ValueError):
             NormalMuInvGammaSigmaNormal({"mu_mu": 0.0, "n_mu": 1.0, "nu_sigma": 0.0, "phi_sigma": 1.0})
+        with pytest.raises(ValueError):
+            NormalMuInvGammaSigmaNormal({"mu_mu": 0.0, "n_mu": 1.0, "nu_sigma": 2.0, "phi_sigma": 1.0})
 
     def test_invalid_phi_sigma_raises(self):
         """Non-positive phi_sigma should raise."""
@@ -572,8 +579,9 @@ class TestNormalInvGammaPropertyBased:
         """Posterior σ should always be positive."""
         dist = NormalMuInvGammaSigmaNormal({"mu_mu": 0.0, "n_mu": 1.0, "nu_sigma": 3.0, "phi_sigma": 1.0})
         params = dist.calc_posterior_params(data)
+        print(params)
 
-        assert params["posterior_sigma_mu"] > 0
+        assert params["posterior_sigma"] > 0
 
     @given(normal_data_strategy(min_size=5, max_size=100))
     @settings(max_examples=50)
@@ -629,3 +637,74 @@ class TestNormalInvGammaVsNormalMuNormal:
 
         assert nmn._num_parameters() == 1
         assert nig._num_parameters() == 2
+
+
+# ============================================================================
+# AUTO PARAMS TESTS
+# ============================================================================
+
+
+class TestNormalInvGammaAutoParams:
+    """Test auto parameter resolution."""
+
+    def test_auto_mu_mu(self):
+        """mu_mu='auto' should resolve to sample mean."""
+        rng = np.random.default_rng(42)
+        data = rng.normal(5.0, 2.0, 100)
+
+        dist = DistributionManager.create_distribution(
+            "NormalMuInvGammaSigmaNormal",
+            {"mu_mu": "auto", "n_mu": 1.0, "nu_sigma": 4.0, "phi_sigma": 1.0},
+            y=data,
+        )
+        assert_close(dist.mu_mu, float(np.mean(data)), rtol=RTOL_TIGHT)
+
+    def test_auto_phi_sigma(self):
+        """phi_sigma='auto' should resolve to s²(ν₀-2)/ν₀."""
+        rng = np.random.default_rng(42)
+        data = rng.normal(5.0, 2.0, 100)
+        nu_sigma = 4.0
+
+        dist = DistributionManager.create_distribution(
+            "NormalMuInvGammaSigmaNormal",
+            {"mu_mu": 0.0, "n_mu": 1.0, "nu_sigma": nu_sigma, "phi_sigma": "auto"},
+            y=data,
+        )
+
+        sample_var = float(np.var(data, ddof=1))
+        expected_phi = sample_var * (nu_sigma - 2) / nu_sigma
+        assert_close(dist.phi_sigma, expected_phi, rtol=RTOL_TIGHT)
+
+    def test_auto_both(self):
+        """Both mu_mu and phi_sigma can be auto simultaneously."""
+        rng = np.random.default_rng(42)
+        data = rng.normal(3.0, 1.5, 200)
+        nu_sigma = 6.0
+
+        dist = DistributionManager.create_distribution(
+            "NormalMuInvGammaSigmaNormal",
+            {"mu_mu": "auto", "n_mu": 1.0, "nu_sigma": nu_sigma, "phi_sigma": "auto"},
+            y=data,
+        )
+
+        assert_close(dist.mu_mu, float(np.mean(data)), rtol=RTOL_TIGHT)
+        sample_var = float(np.var(data, ddof=1))
+        expected_phi = sample_var * (nu_sigma - 2) / nu_sigma
+        assert_close(dist.phi_sigma, expected_phi, rtol=RTOL_TIGHT)
+
+    def test_auto_phi_prior_centers_on_data_variance(self):
+        """With auto phi, the prior E[σ²] should equal the sample variance."""
+        rng = np.random.default_rng(42)
+        data = rng.normal(0, 3.0, 500)
+        nu_sigma = 4.0
+
+        dist = DistributionManager.create_distribution(
+            "NormalMuInvGammaSigmaNormal",
+            {"mu_mu": "auto", "n_mu": 1.0, "nu_sigma": nu_sigma, "phi_sigma": "auto"},
+            y=data,
+        )
+
+        # E[σ²] under InvGamma(ν₀/2, ν₀φ₀/2) = ν₀φ₀/(ν₀-2)
+        prior_mean_sigma2 = nu_sigma * dist.phi_sigma / (nu_sigma - 2)
+        sample_var = float(np.var(data, ddof=1))
+        assert_close(prior_mean_sigma2, sample_var, rtol=RTOL_TIGHT)

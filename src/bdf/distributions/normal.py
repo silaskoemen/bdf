@@ -54,17 +54,35 @@ class NormalMuNormalParams(BDFDistributionParams):
 
 
 class NormalMuInvGammaSigmaNormalParams(BDFDistributionParams):
-    """Parameters for Normal-Inverse-Gamma conjugate model (unknown mean and variance).
+    r"""Parameters for Normal-Inverse-Gamma conjugate model (unknown mean and variance).
 
-    Prior: μ | σ² ~ N(μ₀, σ²/n₀), σ² ~ InvGamma(ν₀/2, ν₀φ₀/2)
-    Posterior: μ | σ², y ~ N(μₙ, σ²/nₙ), σ² | y ~ InvGamma(νₙ/2, νₙφₙ/2)
-    Posterior predictive: y_new | y ~ StudentT(νₙ, μₙ, φₙ/nₙ(1 + 1/nₙ))
+    **Model Specification:**
+
+    *   **Prior:** :math:`\mu \mid \sigma^2 \sim \mathcal{N}(\mu_0, \sigma^2/\kappa_0)`,
+        :math:`\sigma^2 \sim \text{InvGamma}(\nu_0/2, \nu_0\phi_0/2)`
+    *   **Likelihood:** :math:`y \mid \mu, \sigma^2 \sim \mathcal{N}(\mu, \sigma^2)`
+    *   **Posterior Predictive:** :math:`y_\text{new} \mid y \sim t_{\nu_n}(\mu_n, \phi_n(1+1/\kappa_n))`
+
+    Parameters
+    ----------
+    mu_mu : float or "auto", default=0.0
+        Prior mean :math:`\mu_0` for :math:`\mu`. If ``"auto"``, set to the
+        sample mean of ``y`` at fit time.
+    n_mu : float, default=1.0
+        Prior precision scale :math:`\kappa_0`. Acts as pseudo-sample-size
+        weighting the prior mean.
+    nu_sigma : float, default=4.0
+        Prior degrees of freedom :math:`\nu_0` for :math:`\sigma^2`. Must be
+        > 2 when ``phi_sigma="auto"`` (so the InvGamma prior has a finite mean).
+    phi_sigma : float or "auto", default=1.0
+        Prior scale parameter :math:`\phi_0` for :math:`\sigma^2`. If ``"auto"``,
+        set so that :math:`E[\sigma^2] = s^2`, i.e. :math:`\phi_0 = s^2(\nu_0-2)/\nu_0`.
     """
 
     # Prior hyperparameters
     mu_mu: float = Field(default=0.0, description="Prior mean μ₀ for μ")
-    n_mu: float = Field(default=1.0, gt=0, description="Prior precision scale n₀ for μ")
-    nu_sigma: float = Field(default=3.0, gt=0, description="Prior degrees of freedom ν₀ for σ²")
+    n_mu: float = Field(default=1.0, gt=0, description="Prior precision scale κ₀ for μ")
+    nu_sigma: float = Field(default=4.0, gt=2, description="Prior degrees of freedom ν₀ for σ² (must be > 2)")
     phi_sigma: float = Field(default=1.0, gt=0, description="Prior scale parameter φ₀ for σ²")
 
     # Scoring defaults
@@ -329,22 +347,35 @@ class NormalMuInvGammaSigmaNormal(BDFDistribution[NormalMuInvGammaSigmaNormalPar
 
     **Model:**
 
-    *   **Prior:** :math:`\mu \mid \sigma^2 \sim \mathcal{N}(\mu_0, \sigma^2/n_0)`,
-        :math:`\sigma^2 \sim \text{InvGamma}(\nu_0/2, \nu_0 \phi_0/2)`
+    *   **Prior:** :math:`\mu \mid \sigma^2 \sim \mathcal{N}(\mu_0, \sigma^2/\kappa_0)`,
+        :math:`\sigma^2 \sim \text{InvGamma}(\nu_0/2, \nu_0\phi_0/2)`
     *   **Likelihood:** :math:`y \mid \mu, \sigma^2 \sim \mathcal{N}(\mu, \sigma^2)`
-    *   **Posterior Predictive:** :math:`y_\text{new} \mid y \sim t_{\nu_n}(\mu_n, \phi_n(1+1/n_n))`
+    *   **Posterior Predictive:** :math:`y_\text{new} \mid y \sim t_{\nu_n}(\mu_n, \phi_n(1+1/\kappa_n))`
 
     Parameters
     ----------
-    mu_mu : float, default=0.0
-        Prior mean :math:`\mu_0` for :math:`\mu`.
+    mu_mu : float or "auto", default=0.0
+        Prior mean :math:`\mu_0` for :math:`\mu`. If ``"auto"``, set to the
+        sample mean of ``y`` at fit time.
     n_mu : float, default=1.0
-        Prior precision scale :math:`n_0`. Acts as pseudo-sample-size
+        Prior precision scale :math:`\kappa_0`. Acts as pseudo-sample-size
         weighting the prior mean.
-    nu_sigma : float, default=3.0
-        Prior degrees of freedom :math:`\nu_0` for :math:`\sigma^2`.
-    phi_sigma : float, default=1.0
-        Prior scale parameter :math:`\phi_0` for :math:`\sigma^2`.
+    nu_sigma : float, default=4.0
+        Prior degrees of freedom :math:`\nu_0` for :math:`\sigma^2`. Must be > 2.
+        Controls how informative the prior on variance is (higher = stronger).
+    phi_sigma : float or "auto", default=1.0
+        Prior scale parameter :math:`\phi_0` for :math:`\sigma^2`. If ``"auto"``,
+        set so that :math:`E[\sigma^2] = s^2`, i.e.
+        :math:`\phi_0 = s^2 (\nu_0 - 2) / \nu_0`.
+
+    Notes
+    -----
+    Posterior parameters use the **normalized** convention where
+    :math:`\phi_n = S_n / \nu_n` (the posterior mean of :math:`\sigma^2` when
+    :math:`\nu_n > 2`). This aligns Python and Rust implementations.
+
+    The posterior parameter keys are: ``posterior_mu``, ``posterior_sigma``,
+    ``posterior_n``, ``posterior_nu``, ``posterior_phi``, ``posterior_pred_scale``.
 
     See Also
     --------
@@ -371,48 +402,61 @@ class NormalMuInvGammaSigmaNormal(BDFDistribution[NormalMuInvGammaSigmaNormalPar
     # ========================================================================
 
     def calc_posterior_params(self, data: np.ndarray) -> dict[str, float]:
-        """Calculate Normal-Gamma posterior parameters."""
+        """Calculate Normal-Inverse-Gamma posterior parameters.
+
+        Returns dict with:
+        - posterior_mu: Posterior mean of μ
+        - posterior_sigma: MAP estimate of σ (for plug-in likelihood)
+        - posterior_n: Posterior pseudo-count κₙ = κ₀ + n
+        - posterior_nu: Posterior degrees of freedom νₙ = ν₀ + n
+        - posterior_phi: Posterior scale φₙ = Sₙ/νₙ (normalized convention)
+        - posterior_pred_scale: Scale for Student's t posterior predictive
+        """
         n = data.shape[0]
         if n == 0:
             raise ValueError("Data must contain at least one observation to compute posterior parameters.")
-        elif n == 1:
-            # With one data point, sample std is undefined; use small value to avoid division by zero
-            sample_mean = data[0]
-            sample_var = 1e-10
+
+        if n == 1:
+            sample_mean = float(data[0])
+            ssd = 0.0
         else:
-            sample_mean = np.mean(data)
-            sample_var = np.var(data, ddof=1)
+            sample_mean = float(np.mean(data))
+            ssd = float(np.sum((data - sample_mean) ** 2))
 
         # Posterior hyperparameters
-        post_n = self.n_mu + n
-        post_nu = self.nu_sigma + n
-        post_phi = (
-            self.nu_sigma * self.phi_sigma
-            + (n - 1) * sample_var
-            + (n * self.n_mu / post_n) * (sample_mean - self.mu_mu) ** 2
-        )
+        posterior_n = self.n_mu + n
+        posterior_nu = self.nu_sigma + n
+        posterior_mu = (self.n_mu * self.mu_mu + n * sample_mean) / posterior_n
 
-        # Posterior mean
-        posterior_mu = (self.n_mu * self.mu_mu + n * sample_mean) / post_n
+        # Unnormalized sum: S = ν₀φ₀ + SSD + interaction
+        prior_sum_sq = self.nu_sigma * self.phi_sigma
+        interaction = (self.n_mu * n / posterior_n) * (sample_mean - self.mu_mu) ** 2
+        post_sum_sq = prior_sum_sq + ssd + interaction
 
-        # Posterior mode of σ² (if ν > 2), else use mean
-        if post_nu > 2:
-            posterior_sigma_mu = np.sqrt(post_phi / (post_nu - 2))
-        else:
-            posterior_sigma_mu = np.sqrt(post_phi / post_nu)
+        # Normalized: φₙ = S/νₙ
+        posterior_phi = post_sum_sq / posterior_nu
+
+        # MAP estimate of σ: E[σ²] = νₙφₙ/(νₙ-2); clamp νₙ to 2.05 to avoid singularity
+        nu_clamped = max(posterior_nu, 2.05)
+        map_sigma2 = posterior_phi * nu_clamped / (nu_clamped - 2)
+        posterior_sigma = max(map_sigma2, 1e-12) ** 0.5
+
+        # Predictive scale for Student's t: sqrt(φₙ * (1 + 1/κₙ))
+        posterior_pred_scale = max(posterior_phi * (1 + 1 / posterior_n), 1e-12) ** 0.5
 
         return {
             "posterior_mu": float(posterior_mu),
-            "posterior_sigma_mu": float(posterior_sigma_mu),
-            "post_n": float(post_n),
-            "post_nu": float(post_nu),
-            "post_phi": float(post_phi),
+            "posterior_sigma": float(posterior_sigma),
+            "posterior_n": float(posterior_n),
+            "posterior_nu": float(posterior_nu),
+            "posterior_phi": float(posterior_phi),
+            "posterior_pred_scale": float(posterior_pred_scale),
         }
 
     def _plugin_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
-        """Plug-in Normal likelihood with posterior mode."""
+        """Plug-in Normal likelihood with MAP σ estimate."""
         mu = params["posterior_mu"]
-        sigma = params["posterior_sigma_mu"]
+        sigma = params["posterior_sigma"]
         return norm.logpdf(data, loc=mu, scale=sigma)
 
     def _num_parameters(self) -> int:
@@ -422,13 +466,8 @@ class NormalMuInvGammaSigmaNormal(BDFDistribution[NormalMuInvGammaSigmaNormalPar
     def _sample_posterior_params(self, params: dict[str, float], size: int, random_state: int) -> np.ndarray:
         """Sample from Student's t posterior predictive."""
         mu = params["posterior_mu"]
-        post_n = params["post_n"]
-        post_nu = params["post_nu"]
-        post_phi = params["post_phi"]
-
-        df = post_nu
-        scale = np.sqrt(post_phi / post_nu * (1 + 1 / post_n))
-
+        df = params["posterior_nu"]
+        scale = params["posterior_pred_scale"]
         return np.array(student_t.rvs(df=df, loc=mu, scale=scale, size=size, random_state=random_state))
 
     def validate_targets(self, data: np.ndarray):
@@ -443,24 +482,26 @@ class NormalMuInvGammaSigmaNormal(BDFDistribution[NormalMuInvGammaSigmaNormalPar
             raise ValueError(f"Standard deviation must be finite and non-negative, got {std}")
 
     def get_posterior_mean(self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None) -> float:
-        """Get posterior mean."""
+        """Get posterior mean of μ."""
         if params is None:
             if data is None:
                 raise ValueError("Provide either 'data' or 'params'")
             params = self.calc_posterior_params(data)
-
         return params["posterior_mu"]
 
     def get_posterior_variance(
         self, *, data: np.ndarray | None = None, params: dict[str, float] | None = None
     ) -> float:
-        """Get posterior variance."""
+        """Get posterior predictive variance: φₙ(1 + 1/κₙ) * νₙ/(νₙ-2) for νₙ > 2."""
         if params is None:
             if data is None:
                 raise ValueError("Provide either 'data' or 'params'")
             params = self.calc_posterior_params(data)
-
-        return params["posterior_sigma_mu"] ** 2
+        posterior_nu = params["posterior_nu"]
+        pred_scale_sq = params["posterior_pred_scale"] ** 2
+        # Variance of Student's t(ν, μ, s) = s² * ν/(ν-2); clamp ν to 2.05
+        nu_clamped = max(posterior_nu, 2.05)
+        return pred_scale_sq * nu_clamped / (nu_clamped - 2)
 
     # ========================================================================
     # OPTIONAL METHODS
@@ -501,17 +542,33 @@ class NormalMuInvGammaSigmaNormal(BDFDistribution[NormalMuInvGammaSigmaNormalPar
         return float(log_ev)
 
     def _posterior_predictive_log_likelihood(self, data: np.ndarray, params: dict) -> np.ndarray:
-        """Student's t posterior predictive."""
+        """Student's t posterior predictive: t(νₙ, μₙ, pred_scale)."""
         mu = params["posterior_mu"]
-        post_n = params["post_n"]
-        post_nu = params["post_nu"]
-        post_phi = params["post_phi"]
-
-        df = post_nu
-        scale = np.sqrt(post_phi / post_nu * (1 + 1 / post_n))
-
+        df = params["posterior_nu"]
+        scale = params["posterior_pred_scale"]
         return student_t.logpdf(data, df=df, loc=mu, scale=scale)
 
     def sample_prior(self, size: int, random_state: int = RANDOM_SEED) -> np.ndarray:
-        """Cannot easily sample from Normal-Gamma prior (hierarchical)."""
-        raise NotImplementedError("NormGammaNormal prior sampling not implemented (requires hierarchical sampling).")
+        """Cannot easily sample from NIG prior (hierarchical)."""
+        raise NotImplementedError("NIG prior sampling not implemented (requires hierarchical sampling).")
+
+    @classmethod
+    def resolve_auto_params(cls, key: str, data: np.ndarray, params: dict[str, Any] | None = None) -> Any:
+        """Resolve 'auto' parameters based on data.
+
+        For NormalMuInvGammaSigmaNormal:
+        - 'mu_mu': Use sample mean
+        - 'phi_sigma': Set so E[σ²] = s², i.e. φ₀ = s²(ν₀-2)/ν₀
+        """
+        if key == "mu_mu":
+            return float(np.mean(data))
+        if key == "phi_sigma":
+            assert params is not None, "'params' must be provided to resolve 'phi_sigma' automatically."
+            nu_sigma = params.get("nu_sigma", 4.0)
+            if isinstance(nu_sigma, str):
+                nu_sigma = 4.0
+            if nu_sigma <= 2:
+                raise ValueError(f"nu_sigma must be > 2 for auto phi_sigma (got {nu_sigma})")
+            sample_var = float(np.var(data, ddof=1)) if len(data) > 1 else 1.0
+            return sample_var * (nu_sigma - 2) / nu_sigma
+        raise ValueError(f"Unknown parameter '{key}' for auto resolution in {cls.__name__}")

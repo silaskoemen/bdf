@@ -20,7 +20,7 @@ from enum import Enum
 from typing import Callable, Optional
 
 import numpy as np
-from scipy.stats import expon, norm, poisson
+from scipy.stats import expon, norm, poisson, skewnorm
 from scipy.stats import t as student_t
 
 
@@ -36,6 +36,7 @@ class DGPType(Enum):
     POISSON_COUNT = "poisson_count"
     EXPONENTIAL_WAITING_TIME = "exponential_waiting_time"
     MULTIMODAL_MIXTURE_FIXED = "multimodal_mixture_fixed"
+    SKEWED_HETEROSCEDASTIC = "skewed_heteroscedastic"
 
 
 @dataclass
@@ -970,6 +971,110 @@ def generate_multimodal_mixture_fixed(
 
 
 # =============================================================================
+# DGP 10: Skewed Heteroscedastic (home for SkewNormal)
+# =============================================================================
+
+
+def generate_skewed_heteroscedastic(
+    n_samples: int = 5000,
+    seed: int = 42,
+    alpha: float = 5.0,
+) -> SyntheticDataset:
+    """Generate data from a skew-normal model with input-dependent location and scale.
+
+    The model is:
+        y | x ~ SkewNormal(alpha, xi(x), omega(x))
+        xi(x) = 1.5*x1 + 0.5*sin(2*x2)
+        omega(x) = 0.3 + 0.15*|x1|
+
+    The skewness parameter alpha is constant across the feature space, producing
+    right-skewed residuals at every point. This is the "home" DGP for SkewNormal
+    in the misspecification study.
+
+    Args:
+        n_samples: Number of samples
+        seed: Random seed
+        alpha: Skewness parameter (positive = right-skewed)
+
+    Returns:
+        SyntheticDataset with ground truth functions
+    """
+    rng = np.random.RandomState(seed)
+    X = rng.uniform(-2, 2, size=(n_samples, 2))
+
+    delta = alpha / np.sqrt(1 + alpha**2)
+
+    def xi_fn(x):
+        """Location parameter xi(x)."""
+        return 1.5 * x[:, 0] + 0.5 * np.sin(2 * x[:, 1])
+
+    def omega_fn(x):
+        """Scale parameter omega(x)."""
+        return 0.3 + 0.15 * np.abs(x[:, 0])
+
+    def mean_fn(x):
+        """E[Y|X=x] = xi + omega * delta * sqrt(2/pi)."""
+        return xi_fn(x) + omega_fn(x) * delta * np.sqrt(2 / np.pi)
+
+    def variance_fn(x):
+        """Var[Y|X=x] = omega^2 * (1 - 2*delta^2/pi)."""
+        return omega_fn(x) ** 2 * (1 - 2 * delta**2 / np.pi)
+
+    def quantile_fn(x, tau):
+        """Quantile function for skew-normal."""
+        return skewnorm.ppf(tau, a=alpha, loc=xi_fn(x), scale=omega_fn(x))
+
+    def density_fn(y, x):
+        """Conditional density p(y|x)."""
+        return skewnorm.pdf(y, a=alpha, loc=xi_fn(x), scale=omega_fn(x))
+
+    def sample_fn(x, n_samples_per_x):
+        """Sample from conditional distribution."""
+        n_x = x.shape[0]
+        samples = np.zeros((n_x, n_samples_per_x))
+        for i in range(n_x):
+            samples[i] = skewnorm.rvs(
+                a=alpha,
+                loc=xi_fn(x[i : i + 1])[0],
+                scale=omega_fn(x[i : i + 1])[0],
+                size=n_samples_per_x,
+                random_state=seed + i,
+            )
+        return samples
+
+    # Generate y
+    xi = xi_fn(X)
+    omega = omega_fn(X)
+    y = skewnorm.rvs(a=alpha, loc=xi, scale=omega, random_state=seed)
+
+    ground_truth = GroundTruthFunctions(
+        mean_fn=mean_fn,
+        variance_fn=variance_fn,
+        quantile_fn=quantile_fn,
+        density_fn=density_fn,
+        sample_fn=sample_fn,
+    )
+
+    return SyntheticDataset(
+        X=X,
+        y=y,
+        dgp_type=DGPType.SKEWED_HETEROSCEDASTIC,
+        name="skewed_heteroscedastic",
+        ground_truth=ground_truth,
+        seed=seed,
+        n_features=2,
+        n_informative=2,
+        noise_level=0.3,
+        metadata={
+            "alpha": alpha,
+            "xi_function": "1.5*x1 + 0.5*sin(2*x2)",
+            "omega_function": "0.3 + 0.15*|x1|",
+            "noise_distribution": f"SkewNormal(alpha={alpha})",
+        },
+    )
+
+
+# =============================================================================
 # DGP Registry
 # =============================================================================
 
@@ -983,6 +1088,7 @@ DGP_REGISTRY = {
     "poisson_count": generate_poisson_count,
     "exponential_waiting_time": generate_exponential_waiting_time,
     "multimodal_mixture_fixed": generate_multimodal_mixture_fixed,
+    "skewed_heteroscedastic": generate_skewed_heteroscedastic,
 }
 
 

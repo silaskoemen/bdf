@@ -1157,7 +1157,8 @@ def plot_main_body_metric_table(
     }
 
     # Coverage targets: higher-is-better for coverage (closer to nominal), lower-is-better for everything else
-    higher_is_better = {"coverage_90", "coverage_50", "r2"}
+    # coverage_* raw values are abs(empirical - nominal), so lower = better — no need to list here
+    higher_is_better = {"r2"}
 
     # Build table data: rows = (dgp, metric), cols = models
     row_labels = []
@@ -1291,7 +1292,7 @@ def create_synthetic_benchmark_summary(
         results_dict,
         models,
         metrics=["rmse", "crps", "gt_mean_rmse", "gt_variance_rmse"],
-        save_path=output_dir / "dgp_comparison_table.png",
+        save_path=output_dir / "dgp_comparison_table.pdf",
     )
 
     # 2. Variance estimation quality scatter
@@ -1299,7 +1300,7 @@ def create_synthetic_benchmark_summary(
     plot_variance_estimation_quality(
         results_dict,
         models,
-        save_path=output_dir / "variance_estimation_quality.png",
+        save_path=output_dir / "variance_estimation_quality.pdf",
     )
 
     # 3. PIT histogram summary grid
@@ -1307,7 +1308,7 @@ def create_synthetic_benchmark_summary(
     plot_pit_summary_grid(
         results_dict,
         models,
-        save_path=output_dir / "pit_histograms.png",
+        save_path=output_dir / "pit_histograms.pdf",
     )
 
     # 4. DGP overview (generated from DGP registry, no results needed)
@@ -1316,7 +1317,7 @@ def create_synthetic_benchmark_summary(
 
     plot_dgp_overview(
         DGPS_TO_RUN,
-        save_path=output_dir / "dgp_overview.png",
+        save_path=output_dir / "dgp_overview.pdf",
     )
 
     # 5. Calibration curves
@@ -1324,7 +1325,7 @@ def create_synthetic_benchmark_summary(
     plot_calibration_curves(
         results_dict,
         models,
-        save_path=output_dir / "calibration_curves.png",
+        save_path=output_dir / "calibration_curves.pdf",
     )
 
     # 6. Predictions grid (from fold-1 saved data)
@@ -1334,7 +1335,7 @@ def create_synthetic_benchmark_summary(
         DGPS_TO_RUN,
         plot_dir,
         models,
-        save_path=output_dir / "predictions_grid.png",
+        save_path=output_dir / "predictions_grid.pdf",
     )
 
     # 7. Main-body predictions panel (heteroscedastic sinusoidal — most visually compelling)
@@ -1346,7 +1347,7 @@ def create_synthetic_benchmark_summary(
         dgp_kwargs=featured_dgp.get("kwargs", {}),
         plot_dir=plot_dir,
         models=models,
-        save_path=output_dir / "main_predictions.png",
+        save_path=output_dir / "main_predictions.pdf",
     )
 
     # 8. Main-body compact metric table
@@ -1354,7 +1355,7 @@ def create_synthetic_benchmark_summary(
     plot_main_body_metric_table(
         results_dict,
         models,
-        save_path=output_dir / "main_metric_table.png",
+        save_path=output_dir / "main_metric_table.pdf",
     )
 
     print(f"\nSummary plots saved to {output_dir}")
