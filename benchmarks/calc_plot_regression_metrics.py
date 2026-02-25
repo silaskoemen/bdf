@@ -54,35 +54,8 @@ BASELINE_MODELS = [
     "knnkde",
 ]
 
-# Model display names for plots and tables
-MODEL_DISPLAY_NAMES = {
-    "BDF": "BDF",
-    "bayesridge_reg": "BayesRidge",
-    "conflgbm": "ConfLGBM",
-    "confrf": "ConfRF",
-    "gaussian_de": "GaussianDE",
-    "bartpy": "BART",
-    "ngboost_reg": "NGBoost",
-    "gp_reg": "GP",
-    "qrf": "QRF",
-    "catbunc_reg": "CatBoostUnc",
-    "knnkde": "KNNKDE",
-}
-
-# Fixed colors for each model (for consistent styling across plots)
-MODEL_COLORS = {
-    "BDF": "dodgerblue",
-    "bayesridge_reg": "orange",
-    "conflgbm": "forestgreen",
-    "confrf": "limegreen",
-    "gaussian_de": "mediumpurple",
-    "bartpy": "crimson",
-    "ngboost_reg": "goldenrod",
-    "gp_reg": "teal",
-    "qrf": "darkorange",
-    "catbunc_reg": "purple",
-    "knnkde": "brown",
-}
+# Model display names and colors from shared style
+from benchmarks.utils.style import MODEL_COLORS, MODEL_DISPLAY_NAMES
 
 # BDF default distribution for timing comparison (loaded separately alongside BDF selected)
 BDF_DEFAULT_DIST = "bdf_normalmunormal"

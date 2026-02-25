@@ -21,7 +21,6 @@ from pathlib import Path
 from time import time
 from typing import Any
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import optuna
@@ -357,15 +356,9 @@ def run_study(quick: bool = False) -> list[CellResult]:
 
 def plot_results(results: list[CellResult]) -> None:
     """Side-by-side CRPS comparison: uniform vs OOB for each dataset."""
-    matplotlib.rcParams.update(
-        {
-            "font.size": 11,
-            "font.family": "serif",
-            "figure.dpi": 300,
-            "axes.grid": True,
-            "grid.alpha": 0.15,
-        }
-    )
+    from benchmarks.utils.style import apply_paper_style
+
+    apply_paper_style()
 
     # Collect per-(dataset, mode) CRPS values across seeds and folds
     data: dict[str, dict[str, list[float]]] = {}

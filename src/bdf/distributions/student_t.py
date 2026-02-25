@@ -387,8 +387,12 @@ class NormalMeanStudentT(BDFDistribution[NormalMeanStudentTParams]):
         if key == "mu_mean":
             return float(np.mean(data))
         if key == "sigma_mean":
-            assert params is not None
-            assert "sigma_mean_auto_scale" in params
+            if params is None:
+                raise ValueError("'params' must be provided to resolve 'sigma_mean' automatically.")
+            if "sigma_mean_auto_scale" not in params:
+                raise ValueError(
+                    "'sigma_mean_auto_scale' must be defined in params to resolve 'sigma_mean' automatically."
+                )
             sample_std = np.std(data, ddof=1)
             scale = params["sigma_mean_auto_scale"]
             return float(sample_std * scale)

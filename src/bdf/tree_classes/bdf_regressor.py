@@ -101,8 +101,8 @@ class BDFModel(BaseEstimator):
 
     def __init__(
         self,
-        dist: str = "NormalMuNormal",
-        params: dict = {"mu_mu": "auto", "sigma_mu": "auto", "sigma_mu_auto_scale": 5.0},
+        dist: str,
+        params: dict,
         n_trees: int = 50,
         alpha: float = 0.0,
         gamma: float = 0.01,
@@ -259,7 +259,11 @@ class BDFModel(BaseEstimator):
         trees have enough OOB samples for reliable scoring.
         """
         n_total = X.shape[0]
-        expected_oob = n_total * (1 - self.subsample)
+        if self.bootstrap:
+            # With replacement: expected unique fraction is 1-exp(-s), so OOB ≈ n*exp(-s)
+            expected_oob = n_total * np.exp(-self.subsample)
+        else:
+            expected_oob = n_total * (1 - self.subsample)
         if expected_oob < min_oob_samples:
             warnings.warn(
                 f"Expected ~{expected_oob:.0f} OOB samples per tree (subsample={self.subsample}), "
@@ -803,6 +807,14 @@ class BDFRegressor(BDFModel, RegressorMixin):
     for uncertainty quantification.
     """
 
+    def __init__(
+        self,
+        dist: str = "NormalMuNormal",
+        params: dict = {"mu_mu": "auto", "sigma_mu": "auto", "sigma_mu_auto_scale": 5.0},
+        **kwargs,
+    ):
+        super().__init__(dist=dist, params=params, **kwargs)
+
     def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False, standardize_y: bool = False):
         """Fit the BDFRegressor to the training data.
 
@@ -895,6 +907,14 @@ class BDFClassifier(BDFModel, ClassifierMixin):
     and predict_proba() returning class probabilities. All underlying predict_XXX
     methods operate on the probability of the positive class (class 1).
     """
+
+    def __init__(
+        self,
+        dist: str = "BetaMVBernoulli",
+        params: dict = {"mean_p": "auto", "var_p": 0.05},
+        **kwargs,
+    ):
+        super().__init__(dist=dist, params=params, **kwargs)
 
     def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False):
         """Fit the BDFClassifier to the training data.

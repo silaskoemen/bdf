@@ -343,7 +343,7 @@ class TestNormalInvGammaRustEquivalence:
         py_nll = py_dist.nll(data)
 
         rust_spec = DistributionManager.to_rust_spec(py_dist)
-        rust_nll = bdf_rs.calculate_nll(data, rust_spec)
+        rust_nll = bdf_rs.calculate_nll(data, rust_spec)  # ty:ignore[unresolved-attribute]
 
         # Use numerical tolerance - small differences expected due to variance calculation
         # (up to ~3% for small n with strong priors far from data)
@@ -361,7 +361,7 @@ class TestNormalInvGammaRustEquivalence:
         py_nll = py_dist.nll(data)
 
         rust_spec = DistributionManager.to_rust_spec(py_dist)
-        rust_nll = bdf_rs.calculate_nll(data, rust_spec)
+        rust_nll = bdf_rs.calculate_nll(data, rust_spec)  # ty:ignore[unresolved-attribute]
 
         # Use numerical tolerance - small differences expected
         assert_close(py_nll, rust_nll, rtol=0.02, msg=f"PP NLL mismatch: n={n_samples}")
@@ -579,8 +579,6 @@ class TestNormalInvGammaPropertyBased:
         """Posterior σ should always be positive."""
         dist = NormalMuInvGammaSigmaNormal({"mu_mu": 0.0, "n_mu": 1.0, "nu_sigma": 3.0, "phi_sigma": 1.0})
         params = dist.calc_posterior_params(data)
-        print(params)
-
         assert params["posterior_sigma"] > 0
 
     @given(normal_data_strategy(min_size=5, max_size=100))
@@ -657,7 +655,7 @@ class TestNormalInvGammaAutoParams:
             {"mu_mu": "auto", "n_mu": 1.0, "nu_sigma": 4.0, "phi_sigma": 1.0},
             y=data,
         )
-        assert_close(dist.mu_mu, float(np.mean(data)), rtol=RTOL_TIGHT)
+        assert_close(getattr(dist, "mu_mu"), float(np.mean(data)), rtol=RTOL_TIGHT)
 
     def test_auto_phi_sigma(self):
         """phi_sigma='auto' should resolve to s²(ν₀-2)/ν₀."""
@@ -673,7 +671,7 @@ class TestNormalInvGammaAutoParams:
 
         sample_var = float(np.var(data, ddof=1))
         expected_phi = sample_var * (nu_sigma - 2) / nu_sigma
-        assert_close(dist.phi_sigma, expected_phi, rtol=RTOL_TIGHT)
+        assert_close(getattr(dist, "phi_sigma"), expected_phi, rtol=RTOL_TIGHT)
 
     def test_auto_both(self):
         """Both mu_mu and phi_sigma can be auto simultaneously."""
@@ -687,10 +685,10 @@ class TestNormalInvGammaAutoParams:
             y=data,
         )
 
-        assert_close(dist.mu_mu, float(np.mean(data)), rtol=RTOL_TIGHT)
+        assert_close(getattr(dist, "mu_mu"), float(np.mean(data)), rtol=RTOL_TIGHT)
         sample_var = float(np.var(data, ddof=1))
         expected_phi = sample_var * (nu_sigma - 2) / nu_sigma
-        assert_close(dist.phi_sigma, expected_phi, rtol=RTOL_TIGHT)
+        assert_close(getattr(dist, "phi_sigma"), expected_phi, rtol=RTOL_TIGHT)
 
     def test_auto_phi_prior_centers_on_data_variance(self):
         """With auto phi, the prior E[σ²] should equal the sample variance."""
@@ -705,6 +703,6 @@ class TestNormalInvGammaAutoParams:
         )
 
         # E[σ²] under InvGamma(ν₀/2, ν₀φ₀/2) = ν₀φ₀/(ν₀-2)
-        prior_mean_sigma2 = nu_sigma * dist.phi_sigma / (nu_sigma - 2)
+        prior_mean_sigma2 = nu_sigma * getattr(dist, "phi_sigma") / (nu_sigma - 2)
         sample_var = float(np.var(data, ddof=1))
         assert_close(prior_mean_sigma2, sample_var, rtol=RTOL_TIGHT)

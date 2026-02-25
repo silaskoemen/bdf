@@ -10,7 +10,7 @@ from bdf.tree_classes.bdf_regressor import BDFRegressor
 def test_end_to_end_regression():
     """Test the full regression pipeline"""
     # Generate synthetic data — fewer informative features for a clearer signal
-    X, y = make_regression(n_samples=200, n_features=5, n_informative=3, noise=10.0, random_state=42)  # type: ignore
+    X, y = make_regression(n_samples=200, n_features=5, n_informative=3, noise=10.0, random_state=42)
 
     # Train model with auto params so priors adapt to data scale
     regressor = BDFRegressor(

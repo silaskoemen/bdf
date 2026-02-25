@@ -506,8 +506,8 @@ def run_classification_experiment(
     dist_params.update(SCORING_CONFIGS[scoring_name])
 
     model = BDFClassifier(
-        dist="BetaABBernoulli", params=dist_params, **MODEL_CONFIG
-    )  # ty:ignore[invalid-argument-type]
+        dist="BetaABBernoulli", params=dist_params, **MODEL_CONFIG  # ty:ignore[invalid-argument-type]
+    )
 
     start_time = time.time()
     model.fit(X_train, y_train)
@@ -707,8 +707,10 @@ def run_real_data_study(
                     try:
                         if task == "regression":
                             model = BDFRegressor(
-                                dist="NormalMuNormal", params=dist_params, **MODEL_CONFIG
-                            )  # ty:ignore[invalid-argument-type]
+                                dist="NormalMuNormal",
+                                params=dist_params,
+                                **MODEL_CONFIG,  # ty:ignore[invalid-argument-type]
+                            )
                             start_time = time.time()
                             model.fit(X_train, y_train)
                             fit_time = time.time() - start_time
@@ -718,8 +720,10 @@ def run_real_data_study(
                             predict_time = time.time() - start_time
                         else:
                             model = BDFClassifier(
-                                dist="BetaABBernoulli", params=dist_params, **MODEL_CONFIG
-                            )  # ty:ignore[invalid-argument-type]
+                                dist="BetaABBernoulli",
+                                params=dist_params,
+                                **MODEL_CONFIG,  # ty:ignore[invalid-argument-type]
+                            )
                             start_time = time.time()
                             model.fit(X_train, y_train)
                             fit_time = time.time() - start_time

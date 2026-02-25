@@ -552,7 +552,7 @@ def run_study(quick: bool = False) -> list[CellResult]:
 
     for seed in seeds:
         for dgp_spec in dgps:
-            dgp_name = dgp_spec["name"]
+            dgp_name = str(dgp_spec["name"])
             dgp_kwargs = {**dgp_spec["kwargs"], "seed": seed}
 
             logger.info(f"\n{'=' * 70}")

@@ -33,8 +33,9 @@ scoring-study-clas = "PYTHONPATH=src python -m benchmarks.scoring_method_study c
 scoring-study-quick = "PYTHONPATH=src python -m benchmarks.scoring_method_study --quick"
 effect-tree-prior = "PYTHONPATH=src python -m benchmarks.effect_tree_prior"
 ood = "PYTHONPATH=src python -m benchmarks.effect_out_of_distribution"
-dist = "PYTHONPATH=src python -m benchmarks.dist_misspecification_study"
-dist-plot = "PYTHONPATH=src python -m benchmarks.plot_misspecification_results"
+dist-study = "PYTHONPATH=src python -m benchmarks.dist_misspecification_study"
+dist-output = "PYTHONPATH=src python -m benchmarks.plot_misspecification_results"
+oob-study = "PYTHONPATH=src python -m benchmarks.oob_weighting_study"
 
 # Documentation
 docs-build = "sphinx-build -b html docs/source docs/build/html"

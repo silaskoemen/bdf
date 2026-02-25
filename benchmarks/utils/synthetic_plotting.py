@@ -12,56 +12,26 @@ the true conditional distribution p(y|x) is known. Plots include:
 from pathlib import Path
 from typing import Optional
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
 from benchmarks.pipeline.synthetic_dgps import SyntheticDataset
-
-# Publication-quality defaults
-mpl.rcParams.update(
-    {
-        "font.size": 11,
-        "figure.figsize": (10, 6),
-        "font.family": "serif",
-        "figure.dpi": 300,
-        "axes.grid": True,
-        "grid.alpha": 0.15,
-        "axes.labelsize": 12,
-        "xtick.labelsize": 10,
-        "ytick.labelsize": 10,
-        "legend.fontsize": 10,
-        "lines.linewidth": 2,
-    }
+from benchmarks.utils.style import (
+    MODEL_COLORS,
+    MODEL_DISPLAY_NAMES,
+    SEMANTIC_COLORS,
+    apply_paper_style,
 )
 
-COLORS = {
-    "ground_truth": "#2E86AB",  # Steel blue
-    "bdf": "#A23B72",  # Plum
-    "baseline": "#F18F01",  # Orange
-    "data": "#4A4A4A",  # Dark gray
-    "confidence": "#C73E1D",  # Burnt sienna
-}
+apply_paper_style()
+
+COLORS = SEMANTIC_COLORS
 
 # Consistent model styling across all summary figures
 MODEL_ORDER = ["BDFNormal", "BDFKDE", "ConformalRF", "NGBoost", "BART"]
-MODEL_COLORS = {
-    "BDFNormal": "#A23B72",  # Plum
-    "BDFKDE": "#6A4C93",  # Purple
-    "ConformalRF": "#F18F01",  # Orange
-    "NGBoost": "#2E86AB",  # Steel blue
-    "BART": "#6A994E",  # Green
-}
-MODEL_DISPLAY_NAMES = {
-    "BDFNormal": "BDF (Normal)",
-    "BDFKDE": "BDF (KDE)",
-    "ConformalRF": "Conformal RF",
-    "NGBoost": "NGBoost",
-    "BART": "BART",
-}
 
 
-def _order_models(models: list[str]) -> list[str]:
+def order_models(models: list[str]) -> list[str]:
     """Sort model names into canonical display order."""
     order_map = {name: i for i, name in enumerate(MODEL_ORDER)}
     return sorted(models, key=lambda m: order_map.get(m, len(MODEL_ORDER)))
@@ -488,7 +458,7 @@ def plot_coverage_by_region(
     ax.set_title(f"Local Calibration: {model_name} on {dataset.name}", fontsize=13, fontweight="bold")
     ax.legend(loc="best", framealpha=0.9)
     ax.grid(alpha=0.15)
-    ax.set_ylim([0, 1])
+    ax.set_ylim(0, 1)
 
     plt.tight_layout()
 
@@ -575,6 +545,7 @@ def plot_pit_histogram(
         "bin_proportions": bin_proportions.tolist(),
         "n_bins": n_bins,
         "n_samples": len(y_test),
+        "pit_values": pit_values.tolist(),
     }
 
 
@@ -837,9 +808,7 @@ def plot_calibration_curves(
         save_path: Optional path to save figure
     """
     dgp_names = list(results_dict.keys())
-    ordered_models = _order_models(
-        [m for m in models if any(m in results_dict[d].get("models", {}) for d in dgp_names)]
-    )
+    ordered_models = order_models([m for m in models if any(m in results_dict[d].get("models", {}) for d in dgp_names)])
 
     n_rows, n_cols = 2, 3
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(4.5 * n_cols, 4 * n_rows), squeeze=False)
@@ -940,7 +909,7 @@ def plot_predictions_grid(
         print("No 1D DGPs found — skipping predictions grid.")
         return
 
-    ordered_models = _order_models(models)
+    ordered_models = order_models(models)
 
     # Check which models have data
     active_models = []
@@ -1048,7 +1017,7 @@ def plot_main_body_predictions(
         print(f"Skipping main-body predictions: {dgp_name} is not 1D.")
         return
 
-    ordered_models = _order_models(models)
+    ordered_models = order_models(models)
     active_models = [m for m in ordered_models if (Path(plot_dir) / dgp_name / f"{m}_fold1_data.npz").exists()]
     if not active_models:
         print(f"No fold-1 .npz files found for {dgp_name} — skipping main-body predictions.")
@@ -1138,7 +1107,7 @@ def plot_main_body_metric_table(
         metrics: Metrics to display (must exist in aggregated_metrics)
         save_path: Optional path to save figure
     """
-    ordered_models = _order_models(
+    ordered_models = order_models(
         [m for m in models if any(m in results_dict[d].get("models", {}) for d in results_dict)]
     )
     dgp_names = list(results_dict.keys())
@@ -1343,8 +1312,8 @@ def create_synthetic_benchmark_summary(
     plot_dir = Path("benchmarks/plots/synthetic_dgp")
     featured_dgp = DGPS_TO_RUN[0]  # heteroscedastic_sinusoidal
     plot_main_body_predictions(
-        dgp_name=featured_dgp["name"],
-        dgp_kwargs=featured_dgp.get("kwargs", {}),
+        dgp_name=str(featured_dgp["name"]),
+        dgp_kwargs=featured_dgp.get("kwargs", {}),  # ty:ignore[invalid-argument-type]
         plot_dir=plot_dir,
         models=models,
         save_path=output_dir / "main_predictions.pdf",

@@ -8,7 +8,7 @@ BDF's core claim is that choosing the right distributional assumption improves p
 
 ### DGPs x Distributions Cross-Design
 
-5 synthetic DGPs, each the "home" of one BDF distribution variant:
+6 synthetic DGPs, each the "home" of one BDF distribution variant, crossed with 7 distribution models (42 cells total):
 
 | DGP | Home Distribution | Key Property |
 |-----|------------------|-------------|
@@ -17,8 +17,11 @@ BDF's core claim is that choosing the right distributional assumption improves p
 | Exponential Waiting-Time | GammaMVLambdaExponential | `y ~ Exp(rate = 0.5 + 0.3x1 + 0.2x2)` |
 | Heavy-Tailed | FrequentistStudentT | `y = x1² + x2 + t(df=3) * 0.5` |
 | Multimodal Mixture | KDE | `y ~ 0.5*N(2x, σ²) + 0.5*N(2x + 2sin(2πx), σ²)` |
+| Skewed Heteroscedastic | NormalMeanPseudoAlphaSkewNormal | `y ~ SkewNormal(α=5, loc=f(x), scale=σ(x))` |
 
-All 25 cells (5 DGPs x 5 distributions) are attempted. 7 cells are domain-incompatible (Poisson/Exponential on data with negative values, plus Exponential on count data which includes zeros).
+**Distribution models**: NormalMuNormal, NormalMuInvGammaSigmaNormal (NIG), NormalMeanPseudoAlphaSkewNormal (Skew-Normal), GammaMVLambdaPoisson, GammaMVLambdaExponential, FrequentistStudentT, KDE.
+
+9 cells are domain-incompatible (Poisson/Exponential on data with negative values or zeros) and are skipped.
 
 ### Protocol
 
@@ -27,10 +30,16 @@ All 25 cells (5 DGPs x 5 distributions) are attempted. 7 cells are domain-incomp
 - **Tuning**: Independent per (DGP, distribution) pair
 - **n_samples**: 5000 per DGP
 
+### Scoring Defaults
+
+- **Conjugate models** (Normal, NIG, Poisson, Exponential): NLE (Bayesian evidence) or NLL with BIC, tuned via Optuna
+- **Non-conjugate models** (Skew-Normal, Student-t, KDE): NLL + BIC (fixed). LOO-CV is avoided for non-conjugate distributions as they lack fast closed-form LOOCV (KDE is an exception where LOO-CV may be tuned)
+
 ### Metrics
 
 **Primary**: CRPS, PIT-KS, PICA, Coverage@90%
 **Ground truth**: gt_mean_rmse, gt_variance_rmse
+**Tree complexity**: avg_depth, avg_nodes (logged per cell and stored in results)
 
 ### Statistical Tests
 
@@ -53,13 +62,24 @@ python -m benchmarks.plot_misspecification_results
 
 ## Outputs
 
+**Results:**
 - `benchmarks/results/dist_misspecification/results.parquet` — tidy DataFrame
 - `benchmarks/results/dist_misspecification/summary.csv` — aggregated summary
-- `benchmarks/plots/dist_misspecification/misspecification_heatmap_relative.pdf` — main figure
-- `benchmarks/plots/dist_misspecification/pit_calibration_panel.pdf` — calibration diagnostic
-- `benchmarks/plots/dist_misspecification/coverage_comparison.pdf` — coverage bar charts
-- `benchmarks/tables/dist_misspecification/misspecification_crps.tex` — LaTeX table
 - `benchmarks/results/dist_misspecification/statistical_tests.json` — significance tests
+
+**Main paper figures:**
+- `misspecification_heatmap_relative.pdf` — relative CRPS heatmap (NxM)
+- `degradation_summary.pdf` — per-DGP dot plot of misspecification cost
+- `cd_diagrams/` — Nemenyi critical difference diagrams per DGP
+
+**Appendix figures:**
+- `misspecification_heatmap_absolute.pdf` — absolute CRPS heatmap
+- `pit_calibration_panel.pdf` — PIT histogram grid (NxM)
+- `coverage_comparison.pdf` — coverage bar charts
+
+**Tables:**
+- `benchmarks/tables/dist_misspecification/misspecification_crps.tex` — CRPS LaTeX table
+- `benchmarks/tables/dist_misspecification/tree_complexity.tex` — avg depth / nodes per cell
 
 ## Expected Findings
 
@@ -68,3 +88,5 @@ python -m benchmarks.plot_misspecification_results
 3. **Domain mismatch is fatal**: Poisson/Exponential cannot run on real-valued data
 4. **Student-t degrades gracefully**: approaches Normal when data is Gaussian
 5. **Misspecification hurts uncertainty more than mean**: CRPS gaps larger than RMSE gaps
+6. **NIG handles heteroscedasticity**: joint (μ, σ²) inference adapts scale per leaf
+7. **Skew-Normal robustness**: non-conjugate model works reliably with NLL + BIC scoring

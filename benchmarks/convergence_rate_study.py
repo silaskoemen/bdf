@@ -35,6 +35,7 @@ from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
 
 from bdf.tree_classes.bdf_regressor import BDFRegressor
+from benchmarks.utils.style import MODEL_COLORS, MODEL_MARKERS
 
 # =============================================================================
 # Configuration
@@ -339,26 +340,19 @@ def fit_convergence_rate(
 
 
 def setup_plot_style():
-    plt.rcParams.update(
-        {
-            "font.size": 11,
-            "font.family": "serif",
-            "axes.labelsize": 12,
-            "axes.titlesize": 13,
-            "xtick.labelsize": 10,
-            "ytick.labelsize": 10,
-            "legend.fontsize": 9,
-            "figure.dpi": 150,
-            "savefig.dpi": 300,
-            "savefig.bbox": "tight",
-            "axes.grid": True,
-            "grid.alpha": 0.3,
-        }
-    )
+    from benchmarks.utils.style import apply_paper_style
+
+    apply_paper_style()
 
 
-COLORS = {"BDF": "#2E86AB", "RandomForest": "#A23B72"}
-MARKERS = {"BDF": "o", "RandomForest": "s"}
+COLORS = {
+    "BDF": MODEL_COLORS.get("BDF", "#C03028"),
+    "RandomForest": MODEL_COLORS.get("RandomForest", "#2D7D46"),
+}
+MARKERS = {
+    "BDF": MODEL_MARKERS.get("BDF", "o"),
+    "RandomForest": MODEL_MARKERS.get("RandomForest", "s"),
+}
 
 
 def plot_convergence_single_dgp(
@@ -701,7 +695,7 @@ def main():
             # Fit convergence rate on mean MSE
             rate = fit_convergence_rate(SAMPLE_SIZES, mean_mse)
 
-            dgp_result["models"][model_name] = {
+            dgp_result["models"][model_name] = {  # ty:ignore[invalid-assignment]
                 "n_values": SAMPLE_SIZES,
                 "mean_mse": mean_mse,
                 "std_mse": std_mse,

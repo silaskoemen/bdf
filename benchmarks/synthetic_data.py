@@ -1,5 +1,4 @@
 # %%
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import norm
@@ -7,8 +6,9 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split as TTS
 
 from bdf.tree_classes.bdf_regressor import BDFModel
+from benchmarks.utils.style import apply_paper_style
 
-mpl.rcParams.update({"font.family": "serif", "font.size": 12.5, "axes.grid": True, "grid.alpha": 0.2})
+apply_paper_style()
 
 # Generate synthetic data for x in [0, pi], with y|x N(sin(x), sigma(x))
 # sigma(x) is |x| for x < pi/2, then 3|x|
@@ -73,7 +73,6 @@ plt.legend()
 plt.show()
 # %%
 # Plot conditional densities (histogram) for 0, 3.1 3.13, 3.14, 3.2 to show effect
-plt.rcParams["text.usetex"] = True
 plot_x_vals = [3.0, 3.14, 3.15, 3.3]
 fig, ax = plt.subplots(2, 2, figsize=(12, 8))
 ax = ax.flatten()

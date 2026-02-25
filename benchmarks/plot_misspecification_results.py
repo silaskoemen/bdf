@@ -34,6 +34,9 @@ from .utils.statistical_tests import (
     nemenyi_test,
     wilcoxon_signed_rank_test,
 )
+from .utils.style import apply_paper_style
+
+apply_paper_style()
 
 RESULTS_DIR = Path("benchmarks/results/dist_misspecification")
 PLOTS_DIR = Path("benchmarks/plots/dist_misspecification")
@@ -220,6 +223,7 @@ def plot_degradation_summary(df: pd.DataFrame, metric: str = "crps"):
     for i, dgp in enumerate(dgps):
         home_dist = HOME_MAP.get(dgp)
         row = pivot.loc[dgp]
+        dot_idx = 0
 
         for dist in row.index:
             val = row[dist]
@@ -232,14 +236,16 @@ def plot_degradation_summary(df: pd.DataFrame, metric: str = "crps"):
             zorder = 5 if is_home else 3
 
             ax.scatter(val, i, marker=marker, color=color, s=size, zorder=zorder, edgecolors="black", linewidths=0.5)
-            # Label each dot
-            offset_x = 0.01
+            above = dot_idx % 2 == 0
+            y_offset = 0.22 if above else -0.22
+            va = "bottom" if above else "top"
+            dot_idx += 1
             ax.annotate(
                 dist,
-                (val + offset_x, i),
-                fontsize=6.5,
-                va="center",
-                ha="left",
+                (val, i + y_offset),
+                fontsize=5.5,
+                va=va,
+                ha="center",
                 color="0.3",
             )
 
@@ -258,7 +264,7 @@ def plot_degradation_summary(df: pd.DataFrame, metric: str = "crps"):
 
     ax.invert_yaxis()
     ax.grid(axis="x", alpha=0.3, linestyle="--")
-    ax.set_xlim(left=0.9)
+    ax.set_xlim(left=0.95)
 
     # Legend
     from matplotlib.lines import Line2D

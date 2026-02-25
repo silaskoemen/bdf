@@ -329,10 +329,10 @@ class NormalMuNormal(BDFDistribution[NormalMuNormalParams]):
         if key == "mu_mu":
             return float(np.mean(data))
         if key == "sigma_mu":
-            assert params is not None, "'params' must be provided to resolve 'sigma_mu' automatically."
-            assert (
-                "sigma_mu_auto_scale" in params
-            ), "'sigma_mu_auto_scale' must be defined in params to resolve 'sigma_mu' automatically."
+            if params is None:
+                raise ValueError("'params' must be provided to resolve 'sigma_mu' automatically.")
+            if "sigma_mu_auto_scale" not in params:
+                raise ValueError("'sigma_mu_auto_scale' must be defined in params to resolve 'sigma_mu' automatically.")
             sample_std = np.std(data, ddof=1)
             scale = params["sigma_mu_auto_scale"]
             return float(sample_std * scale)
@@ -563,7 +563,8 @@ class NormalMuInvGammaSigmaNormal(BDFDistribution[NormalMuInvGammaSigmaNormalPar
         if key == "mu_mu":
             return float(np.mean(data))
         if key == "phi_sigma":
-            assert params is not None, "'params' must be provided to resolve 'phi_sigma' automatically."
+            if params is None:
+                raise ValueError("'params' must be provided to resolve 'phi_sigma' automatically.")
             nu_sigma = params.get("nu_sigma", 4.0)
             if isinstance(nu_sigma, str):
                 nu_sigma = 4.0
