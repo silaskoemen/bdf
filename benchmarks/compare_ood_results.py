@@ -276,20 +276,9 @@ def save_tables(df: pd.DataFrame, output_dir: Path):
 
 def setup_plot_style():
     """Set up publication-quality plot style."""
-    plt.style.use("seaborn-v0_8-whitegrid")
-    plt.rcParams.update(
-        {
-            "font.size": 11,
-            "axes.labelsize": 12,
-            "axes.titlesize": 13,
-            "xtick.labelsize": 10,
-            "ytick.labelsize": 10,
-            "legend.fontsize": 9,
-            "figure.dpi": 150,
-            "savefig.dpi": 300,
-            "savefig.bbox": "tight",
-        }
-    )
+    from benchmarks.utils.style import apply_paper_style
+
+    apply_paper_style()
 
 
 def plot_metric_heatmap(

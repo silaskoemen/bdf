@@ -45,28 +45,8 @@ BASELINE_MODELS = [
     "gp_clas",
 ]
 
-# Model display names
-MODEL_DISPLAY_NAMES = {
-    "BDF": "BDF",
-    "bdf_betamvbernoulli": "BDF",
-    "rf_clas": "RF",
-    "lgbm_clas": "LightGBM",
-    "ngboost_clas": "NGBoost",
-    "calrf_clas": "CalRF",
-    "knn_clas": "KNN",
-    "gp_clas": "GP",
-}
-
-# Fixed colors for each model
-MODEL_COLORS = {
-    "BDF": "dodgerblue",
-    "rf_clas": "forestgreen",
-    "lgbm_clas": "limegreen",
-    "ngboost_clas": "goldenrod",
-    "calrf_clas": "mediumpurple",
-    "knn_clas": "orange",
-    "gp_clas": "teal",
-}
+# Model display names and colors from shared style
+from benchmarks.utils.style import MODEL_COLORS, MODEL_DISPLAY_NAMES
 
 # Datasets (will be expanded as more are added)
 DATASETS = [

@@ -337,10 +337,10 @@ class NormalMeanPseudoAlphaSkewNormal(BDFDistribution[NormalMeanPseudoAlphaSkewN
         if key == "mu_mu":
             return float(np.mean(data))
         elif key == "sigma_mu":
-            assert params is not None, "'params' must be provided to resolve 'sigma_mu' automatically."
-            assert (
-                "sigma_mu_auto_scale" in params
-            ), "'sigma_mu_auto_scale' must be defined in params to resolve 'sigma_mu' automatically."
+            if params is None:
+                raise ValueError("'params' must be provided to resolve 'sigma_mu' automatically.")
+            if "sigma_mu_auto_scale" not in params:
+                raise ValueError("'sigma_mu_auto_scale' must be defined in params to resolve 'sigma_mu' automatically.")
             sample_std = np.std(data, ddof=1)
             scale = params["sigma_mu_auto_scale"]
             return float(sample_std * scale)
@@ -530,10 +530,10 @@ class NormalMeanNormalGammaSkewNormal(BDFDistribution[NormalMeanNormalGammaSkewN
         if key == "mu_mu":
             return float(np.mean(data))
         elif key == "sigma_mu":
-            assert params is not None, "'params' must be provided to resolve 'sigma_mu' automatically."
-            assert (
-                "sigma_mu_auto_scale" in params
-            ), "'sigma_mu_auto_scale' must be defined in params to resolve 'sigma_mu' automatically."
+            if params is None:
+                raise ValueError("'params' must be provided to resolve 'sigma_mu' automatically.")
+            if "sigma_mu_auto_scale" not in params:
+                raise ValueError("'sigma_mu_auto_scale' must be defined in params to resolve 'sigma_mu' automatically.")
             sample_std = np.std(data, ddof=1)
             scale = params["sigma_mu_auto_scale"]
             return float(sample_std * scale)
@@ -733,10 +733,10 @@ class NormalXiNormalAlphaSkewNormalMAP(BDFDistribution[NormalXiNormalAlphaSkewNo
         if key == "mu_xi":
             return float(np.mean(data))
         elif key == "sigma_xi":
-            assert params is not None, "'params' must be provided to resolve 'sigma_xi' automatically."
-            assert (
-                "sigma_xi_auto_scale" in params
-            ), "'sigma_xi_auto_scale' must be defined in params to resolve 'sigma_xi' automatically."
+            if params is None:
+                raise ValueError("'params' must be provided to resolve 'sigma_xi' automatically.")
+            if "sigma_xi_auto_scale" not in params:
+                raise ValueError("'sigma_xi_auto_scale' must be defined in params to resolve 'sigma_xi' automatically.")
             sample_std = np.std(data, ddof=1)
             scale = params["sigma_xi_auto_scale"]
             return float(sample_std * scale)

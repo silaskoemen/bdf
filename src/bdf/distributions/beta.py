@@ -238,8 +238,10 @@ class NormalMeanBeta(BDFDistribution):
         np.ndarray
             Samples drawn from the posterior distribution.
         """
-        assert "mu" in params and "nu" in params, "params must contain 'mu' and 'nu' keys"
-        assert params["mu"] > 0 and params["nu"] > 0, "Both 'mu' and 'nu' must be greater than 0"
+        if "mu" not in params or "nu" not in params:
+            raise ValueError("params must contain 'mu' and 'nu' keys")
+        if params["mu"] <= 0 or params["nu"] <= 0:
+            raise ValueError("Both 'mu' and 'nu' must be greater than 0")
         alpha, beta = self.get_alpha_beta(params)
         # Sample from the beta distribution using the calculated alpha and beta
         return beta_dist.rvs(a=alpha, b=beta, size=size, random_state=random_state)

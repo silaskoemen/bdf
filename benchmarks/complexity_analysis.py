@@ -1,18 +1,17 @@
 """
-Computational Complexity Analysis for BDF
+Computational Complexity Analysis: BDF vs Random Forest
 
-Performs rigorous empirical analysis of BDF's computational complexity:
-1. Sample size scaling (n): Fix d, n_trees, vary n - measure time and memory
-2. Feature scaling (d): Fix n, n_trees, vary d - measure time and memory
-3. Tree scaling (n_trees): Fix n, d, vary n_trees - verify linear scaling
+Empirical analysis of BDF's computational complexity compared to Random Forest:
+1. Sample size scaling (n): Fix d, T, vary n
+2. Feature scaling (d): Fix n, T, vary d
+3. Tree scaling (T): Fix n, d, vary T
 
 Outputs:
 - JSON results with all measurements
-- Markdown table summarizing findings
-- Log-log plots with fitted scaling exponents
-- Comparison with baseline models (Random Forest, Gaussian Process)
-
-Based on additional_benchmarks.md item 6.
+- Log-log plots with fitted scaling exponents and O(x^1) reference lines
+- Main-text 3-panel comparison figure (BDF vs RF)
+- Overhead ratio table (BDF/RF constant factor)
+- Markdown report
 """
 
 import gc
@@ -30,11 +29,10 @@ from loguru import logger
 from scipy import stats
 from sklearn.datasets import make_regression
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, ConstantKernel
 from tqdm import tqdm
 
 from bdf.tree_classes.bdf_regressor import BDFRegressor
+from benchmarks.utils.style import MODEL_COLORS, MODEL_DISPLAY_NAMES, MODEL_MARKERS
 
 # =============================================================================
 # Configuration
@@ -45,7 +43,7 @@ N_REPEATS = 5  # Number of repetitions for timing stability
 
 # Scaling grids
 N_SAMPLES_GRID = [100, 250, 500, 1000, 2500, 5000, 10000]
-N_FEATURES_GRID = [10, 20, 50, 100, 200]
+N_FEATURES_GRID = [5, 10, 20, 50, 100, 200]
 N_TREES_GRID = [10, 20, 50, 100, 200]
 
 # Fixed values when varying other dimensions
@@ -71,12 +69,12 @@ BDF_CONFIG = {
 BDF_PARAMS = {
     "mu_mu": "auto",
     "sigma_mu": "auto",
-    "sigma_mu_auto_scale": 1.0,  # Multiplier for sample std when sigma_mu='auto'
+    "sigma_mu_auto_scale": 1.0,
     "score_method": "nll",
     "score_correction": "bic",
 }
 
-# Random Forest configuration
+# Random Forest configuration (matched to BDF where possible)
 RF_CONFIG = {
     "n_estimators": FIXED_N_TREES,
     "max_depth": 20,
@@ -84,16 +82,6 @@ RF_CONFIG = {
     "max_features": 0.9,
     "random_state": SEED,
 }
-
-# Gaussian Process configuration
-# Note: GP has O(n³) training complexity, so we limit max samples
-GP_CONFIG = {
-    "kernel": None,  # Will be set in factory (RBF + ConstantKernel)
-    "random_state": SEED,
-    "normalize_y": True,
-    "n_restarts_optimizer": 0,  # Faster, less accurate
-}
-GP_MAX_SAMPLES = 5000  # GP becomes prohibitively slow beyond this
 
 RESULTS_DIR = "benchmarks/results/complexity_analysis"
 PLOTS_DIR = "benchmarks/plots/complexity_analysis"
@@ -153,16 +141,45 @@ def generate_data(n_samples: int, n_features: int, seed: int = SEED) -> tuple[np
     return X.astype(np.float64), y.astype(np.float64)
 
 
+def warmup_models() -> None:
+    """Run a dummy fit for each model to eliminate JIT/import overhead from timing."""
+    logger.info("Warming up models (dummy fit to eliminate startup overhead)...")
+    X, y = generate_data(200, 5, seed=0)
+
+    # Warmup BDF (triggers Rust library loading, numba JIT, etc.)
+    bdf = BDFRegressor(**{**BDF_CONFIG, "n_trees": 5}, params=BDF_PARAMS)
+    bdf.fit(X, y)
+    del bdf
+
+    # Warmup RF
+    rf = RandomForestRegressor(**{**RF_CONFIG, "n_estimators": 5})
+    rf.fit(X, y)
+    del rf
+
+    gc.collect()
+    logger.info("Warmup complete")
+
+
 def measure_fit_time(
     model_factory,
     X: np.ndarray,
     y: np.ndarray,
     n_repeats: int = N_REPEATS,
 ) -> TimingResult:
-    """Measure fit time with multiple repeats."""
+    """Measure fit time with multiple repeats.
+
+    A throwaway warmup call is run first (not timed) to absorb any
+    per-configuration overhead (memory allocation, code-path specialization).
+    """
+    # Warmup: untimed fit to absorb first-call overhead for this config
+    warmup = model_factory()
+    warmup.fit(X, y)
+    del warmup
+    gc.collect()
+
     times = []
 
-    for i in range(n_repeats):
+    for _ in range(n_repeats):
         gc.collect()
         model = model_factory()
 
@@ -215,13 +232,38 @@ def fit_log_log_slope(x_values: list[int], y_values: list[float]) -> tuple[float
     log_x = np.log(x_values)
     log_y = np.log(y_values)
 
-    slope, intercept, r_value, p_value, std_err = stats.linregress(log_x, log_y)
+    slope, _, r_value, _, _ = stats.linregress(log_x, log_y)
 
     return float(slope), float(r_value**2)
 
 
+def compute_overhead_ratios(all_results: dict[str, Any]) -> dict[str, dict[str, float]]:
+    """Compute BDF/RF timing ratio across all grid points for each axis."""
+    ratios = {}
+
+    for axis in ["n_scaling", "d_scaling", "tree_scaling"]:
+        bdf_timing = all_results["models"]["BDF"][axis]["timing"]
+        rf_timing = all_results["models"]["RandomForest"][axis]["timing"]
+
+        axis_ratios = []
+        for key in bdf_timing:
+            if key in rf_timing:
+                ratio = bdf_timing[key]["mean_time"] / rf_timing[key]["mean_time"]
+                axis_ratios.append(ratio)
+
+        ratios[axis] = {
+            "mean": float(np.mean(axis_ratios)),
+            "std": float(np.std(axis_ratios)),
+            "min": float(np.min(axis_ratios)),
+            "max": float(np.max(axis_ratios)),
+            "per_point": axis_ratios,
+        }
+
+    return ratios
+
+
 # =============================================================================
-# BDF Model Factory
+# Model Factories
 # =============================================================================
 
 
@@ -249,25 +291,6 @@ def create_rf_factory(n_estimators: int | None = None):
     return factory
 
 
-def create_gp_factory(n_estimators: int | None = None):
-    """Create Gaussian Process model factory.
-
-    Note: n_estimators is ignored (GP has no ensemble parameter),
-    but we accept it for interface consistency.
-    """
-
-    def factory():
-        kernel = ConstantKernel(1.0) * RBF(length_scale=1.0)
-        return GaussianProcessRegressor(
-            kernel=kernel,
-            random_state=GP_CONFIG["random_state"],
-            normalize_y=GP_CONFIG["normalize_y"],
-            n_restarts_optimizer=GP_CONFIG["n_restarts_optimizer"],
-        )
-
-    return factory
-
-
 # =============================================================================
 # Scaling Experiments
 # =============================================================================
@@ -276,17 +299,15 @@ def create_gp_factory(n_estimators: int | None = None):
 def run_sample_size_scaling(
     model_name: str,
     model_factory_creator,
-    n_samples_grid: list[int] = N_SAMPLES_GRID,
+    n_samples_grid: list[int] | None = None,
     n_features: int = FIXED_N_FEATURES,
     n_trees: int = FIXED_N_TREES,
 ) -> ScalingResult:
     """Measure scaling with sample size n."""
-    logger.info(f"Running sample size scaling for {model_name}")
+    if n_samples_grid is None:
+        n_samples_grid = list(N_SAMPLES_GRID)
 
-    # Limit sample sizes for GP (O(n³) complexity)
-    if model_name == "GaussianProcess":
-        n_samples_grid = [n for n in n_samples_grid if n <= GP_MAX_SAMPLES]
-        logger.warning(f"GP limited to n <= {GP_MAX_SAMPLES}: {n_samples_grid}")
+    logger.info(f"Running sample size scaling for {model_name}")
 
     timing_results = {}
     memory_results = {}
@@ -303,7 +324,6 @@ def run_sample_size_scaling(
             f"memory={memory_results[n_samples].peak_memory_mb:.1f}MB"
         )
 
-    # Fit scaling exponent
     mean_times = [timing_results[n].mean_time for n in n_samples_grid]
     slope, r_squared = fit_log_log_slope(n_samples_grid, mean_times)
 
@@ -321,11 +341,14 @@ def run_sample_size_scaling(
 def run_feature_scaling(
     model_name: str,
     model_factory_creator,
-    n_features_grid: list[int] = N_FEATURES_GRID,
+    n_features_grid: list[int] | None = None,
     n_samples: int = FIXED_N_SAMPLES,
     n_trees: int = FIXED_N_TREES,
 ) -> ScalingResult:
     """Measure scaling with number of features d."""
+    if n_features_grid is None:
+        n_features_grid = list(N_FEATURES_GRID)
+
     logger.info(f"Running feature scaling for {model_name}")
 
     timing_results = {}
@@ -343,7 +366,6 @@ def run_feature_scaling(
             f"memory={memory_results[n_features].peak_memory_mb:.1f}MB"
         )
 
-    # Fit scaling exponent
     mean_times = [timing_results[d].mean_time for d in n_features_grid]
     slope, r_squared = fit_log_log_slope(n_features_grid, mean_times)
 
@@ -361,11 +383,14 @@ def run_feature_scaling(
 def run_tree_scaling(
     model_name: str,
     model_factory_creator,
-    n_trees_grid: list[int] = N_TREES_GRID,
+    n_trees_grid: list[int] | None = None,
     n_samples: int = FIXED_N_SAMPLES,
     n_features: int = FIXED_N_FEATURES,
 ) -> ScalingResult:
     """Measure scaling with number of trees."""
+    if n_trees_grid is None:
+        n_trees_grid = list(N_TREES_GRID)
+
     logger.info(f"Running tree scaling for {model_name}")
 
     timing_results = {}
@@ -383,7 +408,6 @@ def run_tree_scaling(
             f"memory={memory_results[n_trees].peak_memory_mb:.1f}MB"
         )
 
-    # Fit scaling exponent
     mean_times = [timing_results[t].mean_time for t in n_trees_grid]
     slope, r_squared = fit_log_log_slope(n_trees_grid, mean_times)
 
@@ -445,156 +469,177 @@ def save_results(results: dict[str, Any], filepath: str) -> None:
 
 def setup_plot_style():
     """Set up publication-quality plot style."""
-    plt.rcParams.update(
-        {
-            "font.size": 12,
-            "font.family": "serif",
-            "axes.labelsize": 13,
-            "axes.titlesize": 14,
-            "xtick.labelsize": 11,
-            "ytick.labelsize": 11,
-            "legend.fontsize": 10,
-            "figure.dpi": 150,
-            "savefig.dpi": 300,
-            "savefig.bbox": "tight",
-            "axes.grid": True,
-            "grid.alpha": 0.3,
-        }
-    )
+    from benchmarks.utils.style import apply_paper_style
+
+    apply_paper_style()
 
 
-def plot_scaling_comparison(
-    results: dict[str, ScalingResult],
-    parameter_name: str,
-    xlabel: str,
-    title: str,
+def plot_main_text_figure(
+    all_results: dict[str, Any],
     save_path: str,
 ):
-    """Create log-log scaling plot comparing multiple models."""
+    """Create the main-text 3-panel figure: BDF vs RF scaling on n, d, T.
+
+    Each panel shows measured data with error bars, fitted slopes in legend,
+    and a dashed O(x^1) reference line.
+    """
     setup_plot_style()
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    _, axes = plt.subplots(1, 3, figsize=(14, 4))
 
-    colors = {"BDF": "#2E86AB", "RandomForest": "#A23B72", "GaussianProcess": "#F18F01"}
-    markers = {"BDF": "o", "RandomForest": "s", "GaussianProcess": "^"}
+    panels = [
+        ("n_scaling", "Sample size $n$", "$n$"),
+        ("d_scaling", "Features $d$", "$d$"),
+        ("tree_scaling", "Trees $T$", "$T$"),
+    ]
 
-    # Time scaling plot
-    ax = axes[0]
-    for model_name, result in results.items():
-        x_vals = result.parameter_values
-        y_means = [result.timing_results[x].mean_time for x in x_vals]
-        y_stds = [result.timing_results[x].std_time for x in x_vals]
+    for ax, (axis_key, xlabel, var) in zip(axes, panels):
+        for model_name in ["BDF", "RandomForest"]:
+            data = all_results["models"][model_name][axis_key]
+            x_vals = data["parameter_values"]
+            y_means = [data["timing"][str(x)]["mean_time"] for x in x_vals]
+            y_stds = [data["timing"][str(x)]["std_time"] for x in x_vals]
+            slope = data["estimated_slope"]
+            r2 = data["r_squared"]
 
-        color = colors.get(model_name, "gray")
-        marker = markers.get(model_name, "o")
+            color = MODEL_COLORS[model_name]
+            marker = MODEL_MARKERS[model_name]
+            label = MODEL_DISPLAY_NAMES.get(model_name, model_name)
 
-        ax.errorbar(
-            x_vals,
-            y_means,
-            yerr=y_stds,
-            fmt=f"{marker}-",
-            color=color,
-            linewidth=2,
-            markersize=8,
-            capsize=4,
-            label=f"{model_name} (slope={result.estimated_slope:.2f}, R²={result.r_squared:.3f})",
+            ax.errorbar(
+                x_vals,
+                y_means,
+                yerr=y_stds,
+                fmt=f"{marker}-",
+                color=color,
+                linewidth=1.5,
+                markersize=6,
+                capsize=3,
+                label=rf"{label} $\mathcal{{O}}({var}^{{{slope:.2f}}})$" + f", $R^2$={r2:.3f}",
+                zorder=3,
+            )
+
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel("Fit time (s)")
+
+        # Add O(x^1) reference line anchored to midpoint of BDF data
+        bdf_data = all_results["models"]["BDF"][axis_key]
+        bdf_x = bdf_data["parameter_values"]
+        bdf_y = [bdf_data["timing"][str(x)]["mean_time"] for x in bdf_x]
+        x_arr = np.array(bdf_x, dtype=float)
+        y_arr = np.array(bdf_y, dtype=float)
+        # Anchor at geometric midpoint
+        log_x_mid = np.mean(np.log(x_arr))
+        log_y_mid = np.mean(np.log(y_arr))
+        c = np.exp(log_y_mid - log_x_mid)  # slope=1 in log-log
+        y_ref = c * x_arr
+        ax.plot(
+            x_arr,
+            y_ref,
+            "--",
+            color="0.5",
+            linewidth=1.0,
+            alpha=0.6,
+            label=rf"$\mathcal{{O}}({var}^{{1}})$ ref.",
+            zorder=1,
         )
 
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel("Fit Time (seconds)")
-    ax.set_title(f"Time Complexity: {title}")
-    ax.legend(loc="upper left")
-    ax.grid(True, alpha=0.3, which="both")
-
-    # Memory scaling plot
-    ax = axes[1]
-    for model_name, result in results.items():
-        x_vals = result.parameter_values
-        y_vals = [result.memory_results[x].peak_memory_mb for x in x_vals]
-
-        color = colors.get(model_name, "gray")
-        marker = markers.get(model_name, "o")
-
-        ax.plot(x_vals, y_vals, f"{marker}-", color=color, linewidth=2, markersize=8, label=model_name)
-
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel("Peak Memory (MB)")
-    ax.set_title(f"Memory Usage: {title}")
-    ax.legend(loc="upper left")
-    ax.grid(True, alpha=0.3, which="both")
+        ax.legend(fontsize=7.5, loc="upper left")
 
     plt.tight_layout()
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path)
-    logger.info(f"Saved plot to {save_path}")
+    logger.info(f"Saved main-text figure to {save_path}")
     plt.close()
 
 
-def plot_single_model_scaling(
-    n_scaling: ScalingResult,
-    d_scaling: ScalingResult,
-    tree_scaling: ScalingResult,
-    model_name: str,
+def plot_memory_comparison(
+    all_results: dict[str, Any],
     save_path: str,
 ):
-    """Create combined 3-panel plot for single model."""
+    """Create 3-panel memory comparison figure (appendix material)."""
     setup_plot_style()
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
-    color = "#2E86AB"
+    _, axes = plt.subplots(1, 3, figsize=(14, 4))
 
-    # n scaling
-    ax = axes[0]
-    x_vals = n_scaling.parameter_values
-    y_means = [n_scaling.timing_results[x].mean_time for x in x_vals]
-    y_stds = [n_scaling.timing_results[x].std_time for x in x_vals]
+    panels = [
+        ("n_scaling", "Sample size $n$"),
+        ("d_scaling", "Features $d$"),
+        ("tree_scaling", "Trees $T$"),
+    ]
 
-    ax.errorbar(x_vals, y_means, yerr=y_stds, fmt="o-", color=color, linewidth=2, markersize=8, capsize=4)
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel("Sample Size (n)")
-    ax.set_ylabel("Fit Time (seconds)")
-    ax.set_title(f"n Scaling: O(n^{n_scaling.estimated_slope:.2f}), R²={n_scaling.r_squared:.3f}")
-    ax.grid(True, alpha=0.3, which="both")
+    for ax, (axis_key, xlabel) in zip(axes, panels):
+        for model_name in ["BDF", "RandomForest"]:
+            data = all_results["models"][model_name][axis_key]
+            x_vals = data["parameter_values"]
+            y_vals = [data["memory"][str(x)]["peak_memory_mb"] for x in x_vals]
 
-    # d scaling
-    ax = axes[1]
-    x_vals = d_scaling.parameter_values
-    y_means = [d_scaling.timing_results[x].mean_time for x in x_vals]
-    y_stds = [d_scaling.timing_results[x].std_time for x in x_vals]
+            color = MODEL_COLORS[model_name]
+            marker = MODEL_MARKERS[model_name]
+            label = MODEL_DISPLAY_NAMES.get(model_name, model_name)
 
-    ax.errorbar(x_vals, y_means, yerr=y_stds, fmt="s-", color=color, linewidth=2, markersize=8, capsize=4)
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel("Number of Features (d)")
-    ax.set_ylabel("Fit Time (seconds)")
-    ax.set_title(f"d Scaling: O(d^{d_scaling.estimated_slope:.2f}), R²={d_scaling.r_squared:.3f}")
-    ax.grid(True, alpha=0.3, which="both")
+            ax.plot(
+                x_vals,
+                y_vals,
+                f"{marker}-",
+                color=color,
+                linewidth=1.5,
+                markersize=6,
+                label=label,
+            )
 
-    # tree scaling
-    ax = axes[2]
-    x_vals = tree_scaling.parameter_values
-    y_means = [tree_scaling.timing_results[x].mean_time for x in x_vals]
-    y_stds = [tree_scaling.timing_results[x].std_time for x in x_vals]
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel("Peak memory (MB)")
+        ax.legend(fontsize=8)
 
-    ax.errorbar(x_vals, y_means, yerr=y_stds, fmt="^-", color=color, linewidth=2, markersize=8, capsize=4)
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel("Number of Trees")
-    ax.set_ylabel("Fit Time (seconds)")
-    ax.set_title(f"Tree Scaling: O(T^{tree_scaling.estimated_slope:.2f}), R²={tree_scaling.r_squared:.3f}")
-    ax.grid(True, alpha=0.3, which="both")
-
-    plt.suptitle(f"{model_name} Computational Complexity", fontsize=14, y=1.02)
     plt.tight_layout()
-
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path)
-    logger.info(f"Saved plot to {save_path}")
+    logger.info(f"Saved memory figure to {save_path}")
+    plt.close()
+
+
+def plot_overhead_ratio(
+    all_results: dict[str, Any],
+    save_path: str,
+):
+    """Plot BDF/RF overhead ratio across each scaling axis."""
+    setup_plot_style()
+
+    _, axes = plt.subplots(1, 3, figsize=(14, 4))
+
+    panels = [
+        ("n_scaling", "Sample size $n$"),
+        ("d_scaling", "Features $d$"),
+        ("tree_scaling", "Trees $T$"),
+    ]
+
+    for ax, (axis_key, xlabel) in zip(axes, panels):
+        bdf_data = all_results["models"]["BDF"][axis_key]
+        rf_data = all_results["models"]["RandomForest"][axis_key]
+
+        x_vals = bdf_data["parameter_values"]
+        ratios = []
+        for x in x_vals:
+            bdf_t = bdf_data["timing"][str(x)]["mean_time"]
+            rf_t = rf_data["timing"][str(x)]["mean_time"]
+            ratios.append(bdf_t / rf_t)
+
+        ax.plot(x_vals, ratios, "o-", color="#2E86AB", linewidth=1.5, markersize=6)
+        ax.axhline(y=1.0, color="0.5", linestyle="--", linewidth=1.0, alpha=0.5)
+        ax.set_xscale("log")
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel("BDF / RF time ratio")
+        ax.set_ylim(bottom=0)
+
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path)
+    logger.info(f"Saved overhead ratio figure to {save_path}")
     plt.close()
 
 
@@ -606,6 +651,8 @@ def plot_single_model_scaling(
 def generate_markdown_report(results: dict[str, Any], filepath: str) -> None:
     """Generate markdown report summarizing complexity analysis."""
 
+    overhead = results.get("overhead_ratios", {})
+
     lines = [
         "# BDF Computational Complexity Analysis",
         "",
@@ -613,170 +660,110 @@ def generate_markdown_report(results: dict[str, Any], filepath: str) -> None:
         "",
         "## Summary",
         "",
-        "This analysis measures the empirical computational complexity of BDF compared to",
-        "baseline models (Random Forest, NGBoost) across three dimensions:",
-        "",
-        "1. **Sample size (n)**: How does fit time scale with number of training samples?",
-        "2. **Feature count (d)**: How does fit time scale with number of features?",
-        "3. **Tree count (T)**: How does fit time scale with ensemble size?",
+        "Empirical analysis of BDF vs Random Forest computational complexity across",
+        "three dimensions: sample size (n), feature count (d), and ensemble size (T).",
         "",
         "## Theoretical Complexity",
         "",
         "| Model | Training Complexity | Notes |",
         "|-------|---------------------|-------|",
-        "| BDF | O(n × d × T × depth) | Tree ensemble with Bayesian inference |",
-        "| Random Forest | O(n × d × T × depth) | Standard tree ensemble |",
-        "| Gaussian Process | O(n³) | Kernel matrix inversion dominates |",
+        "| BDF | O(n x d x T) | Bayesian tree ensemble (Rust split finding) |",
+        "| Random Forest | O(n x d x T) | Standard tree ensemble (sklearn) |",
         "",
-        "where: n = samples, d = features, T = trees, depth = max tree depth",
+        "Both scale identically in theory; BDF has a constant overhead from Bayesian",
+        "posterior updates and distributional scoring at each split.",
         "",
-        "GP's cubic complexity makes it prohibitively slow for n > 5000.",
-        "",
-        "## Empirical Results",
-        "",
-        "### Scaling Exponents",
+        "## Empirical Scaling Exponents",
         "",
         "| Model | n Scaling | d Scaling | T Scaling |",
         "|-------|-----------|-----------|-----------|",
     ]
 
-    # Add scaling exponents for each model
-    for model_name in ["BDF", "RandomForest", "GaussianProcess"]:
-        if model_name not in results["models"]:
-            continue
+    for model_name in ["BDF", "RandomForest"]:
+        data = results["models"][model_name]
+        n_s = data["n_scaling"]["estimated_slope"]
+        n_r = data["n_scaling"]["r_squared"]
+        d_s = data["d_scaling"]["estimated_slope"]
+        d_r = data["d_scaling"]["r_squared"]
+        t_s = data["tree_scaling"]["estimated_slope"]
+        t_r = data["tree_scaling"]["r_squared"]
 
-        model_data = results["models"][model_name]
-        n_slope = model_data["n_scaling"]["estimated_slope"]
-        n_r2 = model_data["n_scaling"]["r_squared"]
-        d_slope = model_data["d_scaling"]["estimated_slope"]
-        d_r2 = model_data["d_scaling"]["r_squared"]
-
-        # Handle models without tree scaling (e.g., GP)
-        if model_data.get("tree_scaling") is not None:
-            t_slope = model_data["tree_scaling"]["estimated_slope"]
-            t_r2 = model_data["tree_scaling"]["r_squared"]
-            t_col = f"O(T^{t_slope:.2f}) R²={t_r2:.3f}"
-        else:
-            t_col = "N/A"
-
+        label = MODEL_DISPLAY_NAMES.get(model_name, model_name)
         lines.append(
-            f"| {model_name} | O(n^{n_slope:.2f}) R²={n_r2:.3f} | " f"O(d^{d_slope:.2f}) R²={d_r2:.3f} | " f"{t_col} |"
+            f"| {label} | O(n^{n_s:.2f}) R²={n_r:.3f} | "
+            f"O(d^{d_s:.2f}) R²={d_r:.3f} | "
+            f"O(T^{t_s:.2f}) R²={t_r:.3f} |"
         )
 
-    lines.extend(
-        [
-            "",
-            "### Sample Size Scaling (n)",
-            "",
-            f"Fixed: d={FIXED_N_FEATURES}, T={FIXED_N_TREES}",
-            "",
-            "| n | BDF Time (s) | RF Time (s) | GP Time (s) |",
-            "|---|--------------|-------------|-------------|",
-        ]
-    )
+    # Overhead ratio
+    if overhead:
+        lines.extend(
+            [
+                "",
+                "## Overhead Ratio (BDF / Random Forest)",
+                "",
+                "| Axis | Mean | Std | Min | Max |",
+                "|------|------|-----|-----|-----|",
+            ]
+        )
+        for axis, label in [("n_scaling", "n"), ("d_scaling", "d"), ("tree_scaling", "T")]:
+            r = overhead[axis]
+            lines.append(f"| {label} | {r['mean']:.2f}x | {r['std']:.2f} | {r['min']:.2f}x | {r['max']:.2f}x |")
 
-    # Add timing data for n scaling
-    for n in N_SAMPLES_GRID:
-        row = [f"| {n} |"]
-        for model_name in ["BDF", "RandomForest", "GaussianProcess"]:
-            if model_name in results["models"]:
-                timing = results["models"][model_name]["n_scaling"]["timing"].get(str(n))
-                if timing:
-                    row.append(f" {timing['mean_time']:.3f} ± {timing['std_time']:.3f} |")
-                else:
-                    row.append(" - |")
-            else:
-                row.append(" - |")
-        lines.append("".join(row))
+    # Timing tables
+    for axis_key, axis_label, grid in [
+        ("n_scaling", "Sample Size (n)", N_SAMPLES_GRID),
+        ("d_scaling", "Feature Count (d)", N_FEATURES_GRID),
+        ("tree_scaling", "Trees (T)", N_TREES_GRID),
+    ]:
+        fixed = results["models"]["BDF"][axis_key]["fixed_params"]
+        fixed_str = ", ".join(f"{k}={v}" for k, v in fixed.items())
 
-    lines.extend(
-        [
-            "",
-            "### Feature Scaling (d)",
-            "",
-            f"Fixed: n={FIXED_N_SAMPLES}, T={FIXED_N_TREES}",
-            "",
-            "| d | BDF Time (s) | RF Time (s) | GP Time (s) |",
-            "|---|--------------|-------------|-------------|",
-        ]
-    )
+        lines.extend(
+            [
+                "",
+                f"### {axis_label} Scaling",
+                "",
+                f"Fixed: {fixed_str}",
+                "",
+                f"| {axis_label.split('(')[1].rstrip(')')} | BDF Time (s) | RF Time (s) | Ratio |",
+                "|---|---|---|---|",
+            ]
+        )
 
-    # Add timing data for d scaling
-    for d in N_FEATURES_GRID:
-        row = [f"| {d} |"]
-        for model_name in ["BDF", "RandomForest", "GaussianProcess"]:
-            if model_name in results["models"]:
-                timing = results["models"][model_name]["d_scaling"]["timing"].get(str(d))
-                if timing:
-                    row.append(f" {timing['mean_time']:.3f} ± {timing['std_time']:.3f} |")
-                else:
-                    row.append(" - |")
-            else:
-                row.append(" - |")
-        lines.append("".join(row))
+        for val in grid:
+            bdf_t = results["models"]["BDF"][axis_key]["timing"].get(str(val))
+            rf_t = results["models"]["RandomForest"][axis_key]["timing"].get(str(val))
+            if bdf_t and rf_t:
+                ratio = bdf_t["mean_time"] / rf_t["mean_time"]
+                lines.append(
+                    f"| {val} | {bdf_t['mean_time']:.3f} +/- {bdf_t['std_time']:.3f} | "
+                    f"{rf_t['mean_time']:.3f} +/- {rf_t['std_time']:.3f} | {ratio:.2f}x |"
+                )
 
-    lines.extend(
-        [
-            "",
-            "### Tree Scaling (T)",
-            "",
-            f"Fixed: n={FIXED_N_SAMPLES}, d={FIXED_N_FEATURES}",
-            "",
-            "| T | BDF Time (s) | RF Time (s) | GP Time (s) |",
-            "|---|--------------|-------------|-------------|",
-        ]
-    )
-
-    # Add timing data for tree scaling
-    for t in N_TREES_GRID:
-        row = [f"| {t} |"]
-        for model_name in ["BDF", "RandomForest", "GaussianProcess"]:
-            if model_name in results["models"]:
-                timing = results["models"][model_name]["tree_scaling"]["timing"].get(str(t))
-                if timing:
-                    row.append(f" {timing['mean_time']:.3f} ± {timing['std_time']:.3f} |")
-                else:
-                    row.append(" - |")
-            else:
-                row.append(" - |")
-        lines.append("".join(row))
-
+    # Memory
     lines.extend(
         [
             "",
             "### Memory Usage",
             "",
-            "| Model | Peak Memory at n=10000 (MB) | Peak Memory at d=200 (MB) |",
-            "|-------|----------------------------|--------------------------|",
+            f"| Model | Peak Memory at n={max(N_SAMPLES_GRID)} (MB) | Peak Memory at d={max(N_FEATURES_GRID)} (MB) |",
+            "|-------|---|---|",
         ]
     )
 
-    # Add memory data
-    for model_name in ["BDF", "RandomForest", "GaussianProcess"]:
-        if model_name not in results["models"]:
-            continue
+    for model_name in ["BDF", "RandomForest"]:
+        data = results["models"][model_name]
+        n_mem = data["n_scaling"]["memory"].get(str(max(N_SAMPLES_GRID)), {}).get("peak_memory_mb", "-")
+        d_mem = data["d_scaling"]["memory"].get(str(max(N_FEATURES_GRID)), {}).get("peak_memory_mb", "-")
 
-        model_data = results["models"][model_name]
-        n_mem = model_data["n_scaling"]["memory"].get(str(max(N_SAMPLES_GRID)), {}).get("peak_memory_mb", "-")
-        d_mem = model_data["d_scaling"]["memory"].get(str(max(N_FEATURES_GRID)), {}).get("peak_memory_mb", "-")
-
-        if isinstance(n_mem, float):
-            n_mem = f"{n_mem:.1f}"
-        if isinstance(d_mem, float):
-            d_mem = f"{d_mem:.1f}"
-
-        lines.append(f"| {model_name} | {n_mem} | {d_mem} |")
+        label = MODEL_DISPLAY_NAMES.get(model_name, model_name)
+        n_str = f"{n_mem:.1f}" if isinstance(n_mem, float) else str(n_mem)
+        d_str = f"{d_mem:.1f}" if isinstance(d_mem, float) else str(d_mem)
+        lines.append(f"| {label} | {n_str} | {d_str} |")
 
     lines.extend(
         [
-            "",
-            "## Conclusions",
-            "",
-            "1. **Sample size scaling**: BDF exhibits near-linear scaling with n, similar to Random Forest.",
-            "2. **Feature scaling**: BDF scales linearly with feature count d.",
-            "3. **Tree scaling**: As expected, BDF scales linearly with the number of trees.",
-            "4. **GP comparison**: Gaussian Process shows O(n³) scaling, making BDF vastly more scalable.",
-            "5. **Memory**: BDF uses more memory than RF due to storing distribution parameters per node.",
             "",
             "## Configuration",
             "",
@@ -797,6 +784,58 @@ def generate_markdown_report(results: dict[str, Any], filepath: str) -> None:
     logger.info(f"Saved markdown report to {filepath}")
 
 
+def generate_latex_table(results: dict[str, Any], filepath: str) -> None:
+    """Generate LaTeX table with scaling exponents and overhead ratios."""
+    overhead = results.get("overhead_ratios", {})
+
+    lines = [
+        r"\begin{table}[t]",
+        r"\centering",
+        r"\caption{Empirical scaling exponents and overhead ratios (BDF vs.\ Random Forest).}",
+        r"\label{tab:complexity}",
+        r"\begin{tabular}{lcccc}",
+        r"\toprule",
+        r"Model & $n$ scaling & $d$ scaling & $T$ scaling & Overhead \\",
+        r"\midrule",
+    ]
+
+    for model_name in ["BDF", "RandomForest"]:
+        data = results["models"][model_name]
+        n_s = data["n_scaling"]["estimated_slope"]
+        d_s = data["d_scaling"]["estimated_slope"]
+        t_s = data["tree_scaling"]["estimated_slope"]
+        label = MODEL_DISPLAY_NAMES.get(model_name, model_name)
+
+        if model_name == "BDF" and overhead:
+            # Average overhead across all axes
+            all_means = [overhead[a]["mean"] for a in overhead]
+            avg_overhead = np.mean(all_means)
+            overhead_str = rf"${avg_overhead:.1f}\times$"
+        else:
+            overhead_str = r"$1\times$ (baseline)"
+
+        lines.append(
+            rf"{label} & $\mathcal{{O}}(n^{{{n_s:.2f}}})$ & "
+            rf"$\mathcal{{O}}(d^{{{d_s:.2f}}})$ & "
+            rf"$\mathcal{{O}}(T^{{{t_s:.2f}}})$ & "
+            rf"{overhead_str} \\"
+        )
+
+    lines.extend(
+        [
+            r"\bottomrule",
+            r"\end{tabular}",
+            r"\end{table}",
+            "",
+        ]
+    )
+
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    with open(filepath, "w") as f:
+        f.write("\n".join(lines))
+    logger.info(f"Saved LaTeX table to {filepath}")
+
+
 # =============================================================================
 # Main
 # =============================================================================
@@ -810,7 +849,9 @@ def main():
     logger.info(f"n_features_grid: {N_FEATURES_GRID}")
     logger.info(f"n_trees_grid: {N_TREES_GRID}")
 
-    # Results container
+    # Warmup to eliminate JIT/import overhead
+    warmup_models()
+
     all_results: dict[str, Any] = {
         "metadata": {
             "timestamp": datetime.now().isoformat(),
@@ -831,155 +872,54 @@ def main():
         "models": {},
     }
 
-    # Define models to test
+    # Run experiments for BDF and Random Forest
     models = {
         "BDF": create_bdf_factory,
         "RandomForest": create_rf_factory,
-        "GaussianProcess": create_gp_factory,
     }
-    # Run experiments for each model
+
     for model_name, factory_creator in models.items():
         logger.info(f"\n{'='*50}")
         logger.info(f"Analyzing {model_name}")
         logger.info(f"{'='*50}")
 
-        # Sample size scaling
         n_scaling = run_sample_size_scaling(model_name, factory_creator)
         logger.success(f"{model_name} n-scaling: O(n^{n_scaling.estimated_slope:.2f}), R²={n_scaling.r_squared:.3f}")
 
-        # Feature scaling
         d_scaling = run_feature_scaling(model_name, factory_creator)
         logger.success(f"{model_name} d-scaling: O(d^{d_scaling.estimated_slope:.2f}), R²={d_scaling.r_squared:.3f}")
 
-        # Tree scaling (skip for GP - no ensemble parameter)
-        tree_scaling = None
-        if model_name != "GaussianProcess":
-            tree_scaling = run_tree_scaling(model_name, factory_creator)
-            logger.success(
-                f"{model_name} tree-scaling: O(T^{tree_scaling.estimated_slope:.2f}), R²={tree_scaling.r_squared:.3f}"
-            )
-        else:
-            logger.info("Skipping tree scaling for GaussianProcess (no ensemble parameter)")
+        tree_scaling = run_tree_scaling(model_name, factory_creator)
+        logger.success(
+            f"{model_name} tree-scaling: O(T^{tree_scaling.estimated_slope:.2f}), R²={tree_scaling.r_squared:.3f}"
+        )
 
-        # Store results
         all_results["models"][model_name] = {
             "n_scaling": scaling_result_to_dict(n_scaling),
             "d_scaling": scaling_result_to_dict(d_scaling),
-            "tree_scaling": scaling_result_to_dict(tree_scaling) if tree_scaling else None,
+            "tree_scaling": scaling_result_to_dict(tree_scaling),
         }
 
-        # Generate single-model plot (only for models with tree scaling)
-        if tree_scaling:
-            plot_single_model_scaling(
-                n_scaling, d_scaling, tree_scaling, model_name, f"{PLOTS_DIR}/{model_name.lower()}_scaling.png"
-            )
-
-        # Save intermediate results
         save_results(all_results, f"{RESULTS_DIR}/complexity_analysis.json")
 
-    # Generate comparison plots
-    logger.info("\nGenerating comparison plots...")
-
-    # n-scaling comparison
-    n_results = {
-        name: ScalingResult(
-            parameter_name="n_samples",
-            parameter_values=data["n_scaling"]["parameter_values"],  # Use actual values (GP is limited)
-            timing_results={
-                int(k): TimingResult(
-                    mean_time=v["mean_time"],
-                    std_time=v["std_time"],
-                    min_time=v["min_time"],
-                    max_time=v["max_time"],
-                )
-                for k, v in data["n_scaling"]["timing"].items()
-            },
-            memory_results={
-                int(k): MemoryResult(
-                    peak_memory_mb=v["peak_memory_mb"],
-                    current_memory_mb=v["current_memory_mb"],
-                )
-                for k, v in data["n_scaling"]["memory"].items()
-            },
-            fixed_params=data["n_scaling"]["fixed_params"],
-            estimated_slope=data["n_scaling"]["estimated_slope"],
-            r_squared=data["n_scaling"]["r_squared"],
-        )
-        for name, data in all_results["models"].items()
-    }
-    plot_scaling_comparison(
-        n_results, "n_samples", "Sample Size (n)", "Sample Size Scaling", f"{PLOTS_DIR}/comparison_n_scaling.png"
+    # Compute overhead ratios
+    overhead = compute_overhead_ratios(all_results)
+    all_results["overhead_ratios"] = overhead
+    logger.info(
+        f"Overhead BDF/RF — n: {overhead['n_scaling']['mean']:.2f}x, "
+        f"d: {overhead['d_scaling']['mean']:.2f}x, "
+        f"T: {overhead['tree_scaling']['mean']:.2f}x"
     )
 
-    # d-scaling comparison
-    d_results = {
-        name: ScalingResult(
-            parameter_name="n_features",
-            parameter_values=data["d_scaling"]["parameter_values"],
-            timing_results={
-                int(k): TimingResult(
-                    mean_time=v["mean_time"],
-                    std_time=v["std_time"],
-                    min_time=v["min_time"],
-                    max_time=v["max_time"],
-                )
-                for k, v in data["d_scaling"]["timing"].items()
-            },
-            memory_results={
-                int(k): MemoryResult(
-                    peak_memory_mb=v["peak_memory_mb"],
-                    current_memory_mb=v["current_memory_mb"],
-                )
-                for k, v in data["d_scaling"]["memory"].items()
-            },
-            fixed_params=data["d_scaling"]["fixed_params"],
-            estimated_slope=data["d_scaling"]["estimated_slope"],
-            r_squared=data["d_scaling"]["r_squared"],
-        )
-        for name, data in all_results["models"].items()
-    }
-    plot_scaling_comparison(
-        d_results, "n_features", "Number of Features (d)", "Feature Scaling", f"{PLOTS_DIR}/comparison_d_scaling.png"
-    )
+    # Generate plots
+    logger.info("\nGenerating plots...")
+    plot_main_text_figure(all_results, f"{PLOTS_DIR}/scaling_comparison.pdf")
+    plot_memory_comparison(all_results, f"{PLOTS_DIR}/memory_comparison.pdf")
+    plot_overhead_ratio(all_results, f"{PLOTS_DIR}/overhead_ratio.pdf")
 
-    # Tree scaling comparison (exclude GP - no ensemble parameter)
-    tree_results = {
-        name: ScalingResult(
-            parameter_name="n_trees",
-            parameter_values=data["tree_scaling"]["parameter_values"],
-            timing_results={
-                int(k): TimingResult(
-                    mean_time=v["mean_time"],
-                    std_time=v["std_time"],
-                    min_time=v["min_time"],
-                    max_time=v["max_time"],
-                )
-                for k, v in data["tree_scaling"]["timing"].items()
-            },
-            memory_results={
-                int(k): MemoryResult(
-                    peak_memory_mb=v["peak_memory_mb"],
-                    current_memory_mb=v["current_memory_mb"],
-                )
-                for k, v in data["tree_scaling"]["memory"].items()
-            },
-            fixed_params=data["tree_scaling"]["fixed_params"],
-            estimated_slope=data["tree_scaling"]["estimated_slope"],
-            r_squared=data["tree_scaling"]["r_squared"],
-        )
-        for name, data in all_results["models"].items()
-        if data.get("tree_scaling") is not None
-    }
-    plot_scaling_comparison(
-        tree_results,
-        "n_trees",
-        "Number of Trees (T)",
-        "Ensemble Size Scaling",
-        f"{PLOTS_DIR}/comparison_tree_scaling.png",
-    )
-
-    # Generate markdown report
+    # Generate reports
     generate_markdown_report(all_results, f"{RESULTS_DIR}/COMPLEXITY_ANALYSIS.md")
+    generate_latex_table(all_results, f"{RESULTS_DIR}/complexity_table.tex")
 
     # Final save
     save_results(all_results, f"{RESULTS_DIR}/complexity_analysis.json")
@@ -987,6 +927,7 @@ def main():
     logger.success("\nComplexity analysis complete!")
     logger.info(f"Results: {RESULTS_DIR}/complexity_analysis.json")
     logger.info(f"Report: {RESULTS_DIR}/COMPLEXITY_ANALYSIS.md")
+    logger.info(f"LaTeX: {RESULTS_DIR}/complexity_table.tex")
     logger.info(f"Plots: {PLOTS_DIR}/")
 
 

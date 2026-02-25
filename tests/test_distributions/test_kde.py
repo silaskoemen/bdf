@@ -547,7 +547,7 @@ def _extract_tree_structure(tree):
         ("make_regression", 150, 5, 10.0),
         ("make_friedman1", 150, 5, 5.0),
         ("make_friedman2", 150, 4, 5.0),
-        ("make_friedman3", 150, 4, 5.0),
+        ("make_friedman3", 150, 4, 0.5),  # arctan output ≈ [0, π/2], needs low noise for detectable SNR
     ],
 )
 def test_bandwidth_policy_parent_vs_per_split(dataset_name, n_samples, n_features, noise):

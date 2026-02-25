@@ -20,6 +20,7 @@ target/
 **/*.rs.bk
 
 multirun/
+.storage/
 
 .ruff_cache/
 

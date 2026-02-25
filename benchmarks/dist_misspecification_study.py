@@ -2,11 +2,11 @@
 Distribution Misspecification Study
 
 Evaluates the impact of distributional misspecification on BDF performance.
-Crosses 5 DGPs (each the "home" of one distribution) with 5 BDF distribution variants,
+Crosses 6 DGPs (each the "home" of one distribution) with 7 BDF distribution variants,
 measuring degradation when the assumed distribution is wrong.
 
 Design:
-    5 DGPs x 5 Distributions = 25 cells (6 incompatible, 19 runnable)
+    6 DGPs x 7 Distributions = 42 cells (9 incompatible, 33 runnable)
     Each cell: Optuna tuning on fold 0 (50 trials, CRPS), evaluate on folds 1-9
     5 seeds for confidence intervals -> 45 eval observations per cell
 
@@ -66,6 +66,11 @@ DGPS = [
         "home_dist": "FrequentistStudentT",
     },
     {"name": "multimodal_mixture_fixed", "kwargs": {"n_samples": 5000}, "home_dist": "KDE"},
+    {
+        "name": "skewed_heteroscedastic",
+        "kwargs": {"n_samples": 5000, "alpha": 5.0},
+        "home_dist": "NormalMeanPseudoAlphaSkewNormal",
+    },
 ]
 
 # Distribution model configs: hyperparameter search spaces
@@ -174,6 +179,51 @@ DIST_CONFIGS: dict[str, dict[str, Any]] = {
             "use_compact_support": False,
         },
     },
+    "NormalMuInvGammaSigmaNormal": {
+        "fixed_init_kwargs": {"dist": "NormalMuInvGammaSigmaNormal"},
+        "tunable_init_kwargs": {
+            "n_trees": {"type": "int", "low": 15, "high": 100},
+            "alpha": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
+            "gamma": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
+            "delta": {"type": "float", "low": 0.0001, "high": 0.5, "log": True},
+            "min_samples_leaf": {"type": "int", "low": 5, "high": 50},
+            "subsample": {"type": "float", "low": 0.7, "high": 1.0},
+            "colsample": {"type": "float", "low": 0.7, "high": 1.0},
+            "eta": {"type": "float", "low": 0.001, "high": 0.1, "log": True},
+        },
+        "tunable_params": {
+            "n_mu": {"type": "float", "low": 0.01, "high": 10.0, "log": True},
+            "nu_sigma": {"type": "float", "low": 2.5, "high": 50.0, "log": True},
+            "score_method": {"type": "categorical", "categories": ["nll", "nle"]},
+        },
+        "fixed_params": {
+            "mu_mu": "auto",
+            "phi_sigma": "auto",
+            "score_correction": "bic",
+        },
+    },
+    "NormalMeanPseudoAlphaSkewNormal": {
+        "fixed_init_kwargs": {"dist": "NormalMeanPseudoAlphaSkewNormal"},
+        "tunable_init_kwargs": {
+            "n_trees": {"type": "int", "low": 15, "high": 100},
+            "alpha": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
+            "gamma": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
+            "delta": {"type": "float", "low": 0.0001, "high": 0.5, "log": True},
+            "min_samples_leaf": {"type": "int", "low": 5, "high": 50},
+            "subsample": {"type": "float", "low": 0.7, "high": 1.0},
+            "colsample": {"type": "float", "low": 0.7, "high": 1.0},
+            "eta": {"type": "float", "low": 0.001, "high": 0.1, "log": True},
+        },
+        "tunable_params": {
+            "sigma_mu": {"type": "float", "low": 0.1, "high": 50.0, "log": True},
+            "m_alpha": {"type": "float", "low": 1.0, "high": 100.0, "log": True},
+        },
+        "fixed_params": {
+            "mu_mu": "auto",
+            "prior_alpha": 0.0,
+            "score_correction": "bic",
+        },
+    },
 }
 
 # Known domain incompatibilities: (dgp_name, dist_name) pairs that cannot work.
@@ -183,20 +233,24 @@ KNOWN_INCOMPATIBLE = {
     ("gaussian_heteroscedastic", "GammaMVLambdaPoisson"),
     ("heavy_tailed", "GammaMVLambdaPoisson"),
     ("multimodal_mixture_fixed", "GammaMVLambdaPoisson"),
+    ("skewed_heteroscedastic", "GammaMVLambdaPoisson"),
     # Exponential requires strictly positive (y > 0); these produce negative or zero values
     ("gaussian_heteroscedastic", "GammaMVLambdaExponential"),
     ("heavy_tailed", "GammaMVLambdaExponential"),
     ("multimodal_mixture_fixed", "GammaMVLambdaExponential"),
     ("poisson_count", "GammaMVLambdaExponential"),  # Poisson produces zeros
+    ("skewed_heteroscedastic", "GammaMVLambdaExponential"),
 }
 
 DISTRIBUTION_NAMES = list(DIST_CONFIGS.keys())
 SHORT_NAMES = {
     "NormalMuNormal": "Normal",
+    "NormalMuInvGammaSigmaNormal": "NIG",
     "GammaMVLambdaPoisson": "Poisson",
     "GammaMVLambdaExponential": "Exponential",
     "FrequentistStudentT": "Student-t",
     "KDE": "KDE",
+    "NormalMeanPseudoAlphaSkewNormal": "Skew-Normal",
 }
 DGP_SHORT_NAMES = {
     "gaussian_heteroscedastic": "Gaussian",
@@ -204,6 +258,7 @@ DGP_SHORT_NAMES = {
     "exponential_waiting_time": "Waiting-Time",
     "heavy_tailed": "Heavy-Tailed",
     "multimodal_mixture_fixed": "Multimodal",
+    "skewed_heteroscedastic": "Skewed",
 }
 
 
@@ -422,6 +477,8 @@ def evaluate_fold(
         "rmse": float(np.sqrt(mean_squared_error(y_test, y_pred))),
         "mae": float(mean_absolute_error(y_test, y_pred)),
         "r2": float(r2_score(y_test, y_pred)),
+        "avg_depth": float(np.mean([tree.get_max_depth() for tree in model.trees])),
+        "avg_nodes": float(np.mean([tree.count_nodes() for tree in model.trees])),
     }
 
     # Probabilistic metrics
@@ -495,7 +552,7 @@ def run_study(quick: bool = False) -> list[CellResult]:
 
     for seed in seeds:
         for dgp_spec in dgps:
-            dgp_name = dgp_spec["name"]
+            dgp_name = str(dgp_spec["name"])
             dgp_kwargs = {**dgp_spec["kwargs"], "seed": seed}
 
             logger.info(f"\n{'=' * 70}")
@@ -581,7 +638,12 @@ def run_study(quick: bool = False) -> list[CellResult]:
                 if cell.fold_metrics:
                     crps_vals = [m.get("crps", float("nan")) for m in cell.fold_metrics]
                     mean_crps = np.nanmean(crps_vals)
-                    logger.info(f"    CRPS: {mean_crps:.4f} ({len(cell.fold_metrics)} folds)")
+                    depth_vals = [m.get("avg_depth", float("nan")) for m in cell.fold_metrics]
+                    nodes_vals = [m.get("avg_nodes", float("nan")) for m in cell.fold_metrics]
+                    logger.info(
+                        f"    CRPS: {mean_crps:.4f} ({len(cell.fold_metrics)} folds) "
+                        f"| avg_depth={np.nanmean(depth_vals):.1f}, avg_nodes={np.nanmean(nodes_vals):.1f}"
+                    )
 
                 all_results.append(cell)
 
@@ -718,8 +780,8 @@ if __name__ == "__main__":
 
         # Pivot for display
         pivot = summary.pivot(index="dgp_short", columns="dist_short", values="crps_mean")
-        dgp_order = ["Gaussian", "Count", "Waiting-Time", "Heavy-Tailed", "Multimodal"]
-        dist_order = ["Normal", "Poisson", "Exponential", "Student-t", "KDE"]
+        dgp_order = ["Gaussian", "Skewed", "Count", "Waiting-Time", "Heavy-Tailed", "Multimodal"]
+        dist_order = ["Normal", "NIG", "Skew-Normal", "Poisson", "Exponential", "Student-t", "KDE"]
         pivot = pivot.reindex(index=[d for d in dgp_order if d in pivot.index])
         pivot = pivot.reindex(columns=[d for d in dist_order if d in pivot.columns])
         logger.info(f"\n{pivot.to_string(float_format='%.4f')}")

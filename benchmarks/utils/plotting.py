@@ -1,19 +1,11 @@
 from pathlib import Path
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
-mpl.rcParams.update(
-    {
-        "font.size": 12.5,
-        "figure.figsize": (10, 6),
-        "font.family": "serif",
-        "figure.dpi": 300,
-        "axes.grid": True,
-        "grid.alpha": 0.2,
-    }
-)
+from benchmarks.utils.style import apply_paper_style
+
+apply_paper_style()
 
 # Default color palette for models (tab10-based fallback)
 _DEFAULT_CMAP = plt.get_cmap("tab10")

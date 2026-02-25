@@ -22,6 +22,7 @@ label-noise-clas = "PYTHONPATH=src python -m benchmarks.label_noise_clas"
 sample-size = "PYTHONPATH=src python -m benchmarks.effect_sample_size"
 noise-features = "PYTHONPATH=src python -m benchmarks.effect_noise_features"
 synth = "PYTHONPATH=src python -m benchmarks.synthetic_dgp_benchmark"
+comp-synth = "PYTHONPATH=src python -m benchmarks.compare_synthetic_results"
 complexity = "PYTHONPATH=src python -m benchmarks.complexity_analysis"
 effect-params = "PYTHONPATH=src python -m benchmarks.effect_bdf_params both"
 effect-params-reg = "PYTHONPATH=src python -m benchmarks.effect_bdf_params regression"
@@ -33,7 +34,8 @@ scoring-study-quick = "PYTHONPATH=src python -m benchmarks.scoring_method_study 
 effect-tree-prior = "PYTHONPATH=src python -m benchmarks.effect_tree_prior"
 ood = "PYTHONPATH=src python -m benchmarks.effect_out_of_distribution"
 dist-study = "PYTHONPATH=src python -m benchmarks.dist_misspecification_study"
-dist-plot = "PYTHONPATH=src python -m benchmarks.plot_misspecification_results"
+dist-output = "PYTHONPATH=src python -m benchmarks.plot_misspecification_results"
+oob-study = "PYTHONPATH=src python -m benchmarks.oob_weighting_study"
 
 # Documentation
 docs-build = "sphinx-build -b html docs/source docs/build/html"

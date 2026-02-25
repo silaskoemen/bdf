@@ -552,23 +552,9 @@ def run_tree_prior_comparison(
 
 def setup_plot_style():
     """Set up publication-quality plot style."""
-    plt.style.use("seaborn-v0_8-whitegrid")
-    plt.rcParams.update(
-        {
-            "font.size": 11,
-            "axes.labelsize": 12,
-            "axes.titlesize": 13,
-            "xtick.labelsize": 10,
-            "ytick.labelsize": 10,
-            "legend.fontsize": 10,
-            "figure.titlesize": 14,
-            "figure.dpi": 150,
-            "savefig.dpi": 300,
-            "savefig.bbox": "tight",
-            "axes.spines.top": False,
-            "axes.spines.right": False,
-        }
-    )
+    from benchmarks.utils.style import apply_paper_style
+
+    apply_paper_style()
 
 
 def plot_metric_comparison(

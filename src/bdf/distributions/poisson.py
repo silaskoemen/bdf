@@ -500,10 +500,12 @@ class GammaMVLambdaPoisson(BDFDistribution[GammaMVLambdaPoissonParams]):
         if key == "mean_lambda":
             return float(np.mean(data))
         if key == "var_lambda":
-            assert params is not None, "'params' must be provided to resolve 'var_lambda' automatically."
-            assert (
-                "var_lambda_auto_scale" in params
-            ), "'var_lambda_auto_scale' must be defined in params to resolve 'var_lambda' automatically."
+            if params is None:
+                raise ValueError("'params' must be provided to resolve 'var_lambda' automatically.")
+            if "var_lambda_auto_scale" not in params:
+                raise ValueError(
+                    "'var_lambda_auto_scale' must be defined in params to resolve 'var_lambda' automatically."
+                )
             sample_mean = np.mean(data)
             scale = params["var_lambda_auto_scale"]
             # Prior variance = sample_mean * scale

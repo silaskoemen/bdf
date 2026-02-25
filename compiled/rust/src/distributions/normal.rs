@@ -302,10 +302,20 @@ pub struct NormalMuInvGammaSigmaNormal {
     n_mu: f64,
     nu_sigma: f64,
     phi_sigma: f64,
+    // Scoring config needed to determine suff stats eligibility
+    score_method: String,
+    use_posterior_predictive: bool,
 }
 
 impl NormalMuInvGammaSigmaNormal {
     pub fn from_spec(spec: &PyDict) -> PyResult<Self> {
+        let score_method: String = spec.get_item("score_method")
+            .and_then(|item| item.extract().ok())
+            .unwrap_or_else(|| "nle".to_string());
+        let use_posterior_predictive: bool = spec.get_item("use_posterior_predictive")
+            .and_then(|item| item.extract().ok())
+            .unwrap_or(true);
+
         Ok(Self {
             mu_mu: spec.get_item("mu_mu")
                 .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("Missing 'mu_mu'"))?
@@ -319,22 +329,38 @@ impl NormalMuInvGammaSigmaNormal {
             phi_sigma: spec.get_item("phi_sigma")
                 .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("Missing 'phi_sigma'"))?
                 .extract()?,
+            score_method,
+            use_posterior_predictive,
         })
     }
 }
 
 impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
+    fn required_moment_order(&self) -> usize {
+        // NLE uses closed-form evidence (needs n, sum, sum_sq) → suff stats OK
+        // NLL plug-in uses Normal → suff stats OK
+        // NLL with PP uses Student's t → log(1 + z²/ν) has no suff stats form
+        if self.score_method == "nll" && self.use_posterior_predictive {
+            0  // force slow path (raw data)
+        } else {
+            2  // n, sum, sum_sq
+        }
+    }
+
     fn calc_posterior_params(&self, data: &ArrayView1<f64>) -> HashMap<String, f64> {
         let n = data.len() as f64;
         if n == 0.0 {
+            let posterior_phi = self.phi_sigma;  // Already normalized (prior)
+            let nu_clamped = self.nu_sigma.max(2.05);
+            let map_sigma2 = posterior_phi * nu_clamped / (nu_clamped - 2.0);
             return HashMap::from([
-                ("post_mu".into(), self.mu_mu),
-                ("post_nu".into(), self.nu_sigma),
-                ("post_phi".into(), self.phi_sigma),
-                ("post_n".into(), self.n_mu),
-                ("map_sigma".into(), (self.phi_sigma / (self.nu_sigma - 2.0)).max(1e-12).sqrt()),
-                ("pred_scale".into(), (self.phi_sigma * (self.n_mu + 1.0)
-                    / (self.n_mu * (self.nu_sigma - 2.0))).max(1e-12).sqrt()),
+                ("posterior_mu".into(), self.mu_mu),
+                ("posterior_nu".into(), self.nu_sigma),
+                ("posterior_phi".into(), posterior_phi),
+                ("posterior_n".into(), self.n_mu),
+                ("posterior_sigma".into(), map_sigma2.max(1e-12).sqrt()),
+                ("posterior_pred_scale".into(), (posterior_phi * (self.n_mu + 1.0)
+                    / self.n_mu).max(1e-12).sqrt()),
             ]);
         }
         let sample_mean = data.mean().unwrap();
@@ -344,47 +370,39 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
         };
 
         // Posterior parameters
-        let post_n = self.n_mu + n;
-        let post_nu = self.nu_sigma + n;
-        let post_mu = (self.n_mu * self.mu_mu + n * sample_mean) / post_n;
+        let posterior_n = self.n_mu + n;
+        let posterior_nu = self.nu_sigma + n;
+        let posterior_mu = (self.n_mu * self.mu_mu + n * sample_mean) / posterior_n;
 
         let prior_sum_sq = self.nu_sigma * self.phi_sigma;
-        let interaction = (self.n_mu * n / post_n) * (sample_mean - self.mu_mu).powi(2);
+        let interaction = (self.n_mu * n / posterior_n) * (sample_mean - self.mu_mu).powi(2);
         let post_sum_sq = prior_sum_sq + ssd + interaction;
-        let post_phi = post_sum_sq / post_nu;
+        // Normalized: φₙ = S/νₙ
+        let posterior_phi = post_sum_sq / posterior_nu;
 
         let mut params = HashMap::new();
-        params.insert("post_mu".to_string(), post_mu);
-        params.insert("post_nu".to_string(), post_nu);
-        params.insert("post_phi".to_string(), post_phi);
-        params.insert("post_n".to_string(), post_n);
+        params.insert("posterior_mu".to_string(), posterior_mu);
+        params.insert("posterior_nu".to_string(), posterior_nu);
+        params.insert("posterior_phi".to_string(), posterior_phi);
+        params.insert("posterior_n".to_string(), posterior_n);
 
-        // MAP estimates for plug-in
-        // Mode of InvGamma(alpha, beta) is beta / (alpha + 1)
-        // alpha = nu/2, beta = nu*phi/2
-        let mut map_sigma2 = post_phi * post_nu / (post_nu - 2.0);
-        if post_nu <= 2.0 {
-            map_sigma2 = post_phi / post_nu;  // fall back to mean
-        }
-        let map_sigma = map_sigma2.max(1e-12).sqrt();
-        params.insert("map_sigma".to_string(), map_sigma);
+        // MAP estimate of σ: E[σ²] = νₙφₙ/(νₙ-2); clamp νₙ to 2.05 to avoid singularity
+        let nu_clamped = posterior_nu.max(2.05);
+        let map_sigma2 = posterior_phi * nu_clamped / (nu_clamped - 2.0);
+        let posterior_sigma = map_sigma2.max(1e-12).sqrt();
+        params.insert("posterior_sigma".to_string(), posterior_sigma);
 
-        // Predictive scale for Student's t
-        // Scale = sqrt(phi * (1 + 1/n_n))
-        let pred_var = if post_nu > 2.0 {
-            post_phi * (1.0 + 1.0 / post_n)
-        } else {
-            post_phi * (1.0 + 1.0 / post_n) * post_nu / (post_nu - 2.0)  // Adjust for undefined variance
-        };
-        let pred_scale = pred_var.max(1e-12).sqrt();
-        params.insert("pred_scale".to_string(), pred_scale);
+        // Predictive scale for Student's t: sqrt(φₙ * (1 + 1/κₙ))
+        let pred_var = posterior_phi * (1.0 + 1.0 / posterior_n);
+        let posterior_pred_scale = pred_var.max(1e-12).sqrt();
+        params.insert("posterior_pred_scale".to_string(), posterior_pred_scale);
 
         params
     }
 
     fn plugin_log_likelihood(&self, data: &ArrayView1<f64>, params: &HashMap<String, f64>) -> Array1<f64> {
-        let mu = params["post_mu"];
-        let sigma = params["map_sigma"];
+        let mu = params["posterior_mu"];
+        let sigma = params["posterior_sigma"];
         let log_sigma = sigma.ln();
         const LOG_2PI: f64 = 1.8378770664093453;
 
@@ -395,9 +413,9 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
     }
 
     fn posterior_predictive_log_likelihood(&self, data: &ArrayView1<f64>, params: &HashMap<String, f64>) -> Option<Array1<f64>> {
-        let mu = params["post_mu"];
-        let nu = params["post_nu"];
-        let scale = params["pred_scale"].max(1e-10);
+        let mu = params["posterior_mu"];
+        let nu = params["posterior_nu"];
+        let scale = params["posterior_pred_scale"].max(1e-10);
         let log_scale = scale.ln();
 
         // Log PDF of Student's t(nu, loc, scale)
@@ -512,12 +530,10 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
             }
             nll
         } else {
-            let map_sigma2 = if post_nu > 2.0 {
-                post_phi * post_nu / (post_nu - 2.0)
-            } else {
-                post_phi / post_nu
-            };
-            let sigma = map_sigma2.sqrt();
+            // E[σ²] = νₙφₙ/(νₙ-2); clamp νₙ to 2.05 to avoid singularity
+            let nu_clamped = post_nu.max(2.05);
+            let map_sigma2 = post_phi * nu_clamped / (nu_clamped - 2.0);
+            let sigma = map_sigma2.max(1e-12).sqrt();
             let log_sigma = sigma.ln();
             const LOG_2PI: f64 = 1.8378770664093453;
 
@@ -568,12 +584,9 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
             }
             nll
         } else {
-            let map_sigma2 = if post_nu > 2.0 {
-                post_phi * post_nu / (post_nu - 2.0)
-            } else {
-                post_phi / post_nu
-            };
-            let sigma = map_sigma2.sqrt();
+            let nu_clamped = post_nu.max(2.05);
+            let map_sigma2 = post_phi * nu_clamped / (nu_clamped - 2.0);
+            let sigma = map_sigma2.max(1e-12).sqrt();
             let log_sigma = sigma.ln();
             const LOG_2PI: f64 = 1.8378770664093453;
 
@@ -609,12 +622,9 @@ impl DistributionPrimitives for NormalMuInvGammaSigmaNormal {
             return None;
         } else {
             // Plug-in Normal NLL IS compatible with sufficient stats
-            let map_sigma2 = if post_nu > 2.0 {
-                post_phi * post_nu / (post_nu - 2.0)
-            } else {
-                post_phi / post_nu
-            };
-            let sigma = map_sigma2.sqrt();
+            let nu_clamped = post_nu.max(2.05);
+            let map_sigma2 = post_phi * nu_clamped / (nu_clamped - 2.0);
+            let sigma = map_sigma2.max(1e-12).sqrt();
             let log_sigma = sigma.ln();
             const LOG_2PI: f64 = 1.8378770664093453;
 
