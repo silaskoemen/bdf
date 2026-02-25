@@ -107,6 +107,7 @@ class BDFTree:
         colsample: float = 1.0,
         verbose: int = 0,
         eta: float = 0.025,
+        compact_memory: bool = True,
     ) -> "BDFTree":
         # NOTE: if alpha is 0, each loss component is fully seperable, meaning each
         # node can be split simply by considering NLL reduction and including gamma; no need for a queue.
@@ -126,7 +127,23 @@ class BDFTree:
                 rng=rng,
                 eta=eta,
             )
+        if compact_memory:
+            self._strip_internal_posteriors(self.root)
         return self
+
+    @staticmethod
+    def _strip_internal_posteriors(node: "BDFNode") -> None:
+        """Remove posterior_params from internal nodes to free memory.
+
+        Only leaf posteriors are needed for prediction; internal posteriors
+        are intermediate results from tree construction.
+        """
+        if not node._is_leaf():
+            del node.posterior_params
+            if node.left_node is not None:
+                BDFTree._strip_internal_posteriors(node.left_node)
+            if node.right_node is not None:
+                BDFTree._strip_internal_posteriors(node.right_node)
 
     def _grow_node(
         self,
@@ -197,9 +214,7 @@ class BDFTree:
         """Traverse the tree to find the leaf node for a single observation."""
         node = self.root
         while not node._is_leaf():
-            if node.left_node is None or node.right_node is None:
-                # This should not happen in a fitted tree, but as a safeguard:
-                break
+            assert node.left_node is not None and node.right_node is not None  # guaranteed by split_node
             if x[node.best_feature] <= node.best_threshold:
                 node = node.left_node
             else:

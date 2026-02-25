@@ -177,3 +177,71 @@ def test_prediction_input_validation(regression_data):
     X_wrong_features = X[:, : N_FEATURES - 1]
     with pytest.raises(ValueError, match="features, but BDFRegressor was fitted with"):
         fitted_model.predict(X_wrong_features)
+
+
+# ── compact_memory tests ──
+
+
+def _collect_nodes(node):
+    """Collect all nodes in a tree into (leaves, internals) lists."""
+    leaves, internals = [], []
+    stack = [node]
+    while stack:
+        n = stack.pop()
+        if n._is_leaf():
+            leaves.append(n)
+        else:
+            internals.append(n)
+            if n.left_node is not None:
+                stack.append(n.left_node)
+            if n.right_node is not None:
+                stack.append(n.right_node)
+    return leaves, internals
+
+
+def test_compact_memory_strips_internal_posteriors(regression_data):
+    """compact_memory=True removes posterior_params from internal nodes."""
+    X, y = regression_data
+    model = BDFRegressor(n_trees=5, random_state=RANDOM_STATE, min_samples_leaf=5, compact_memory=True)
+    model.fit(X, y)
+
+    for tree in model.trees:
+        leaves, internals = _collect_nodes(tree.root)
+        assert len(internals) > 0, "Tree should have internal nodes"
+        for node in leaves:
+            assert hasattr(node, "posterior_params"), "Leaf nodes must retain posterior_params"
+        for node in internals:
+            assert not hasattr(node, "posterior_params"), "Internal nodes should have posterior_params stripped"
+
+
+def test_no_compact_memory_retains_internal_posteriors(regression_data):
+    """compact_memory=False keeps posterior_params on all nodes."""
+    X, y = regression_data
+    model = BDFRegressor(n_trees=5, random_state=RANDOM_STATE, min_samples_leaf=5, compact_memory=False)
+    model.fit(X, y)
+
+    for tree in model.trees:
+        leaves, internals = _collect_nodes(tree.root)
+        for node in leaves + internals:
+            assert hasattr(node, "posterior_params"), "All nodes should retain posterior_params"
+
+
+def test_compact_memory_predictions_match(regression_data):
+    """Predictions are identical regardless of compact_memory setting."""
+    X, y = regression_data
+    kwargs = dict(n_trees=10, random_state=RANDOM_STATE, min_samples_leaf=5)
+
+    model_compact = BDFRegressor(**kwargs, compact_memory=True)
+    model_full = BDFRegressor(**kwargs, compact_memory=False)
+    model_compact.fit(X, y)
+    model_full.fit(X, y)
+
+    np.testing.assert_array_equal(model_compact.predict_mean(X), model_full.predict_mean(X))
+    np.testing.assert_array_equal(model_compact.predict_variance(X), model_full.predict_variance(X))
+    np.testing.assert_array_equal(
+        model_compact.predict_samples(X, n_samples=10), model_full.predict_samples(X, n_samples=10)
+    )
+
+    # Also verify tree-level log-likelihood (not exposed on regressor)
+    for t_compact, t_full in zip(model_compact.trees, model_full.trees):
+        np.testing.assert_array_equal(t_compact.predict_log_likelihood(X, y), t_full.predict_log_likelihood(X, y))
