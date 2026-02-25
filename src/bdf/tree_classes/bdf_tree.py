@@ -214,9 +214,7 @@ class BDFTree:
         """Traverse the tree to find the leaf node for a single observation."""
         node = self.root
         while not node._is_leaf():
-            if node.left_node is None or node.right_node is None:
-                # This should not happen in a fitted tree, but as a safeguard:
-                break
+            assert node.left_node is not None and node.right_node is not None  # guaranteed by split_node
             if x[node.best_feature] <= node.best_threshold:
                 node = node.left_node
             else:

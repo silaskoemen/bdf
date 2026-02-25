@@ -481,25 +481,14 @@ class BDFNode:
         """Predict the mean for each observation in X."""
         if self._is_leaf():
             return np.full(X.shape[0], self.distribution.get_posterior_mean(params=self.posterior_params))
-        # Split indices based on the best feature/threshold
         left_mask = X[:, self.best_feature] <= self.best_threshold
         right_mask = ~left_mask
 
-        # Allocate full-size output
+        assert self.left_node is not None and self.right_node is not None  # guaranteed by split_node
+
         preds = np.empty(X.shape[0], dtype=float)
-
-        # Compute predictions for left subset (or fall back to this node's mean)
-        if self.left_node:
-            preds[left_mask] = self.left_node.predict_mean(X[left_mask])
-        else:
-            preds[left_mask] = self.distribution.get_posterior_mean(params=self.posterior_params)
-
-        # Compute predictions for right subset (or fall back to this node's mean)
-        if self.right_node:
-            preds[right_mask] = self.right_node.predict_mean(X[right_mask])
-        else:
-            preds[right_mask] = self.distribution.get_posterior_mean(params=self.posterior_params)
-
+        preds[left_mask] = self.left_node.predict_mean(X[left_mask])
+        preds[right_mask] = self.right_node.predict_mean(X[right_mask])
         return preds
 
     def predict_log_likelihood(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -507,21 +496,14 @@ class BDFNode:
         if self._is_leaf():
             return self.distribution.log_likelihood(y, self.posterior_params)
 
+        assert self.left_node is not None and self.right_node is not None  # guaranteed by split_node
+
         left_mask = X[:, self.best_feature] <= self.best_threshold
         right_mask = ~left_mask
 
         result = np.empty(X.shape[0], dtype=float)
-
-        if self.left_node:
-            result[left_mask] = self.left_node.predict_log_likelihood(X[left_mask], y[left_mask])
-        else:
-            result[left_mask] = self.distribution.log_likelihood(y[left_mask], self.posterior_params)
-
-        if self.right_node:
-            result[right_mask] = self.right_node.predict_log_likelihood(X[right_mask], y[right_mask])
-        else:
-            result[right_mask] = self.distribution.log_likelihood(y[right_mask], self.posterior_params)
-
+        result[left_mask] = self.left_node.predict_log_likelihood(X[left_mask], y[left_mask])
+        result[right_mask] = self.right_node.predict_log_likelihood(X[right_mask], y[right_mask])
         return result
 
     def predict_samples(self, X, size: int = 1) -> np.ndarray:
@@ -538,32 +520,14 @@ class BDFNode:
             )
             return flat_samples.reshape(n_obs, size)
 
-        # Split indices based on the best feature/threshold
+        assert self.left_node is not None and self.right_node is not None  # guaranteed by split_node
+
         left_mask = X[:, self.best_feature] <= self.best_threshold
         right_mask = ~left_mask
 
-        # Allocate full-size output
         preds = np.empty((n_obs, size), dtype=float)
-
-        # Compute samples for left subset (or fall back to this node's samples)
-        if self.left_node:
-            preds[left_mask] = self.left_node.predict_samples(X[left_mask], size=size)
-        else:
-            n_left = int(np.sum(left_mask))
-            flat_samples = self.distribution.sample_posterior(
-                size=n_left * size, params=self.posterior_params, random_state=self.random_state
-            )
-            preds[left_mask] = flat_samples.reshape(n_left, size)
-
-        # Compute samples for right subset (or fall back to this node's samples)
-        if self.right_node:
-            preds[right_mask] = self.right_node.predict_samples(X[right_mask], size=size)
-        else:
-            n_right = int(np.sum(right_mask))
-            flat_samples = self.distribution.sample_posterior(
-                size=n_right * size, params=self.posterior_params, random_state=self.random_state
-            )
-            preds[right_mask] = flat_samples.reshape(n_right, size)
+        preds[left_mask] = self.left_node.predict_samples(X[left_mask], size=size)
+        preds[right_mask] = self.right_node.predict_samples(X[right_mask], size=size)
 
         return preds
 

@@ -147,7 +147,7 @@ def warmup_models() -> None:
     X, y = generate_data(200, 5, seed=0)
 
     # Warmup BDF (triggers Rust library loading, numba JIT, etc.)
-    bdf = BDFRegressor(**{**BDF_CONFIG, "n_trees": 5}, params=BDF_PARAMS)
+    bdf = BDFRegressor(**{**BDF_CONFIG, "n_trees": 5}, params=BDF_PARAMS)  # ty:ignore[invalid-argument-type]
     bdf.fit(X, y)
     del bdf
 
