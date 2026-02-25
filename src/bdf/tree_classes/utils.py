@@ -23,6 +23,7 @@ def _fit_single_tree(
     verbose: bool = False,
     bootstrap: bool = True,
     return_oob_mask: bool = False,
+    compact_memory: bool = True,
 ) -> BDFTree | tuple[BDFTree, np.ndarray | None]:
     """Helper function to fit a single tree, used for parallel fitting.
 
@@ -62,7 +63,7 @@ def _fit_single_tree(
     else:
         X_iter = X
         y_iter = y
-    iter_tree.fit(X_iter, y_iter, rng=rng, colsample=colsample, verbose=verbose, eta=eta)
+    iter_tree.fit(X_iter, y_iter, rng=rng, colsample=colsample, verbose=verbose, eta=eta, compact_memory=compact_memory)
     if return_oob_mask:
         return iter_tree, oob_mask
     return iter_tree

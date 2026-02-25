@@ -94,6 +94,7 @@ class BDFModel(BaseEstimator):
         "bootstrap": ["boolean"],
         "oob_weights": ["boolean"],
         "oob_temperature": [Interval(Real, 0, None, closed="neither")],
+        "compact_memory": ["boolean"],
         "n_jobs": [Integral],
         "verbose": [Interval(Integral, -1, None, closed="left")],
         "random_state": [Interval(Integral, 0, None, closed="left")],
@@ -118,6 +119,7 @@ class BDFModel(BaseEstimator):
         bootstrap: bool = True,
         oob_weights: bool = False,
         oob_temperature: float = 1.0,
+        compact_memory: bool = True,
         n_jobs: int = -1,
         verbose: int = 0,
         random_state: int = RANDOM_SEED,
@@ -140,6 +142,7 @@ class BDFModel(BaseEstimator):
         self.bootstrap = bootstrap
         self.oob_weights = oob_weights
         self.oob_temperature = oob_temperature
+        self.compact_memory = compact_memory
         self.n_jobs = n_jobs
         self.verbose = verbose
         self.random_state = random_state
@@ -223,6 +226,7 @@ class BDFModel(BaseEstimator):
                 eta=self.eta,
                 random_state=self.random_state + i,
                 return_oob_mask=self.oob_weights,
+                compact_memory=self.compact_memory,
             )
             for i in range(self.n_trees)
         )

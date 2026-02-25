@@ -11,6 +11,17 @@ from bdf.distributions.bdf_distribution import BDFDistribution
 class BDFNode:
     """Base class for all BDF nodes."""
 
+    __slots__ = (
+        "distribution",
+        "depth",
+        "random_state",
+        "left_node",
+        "right_node",
+        "posterior_params",
+        "best_feature",
+        "best_threshold",
+    )
+
     def __init__(self, distribution: BDFDistribution, depth: int, random_state: int):
         self.distribution = distribution
         self.depth = depth
