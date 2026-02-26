@@ -18,7 +18,8 @@ Comprehensive empirical evaluation of Bayesian Distributional Forests. The suite
 | Distribution misspecification | `pixi run dist-study` | `dist_misspecification_study.py` |
 | OOD / covariate shift | `pixi run ood` | `effect_out_of_distribution.py` |
 | Sample size effect | `pixi run sample-size` | `effect_sample_size.py` |
-| Noise features robustness | `pixi run noise-features` | `effect_noise_features.py` |
+| Noise features robustness | `pixi run noise-study` | `effect_noise_features.py` |
+| Noise features plots/tables | `pixi run noise-output` | `plot_noise_features_results.py` |
 | Tree prior comparison | `pixi run effect-tree-prior` | `effect_tree_prior.py` |
 | Effect of n_trees | (direct invocation) | `effect_n_trees.py` |
 | Label noise (classification) | `pixi run label-noise-clas` | `label_noise_clas.py` |
@@ -111,9 +112,9 @@ Varies n from 100 to 5,000 on Friedman 1–3 and make_regression. Per-fold Optun
 
 ### 11. Noise Features Robustness
 
-**Script**: `effect_noise_features.py`
+**Script**: `effect_noise_features.py` | **Plots**: `plot_noise_features_results.py`
 
-Adds 0–500 pure noise features and tracks performance and feature selection behavior.
+Adds 0–500 pure noise features to Friedman 1–3 and make_regression datasets. Evaluates CRPS degradation across 5 probabilistic models (BDFNormal, BDFKDE, ConformalRF, NGBoost, BART) with per-fold Optuna tuning on CRPS. Tracks feature selection behavior for all models by counting split feature usage across their internal tree structures. Run `pixi run noise-study` for the experiment, `pixi run noise-output` for plots and LaTeX tables.
 
 ### 12. Tree Prior Comparison
 
