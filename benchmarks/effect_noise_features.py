@@ -1,13 +1,14 @@
 """
-Experiment: Effect of Noise Features on BDF Performance
+Experiment: Effect of Noise Features on Probabilistic Prediction Quality
 
-Investigates the effect of adding pure noise features on the relative performance of BDF
-compared to baseline models. Uses sklearn synthetic datasets (make_friedman1, make_friedman2,
-make_friedman3, make_regression) with fixed sample size and progressively more noise features
-added: 0, 10, 50, 100, 500.
+Investigates how adding pure noise features degrades the CRPS of BDF and baseline
+probabilistic models. Uses sklearn synthetic datasets (friedman1–3, make_regression)
+with fixed sample size and progressively more noise features: 0, 10, 50, 100, 500.
 
-Also tracks feature selection behavior - proportion of times each noise feature is selected
-for splits in BDF and RandomForest.
+Also tracks feature selection behavior for BDF variants — proportion of times each
+noise feature is selected for splits.
+
+Models: BDFNormal, BDFKDE (always), ConformalRF, NGBoost, BART (bench-models env).
 """
 
 import json
@@ -20,22 +21,23 @@ import optuna
 from loguru import logger
 from optuna.samplers import TPESampler
 from sklearn.datasets import make_friedman1, make_friedman2, make_friedman3, make_regression
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import KFold, train_test_split
+from sklearn.model_selection import KFold
 from tqdm import tqdm
 
-from bdf.tree_classes.bdf_regressor import BDFRegressor
+from .metrics.regression import crps_wrapper
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
+# =============================================================================
 # Configuration
+# =============================================================================
+
 SEED = 42
-N_SPLITS = 5
-VAL_SIZE = 0.25  # Of the remaining data after test split
+N_SPLITS = 10  # 10-fold CV: fold 0 for tuning, folds 1-9 for evaluation
 N_TRIALS = 50
 N_FEATURES = 5  # Base number of informative features
-SAMPLE_SIZE = 2000  # Fixed sample size for this experiment
+SAMPLE_SIZE = 2000
+N_POSTERIOR_SAMPLES = 1000
 
 NOISE_FEATURE_COUNTS = [0, 10, 50, 100, 500]
 
@@ -57,58 +59,175 @@ INFORMATIVE_FEATURES = {
     "make_regression": 5,  # n_informative=5
 }
 
+
 # =============================================================================
-# Model Configurations
+# Dynamic Model Loading
 # =============================================================================
 
-MODEL_CONFIGS: dict[str, dict[str, Any]] = {
-    "BDFNormal": {
-        "class": BDFRegressor,
-        "fixed_init_kwargs": {
-            "dist": "NormalMuNormal",
-            "random_state": SEED,
-            # "gamma": 1.0,
-        },
-        "tunable_init_kwargs": {
-            "n_trees": {"type": "int", "low": 15, "high": 200},
-            "max_depth": {"type": "int", "low": 2, "high": 30},
-            "alpha": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
-            "gamma": {"type": "float", "low": 0.1, "high": 1.0},
-            "delta": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
-            "min_samples_leaf": {"type": "int", "low": 5, "high": 50},
-            "subsample": {"type": "float", "low": 0.5, "high": 1.0},
-            "colsample": {"type": "float", "low": 0.5, "high": 1.0},
-            "eta": {"type": "float", "low": 0.001, "high": 0.1, "log": True},
-        },
-        "tunable_params": {
-            "sigma_mu": {"type": "float", "low": 0.1, "high": 150.0},
-            "score_method": {"type": "categorical", "categories": ["nll", "nle"]},
-        },
-        "fixed_params": {
-            "mu_mu": "auto",
-            "score_correction": "bic",
-        },
-        "has_params_dict": True,
-    },
-    "RandomForest": {
-        "class": RandomForestRegressor,
-        "fixed_init_kwargs": {
-            "random_state": SEED,
-        },
-        "tunable_init_kwargs": {
-            "criterion": {"type": "categorical", "categories": ["squared_error", "absolute_error"]},
-            "max_leaf_nodes": {"type": "int", "low": 5, "high": 250},
-            "max_depth": {"type": "int", "low": 2, "high": 30},
-            "min_samples_leaf": {"type": "int", "low": 5, "high": 50},
-            "min_samples_split": {"type": "int", "low": 10, "high": 100},
-            "max_features": {"type": "float", "low": 0.1, "high": 1.0},
-            "n_estimators": {"type": "int", "low": 10, "high": 200},
-        },
-        "tunable_params": {},
-        "fixed_params": {},
-        "has_params_dict": False,
-    },
-}
+
+def get_available_models() -> dict[str, dict[str, Any]]:
+    """Detect which models are available in current environment.
+
+    Returns:
+        Dictionary mapping model names to their configurations.
+    """
+    available = {}
+
+    # =========================================================================
+    # BDF Models — always available in default environment
+    # =========================================================================
+    try:
+        from bdf.tree_classes.bdf_regressor import BDFRegressor
+
+        available["BDFNormal"] = {
+            "class": BDFRegressor,
+            "fixed_init_kwargs": {
+                "dist": "NormalMuNormal",
+                "random_state": SEED,
+            },
+            "tunable_init_kwargs": {
+                "n_trees": {"type": "int", "low": 15, "high": 200},
+                "max_depth": {"type": "int", "low": 2, "high": 30},
+                "alpha": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
+                "gamma": {"type": "float", "low": 0.1, "high": 1.0},
+                "delta": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
+                "min_samples_leaf": {"type": "int", "low": 5, "high": 50},
+                "subsample": {"type": "float", "low": 0.5, "high": 1.0},
+                "colsample": {"type": "float", "low": 0.5, "high": 1.0},
+                "eta": {"type": "float", "low": 0.001, "high": 0.1, "log": True},
+            },
+            "tunable_params": {
+                "sigma_mu_auto_scale": {"type": "float", "low": 0.01, "high": 10.0, "log": True},
+                "score_method": {"type": "categorical", "categories": ["nll", "nle"]},
+            },
+            "fixed_params": {
+                "mu_mu": "auto",
+                "sigma_mu": "auto",
+                "score_correction": "bic",
+            },
+            "has_params_dict": True,
+            "probabilistic": True,
+            "has_feature_selection": True,
+        }
+
+        available["BDFKDE"] = {
+            "class": BDFRegressor,
+            "fixed_init_kwargs": {
+                "dist": "KDE",
+                "random_state": SEED,
+            },
+            "tunable_init_kwargs": {
+                "n_trees": {"type": "int", "low": 15, "high": 100},
+                "alpha": {"type": "float", "low": 0.00001, "high": 0.1, "log": True},
+                "gamma": {"type": "float", "low": 0.0001, "high": 1.0, "log": True},
+                "delta": {"type": "float", "low": 0.0001, "high": 0.1, "log": True},
+                "min_samples_leaf": {"type": "int", "low": 10, "high": 100},
+                "subsample": {"type": "float", "low": 0.7, "high": 1.0},
+                "colsample": {"type": "float", "low": 0.7, "high": 1.0},
+                "eta": {"type": "float", "low": 0.001, "high": 0.1, "log": True},
+            },
+            "tunable_params": {
+                "bandwidth": {"type": "categorical", "categories": ["scott", "silverman"]},
+                "score_correction": {"type": "categorical", "categories": ["loo_cv", "bic"]},
+            },
+            "fixed_params": {
+                "kernel": "gaussian",
+                "parent_bw_refine_top_k": 3,
+                "score_cv_folds": 3,
+                "kde_backend": "switch",
+                "bandwidth_policy": "parent",
+                "use_compact_support": False,
+            },
+            "has_params_dict": True,
+            "probabilistic": True,
+            "has_feature_selection": True,
+        }
+
+        logger.info("✓ BDF models available (BDFNormal, BDFKDE)")
+    except (ImportError, ModuleNotFoundError):
+        logger.info("✗ BDF not available")
+
+    # =========================================================================
+    # Optional Models — bench-models environment
+    # =========================================================================
+
+    try:
+        from .models.wrappers import ConformalizedRFWrapper
+
+        available["ConformalRF"] = {
+            "class": ConformalizedRFWrapper,
+            "fixed_init_kwargs": {
+                "random_state": SEED,
+            },
+            "tunable_init_kwargs": {
+                "n_estimators": {"type": "int", "low": 25, "high": 200},
+                "max_depth": {"type": "int", "low": 5, "high": 30},
+                "min_samples_leaf": {"type": "int", "low": 5, "high": 50},
+                "max_features": {"type": "float", "low": 0.1, "high": 1.0},
+            },
+            "tunable_params": {},
+            "fixed_params": {},
+            "has_params_dict": False,
+            "probabilistic": True,
+            "has_feature_selection": True,
+        }
+        logger.info("✓ ConformalRF available")
+    except ImportError:
+        logger.info("✗ ConformalRF not available (run in bench-models environment)")
+
+    try:
+        from .models.wrappers import NGBRegressorWrapper
+
+        available["NGBoost"] = {
+            "class": NGBRegressorWrapper,
+            "fixed_init_kwargs": {
+                "random_state": SEED,
+                "verbose": False,
+                "dist_name": "Normal",
+            },
+            "tunable_init_kwargs": {
+                "n_estimators": {"type": "int", "low": 50, "high": 300},
+                "learning_rate": {"type": "float", "low": 0.01, "high": 0.3},
+                "minibatch_frac": {"type": "float", "low": 0.5, "high": 1.0},
+                "col_sample": {"type": "float", "low": 0.5, "high": 1.0},
+            },
+            "tunable_params": {},
+            "fixed_params": {},
+            "has_params_dict": False,
+            "probabilistic": True,
+            "has_feature_selection": True,
+        }
+        logger.info("✓ NGBoost available")
+    except ImportError:
+        logger.info("✗ NGBoost not available (run in bench-models environment)")
+
+    try:
+        from .models.wrappers import BARTPyRegressorWrapper
+
+        available["BART"] = {
+            "class": BARTPyRegressorWrapper,
+            "fixed_init_kwargs": {},
+            "tunable_init_kwargs": {
+                "n_trees": {"type": "int", "low": 20, "high": 200},
+                "n_burn": {"type": "int", "low": 50, "high": 250},
+                "n_samples": {"type": "int", "low": 100, "high": 500},
+                "alpha": {"type": "float", "low": 0.5, "high": 0.99},
+                "beta": {"type": "float", "low": 0.5, "high": 3.0},
+            },
+            "tunable_params": {},
+            "fixed_params": {},
+            "has_params_dict": False,
+            "probabilistic": True,
+            "has_feature_selection": True,
+        }
+        logger.info("✓ BART available")
+    except ImportError:
+        logger.info("✗ BART not available (run in bench-models environment)")
+
+    return available
+
+
+MODEL_CONFIGS = get_available_models()
 
 
 # =============================================================================
@@ -116,20 +235,11 @@ MODEL_CONFIGS: dict[str, dict[str, Any]] = {
 # =============================================================================
 
 
-def count_bdf_feature_selections(model: BDFRegressor, n_features: int) -> np.ndarray:
-    """Count how many times each feature was selected for splits across all trees in BDF.
-
-    Args:
-        model: Fitted BDFRegressor
-        n_features: Total number of features
-
-    Returns:
-        Array of shape (n_features,) with selection counts per feature
-    """
+def count_bdf_feature_selections(model, n_features: int) -> np.ndarray:
+    """Count how many times each feature was selected for splits across all BDF trees."""
     counts = np.zeros(n_features, dtype=int)
 
     def traverse_node(node):
-        """Recursively traverse node and count feature selections."""
         if node is None or node._is_leaf():
             return
         if hasattr(node, "best_feature") and node.best_feature is not None:
@@ -143,46 +253,75 @@ def count_bdf_feature_selections(model: BDFRegressor, n_features: int) -> np.nda
     return counts
 
 
-def count_rf_feature_selections(model: RandomForestRegressor, n_features: int) -> np.ndarray:
-    """Count how many times each feature was selected for splits across all trees in RF.
-
-    Uses the tree structure to count actual split usage (not importance weights).
-
-    Args:
-        model: Fitted RandomForestRegressor
-        n_features: Total number of features
-
-    Returns:
-        Array of shape (n_features,) with selection counts per feature
-    """
+def count_sklearn_tree_feature_selections(estimators, n_features: int) -> np.ndarray:
+    """Count feature splits across a list of sklearn DecisionTree estimators."""
     counts = np.zeros(n_features, dtype=int)
-
-    for tree in model.estimators_:
-        tree_struct = tree.tree_
-        # feature array contains feature index for each node (-2 for leaves)
-        features = tree_struct.feature
-        for feat_idx in features:
-            if feat_idx >= 0:  # Not a leaf node
+    for tree in estimators:
+        for feat_idx in tree.tree_.feature:
+            if feat_idx >= 0:  # -2 indicates leaf node
                 counts[feat_idx] += 1
-
     return counts
+
+
+def count_confrf_feature_selections(model, n_features: int) -> np.ndarray:
+    """Count feature splits from ConformalizedRFWrapper's internal RandomForest."""
+    return count_sklearn_tree_feature_selections(model.estimator_.estimators_, n_features)
+
+
+def count_ngboost_feature_selections(model, n_features: int) -> np.ndarray:
+    """Count feature splits across all NGBoost base learners (multiple per boosting iteration)."""
+    counts = np.zeros(n_features, dtype=int)
+    for iteration_trees in model.base_models:
+        for tree in iteration_trees:
+            if hasattr(tree, "tree_"):
+                for feat_idx in tree.tree_.feature:
+                    if feat_idx >= 0:
+                        counts[feat_idx] += 1
+    return counts
+
+
+def count_bart_feature_selections(model, n_features: int) -> np.ndarray:
+    """Count feature splits across all BART MCMC posterior samples and trees."""
+    counts = np.zeros(n_features, dtype=int)
+    if not hasattr(model.model_, "_model_samples"):
+        return counts
+    for model_sample in model.model_._model_samples:
+        for tree in model_sample.trees:
+            for decision_node in tree.decision_nodes:
+                if hasattr(decision_node, "split") and hasattr(decision_node.split, "splitting_variable"):
+                    feat_idx = decision_node.split.splitting_variable
+                    if feat_idx is not None and 0 <= feat_idx < n_features:
+                        counts[feat_idx] += 1
+    return counts
+
+
+def count_feature_selections(model, model_name: str, n_features: int) -> np.ndarray:
+    """Dispatch feature counting to the right implementation."""
+    config = MODEL_CONFIGS[model_name]
+    if not config.get("has_feature_selection", False):
+        return np.zeros(n_features, dtype=int)
+
+    try:
+        if model_name in ("BDFNormal", "BDFKDE"):
+            return count_bdf_feature_selections(model, n_features)
+        elif model_name == "ConformalRF":
+            return count_confrf_feature_selections(model, n_features)
+        elif model_name == "NGBoost":
+            return count_ngboost_feature_selections(model, n_features)
+        elif model_name == "BART":
+            return count_bart_feature_selections(model, n_features)
+    except Exception as e:
+        logger.warning(f"Feature selection counting failed for {model_name}: {e}")
+
+    return np.zeros(n_features, dtype=int)
 
 
 def compute_feature_selection_stats(
     feature_counts: np.ndarray,
     n_informative: int,
     n_base_features: int,
-) -> dict[str, float]:
-    """Compute feature selection statistics.
-
-    Args:
-        feature_counts: Array of selection counts per feature
-        n_informative: Number of truly informative features
-        n_base_features: Number of original (non-noise) features
-
-    Returns:
-        Dictionary with selection statistics
-    """
+) -> dict[str, Any]:
+    """Compute feature selection statistics from raw counts."""
     total_selections = feature_counts.sum()
     if total_selections == 0:
         return {
@@ -190,6 +329,9 @@ def compute_feature_selection_stats(
             "base_selection_rate": 0.0,
             "noise_selection_rate": 0.0,
             "total_selections": 0,
+            "informative_selections": 0,
+            "base_selections": 0,
+            "noise_selections": 0,
         }
 
     n_noise = len(feature_counts) - n_base_features
@@ -211,7 +353,7 @@ def compute_feature_selection_stats(
 
 
 # =============================================================================
-# Core Functions (adapted from effect_sample_size.py)
+# Core Functions
 # =============================================================================
 
 
@@ -230,8 +372,6 @@ def suggest_hyperparameters(trial: optuna.Trial, model_name: str) -> tuple[dict[
 
     params = dict(config.get("fixed_params", {}))
     tunable_params = config.get("tunable_params", {})
-    if not tunable_params:
-        return init_kwargs, params
 
     for name, args in tunable_params.items():
         if args["type"] == "int":
@@ -245,7 +385,7 @@ def suggest_hyperparameters(trial: optuna.Trial, model_name: str) -> tuple[dict[
 
 
 def split_best_params(best_params: dict[str, Any], model_name: str) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Split optuna best params into init_kwargs and params dict for a specific model."""
+    """Split optuna best params into init_kwargs and params dict."""
     config = MODEL_CONFIGS[model_name]
     tuned_init_kwargs = {}
     tuned_params = {}
@@ -266,13 +406,7 @@ def split_best_params(best_params: dict[str, Any], model_name: str) -> tuple[dic
 def generate_dataset_with_noise(
     generator_name: str, n_samples: int, n_noise_features: int, seed: int
 ) -> tuple[np.ndarray, np.ndarray, int]:
-    """Generate synthetic dataset with specified number of noise features added.
-
-    Returns:
-        X: Feature matrix with noise features appended
-        y: Target values
-        n_base_features: Number of original (non-noise) features
-    """
+    """Generate synthetic dataset with specified number of noise features appended."""
     generator = DATASET_GENERATORS[generator_name]
     X_base, y = generator(n_samples, seed)
     X_base = np.asarray(X_base)
@@ -290,6 +424,14 @@ def generate_dataset_with_noise(
     return X, y, n_base_features
 
 
+def _fit_model(model_cls, fixed_init_kwargs, init_kwargs, params, has_params_dict):
+    """Instantiate and return an unfitted model."""
+    if has_params_dict:
+        return model_cls(**fixed_init_kwargs, **init_kwargs, params=params)
+    else:
+        return model_cls(**fixed_init_kwargs, **init_kwargs)
+
+
 def tune_model(
     X_train: np.ndarray,
     y_train: np.ndarray,
@@ -299,7 +441,7 @@ def tune_model(
     model_name: str,
     n_trials: int = N_TRIALS,
 ) -> tuple[dict[str, Any], dict[str, Any], float]:
-    """Tune model using optuna on train/val split."""
+    """Tune model hyperparameters using Optuna, minimizing CRPS on validation set."""
     config = MODEL_CONFIGS[model_name]
     model_cls = config["class"]
     fixed_init_kwargs = config["fixed_init_kwargs"]
@@ -310,13 +452,10 @@ def tune_model(
         init_kwargs, params = suggest_hyperparameters(trial, model_name)
 
         try:
-            if has_params_dict and params:
-                model = model_cls(**fixed_init_kwargs, **init_kwargs, params=params)
-            else:
-                model = model_cls(**fixed_init_kwargs, **init_kwargs)
+            model = _fit_model(model_cls, fixed_init_kwargs, init_kwargs, params, has_params_dict)
             model.fit(X_train, y_train)
-            y_pred = model.predict(X_val)
-            return mean_squared_error(y_val, y_pred)
+            y_samples = model.predict_samples(X_val, n_samples=N_POSTERIOR_SAMPLES)
+            return float(crps_wrapper(y_val, y_samples))
         except Exception as e:
             logger.warning(f"Trial failed: {e}")
             return float("inf")
@@ -327,7 +466,6 @@ def tune_model(
     try:
         optuna.delete_study(study_name=study_name, storage=storage_name)
     except KeyError:
-        # Study does not exist yet; safe to ignore and proceed with creation.
         pass
     except Exception as e:
         logger.warning(f"Could not delete existing study: {e}")
@@ -346,7 +484,7 @@ def tune_model(
     tuning_time = time() - start_time
 
     logger.info(f"Best params: {study.best_params}")
-    logger.info(f"Best MSE: {study.best_value:.4f}")
+    logger.info(f"Best CRPS: {study.best_value:.4f}")
 
     best_init_kwargs, best_params = split_best_params(study.best_params, model_name)
     return best_init_kwargs, best_params, tuning_time
@@ -363,7 +501,7 @@ def evaluate_fold(
     n_informative: int,
     n_base_features: int,
 ) -> tuple[dict[str, float], float, dict[str, Any]]:
-    """Train and evaluate model on a single fold, also extracting feature selection stats.
+    """Train and evaluate model on a single fold.
 
     Returns:
         tuple of (metrics_dict, fit_time, feature_selection_stats)
@@ -375,32 +513,38 @@ def evaluate_fold(
 
     np.random.seed(SEED)
 
-    if has_params_dict and params:
-        model = model_cls(**fixed_init_kwargs, **init_kwargs, params=params)
-    else:
-        model = model_cls(**fixed_init_kwargs, **init_kwargs)
+    model = _fit_model(model_cls, fixed_init_kwargs, init_kwargs, params, has_params_dict)
 
     start_time = time()
     model.fit(X_train, y_train)
     fit_time = time() - start_time
 
+    # Point predictions
     y_pred = model.predict(X_test)
 
-    metrics = {
-        "mse": float(mean_squared_error(y_test, y_pred)),
-        "rmse": float(np.sqrt(mean_squared_error(y_test, y_pred))),
+    metrics: dict[str, float] = {
+        "mse": float(np.mean((y_test - y_pred) ** 2)),
+        "rmse": float(np.sqrt(np.mean((y_test - y_pred) ** 2))),
         "mae": float(np.mean(np.abs(y_test - y_pred))),
     }
 
-    # Extract feature selection statistics
-    n_features = X_train.shape[1]
-    if model_name == "BDFNormal":
-        feature_counts = count_bdf_feature_selections(model, n_features)
-    elif model_name == "RandomForest":
-        feature_counts = count_rf_feature_selections(model, n_features)
-    else:
-        feature_counts = np.zeros(n_features, dtype=int)
+    # Probabilistic metrics
+    y_samples = model.predict_samples(X_test, n_samples=N_POSTERIOR_SAMPLES)
+    metrics["crps"] = float(crps_wrapper(y_test, y_samples))
 
+    # Coverage and interval widths
+    for width in [0.5, 0.9, 0.95]:
+        alpha = 1 - width
+        y_lower = np.quantile(y_samples, alpha / 2, axis=-1)
+        y_upper = np.quantile(y_samples, 1 - alpha / 2, axis=-1)
+        coverage = np.mean((y_test >= y_lower) & (y_test <= y_upper))
+        ci_width = np.mean(y_upper - y_lower)
+        metrics[f"coverage_{int(width * 100)}"] = float(coverage)
+        metrics[f"ci_width_{int(width * 100)}"] = float(ci_width)
+
+    # Feature selection statistics
+    n_features = X_train.shape[1]
+    feature_counts = count_feature_selections(model, model_name, n_features)
     feature_stats = compute_feature_selection_stats(feature_counts, n_informative, n_base_features)
 
     return metrics, fit_time, feature_stats
@@ -411,17 +555,18 @@ def run_experiment_for_dataset_and_noise(
     n_noise_features: int,
     results: dict[str, Any],
 ) -> dict[str, Any]:
-    """Run full experiment for a single dataset and noise feature count combination."""
-    logger.info(f"🔬 Processing {dataset_name} with n_noise_features={n_noise_features}")
+    """Run full experiment for a single dataset and noise feature count combination.
 
-    # Generate dataset with noise features
+    Uses 10-fold CV: tune on fold 0, evaluate on folds 1-9.
+    """
+    logger.info(f"Processing {dataset_name} with n_noise_features={n_noise_features}")
+
     X, y, n_base_features = generate_dataset_with_noise(dataset_name, SAMPLE_SIZE, n_noise_features, SEED)
     n_informative = INFORMATIVE_FEATURES[dataset_name]
 
     logger.info(f"Dataset shape: X={X.shape}, y={y.shape}")
     logger.info(f"Base features: {n_base_features}, Informative: {n_informative}, Noise: {n_noise_features}")
 
-    # Initialize result structure
     key = f"{dataset_name}_noise{n_noise_features}"
     results["experiments"][key] = {
         "dataset": dataset_name,
@@ -433,79 +578,79 @@ def run_experiment_for_dataset_and_noise(
         "models": {},
     }
 
-    # K-fold CV: each fold has its own train/val/test split
-    cv_splitter = KFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
+    kf = KFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
+    folds = list(enumerate(kf.split(X)))
 
-    # Run for each model
     for model_name in MODEL_CONFIGS.keys():
-        logger.info(f"  📊 Model: {model_name}")
+        logger.info(f"  Model: {model_name}")
 
-        model_results = {
+        model_results: dict[str, Any] = {
             "fold_metrics": [],
             "fold_fit_times": [],
-            "fold_tuning_times": [],
-            "fold_best_params": [],
             "fold_feature_stats": [],
+            "best_params": None,
+            "tuning_time": None,
         }
 
-        for fold_idx, (trainval_idx, test_idx) in enumerate(cv_splitter.split(X)):
-            logger.info(f"    Fold {fold_idx + 1}/{N_SPLITS}")
+        # Tune on fold 0: train split for training, test split for validation
+        train_idx_0, val_idx_0 = folds[0][1]
+        X_train_0, X_val_0 = X[train_idx_0], X[val_idx_0]
+        y_train_0, y_val_0 = y[train_idx_0], y[val_idx_0]
 
-            X_trainval = X[trainval_idx]
-            y_trainval = y[trainval_idx]
-            X_test = X[test_idx]
-            y_test = y[test_idx]
-
-            X_train, X_val, y_train, y_val = train_test_split(
-                X_trainval, y_trainval, test_size=VAL_SIZE, random_state=SEED + fold_idx
-            )
-
-            # Tune on train/val
-            study_name = f"effect_noise-{dataset_name}-noise{n_noise_features}-{model_name}-fold{fold_idx}"
+        study_name = f"noise-{dataset_name}-noise{n_noise_features}-{model_name}"
+        try:
+            logger.info("    Tuning on fold 0...")
             best_init_kwargs, best_params, tuning_time = tune_model(
-                X_train, y_train, X_val, y_val, study_name, model_name
+                X_train_0, y_train_0, X_val_0, y_val_0, study_name, model_name
             )
+            model_results["best_params"] = {"init_kwargs": best_init_kwargs, "params": best_params}
+            model_results["tuning_time"] = tuning_time
+            logger.info(f"    Tuning completed in {tuning_time:.1f}s")
+        except Exception as e:
+            logger.error(f"    Tuning failed for {model_name}: {e}")
+            continue
 
-            model_results["fold_tuning_times"].append(tuning_time)
-            model_results["fold_best_params"].append(
-                {
-                    "init_kwargs": best_init_kwargs,
-                    "params": best_params,
-                }
-            )
+        # Evaluate on folds 1-9
+        logger.info("    Evaluating on folds 1-9...")
+        for fold_idx, (train_idx, test_idx) in tqdm(folds[1:], desc=f"    {model_name} eval"):
+            X_train, X_test = X[train_idx], X[test_idx]
+            y_train, y_test = y[train_idx], y[test_idx]
 
-            # Refit on full trainval set with best params and evaluate on test
-            metrics, fit_time, feature_stats = evaluate_fold(
-                X_trainval,
-                y_trainval,
-                X_test,
-                y_test,
-                best_init_kwargs,
-                best_params,
-                model_name,
-                n_informative,
-                n_base_features,
-            )
+            try:
+                metrics, fit_time, feature_stats = evaluate_fold(
+                    X_train,
+                    y_train,
+                    X_test,
+                    y_test,
+                    best_init_kwargs,
+                    best_params,
+                    model_name,
+                    n_informative,
+                    n_base_features,
+                )
+                model_results["fold_metrics"].append(metrics)
+                model_results["fold_fit_times"].append(fit_time)
+                model_results["fold_feature_stats"].append(feature_stats)
+            except Exception as e:
+                logger.error(f"    Eval failed on fold {fold_idx}: {e}")
+                continue
 
-            model_results["fold_metrics"].append(metrics)
-            model_results["fold_fit_times"].append(fit_time)
-            model_results["fold_feature_stats"].append(feature_stats)
+        if not model_results["fold_metrics"]:
+            logger.warning(f"    No successful folds for {model_name}, skipping")
+            continue
 
-            logger.info(
-                f"      MSE: {metrics['mse']:.4f}, " f"Noise sel. rate: {feature_stats['noise_selection_rate']:.3f}"
-            )
-
-        # Aggregate metrics across folds
-        aggregated_metrics = {}
+        # Aggregate metrics across evaluation folds
+        aggregated_metrics: dict[str, Any] = {}
         for metric_name in model_results["fold_metrics"][0].keys():
-            values = [fold[metric_name] for fold in model_results["fold_metrics"]]
-            aggregated_metrics[metric_name] = {
-                "mean": float(np.mean(values)),
-                "std": float(np.std(values)),
-            }
+            values = [fold[metric_name] for fold in model_results["fold_metrics"] if metric_name in fold]
+            if values:
+                aggregated_metrics[metric_name] = {
+                    "mean": float(np.mean(values)),
+                    "std": float(np.std(values)),
+                }
 
         # Aggregate feature selection stats across folds
-        aggregated_feature_stats = {}
+        aggregated_feature_stats: dict[str, Any] = {}
         for stat_name in ["informative_selection_rate", "base_selection_rate", "noise_selection_rate"]:
             values = [fold[stat_name] for fold in model_results["fold_feature_stats"]]
             aggregated_feature_stats[stat_name] = {
@@ -513,7 +658,6 @@ def run_experiment_for_dataset_and_noise(
                 "std": float(np.std(values)),
             }
 
-        # Also aggregate total counts
         total_selections = sum(fold["total_selections"] for fold in model_results["fold_feature_stats"])
         total_noise_selections = sum(fold["noise_selections"] for fold in model_results["fold_feature_stats"])
         aggregated_feature_stats["total_selections"] = total_selections
@@ -522,18 +666,17 @@ def run_experiment_for_dataset_and_noise(
         model_results["aggregated_metrics"] = aggregated_metrics
         model_results["aggregated_feature_stats"] = aggregated_feature_stats
         model_results["mean_fit_time"] = float(np.mean(model_results["fold_fit_times"]))
-        model_results["mean_tuning_time"] = float(np.mean(model_results["fold_tuning_times"]))
 
         results["experiments"][key]["models"][model_name] = model_results
 
         logger.success(
-            f"    ✅ {model_name}: MSE={aggregated_metrics['mse']['mean']:.4f}±{aggregated_metrics['mse']['std']:.4f}, "
+            f"    {model_name}: CRPS={aggregated_metrics['crps']['mean']:.4f}"
+            f"±{aggregated_metrics['crps']['std']:.4f}, "
             f"Noise sel. rate={aggregated_feature_stats['noise_selection_rate']['mean']:.3f}"
             f"±{aggregated_feature_stats['noise_selection_rate']['std']:.3f}"
         )
 
-    logger.success(f"✅ Finished {key}")
-
+    logger.success(f"Finished {key}")
     return results
 
 
@@ -544,27 +687,27 @@ def save_results(
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     with open(filepath, "w") as f:
         json.dump(results, f, indent=2)
-    logger.info(f"💾 Results saved to {filepath}")
+    logger.info(f"Results saved to {filepath}")
 
 
 def main():
-    """Main entry point for the experiment."""
-    logger.info("🚀 Starting Effect of Noise Features Experiment")
+    """Main entry point."""
+    logger.info("Starting Effect of Noise Features Experiment")
     logger.info(f"Datasets: {list(DATASET_GENERATORS.keys())}")
     logger.info(f"Sample size: {SAMPLE_SIZE}")
     logger.info(f"Noise feature counts: {NOISE_FEATURE_COUNTS}")
     logger.info(f"Models: {list(MODEL_CONFIGS.keys())}")
-    logger.info(f"K-fold splits: {N_SPLITS}, Val size (of trainval): {VAL_SIZE}")
+    logger.info(f"CV: {N_SPLITS}-fold (tune on fold 0, eval on folds 1-{N_SPLITS - 1})")
+    logger.info(f"Posterior samples: {N_POSTERIOR_SAMPLES}")
 
-    # Initialize results
     results: dict[str, Any] = {
         "config": {
             "seed": SEED,
             "n_splits": N_SPLITS,
-            "val_size": VAL_SIZE,
             "n_trials": N_TRIALS,
             "n_base_features": N_FEATURES,
             "sample_size": SAMPLE_SIZE,
+            "n_posterior_samples": N_POSTERIOR_SAMPLES,
             "noise_feature_counts": NOISE_FEATURE_COUNTS,
             "datasets": list(DATASET_GENERATORS.keys()),
             "informative_features": INFORMATIVE_FEATURES,
@@ -573,7 +716,6 @@ def main():
         "experiments": {},
     }
 
-    # Run experiments
     total_experiments = len(DATASET_GENERATORS) * len(NOISE_FEATURE_COUNTS)
     pbar = tqdm(total=total_experiments, desc="Experiments")
 
@@ -582,21 +724,18 @@ def main():
             try:
                 results = run_experiment_for_dataset_and_noise(dataset_name, n_noise, results)
             except Exception as e:
-                logger.error(f"❌ Failed for {dataset_name} noise={n_noise}: {e}")
+                logger.error(f"Failed for {dataset_name} noise={n_noise}: {e}")
                 import traceback
 
                 traceback.print_exc()
                 results["experiments"][f"{dataset_name}_noise{n_noise}"] = {"error": str(e)}
 
-            # Save intermediate results
             save_results(results)
             pbar.update(1)
 
     pbar.close()
-
-    # Final save
     save_results(results)
-    logger.success("🎉 Experiment complete!")
+    logger.success("Experiment complete!")
 
     return results
 
