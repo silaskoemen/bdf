@@ -77,7 +77,7 @@ def results_to_dataframe(results: dict) -> pd.DataFrame:
                 "n_noise": n_noise,
                 "model": model_name,
                 "mean_fit_time": model_data["mean_fit_time"],
-                "mean_tuning_time": model_data["mean_tuning_time"],
+                "mean_tuning_time": model_data["tuning_time"],
             }
 
             # Add all aggregated metrics

@@ -114,7 +114,7 @@ Varies n from 100 to 5,000 on Friedman 1–3 and make_regression. Per-fold Optun
 
 **Script**: `effect_noise_features.py` | **Plots**: `plot_noise_features_results.py`
 
-Adds 0–500 pure noise features to Friedman 1–3 and make_regression datasets. Evaluates CRPS degradation across 5 probabilistic models (BDFNormal, BDFKDE, ConformalRF, NGBoost, BART) with per-fold Optuna tuning on CRPS. Tracks feature selection behavior for all models by counting split feature usage across their internal tree structures. Run `pixi run noise-study` for the experiment, `pixi run noise-output` for plots and LaTeX tables.
+Adds 0–500 pure noise features to Friedman 1–3 and make_regression datasets. Evaluates CRPS degradation across 5 probabilistic models (BDFNormal, BDFKDE, ConformalRF, NGBoost, BART) with Optuna tuning on CRPS (tune on fold 0, evaluate on folds 1–9). Tracks feature selection behavior for all models by counting split feature usage across their internal tree structures. Run `pixi run noise-study` for the experiment, `pixi run noise-output` for plots and LaTeX tables.
 
 ### 12. Tree Prior Comparison
 

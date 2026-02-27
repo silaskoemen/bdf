@@ -426,7 +426,7 @@ def generate_dataset_with_noise(
 
 def _fit_model(model_cls, fixed_init_kwargs, init_kwargs, params, has_params_dict):
     """Instantiate and return an unfitted model."""
-    if has_params_dict and params:
+    if has_params_dict:
         return model_cls(**fixed_init_kwargs, **init_kwargs, params=params)
     else:
         return model_cls(**fixed_init_kwargs, **init_kwargs)
