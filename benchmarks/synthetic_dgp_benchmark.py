@@ -162,6 +162,26 @@ def get_available_models() -> dict[str, dict[str, Any]]:
     # Optional Models (bench-models environment)
     # =============================================================================
 
+    # Climatological baseline (no-skill reference for CRPSS)
+    try:
+        from .models.wrappers import ClimatologicalRegressor
+
+        available["Climatological"] = {
+            "class": ClimatologicalRegressor,
+            "fixed_init_kwargs": {
+                "n_subsample": 500,
+                "random_state": SEED,
+            },
+            "tunable_init_kwargs": {},
+            "tunable_params": {},
+            "fixed_params": {},
+            "has_params_dict": False,
+            "probabilistic": True,
+        }
+        logger.info("✓ Climatological baseline available")
+    except ImportError:
+        logger.info("✗ Climatological baseline not available (run in benchmark environment)")
+
     # Conformal RF
     try:
         from .models.wrappers import ConformalizedRFWrapper

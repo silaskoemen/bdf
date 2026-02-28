@@ -231,10 +231,13 @@ def plot_conditional_densities(
     plt.close(fig)
 
 
+HIGHER_IS_BETTER_METRICS = {"r2", "crpss"}
+
+
 def plot_dgp_comparison_table(
     results_dict: dict,
     models: list[str],
-    metrics: list[str] = ["rmse", "crps", "gt_mean_rmse", "gt_variance_rmse"],
+    metrics: list[str] = ["rmse", "crps", "crpss", "gt_mean_rmse", "gt_variance_rmse"],
     save_path: Optional[Path] = None,
 ) -> None:
     """Create a table comparing models across different DGPs.
@@ -284,7 +287,10 @@ def plot_dgp_comparison_table(
                 bars = ax.bar(x_pos, model_means, yerr=model_stds, capsize=5, alpha=0.7)
 
                 # Color best model differently
-                best_idx = np.argmin(model_means)
+                if metric in HIGHER_IS_BETTER_METRICS:
+                    best_idx = np.argmax(model_means)
+                else:
+                    best_idx = np.argmin(model_means)
                 bars[best_idx].set_color(COLORS["ground_truth"])
 
                 ax.set_xticks(x_pos)
@@ -1093,7 +1099,7 @@ def plot_main_body_predictions(
 def plot_main_body_metric_table(
     results_dict: dict,
     models: list[str],
-    metrics: list[str] = ["crps", "coverage_90", "gt_mean_rmse", "gt_variance_rmse"],
+    metrics: list[str] = ["crps", "crpss", "coverage_90", "gt_mean_rmse", "gt_variance_rmse"],
     save_path: Optional[Path] = None,
 ) -> None:
     """Main-body figure: compact metric table across all DGPs.
@@ -1114,6 +1120,7 @@ def plot_main_body_metric_table(
 
     metric_display = {
         "crps": "CRPS",
+        "crpss": "CRPSS",
         "rmse": "RMSE",
         "coverage_90": "Cov. 90%",
         "coverage_50": "Cov. 50%",
@@ -1127,7 +1134,7 @@ def plot_main_body_metric_table(
 
     # Coverage targets: higher-is-better for coverage (closer to nominal), lower-is-better for everything else
     # coverage_* raw values are abs(empirical - nominal), so lower = better — no need to list here
-    higher_is_better = {"r2"}
+    higher_is_better = HIGHER_IS_BETTER_METRICS
 
     # Build table data: rows = (dgp, metric), cols = models
     row_labels = []
@@ -1260,7 +1267,7 @@ def create_synthetic_benchmark_summary(
     plot_dgp_comparison_table(
         results_dict,
         models,
-        metrics=["rmse", "crps", "gt_mean_rmse", "gt_variance_rmse"],
+        metrics=["rmse", "crps", "crpss", "gt_mean_rmse", "gt_variance_rmse"],
         save_path=output_dir / "dgp_comparison_table.pdf",
     )
 

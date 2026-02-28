@@ -21,6 +21,8 @@ from benchmarks.utils.synthetic_plotting import create_synthetic_benchmark_summa
 RESULTS_DIR = Path("benchmarks/results/synthetic_dgp")
 PLOTS_DIR = Path("benchmarks/plots/synthetic_dgp")
 
+CLIMATOLOGICAL_MODEL = "Climatological"
+
 # DGPs to include in comparison
 DGPS = [
     "heteroscedastic_sinusoidal",
@@ -97,6 +99,68 @@ def load_dgp_results(dgp_name: str) -> Optional[dict]:
     return merged
 
 
+def compute_crpss(all_results: dict) -> dict:
+    """Compute CRPS Skill Score using the Climatological baseline and inject into results.
+
+    CRPSS = 1 - CRPS_model / CRPS_climatological.
+    Higher is better: 0 = no skill, 1 = perfect, negative = worse than climatological.
+
+    Args:
+        all_results: Results dict (dgp_name -> {models -> {aggregated_metrics -> ...}}).
+            Modified in-place to add "crpss" metric to each model.
+
+    Returns:
+        The modified results dict (same reference).
+    """
+    n_injected = 0
+
+    for dgp_name, dgp_res in all_results.items():
+        models_data = dgp_res.get("models", {})
+        clim_data = models_data.get(CLIMATOLOGICAL_MODEL, {})
+        clim_agg = clim_data.get("aggregated_metrics", {})
+        clim_crps_info = clim_agg.get("crps")
+
+        if clim_crps_info is None or "mean" not in clim_crps_info:
+            logger.warning(f"  No Climatological CRPS for {dgp_name} — skipping CRPSS")
+            continue
+
+        clim_crps_mean = clim_crps_info["mean"]
+        if clim_crps_mean <= 0:
+            logger.warning(f"  Climatological CRPS <= 0 for {dgp_name} — skipping CRPSS")
+            continue
+
+        logger.info(f"  {dgp_name}: Climatological CRPS = {clim_crps_mean:.4f}")
+
+        for model_name, model_data in models_data.items():
+            if model_name == CLIMATOLOGICAL_MODEL:
+                continue
+
+            agg = model_data.get("aggregated_metrics", {})
+            crps_info = agg.get("crps")
+            if crps_info is None or "mean" not in crps_info:
+                continue
+
+            crps_mean = crps_info["mean"]
+            crps_std = crps_info.get("std", 0.0)
+
+            crpss_mean = 1.0 - crps_mean / clim_crps_mean
+            # Delta method: std(CRPSS) ≈ std(CRPS) / CRPS_clim
+            crpss_std = crps_std / clim_crps_mean
+
+            # Build CRPSS entry matching the aggregated_metrics structure
+            crpss_entry = {"mean": crpss_mean, "std": crpss_std}
+
+            # Propagate per-fold values if available
+            if "values" in crps_info:
+                crpss_entry["values"] = [1.0 - v / clim_crps_mean for v in crps_info["values"]]
+
+            agg["crpss"] = crpss_entry
+            n_injected += 1
+
+    logger.info(f"  Injected CRPSS for {n_injected} model-DGP combinations")
+    return all_results
+
+
 def generate_comparison_plots():
     """Generate cross-DGP comparison plots and tables.
 
@@ -117,10 +181,15 @@ def generate_comparison_plots():
         logger.error("No results files found!")
         return
 
-    # Extract unique set of models across all DGPs
+    # Compute CRPSS from Climatological baseline (modifies all_results in-place)
+    logger.info("\nComputing CRPS Skill Scores (CRPSS)...")
+    compute_crpss(all_results)
+
+    # Extract unique set of models across all DGPs, excluding Climatological
     all_models = set()
     for dgp_results in all_results.values():
         all_models.update(dgp_results.get("models", {}).keys())
+    all_models.discard(CLIMATOLOGICAL_MODEL)
 
     models = order_models(list(all_models))
     logger.info(f"  Found models across all DGPs: {', '.join(models)}")
@@ -128,6 +197,10 @@ def generate_comparison_plots():
     if not models:
         logger.warning("  No models found in any results")
         return
+
+    # Remove Climatological from results before plotting (it's a reference, not a competitor)
+    for dgp_res in all_results.values():
+        dgp_res.get("models", {}).pop(CLIMATOLOGICAL_MODEL, None)
 
     # Create summary plots and tables
     summary_dir = PLOTS_DIR / "summary"
