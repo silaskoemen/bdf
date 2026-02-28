@@ -13,6 +13,7 @@ from .wrappers import (  # BARTRegressor,
     BayesianRidgeWrapper,
     CalibratedRFWrapper,
     CatBoostUncertaintyWrapper,
+    ClimatologicalRegressor,
     ConformalizedLGBMWrapper,
     ConformalizedRFWrapper,
     GaussianDeepEnsembleWrapper,
@@ -82,5 +83,7 @@ class ModelFactory:
                 return ConformalizedRFWrapper
             case "GaussianDeepEnsemble":
                 return GaussianDeepEnsembleWrapper
+            case "ClimatologicalRegressor":
+                return ClimatologicalRegressor
             case _:
                 raise ValueError(f"Model class name '{cfg.name}' not recognized.")  # type: ignore[reportUnboundVariable]

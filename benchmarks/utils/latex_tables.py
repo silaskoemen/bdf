@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import numpy as np
+from loguru import logger
 
 from .statistical_tests import WilcoxonResult, WinTieLossResult
 
@@ -115,16 +116,22 @@ def generate_main_results_table(
 
             is_best = best_per_metric.get(metric) == model
 
-            # Significance marker
+            # Significance marker (based on Holm-adjusted p-values)
             sig_marker = ""
             if wilcoxon_results and metric in wilcoxon_results:
                 wresult = wilcoxon_results[metric].get(model)
-                if wresult and wresult.reject_null:
-                    if wresult.p_value < 0.001:
+                if wresult:
+                    if wresult.adjusted_p_value is None:
+                        logger.warning(
+                            f"Wilcoxon result for {model}/{metric} has no adjusted_p_value. "
+                            "Use pairwise_wilcoxon_tests() which applies Holm correction."
+                        )
+                    p = wresult.adjusted_p_value if wresult.adjusted_p_value is not None else wresult.p_value
+                    if p < 0.001:
                         sig_marker = "***"
-                    elif wresult.p_value < 0.01:
+                    elif p < 0.01:
                         sig_marker = "**"
-                    else:
+                    elif p < 0.05:
                         sig_marker = "*"
 
             val_str = format_metric_value(mean, std, is_best, sig_marker)

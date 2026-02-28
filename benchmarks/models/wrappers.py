@@ -1293,3 +1293,34 @@ class GaussianDeepEnsembleWrapper(BaseEstimator, RegressorMixin):
         for key, value in params.items():
             setattr(self, key, value)
         return self
+
+
+class ClimatologicalRegressor(BaseEstimator, RegressorMixin):
+    """Baseline that predicts the unconditional training distribution for every test point.
+
+    This is the "no-skill" reference for computing CRPS Skill Scores (CRPSS).
+    For each test observation, the predictive distribution is a subsample of
+    the training targets — equivalent to ignoring all features.
+    """
+
+    PREDICTION_TYPE: PredictionType = "samples"
+
+    def __init__(self, n_subsample: int = 500, random_state: int = 42):
+        self.n_subsample = n_subsample
+        self.random_state = random_state
+
+    def fit(self, X, y):
+        self.y_train_ = np.asarray(y).ravel()
+        return self
+
+    def predict(self, X):
+        n = X.shape[0] if hasattr(X, "shape") else len(X)
+        return np.full(n, np.mean(self.y_train_))
+
+    def predict_samples(self, X, n_samples=None):
+        n_obs = X.shape[0] if hasattr(X, "shape") else len(X)
+        n_samples = n_samples or self.n_subsample
+        rng = np.random.RandomState(self.random_state)
+        replace = n_samples > len(self.y_train_)
+        subsample = rng.choice(self.y_train_, size=n_samples, replace=replace)
+        return np.tile(subsample, (n_obs, 1))

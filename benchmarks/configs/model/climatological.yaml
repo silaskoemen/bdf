@@ -1,0 +1,11 @@
+name: climatological
+target_type: regression
+class_name: ClimatologicalRegressor
+probabilistic: true
+
+compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+
+fixed_init_kwargs:
+  n_subsample: 500
+
+tunable_init_kwargs: {}

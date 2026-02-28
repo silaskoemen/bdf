@@ -60,6 +60,9 @@ from benchmarks.utils.style import MODEL_COLORS, MODEL_DISPLAY_NAMES
 # BDF default distribution for timing comparison (loaded separately alongside BDF selected)
 BDF_DEFAULT_DIST = "bdf_normalmunormal"
 
+# Climatological baseline model for CRPSS normalization
+CLIMATOLOGICAL_MODEL = "climatological"
+
 # Datasets to include (None = all available)
 # Set to a list for a representative subset, e.g.:
 DATASETS = [
@@ -213,6 +216,15 @@ def main():
     baseline_results = load_model_results(RESULTS_DIR, BASELINE_MODELS)
     print(f"    Loaded {len(baseline_results)} baseline models: {list(baseline_results.keys())}")
 
+    # Load climatological baseline for CRPSS normalization
+    climatological_results = load_model_results(RESULTS_DIR, [CLIMATOLOGICAL_MODEL])
+    climatological_data = climatological_results.get(CLIMATOLOGICAL_MODEL)
+    if climatological_data is None:
+        print("    Warning: Climatological baseline not found. CRPSS will not be computed.")
+        print(f"    Run: pixi run bench-models model={CLIMATOLOGICAL_MODEL} n_trials=1")
+    else:
+        print("    Loaded climatological baseline for CRPSS normalization")
+
     # Combine BDF (aggregated) with baselines
     all_results = {"BDF": bdf_aggregated, **baseline_results}
 
@@ -230,6 +242,48 @@ def main():
 
     print(f"    Datasets ({len(datasets)}): {datasets}")
     print(f"    Models ({len(models)}): {models}")
+
+    # Compute CRPSS (CRPS Skill Score) if climatological baseline available
+    crpss_df = None
+    if climatological_data is not None:
+        # Build climatological CRPS per dataset (mean across folds)
+        clim_crps = {}
+        for ds_name, ds_data in climatological_data.get("datasets", {}).items():
+            crps_vals = ds_data.get("metrics", {}).get("crps", [])
+            if crps_vals:
+                clim_crps[ds_name] = float(np.mean(crps_vals))
+
+        if clim_crps:
+            # Add CRPSS as a derived metric to df: CRPSS = 1 - CRPS / CRPS_clim
+            crpss_rows = []
+            for model in models:
+                for ds in datasets:
+                    if ds not in clim_crps:
+                        continue
+                    model_df = df.filter((df["model"] == model) & (df["dataset"] == ds) & (df["metric"] == "crps"))
+                    if model_df.is_empty():
+                        continue
+                    crps_mean = model_df.select("mean").to_series()[0]
+                    crps_std = model_df.select("std").to_series()[0]
+                    crpss_mean = 1.0 - crps_mean / clim_crps[ds]
+                    # Propagate std via delta method: std(CRPSS) ≈ std(CRPS) / CRPS_clim
+                    crpss_std = crps_std / clim_crps[ds]
+                    crpss_rows.append(
+                        {
+                            "model": model,
+                            "dataset": ds,
+                            "metric": "crpss",
+                            "fold_values": None,
+                            "mean": crpss_mean,
+                            "std": crpss_std,
+                            "n_folds": model_df.select("n_folds").to_series()[0],
+                        }
+                    )
+
+            if crpss_rows:
+                crpss_df = pl.DataFrame(crpss_rows)
+                df = pl.concat([df, crpss_df])
+                print(f"    Computed CRPSS for {len(crpss_rows)} model-dataset pairs")
 
     # -------------------------------------------------------------------------
     # 4. Statistical tests for each key metric
@@ -279,9 +333,9 @@ def main():
             print(f"    Error in Friedman test: {e}")
 
     # -------------------------------------------------------------------------
-    # 5. Pairwise Wilcoxon tests (BDF vs each baseline)
+    # 5. Pairwise Wilcoxon tests (BDF vs each baseline) with Holm correction
     # -------------------------------------------------------------------------
-    print("\n[5] Pairwise Wilcoxon tests (BDF vs baselines)...")
+    print("\n[5] Pairwise Wilcoxon tests (BDF vs baselines, Holm-corrected)...")
 
     wilcoxon_results = {}
 
@@ -300,7 +354,28 @@ def main():
 
         for challenger, res in wilcoxon_res.items():
             sig = "*" if res.reject_null else ""
-            print(f"    BDF vs {challenger}: p = {res.p_value:.4f}{sig}, A12 = {res.a12:.3f}")
+            print(
+                f"    BDF vs {challenger}: p = {res.p_value:.4f}, "
+                f"p_adj = {res.adjusted_p_value:.4f}{sig}, A12 = {res.a12:.3f}"
+            )
+
+    # CRPSS-based Wilcoxon test (scale-free comparison)
+    if crpss_df is not None:
+        print("\n    --- CRPSS (Holm-corrected) ---")
+        crpss_matrix, ds_list, model_list = get_metric_matrix(df, "crpss", models=models, datasets=datasets)
+        control_idx = model_list.index("BDF") if "BDF" in model_list else 0
+
+        wilcoxon_crpss = pairwise_wilcoxon_tests(
+            crpss_matrix, model_list, control_idx=control_idx, lower_is_better=False  # Higher CRPSS is better
+        )
+        wilcoxon_results["crpss"] = wilcoxon_crpss
+
+        for challenger, res in wilcoxon_crpss.items():
+            sig = "*" if res.reject_null else ""
+            print(
+                f"    BDF vs {challenger}: p = {res.p_value:.4f}, "
+                f"p_adj = {res.adjusted_p_value:.4f}{sig}, A12 = {res.a12:.3f}"
+            )
 
     # -------------------------------------------------------------------------
     # 6. Win/Tie/Loss analysis

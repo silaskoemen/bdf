@@ -50,6 +50,7 @@ class WilcoxonResult:
     a12: float  # Vargha-Delaney effect size
     reject_null: bool  # at alpha=0.05
     n_samples: int
+    adjusted_p_value: float | None = None  # Holm-adjusted p-value, set by pairwise_wilcoxon_tests
 
 
 @dataclass
@@ -489,7 +490,11 @@ def pairwise_wilcoxon_tests(
     lower_is_better: bool = True,
     alpha: float = 0.05,
 ) -> dict[str, WilcoxonResult]:
-    """Perform Wilcoxon tests comparing control to all others.
+    """Perform Wilcoxon tests comparing control to all others with Holm correction.
+
+    Applies Holm's step-down procedure to control the family-wise error rate
+    across all pairwise comparisons. This is more powerful than Nemenyi (which
+    corrects for all k(k-1)/2 pairs) since only k-1 comparisons are made.
 
     Args:
         metric_matrix: Shape (n_datasets, n_algorithms).
@@ -499,10 +504,10 @@ def pairwise_wilcoxon_tests(
         alpha: Significance level.
 
     Returns:
-        Dict mapping challenger name -> WilcoxonResult.
+        Dict mapping challenger name -> WilcoxonResult with adjusted_p_value
+        and reject_null set according to Holm correction.
     """
     control_values = metric_matrix[:, control_idx]
-    # control_name = algorithm_names[control_idx]
 
     results = {}
     for j, name in enumerate(algorithm_names):
@@ -512,12 +517,21 @@ def pairwise_wilcoxon_tests(
         challenger_values = metric_matrix[:, j]
 
         if lower_is_better:
-            # For lower-is-better metrics, we want to know if control is better
             result = wilcoxon_signed_rank_test(control_values, challenger_values, alpha)
         else:
             result = wilcoxon_signed_rank_test(challenger_values, control_values, alpha)
 
         results[name] = result
+
+    # Apply Holm correction across all pairwise tests
+    if results:
+        names = list(results.keys())
+        raw_p_values = [results[name].p_value for name in names]
+        adjusted = holm_adjusted_p_values(raw_p_values)
+
+        for name, adj_p in zip(names, adjusted):
+            results[name].adjusted_p_value = adj_p
+            results[name].reject_null = adj_p < alpha
 
     return results
 
@@ -565,6 +579,23 @@ def holm_correction(p_values: list[float], alpha: float = 0.05) -> list[bool]:
     Returns:
         List of booleans indicating rejection (True = significant).
     """
+    adjusted = holm_adjusted_p_values(p_values)
+    return [p <= alpha for p in adjusted]
+
+
+def holm_adjusted_p_values(p_values: list[float]) -> list[float]:
+    """Compute Holm-adjusted p-values for multiple testing correction.
+
+    Uses Holm's step-down procedure. Adjusted p-values maintain the ordering
+    of the original p-values while controlling the family-wise error rate.
+
+    Args:
+        p_values: List of raw p-values from pairwise tests.
+
+    Returns:
+        List of adjusted p-values (same order as input). Compare directly
+        against alpha to determine significance.
+    """
     n = len(p_values)
     if n == 0:
         return []
@@ -572,14 +603,14 @@ def holm_correction(p_values: list[float], alpha: float = 0.05) -> list[bool]:
     # Sort p-values and keep track of original indices
     indexed = sorted(enumerate(p_values), key=lambda x: x[1])
 
-    rejections = [False] * n
+    adjusted = [0.0] * n
+    running_max = 0.0
 
     for rank, (orig_idx, p) in enumerate(indexed):
-        adjusted_alpha = alpha / (n - rank)
-        if p <= adjusted_alpha:
-            rejections[orig_idx] = True
-        else:
-            # Stop rejecting once we fail to reject
-            break
+        # Holm adjustment: p * (n - rank)
+        adj_p = min(p * (n - rank), 1.0)
+        # Enforce monotonicity: adjusted p-values must be non-decreasing in sorted order
+        running_max = max(running_max, adj_p)
+        adjusted[orig_idx] = running_max
 
-    return rejections
+    return adjusted
