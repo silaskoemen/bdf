@@ -116,7 +116,7 @@ def generate_main_results_table(
 
             is_best = best_per_metric.get(metric) == model
 
-            # Significance marker (based on Holm-adjusted p-values)
+            # Significance marker (requires Holm-adjusted p-values)
             sig_marker = ""
             if wilcoxon_results and metric in wilcoxon_results:
                 wresult = wilcoxon_results[metric].get(model)
@@ -124,15 +124,16 @@ def generate_main_results_table(
                     if wresult.adjusted_p_value is None:
                         logger.warning(
                             f"Wilcoxon result for {model}/{metric} has no adjusted_p_value. "
-                            "Use pairwise_wilcoxon_tests() which applies Holm correction."
+                            "Use pairwise_wilcoxon_tests() which applies Holm correction. "
+                            "Significance markers will be omitted."
                         )
-                    p = wresult.adjusted_p_value if wresult.adjusted_p_value is not None else wresult.p_value
-                    if p < 0.001:
-                        sig_marker = "***"
-                    elif p < 0.01:
-                        sig_marker = "**"
-                    elif p < 0.05:
-                        sig_marker = "*"
+                    else:
+                        if wresult.adjusted_p_value < 0.001:
+                            sig_marker = "***"
+                        elif wresult.adjusted_p_value < 0.01:
+                            sig_marker = "**"
+                        elif wresult.adjusted_p_value < 0.05:
+                            sig_marker = "*"
 
             val_str = format_metric_value(mean, std, is_best, sig_marker)
             row_parts.append(val_str)

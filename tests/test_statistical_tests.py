@@ -6,6 +6,7 @@ import pytest
 from benchmarks.utils.statistical_tests import (
     holm_adjusted_p_values,
     holm_correction,
+    pairwise_wilcoxon_tests,
 )
 
 
@@ -91,3 +92,56 @@ class TestHolmCorrectionConsistency:
         adjusted = holm_adjusted_p_values(p_values)
         for reject, adj_p in zip(rejections, adjusted):
             assert reject == (adj_p <= alpha)
+
+
+class TestPairwiseWilcoxonHolm:
+    """Test that pairwise_wilcoxon_tests applies Holm correction."""
+
+    def _make_metric_matrix(self, rng, n_datasets=15, n_challengers=3):
+        """Build metric matrix: control + challengers with varying effect sizes."""
+        control = rng.normal(1.0, 0.1, size=n_datasets)
+        challengers = [
+            control + rng.normal(offset, 0.05, size=n_datasets)
+            for offset in [0.5, 0.01, 0.3]  # large, negligible, medium effect
+        ]
+        matrix = np.column_stack([control] + challengers)
+        names = ["control", "challenger_a", "challenger_b", "challenger_c"]
+        return matrix, names
+
+    def test_adjusted_p_values_populated(self):
+        """Every result must have adjusted_p_value set (not None)."""
+        rng = np.random.RandomState(42)
+        matrix, names = self._make_metric_matrix(rng)
+        results = pairwise_wilcoxon_tests(matrix, names, control_idx=0)
+        for name, res in results.items():
+            assert res.adjusted_p_value is not None, f"{name}: adjusted_p_value is None"
+
+    def test_adjusted_geq_raw(self):
+        """Holm-adjusted p-values must be >= raw p-values."""
+        rng = np.random.RandomState(42)
+        matrix, names = self._make_metric_matrix(rng)
+        results = pairwise_wilcoxon_tests(matrix, names, control_idx=0)
+        for name, res in results.items():
+            assert res.adjusted_p_value >= res.p_value, f"{name}: adjusted {res.adjusted_p_value} < raw {res.p_value}"
+
+    def test_reject_null_matches_adjusted(self):
+        """reject_null must reflect the adjusted p-value, not the raw one."""
+        rng = np.random.RandomState(42)
+        matrix, names = self._make_metric_matrix(rng)
+        alpha = 0.05
+        results = pairwise_wilcoxon_tests(matrix, names, control_idx=0, alpha=alpha)
+        for name, res in results.items():
+            assert res.reject_null == (
+                res.adjusted_p_value < alpha
+            ), f"{name}: reject_null={res.reject_null} but adj_p={res.adjusted_p_value}"
+
+    def test_single_challenger_no_inflation(self):
+        """With one challenger, adjusted p-value should equal raw p-value."""
+        rng = np.random.RandomState(42)
+        control = rng.normal(1.0, 0.1, size=20)
+        challenger = control + rng.normal(0.3, 0.05, size=20)
+        matrix = np.column_stack([control, challenger])
+        names = ["control", "challenger"]
+        results = pairwise_wilcoxon_tests(matrix, names, control_idx=0)
+        res = results["challenger"]
+        assert res.adjusted_p_value == pytest.approx(res.p_value)

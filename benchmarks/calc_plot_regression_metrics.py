@@ -260,23 +260,30 @@ def main():
                 for ds in datasets:
                     if ds not in clim_crps:
                         continue
+                    clim_val = clim_crps[ds]
+                    if np.isclose(clim_val, 0.0):
+                        print(
+                            f"    Warning: CRPSS undefined for dataset={ds} "
+                            f"(near-zero climatological CRPS={clim_val:.6f}). Skipping."
+                        )
+                        continue
                     model_df = df.filter((df["model"] == model) & (df["dataset"] == ds) & (df["metric"] == "crps"))
                     if model_df.is_empty():
                         continue
                     crps_mean = model_df.select("mean").to_series()[0]
                     crps_std = model_df.select("std").to_series()[0]
-                    crpss_mean = 1.0 - crps_mean / clim_crps[ds]
+                    crpss_mean = 1.0 - crps_mean / clim_val
                     # Propagate std via delta method: std(CRPSS) ≈ std(CRPS) / CRPS_clim
-                    crpss_std = crps_std / clim_crps[ds]
+                    crpss_std = crps_std / clim_val
                     crpss_rows.append(
                         {
                             "model": model,
                             "dataset": ds,
                             "metric": "crpss",
-                            "fold_values": None,
+                            "fold_values": [],
                             "mean": crpss_mean,
                             "std": crpss_std,
-                            "n_folds": model_df.select("n_folds").to_series()[0],
+                            "n_folds": 0,
                         }
                     )
 
