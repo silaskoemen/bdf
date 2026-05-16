@@ -605,14 +605,18 @@ class CustomOrchestrator(BaseOrchestrator):
 
             try:
                 model.fit(X_train, y_train)
+                tuning_metric = getattr(self.cfg, "tuning_metric")[self.target_type]
 
-                # Classification: always use log_loss
                 if self.target_type == "classification":
                     y_pred = model.predict_proba(X_test)[:, 1]
-                    return log_loss(y_test, y_pred)
+                    if tuning_metric == "log_loss":
+                        return log_loss(y_test, y_pred)
+                    elif tuning_metric == "brier":
+                        from ..metrics.classification import custom_brier
 
-                # Regression: support configurable tuning metric
-                tuning_metric = getattr(self.cfg, "tuning_metric")  # fail fast
+                        return custom_brier(np.asarray(y_test), np.asarray(y_pred))
+                    else:
+                        raise ValueError(f"Unknown classification tuning_metric: {tuning_metric}")
 
                 if tuning_metric == "mse":
                     y_pred = model.predict(X_test)
@@ -635,7 +639,7 @@ class CustomOrchestrator(BaseOrchestrator):
                         return crps_wrapper(y_test, y_pred_samples, quantile_levels=None)
 
                 else:
-                    raise ValueError(f"Unknown tuning_metric: {tuning_metric}")
+                    raise ValueError(f"Unknown regression tuning_metric: {tuning_metric}")
 
             except Exception as e:
                 logger.warning(f"⚠️ Warning: Fitting or prediction failed: {e}")
@@ -699,7 +703,7 @@ class CustomOrchestrator(BaseOrchestrator):
         results["datasets"][metadata.name]["best_params"] = study.best_params
         results["datasets"][metadata.name]["tuning"] = {
             "best_value": float(study.best_value),
-            "metric": getattr(self.cfg, "tuning_metric", "mse"),
+            "metric": getattr(self.cfg, "tuning_metric")[self.target_type],
             "n_trials": self.cfg.n_trials,
         }
         return results, tuned_init_kwargs
@@ -708,7 +712,10 @@ class CustomOrchestrator(BaseOrchestrator):
         """Save intermediate results to avoid losing progress.
 
         Uses YAML format for native NaN/inf support that can be loaded back.
+        Writes to benchmarks/results/<task>/ split by target_type.
         """
-        os.makedirs("benchmarks/results/custom/", exist_ok=True)
-        with open(f"benchmarks/results/custom/res_{self.model_cfg.name}.yaml", "w") as f:
+        subdir = "regression" if self.target_type == "regression" else "classification"
+        out_dir = f"benchmarks/results/{subdir}/"
+        os.makedirs(out_dir, exist_ok=True)
+        with open(f"{out_dir}res_{self.model_cfg.name}.yaml", "w") as f:
             yaml.dump(results, f, default_flow_style=False, allow_unicode=True)

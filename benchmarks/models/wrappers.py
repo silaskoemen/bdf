@@ -515,6 +515,13 @@ class CatBoostUncertaintyWrapper(CatBoostRegressor):
             X = X.values
         return super().predict(X)[:, 0]  # Return only the mean predictions
 
+    def predict_mean_std(self, X) -> tuple[np.ndarray, np.ndarray]:
+        """Return (mean, std) from CatBoost's RMSEWithUncertainty output."""
+        if hasattr(X, "values"):
+            X = X.values
+        preds = super().predict(X)
+        return preds[:, 0], np.sqrt(np.maximum(preds[:, 1], 0.0))
+
     def predict_samples(self, X, n_samples=100):
         if hasattr(X, "values"):
             X = X.values
@@ -614,12 +621,22 @@ class QuantileForestWrapper(BaseEstimator, RegressorMixin):
         return self
 
     def predict(self, X):
-        return self.model_.predict(X, quantiles=0.5)  # pyright: ignore[reportOptionalMemberAccess]
+        return self.model_.predict(X, quantiles="mean")  # pyright: ignore[reportOptionalMemberAccess]
 
     def predict_quantiles(self, X) -> np.ndarray:
-        """Returns shape (n_obs, n_quantiles)"""
+        """Returns shape (n_obs, n_quantiles).
+
+        QRF can produce non-monotonic quantile predictions (quantile crossings) because each
+        quantile level is read off the empirical distribution of leaf samples independently.
+        scoringrules.crps_quantile requires monotonic predictions per row, so we sort row-wise
+        as a post-hoc isotonic correction (standard practice for QRF).
+        """
         sorted_quantiles = sorted(self.quantiles)
-        return self.model_.predict(X, quantiles=sorted_quantiles)  # pyright: ignore[reportOptionalMemberAccess]
+        preds = self.model_.predict(X, quantiles=sorted_quantiles)  # pyright: ignore[reportOptionalMemberAccess]
+        preds = np.asarray(preds)
+        if preds.ndim == 1:
+            preds = preds.reshape(-1, 1)
+        return np.sort(preds, axis=1)
 
     def get_params(self, deep=True):
         params = {
@@ -845,6 +862,117 @@ class ConformalizedRFWrapper(RegressorMixin, BaseEstimator):
         return samples
 
 
+class ConformalizedCatBoostWrapper(RegressorMixin, BaseEstimator):
+    """Split conformal prediction wrapper around CatBoostUncertaintyWrapper.
+
+    Guarantees marginal coverage via additive residual correction.  Local
+    adaptivity comes solely from the model's point predictions, not from
+    CatBoost's uncertainty estimates.
+    """
+
+    PREDICTION_TYPE: PredictionType = "samples"
+
+    def __init__(self, random_state=None, **catboost_kwargs):
+        self.random_state = random_state
+        self.catboost_kwargs = catboost_kwargs
+
+    def fit(self, X, y):
+        X_np = X.values if hasattr(X, "values") else np.asarray(X)
+        y_np = (y.values if hasattr(y, "values") else np.asarray(y)).ravel()
+
+        X_train, X_calib, y_train, y_calib = TTS(X_np, y_np, test_size=0.2, random_state=self.random_state or 1234)
+        self.estimator_ = CatBoostUncertaintyWrapper(**self.catboost_kwargs)
+        self.estimator_.fit(X_train, y_train)
+
+        y_calib_pred = self.estimator_.predict(X_calib)
+        self.residuals_ = y_calib - y_calib_pred
+        self.n_calib_ = len(self.residuals_)
+        return self
+
+    def predict(self, X):
+        X_np = X.values if hasattr(X, "values") else np.asarray(X)
+        return self.estimator_.predict(X_np)
+
+    def predict_samples(self, X, n_samples: int) -> np.ndarray:
+        X_np = X.values if hasattr(X, "values") else np.asarray(X)
+        y_pred = self.estimator_.predict(X_np)
+        rng = np.random.default_rng(self.random_state)
+        residual_samples = rng.choice(self.residuals_, size=(len(y_pred), n_samples), replace=True)
+        return y_pred[:, np.newaxis] + residual_samples
+
+    def get_params(self, deep=True):
+        return {"random_state": self.random_state, **self.catboost_kwargs}
+
+    def set_params(self, **params):
+        self.random_state = params.pop("random_state", self.random_state)
+        self.catboost_kwargs.update(params)
+        return self
+
+
+class CQRCatBoostWrapper(RegressorMixin, BaseEstimator):
+    """Conformalized Quantile Regression on top of CatBoost uncertainty estimates.
+
+    Unlike additive conformal, this method inherits CatBoost's local uncertainty
+    structure (wider intervals where CatBoost predicts higher variance) and only
+    corrects the global coverage level via a single scalar q_hat shift.
+
+    predict_samples uses a Gaussian approximation of the conformal interval
+    [mean - z*std - q_hat, mean + z*std + q_hat] by inflating the standard
+    deviation proportionally.  This preserves the local shape for CRPS/coverage
+    diagnostics while guaranteeing the target marginal coverage.
+    """
+
+    PREDICTION_TYPE: PredictionType = "samples"
+
+    def __init__(self, alpha: float = 0.10, random_state=None, **catboost_kwargs):
+        self.alpha = alpha
+        self.random_state = random_state
+        self.catboost_kwargs = catboost_kwargs
+
+    def fit(self, X, y):
+        from scipy.stats import norm as scipy_norm
+
+        X_np = X.values if hasattr(X, "values") else np.asarray(X)
+        y_np = (y.values if hasattr(y, "values") else np.asarray(y)).ravel()
+
+        X_train, X_calib, y_train, y_calib = TTS(X_np, y_np, test_size=0.2, random_state=self.random_state or 1234)
+        self.estimator_ = CatBoostUncertaintyWrapper(**self.catboost_kwargs)
+        self.estimator_.fit(X_train, y_train)
+
+        mean_calib, std_calib = self.estimator_.predict_mean_std(X_calib)
+        self.z_ = float(scipy_norm.ppf(1 - self.alpha / 2))
+
+        lower_calib = mean_calib - self.z_ * std_calib
+        upper_calib = mean_calib + self.z_ * std_calib
+
+        scores = np.maximum(lower_calib - y_calib, y_calib - upper_calib)
+        n_cal = len(scores)
+        adjusted_level = min(np.ceil((1 - self.alpha) * (n_cal + 1)) / n_cal, 1.0)
+        self.q_hat_ = float(np.quantile(scores, adjusted_level))
+        return self
+
+    def predict(self, X):
+        X_np = X.values if hasattr(X, "values") else np.asarray(X)
+        return self.estimator_.predict(X_np)
+
+    def predict_samples(self, X, n_samples: int) -> np.ndarray:
+        X_np = X.values if hasattr(X, "values") else np.asarray(X)
+        mean, std = self.estimator_.predict_mean_std(X_np)
+        # Inflate std so that the Gaussian 90% interval width matches the CQR interval width
+        std_expanded = np.maximum(std + self.q_hat_ / max(self.z_, 1e-6), 1e-10)
+        rng = np.random.default_rng(self.random_state)
+        return rng.normal(loc=mean[:, None], scale=std_expanded[:, None], size=(len(mean), n_samples))
+
+    def get_params(self, deep=True):
+        return {"alpha": self.alpha, "random_state": self.random_state, **self.catboost_kwargs}
+
+    def set_params(self, **params):
+        self.alpha = params.pop("alpha", self.alpha)
+        self.random_state = params.pop("random_state", self.random_state)
+        self.catboost_kwargs.update(params)
+        return self
+
+
 class CalibratedRFWrapper(BaseEstimator, ClassifierMixin):
     """
     Wrapper that exposes RF init args at top-level, fits a RandomForestClassifier
@@ -943,6 +1071,131 @@ class BARTPyRegressorWrapper(BaseEstimator, RegressorMixin):
         self.init_kwargs.update(params)
         for k, v in params.items():
             setattr(self, k, v)
+        return self
+
+
+class PyMCBARTRegressorWrapper(BaseEstimator, RegressorMixin):
+    """PyMC-BART regressor.
+
+    Uses the Particle Gibbs for BART (PGBART) sampler from the PyMC team — much
+    faster than classical MCMC BART and actively maintained. Posterior predictive
+    samples include both posterior uncertainty on f(x) and the observation noise σ.
+    """
+
+    PREDICTION_TYPE: PredictionType = "samples"
+
+    def __init__(
+        self,
+        n_trees: int = 50,
+        n_draws: int = 500,
+        n_tune: int = 500,
+        chains: int = 1,
+        cores: int = 1,
+        alpha: float = 0.95,
+        beta: float = 2.0,
+        random_state: int | None = None,
+    ):
+        self.n_trees = n_trees
+        self.n_draws = n_draws
+        self.n_tune = n_tune
+        self.chains = chains
+        self.cores = cores
+        self.alpha = alpha
+        self.beta = beta
+        self.random_state = random_state
+
+    def fit(self, X, y):
+        import logging
+
+        import pymc as pm
+        import pymc_bart as pmb
+
+        X_np = np.asarray(X.values if hasattr(X, "values") else X, dtype=np.float64)
+        y_np = np.asarray(y.values if hasattr(y, "values") else y, dtype=np.float64).ravel()
+
+        # BART is sensitive to target scale; standardize internally.
+        self.y_mean_ = float(y_np.mean())
+        self.y_std_ = float(y_np.std() + 1e-8)
+        y_scaled = (y_np - self.y_mean_) / self.y_std_
+
+        pymc_logger = logging.getLogger("pymc")
+        prev_level = pymc_logger.level
+        pymc_logger.setLevel(logging.ERROR)
+
+        try:
+            with pm.Model() as self.model_:
+                X_data = pm.Data("X", X_np)
+                Y_data = pm.Data("Y", y_scaled)
+                mu = pmb.BART(
+                    "mu",
+                    X=X_data,
+                    Y=Y_data,
+                    m=self.n_trees,
+                    alpha=self.alpha,
+                    beta=self.beta,
+                )
+                sigma = pm.HalfNormal("sigma", sigma=1.0)
+                pm.Normal("obs", mu=mu, sigma=sigma, observed=Y_data, shape=mu.shape)
+
+                self.idata_ = pm.sample(
+                    draws=self.n_draws,
+                    tune=self.n_tune,
+                    chains=self.chains,
+                    cores=self.cores,
+                    random_seed=self.random_state,
+                    progressbar=False,
+                    compute_convergence_checks=False,
+                )
+        finally:
+            pymc_logger.setLevel(prev_level)
+        return self
+
+    def _predict_posterior_samples(self, X) -> np.ndarray:
+        """Returns posterior predictive samples of shape (n_obs, n_total_draws) on the original y scale."""
+        import pymc as pm
+
+        X_np = np.asarray(X.values if hasattr(X, "values") else X, dtype=np.float64)
+        with self.model_:
+            pm.set_data({"X": X_np, "Y": np.zeros(X_np.shape[0], dtype=np.float64)})
+            ppc = pm.sample_posterior_predictive(
+                self.idata_,
+                predictions=True,
+                random_seed=self.random_state,
+                progressbar=False,
+            )
+        # shape: (chain, draw, n_obs) -> (n_obs, chain*draw)
+        arr = np.asarray(ppc.predictions["obs"].values)
+        arr = arr.reshape(-1, arr.shape[-1]).T
+        return arr * self.y_std_ + self.y_mean_
+
+    def predict(self, X) -> np.ndarray:
+        return self._predict_posterior_samples(X).mean(axis=1)
+
+    def predict_samples(self, X, n_samples: int = 100) -> np.ndarray:
+        samples = self._predict_posterior_samples(X)
+        n_avail = samples.shape[1]
+        if n_avail >= n_samples:
+            idx = np.linspace(0, n_avail - 1, n_samples, dtype=int)
+            return samples[:, idx]
+        rng = np.random.default_rng(self.random_state)
+        idx = rng.choice(n_avail, size=n_samples, replace=True)
+        return samples[:, idx]
+
+    def get_params(self, deep=True):
+        return {
+            "n_trees": self.n_trees,
+            "n_draws": self.n_draws,
+            "n_tune": self.n_tune,
+            "chains": self.chains,
+            "cores": self.cores,
+            "alpha": self.alpha,
+            "beta": self.beta,
+            "random_state": self.random_state,
+        }
+
+    def set_params(self, **params):
+        for key, value in params.items():
+            setattr(self, key, value)
         return self
 
 

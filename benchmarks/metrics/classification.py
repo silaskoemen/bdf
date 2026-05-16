@@ -63,6 +63,7 @@ def compute_calibration_curve(y_true: np.ndarray, y_prob: np.ndarray, n_bins: in
 
 CLAS_POINT_METRICS: dict[str, Callable] = {
     "auroc": metrics.roc_auc_score,
+    "auprc": metrics.average_precision_score,
     "accuracy": lambda y, y_pred: metrics.accuracy_score(y, np.round(y_pred)),  # Ensure accuracy gets labels
     "f1": lambda y, y_pred: metrics.f1_score(y, np.round(y_pred)),
     "recall": lambda y, y_pred: metrics.recall_score(y, np.round(y_pred)),

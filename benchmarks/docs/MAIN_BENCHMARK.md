@@ -71,7 +71,9 @@ n_trials: 50            # Optuna trials per dataset
 sample_size: 1000       # Posterior samples for probabilistic metrics
 
 # Tuning configuration
-tuning_metric: crps     # Metric to optimize: "mse" or "crps"
+tuning_metric:
+  regression: crps        # "mse" or "crps"
+  classification: log_loss  # "log_loss" or "brier"
 tuning_sample_size: 100 # Samples for CRPS during tuning (lower for speed)
 
 logging:
@@ -80,8 +82,11 @@ logging:
 
 **Override examples:**
 ```bash
-# Use MSE for tuning instead of CRPS
-pixi run bench-bdf tuning_metric=mse
+# Use MSE for regression tuning instead of CRPS
+pixi run bench-bdf tuning_metric.regression=mse
+
+# Use Brier for classification tuning instead of log_loss
+pixi run bench-bdf tuning_metric.classification=brier
 
 # Increase tuning trials
 pixi run bench-bdf n_trials=100
@@ -431,7 +436,7 @@ Expected time per dataset (50 trials):
 **Tips to speed up:**
 - Reduce `n_trials` (e.g., 20 for quick tests)
 - Reduce `tuning_sample_size` for CRPS (e.g., 50 instead of 100)
-- Use `tuning_metric=mse` instead of `crps` (no sampling needed)
+- Use `tuning_metric.regression=mse` instead of `crps` (no sampling needed)
 
 ### Memory Usage
 
@@ -531,11 +536,11 @@ optuna.delete_study(study_name="study_name", storage="sqlite:///path/to/db")
 ```
 
 ### CRPS computation slow
-Reduce `tuning_sample_size` or use `tuning_metric=mse`:
+Reduce `tuning_sample_size` or use `tuning_metric.regression=mse`:
 ```bash
 pixi run bench-bdf tuning_sample_size=50
 # or
-pixi run bench-bdf tuning_metric=mse
+pixi run bench-bdf tuning_metric.regression=mse
 ```
 
 ## Citation

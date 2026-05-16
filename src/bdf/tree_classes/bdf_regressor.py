@@ -750,9 +750,9 @@ class BDFModel(BaseEstimator):
 
     def _is_fft_kde(self) -> bool:
         """Check if distribution is FFT-based KDE."""
-        from bdf.distributions.kde import KDE, BayesianKDE
+        from bdf.distributions.kde import KDE, PseudoHKDE
 
-        if not isinstance(self.distribution, (KDE, BayesianKDE)):
+        if not isinstance(self.distribution, (KDE, PseudoHKDE)):
             return False
         backend = getattr(self.distribution.params, "kde_backend", "pairwise")
         kernel = getattr(self.distribution.params, "kernel", "gaussian")

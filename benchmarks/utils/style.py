@@ -68,6 +68,10 @@ _QRF = "#5A9E6F"  # sage green
 _BART = "#8B6914"  # dark goldenrod
 _CONF_RF = "#6B8E23"  # olive drab
 _CAL_RF = "#A0522D"  # sienna
+_CONF_BDF = "#E08080"  # light crimson (BDF variant, conformalized)
+
+_CONF_CATBOOST = "#2980B9"  # medium blue (conformalized CatBoost, additive)
+_CQR_CATBOOST = "#7FB3D3"  # sky blue (CQR-CatBoost, adaptive)
 
 _LGBM = "#2E86AB"  # steel blue
 _NGBOOST = "#4169E1"  # royal blue
@@ -93,6 +97,8 @@ MODEL_COLORS: dict[str, str] = {
     "BDFKDE": _BDF_VARIANT,
     "BDF (KDE)": _BDF_VARIANT,
     "bdf_kde": _BDF_VARIANT,
+    "ConfBDFNormal": _CONF_BDF,
+    "ConfBDFKDE": "#E8A0A0",
     "bdf_betamvbernoulli": _BDF,
     # Tree ensembles
     "RandomForest": _RF,
@@ -104,6 +110,7 @@ MODEL_COLORS: dict[str, str] = {
     "qrf": _QRF,
     "BART": _BART,
     "bartpy": _BART,
+    "pymc_bart": _BART,
     "ConfRF": _CONF_RF,
     "ConformalRF": _CONF_RF,
     "Conformal RF": _CONF_RF,
@@ -119,7 +126,10 @@ MODEL_COLORS: dict[str, str] = {
     "ngboost_reg": _NGBOOST,
     "ngboost_clas": _NGBOOST,
     "CatBoostUnc": _CATBOOST,
+    "CatBoostUncertainty": _CATBOOST,
     "catbunc_reg": _CATBOOST,
+    "ConfCatBoost": _CONF_CATBOOST,
+    "CQRCatBoost": _CQR_CATBOOST,
     "ConfLGBM": _CONF_LGBM,
     "conflgbm": _CONF_LGBM,
     # Deep learning / generative
@@ -149,12 +159,15 @@ MODEL_DISPLAY_NAMES: dict[str, str] = {
     "bdf_kde": "BDF (KDE)",
     "BDFNormal": "BDF (Normal)",
     "BDFKDE": "BDF (KDE)",
+    "ConfBDFNormal": "Conf-BDF (Normal)",
+    "ConfBDFKDE": "Conf-BDF (KDE)",
     # Tree ensembles
     "RandomForest": "Random Forest",
     "rf_reg": "RF",
     "rf_clas": "RF",
     "qrf": "QRF",
     "bartpy": "BART",
+    "pymc_bart": "BART",
     "confrf": "ConfRF",
     "ConformalRF": "Conformal RF",
     "calrf_clas": "CalRF",
@@ -165,6 +178,9 @@ MODEL_DISPLAY_NAMES: dict[str, str] = {
     "ngboost_reg": "NGBoost",
     "ngboost_clas": "NGBoost",
     "catbunc_reg": "CatBoostUnc",
+    "CatBoostUncertainty": "CatBoost (Unc)",
+    "ConfCatBoost": "Conf-CatBoost",
+    "CQRCatBoost": "CQR-CatBoost",
     "conflgbm": "ConfLGBM",
     # Deep learning
     "gaussian_de": "GaussianDE",
@@ -192,6 +208,11 @@ MODEL_MARKERS: dict[str, str] = {
     "LightGBM": "P",
     "NGBoost": "X",
     "CatBoostUnc": "h",
+    "CatBoostUncertainty": "h",
+    "ConfCatBoost": "H",
+    "CQRCatBoost": "8",
+    "ConfBDFNormal": "d",
+    "ConfBDFKDE": "D",
     "ConfLGBM": "d",
     "GaussianDE": "*",
     "Treeffuser": "p",

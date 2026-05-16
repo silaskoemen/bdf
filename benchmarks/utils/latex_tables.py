@@ -416,6 +416,51 @@ def generate_ranking_table(
     return "\n".join(lines)
 
 
+def generate_rel_to_best_table(
+    rel_to_best: dict[str, float],
+    metric_name: str = "CRPS",
+    model_display_names: dict[str, str] | None = None,
+    caption: str = "Average ratio of model metric to best model per dataset",
+    label: str = "tab:rel-to-best",
+) -> str:
+    """Generate a table of average relative-to-best ratios.
+
+    A ratio of 1.0 means the model achieved the best score on every dataset;
+    1.1 means on average 10% worse than the best model on each dataset.
+
+    Args:
+        rel_to_best: Dict mapping model name -> mean(model_val / best_val).
+        metric_name: Metric label used in the column header.
+        model_display_names: Optional display name overrides.
+        caption: Table caption.
+        label: LaTeX label.
+
+    Returns:
+        LaTeX table string.
+    """
+    sorted_items = sorted(rel_to_best.items(), key=lambda x: x[1])
+    display = model_display_names or {}
+
+    lines = [
+        r"\begin{table}[htbp]",
+        r"\centering",
+        r"\caption{" + caption + r"}",
+        r"\label{" + label + r"}",
+        r"\begin{tabular}{clc}",
+        r"\toprule",
+        r"Rank & Model & Avg.\ " + metric_name + r" / Best \\",
+        r"\midrule",
+    ]
+
+    for i, (model, ratio) in enumerate(sorted_items, 1):
+        name = display.get(model, model).replace("_", r"\_")
+        marker = r" \textbf{$\star$}" if i == 1 else ""
+        lines.append(f"{i} & {name}{marker} & {ratio:.3f} \\\\")
+
+    lines.extend([r"\bottomrule", r"\end{tabular}", r"\end{table}"])
+    return "\n".join(lines)
+
+
 def generate_speedup_table(
     speedup_data: dict[str, dict[str, float]],
     control_name: str = "BDF",

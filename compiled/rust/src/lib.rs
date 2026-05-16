@@ -50,7 +50,7 @@ fn find_best_split(
         )
     });
 
-    let (feat_idx, threshold, loss_reduction, left_indices, right_indices, left_params, right_params) = if dist_type.as_str() == "KDE" || dist_type.as_str() == "BayesianKDE" {
+    let (feat_idx, threshold, loss_reduction, left_indices, right_indices, left_params, right_params) = if dist_type.as_str() == "KDE" || dist_type.as_str() == "BayesianKDE" || dist_type.as_str() == "PseudoHKDE" {
         // Parse KDE-specific config (defaults keep current behavior unless user opts in)
         let kernel: String = distribution_spec.get_item("kernel")
             .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("Missing 'kernel'"))?
@@ -217,7 +217,7 @@ fn create_distribution_from_spec(spec: &PyDict, py: Python)
         "BetaABBernoulli" => Ok(Box::new(distributions::bernoulli::BetaABBernoulli::from_spec(spec)?)),
         "BetaMVBernoulli" => Ok(Box::new(distributions::bernoulli::BetaMVBernoulli::from_spec(spec)?)),
         "KDE" => Ok(Box::new(distributions::kde::Kde::from_spec(spec)?)),
-        "BayesianKDE" => Ok(Box::new(distributions::kde::BayesianKde::from_spec(spec)?)),
+        "BayesianKDE" | "PseudoHKDE" => Ok(Box::new(distributions::kde::PseudoHKde::from_spec(spec)?)),
         _ => {
             let py_obj: &pyo3::PyAny = spec.get_item("_python_object")
                 .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("Missing '_python_object'"))?;
@@ -244,8 +244,8 @@ fn calculate_nll(
     if dist_type.as_str() == "KDE" {
         let kde = distributions::kde::Kde::from_spec(distribution_spec)?;
         Ok(kde.nll(&data_array, false))
-    } else if dist_type.as_str() == "BayesianKDE" {
-        let kde = distributions::kde::BayesianKde::from_spec(distribution_spec)?;
+    } else if dist_type.as_str() == "BayesianKDE" || dist_type.as_str() == "PseudoHKDE" {
+        let kde = distributions::kde::PseudoHKde::from_spec(distribution_spec)?;
         Ok(kde.nll(&data_array, false))
     } else {
         let distribution = create_distribution_from_spec(distribution_spec, py)?;

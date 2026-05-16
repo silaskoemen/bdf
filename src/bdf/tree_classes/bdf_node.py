@@ -377,9 +377,9 @@ class BDFNode:
 
     def _is_kde_distribution(self) -> bool:
         """Return True if this node's distribution is a KDE-like distribution."""
-        from bdf.distributions.kde import KDE, BayesianKDE  # local import to avoid cycles
+        from bdf.distributions.kde import KDE, PseudoHKDE  # local import to avoid cycles
 
-        return isinstance(self.distribution, (KDE, BayesianKDE))
+        return isinstance(self.distribution, (KDE, PseudoHKDE))
 
     def _find_best_split_python_kde(
         self,

@@ -39,10 +39,12 @@ from .metrics.regression import (
 )
 from .pipeline.synthetic_dgps import DGP_REGISTRY, SyntheticDataset
 from .utils.synthetic_plotting import (
+    plot_conditional_calibration_by_uncertainty,
     plot_conditional_densities,
     plot_coverage_by_region,
     plot_pit_histogram,
     plot_predictions_with_ground_truth,
+    plot_spread_skill,
 )
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -71,6 +73,9 @@ EVAL_QUANTILES = [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]
 
 # Coverage levels for calibration curves (19 levels: 0.05, 0.10, ..., 0.95)
 COVERAGE_LEVELS = [round(0.05 * i, 2) for i in range(1, 20)]
+
+# Number of decile bins for conditional calibration / spread-skill analysis
+N_UNCERTAINTY_BINS = 10
 
 # =============================================================================
 # Dynamic Model Loading based on Available Dependencies
@@ -162,6 +167,32 @@ def get_available_models() -> dict[str, dict[str, Any]]:
     # Optional Models (bench-models environment)
     # =============================================================================
 
+    # CatBoost with Uncertainty
+    try:
+        from .models.wrappers import CatBoostUncertaintyWrapper
+
+        available["CatBoostUncertainty"] = {
+            "class": CatBoostUncertaintyWrapper,
+            "fixed_init_kwargs": {
+                "loss_function": "RMSEWithUncertainty",
+                "random_seed": SEED,
+                "verbose": 0,
+            },
+            "tunable_init_kwargs": {
+                "iterations": {"type": "int", "low": 100, "high": 1000},
+                "depth": {"type": "int", "low": 4, "high": 10},
+                "learning_rate": {"type": "float", "low": 0.01, "high": 0.3, "log": True},
+                "l2_leaf_reg": {"type": "float", "low": 1.0, "high": 10.0},
+            },
+            "tunable_params": {},
+            "fixed_params": {},
+            "has_params_dict": False,
+            "probabilistic": True,
+        }
+        logger.info("✓ CatBoostUncertainty available")
+    except ImportError:
+        logger.info("✗ CatBoostUncertainty not available (run in bench-models environment)")
+
     # Climatological baseline (no-skill reference for CRPSS)
     try:
         from .models.wrappers import ClimatologicalRegressor
@@ -232,28 +263,32 @@ def get_available_models() -> dict[str, dict[str, Any]]:
     except ImportError:
         logger.info("✗ NGBoost not available (install ngboost or run in bench-models environment)")
 
-    # BART (Bayesian Additive Regression Trees)
+    # BART (Bayesian Additive Regression Trees) via PyMC-BART
     try:
-        from .models.wrappers import BARTPyRegressorWrapper
+        from .models.wrappers import PyMCBARTRegressorWrapper
 
         available["BART"] = {
-            "class": BARTPyRegressorWrapper,
-            "fixed_init_kwargs": {},
+            "class": PyMCBARTRegressorWrapper,
+            "fixed_init_kwargs": {
+                "random_state": 1234,
+                "n_draws": 500,
+                "n_tune": 500,
+                "chains": 1,
+                "cores": 1,
+            },
             "tunable_init_kwargs": {
                 "n_trees": {"type": "int", "low": 20, "high": 200},
-                "n_burn": {"type": "int", "low": 50, "high": 250},
-                "n_samples": {"type": "int", "low": 100, "high": 500},
                 "alpha": {"type": "float", "low": 0.5, "high": 0.99},
-                "beta": {"type": "float", "low": 0.5, "high": 3.0},
+                "beta": {"type": "float", "low": 1.0, "high": 4.0},
             },
             "tunable_params": {},
             "fixed_params": {},
             "has_params_dict": False,
             "probabilistic": True,
         }
-        logger.info("✓ BART available")
+        logger.info("✓ BART available (PyMC-BART)")
     except ImportError:
-        logger.info("✗ BART not available (install bartpy or run in bench-models environment)")
+        logger.info("✗ BART not available (install pymc-bart or run in bench-models environment)")
 
     return available
 
@@ -548,6 +583,77 @@ def evaluate_fold(
                 metrics["coverage_curve_levels"] = COVERAGE_LEVELS
                 metrics["coverage_curve_empirical"] = coverage_curve
 
+                # ------------------------------------------------------------------
+                # Conditional calibration by predicted-uncertainty decile bins
+                # ------------------------------------------------------------------
+                bin_edges = np.percentile(y_pred_std, np.linspace(0, 100, N_UNCERTAINTY_BINS + 1))
+                bin_edges = np.unique(bin_edges)
+                if len(bin_edges) >= 2:
+                    bin_indices = np.digitize(y_pred_std, bin_edges[1:-1])
+
+                    cond_cov_50: list[float] = []
+                    cond_cov_90: list[float] = []
+                    cond_width_90: list[float] = []
+                    cond_crps: list[float] = []
+                    cond_rmse: list[float] = []
+                    spread_pred_std: list[float] = []
+                    spread_rmse: list[float] = []
+                    spread_true_std: list[float] = []
+
+                    gt = dataset.ground_truth
+                    has_true_std = gt.variance_fn is not None
+
+                    for b in range(N_UNCERTAINTY_BINS):
+                        mask = bin_indices == b
+                        if mask.sum() < 5:
+                            for lst in (
+                                cond_cov_50,
+                                cond_cov_90,
+                                cond_width_90,
+                                cond_crps,
+                                cond_rmse,
+                                spread_pred_std,
+                                spread_rmse,
+                                spread_true_std,
+                            ):
+                                lst.append(float("nan"))
+                            continue
+
+                        y_test_b = y_test[mask]
+                        y_samp_b = y_samples[mask]
+                        y_pred_b = y_pred[mask]
+                        y_std_b = y_pred_std[mask]
+
+                        lo50 = np.quantile(y_samp_b, 0.25, axis=-1)
+                        hi50 = np.quantile(y_samp_b, 0.75, axis=-1)
+                        cond_cov_50.append(float(np.mean((y_test_b >= lo50) & (y_test_b <= hi50))))
+
+                        lo90 = np.quantile(y_samp_b, 0.05, axis=-1)
+                        hi90 = np.quantile(y_samp_b, 0.95, axis=-1)
+                        cond_cov_90.append(float(np.mean((y_test_b >= lo90) & (y_test_b <= hi90))))
+                        cond_width_90.append(float(np.mean(hi90 - lo90)))
+
+                        cond_crps.append(float(crps_wrapper(y_test_b, y_samp_b)))
+                        cond_rmse.append(float(np.sqrt(np.mean((y_test_b - y_pred_b) ** 2))))
+
+                        spread_pred_std.append(float(np.mean(y_std_b)))
+                        spread_rmse.append(float(np.sqrt(np.mean((y_test_b - y_pred_b) ** 2))))
+
+                        if has_true_std:
+                            true_std_b = np.sqrt(gt.variance_fn(X_test[mask]).flatten())
+                            spread_true_std.append(float(np.mean(true_std_b)))
+                        else:
+                            spread_true_std.append(float("nan"))
+
+                    metrics["cond_cal_cov_50"] = cond_cov_50
+                    metrics["cond_cal_cov_90"] = cond_cov_90
+                    metrics["cond_cal_width_90"] = cond_width_90
+                    metrics["cond_cal_crps"] = cond_crps
+                    metrics["cond_cal_rmse"] = cond_rmse
+                    metrics["spread_skill_pred_std"] = spread_pred_std
+                    metrics["spread_skill_rmse"] = spread_rmse
+                    metrics["spread_skill_true_std"] = spread_true_std
+
                 # Ground truth metrics
                 gt_metrics = compute_ground_truth_metrics(dataset, X_test, y_pred, y_pred_std)
                 metrics.update(gt_metrics)
@@ -617,6 +723,32 @@ def evaluate_fold(
                 dgp_name=dgp_name,
                 save_path=dgp_plot_dir / f"{model_name}_pit_histogram.pdf",
             )
+
+            # 5. Spread-skill diagram
+            if "spread_skill_pred_std" in metrics:
+                spread_data = {
+                    model_name: {
+                        "spread_skill_pred_std": {"mean": metrics["spread_skill_pred_std"]},
+                        "spread_skill_rmse": {"mean": metrics["spread_skill_rmse"]},
+                        "spread_skill_true_std": {"mean": metrics["spread_skill_true_std"]},
+                    }
+                }
+                plot_spread_skill(
+                    results_by_model=spread_data,
+                    save_path=dgp_plot_dir / f"{model_name}_spread_skill.pdf",
+                )
+
+            # 6. Conditional calibration by uncertainty decile
+            if "cond_cal_cov_90" in metrics:
+                cond_cal_data = {
+                    model_name: {
+                        "cond_cal_cov_90": {"mean": metrics["cond_cal_cov_90"]},
+                    }
+                }
+                plot_conditional_calibration_by_uncertainty(
+                    results_by_model=cond_cal_data,
+                    save_path=dgp_plot_dir / f"{model_name}_cond_calibration.pdf",
+                )
 
             # Save fold-1 data for predictions grid figure
             np.savez_compressed(
@@ -754,12 +886,12 @@ def run_benchmark(dgps: list[dict], models: list[str], output_dir: str = "benchm
                     if not raw:
                         continue
 
-                    # List-valued metrics (e.g. pit_bin_proportions): average element-wise
+                    # List-valued metrics (e.g. pit_bin_proportions, cond_cal_*): average element-wise
                     if isinstance(raw[0], list):
-                        arr = np.array(raw)
+                        arr = np.array(raw, dtype=float)
                         aggregated_metrics[key] = {
-                            "mean": np.mean(arr, axis=0).tolist(),
-                            "std": np.std(arr, axis=0).tolist(),
+                            "mean": np.nanmean(arr, axis=0).tolist(),
+                            "std": np.nanstd(arr, axis=0).tolist(),
                         }
                         continue
 

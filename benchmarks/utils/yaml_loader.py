@@ -8,7 +8,8 @@ import numpy as np
 import polars as pl
 import yaml
 
-RESULTS_DIR = Path("benchmarks/results/custom")
+RESULTS_DIR = Path("benchmarks/results/regression")
+CLASSIFICATION_RESULTS_DIR = Path("benchmarks/results/classification")
 
 
 def load_yaml_result(yaml_path: Path) -> dict[str, Any]:

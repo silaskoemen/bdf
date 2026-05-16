@@ -48,7 +48,7 @@ class KDLParams(BDFDistributionParams):
 class KDL(BDFDistribution[KDLParams]):
     """Lightweight wrapper for any BDFDistribution + KDE combination.
 
-    Naming convention is f'{<FullDistributionName>}+{<FullKDEName>}', e.g. 'NormalMuNormal+BayesianKDE'.
+    Naming convention is f'{<FullDistributionName>}+{<FullKDEName>}', e.g. 'NormalMuNormal+PseudoHKDE'.
 
     During tree growth, `nll`/`log_likelihood` route to the parametric distribution,
     leveraging its priors for regularized split finding.

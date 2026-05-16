@@ -224,14 +224,14 @@ impl DistributionPrimitives for Kde {
     }
 }
 
-/// Bayesian KDE implementation (pseudo-Bayesian bandwidth)
-pub struct BayesianKde {
+/// Pseudo-Bayesian KDE with log-space bandwidth shrinkage toward a prior.
+pub struct PseudoHKde {
     base: Kde,
     prior_h: f64,
     m_h: f64,
 }
 
-impl BayesianKde {
+impl PseudoHKde {
     pub fn from_spec(spec: &PyDict) -> PyResult<Self> {
         let base = Kde::from_spec(spec)?;
         let prior_h: f64 = spec.get_item("prior_h")
@@ -244,7 +244,10 @@ impl BayesianKde {
     }
 }
 
-impl DistributionPrimitives for BayesianKde {
+/// Backward-compatible alias.
+pub type BayesianKde = PseudoHKde;
+
+impl DistributionPrimitives for PseudoHKde {
     fn calc_posterior_params(&self, data: &ArrayView1<f64>) -> HashMap<String, f64> {
         let n = data.len() as f64;
         let mut params = HashMap::new();
@@ -254,8 +257,9 @@ impl DistributionPrimitives for BayesianKde {
 
         let data_h = self.base.compute_bandwidth(data);
 
-        // Bayesian bandwidth update: posterior_h = (m_h * prior_h + n * data_h) / (m_h + n)
-        let posterior_h = (self.m_h * self.prior_h + n * data_h) / (self.m_h + n);
+        // Log-space shrinkage: log(h_post) = (m_h*log(prior_h) + n*log(h_leaf)) / (m_h + n)
+        let log_posterior_h = (self.m_h * self.prior_h.ln() + n * data_h.ln()) / (self.m_h + n);
+        let posterior_h = log_posterior_h.exp().max(self.base.min_bandwidth);
 
         params.insert("bandwidth".to_string(), posterior_h);
         params.insert("n".to_string(), n);

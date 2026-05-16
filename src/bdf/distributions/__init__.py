@@ -5,7 +5,7 @@ from .binomial import BetaBinomial
 from .exponential import GammaABLambdaExponential, GammaMVLambdaExponential
 from .gamma import FrequentistGamma, GammaNormalMean, GammaPseudoMean
 from .gen_hyperbolic import FrequentistGenHyperbolic
-from .kde import KDE
+from .kde import KDE, PseudoHKDE
 from .multinomial import DirichletAlphaMultinomial, DirichletMeanMultinomial
 from .negative_binomial import FrequentistNegativeBinomial, GammaMSLambdaNegBin, NormalMeanNegativeBinomial
 from .normal import NormalMuInvGammaSigmaNormal, NormalMuNormal
@@ -62,4 +62,5 @@ __all__ = [
     "FrequentistGenHyperbolic",
     # KDE
     "KDE",
+    "PseudoHKDE",
 ]

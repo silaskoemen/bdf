@@ -9,64 +9,36 @@ compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonn
 
 fixed_init_kwargs:
   random_state: 1234
+  # Keep all leaf samples for accurate empirical quantile estimation.
+  # Subsampling leaf samples (max_samples_leaf finite) degrades tail quantiles.
+  max_samples_leaf: null
+  bootstrap: true
+  # squared_error keeps the objective compatible with all real-valued target domains.
+  # poisson would fail on negative targets; absolute_error is slower with no consistent gain.
+  criterion: squared_error
 
 tunable_init_kwargs:
   n_estimators:
     type: int
-    low: 10
-    high: 200
-  default_quantiles:
-    # Can be a float in (0,1), a list of such floats, or the string "mean".
-    # For tuning you can either use a numeric range or include "mean" as a categorical choice.
-    type: categorical
-    categories: [mean]
-    # To tune numeric quantiles instead, replace with:
-    # type: float
-    # low: 0.01
-    # high: 0.99
-  criterion:
-    type: categorical
-    categories: [squared_error, absolute_error, friedman_mse, poisson]
+    low: 50
+    high: 500
   max_depth:
     type: int
     low: 2
     high: 30
-    allow_none: true
   min_samples_split:
     type: int
     low: 2
-    high: 100
+    high: 50
   min_samples_leaf:
     type: int
     low: 1
     high: 50
-  max_samples_leaf:
-    type: int
-    low: 1
-    high: 1000
-    allow_none: true
-  min_weight_fraction_leaf:
-    type: float
-    low: 0.0
-    high: 0.5
   max_features:
     type: float
     low: 0.1
     high: 1.0
-  max_leaf_nodes:
-    type: int
-    low: 10
-    high: 250
-    allow_none: true
-  min_impurity_decrease:
-    type: float
-    low: 0.0
-    high: 1.0
-  bootstrap:
-    type: categorical
-    categories: [true, false]
   max_samples:
-    # If bootstrap=True: int or float in (0,1]
     type: float
-    low: 0.1
+    low: 0.5
     high: 1.0

@@ -18,10 +18,8 @@ import os
 from time import time
 from typing import Any, Callable
 
-import matplotlib.pyplot as plt
 import numpy as np
 import optuna
-import seaborn as sns
 from loguru import logger
 from optuna.samplers import TPESampler
 from sklearn.datasets import make_friedman1, make_friedman2, make_friedman3, make_regression
@@ -351,160 +349,6 @@ def save_results(results: dict[str, Any], filepath: str = "benchmarks/results/ef
 
 
 # =============================================================================
-# Plotting
-# =============================================================================
-
-
-def setup_plot_style():
-    """Set up publication-quality plot style."""
-    from benchmarks.utils.style import apply_paper_style
-
-    apply_paper_style()
-
-
-def plot_metric_vs_n_trees(
-    results: dict[str, Any],
-    metric: str,
-    save_dir: str = "benchmarks/plots/effect_n_trees",
-):
-    """Create 2x2 plot showing metric vs n_trees for all datasets."""
-    setup_plot_style()
-
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    axes = axes.flatten()
-
-    datasets = list(results["experiments"].keys())
-    colors = sns.color_palette("husl", len(datasets))
-
-    for ax, (dataset, color) in zip(axes, zip(datasets, colors)):
-        dataset_results = results["experiments"][dataset]
-        n_trees_grid = dataset_results["n_trees_grid"]
-
-        means = []
-        stds = []
-
-        for n_trees in n_trees_grid:
-            agg_metrics = dataset_results["n_trees_results"][n_trees]["aggregated_metrics"]
-            means.append(agg_metrics[metric]["mean"])
-            stds.append(agg_metrics[metric]["std"])
-
-        means = np.array(means)
-        stds = np.array(stds)
-
-        # Plot with error bars
-        ax.errorbar(
-            n_trees_grid,
-            means,
-            yerr=stds,
-            fmt="o-",
-            color=color,
-            linewidth=2,
-            markersize=6,
-            capsize=4,
-            label=dataset,
-        )
-
-        # Fill between for visual clarity
-        ax.fill_between(n_trees_grid, means - stds, means + stds, alpha=0.2, color=color)
-
-        ax.set_xlabel("Number of Trees")
-        ax.set_ylabel(metric.upper())
-        ax.set_title(f"{dataset}")
-        ax.set_xscale("log")
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-
-    plt.suptitle(f"Effect of Number of Trees on {metric.upper()}", fontsize=14, y=1.00)
-    plt.tight_layout()
-
-    os.makedirs(save_dir, exist_ok=True)
-    save_path = os.path.join(save_dir, f"{metric}_vs_n_trees.png")
-    plt.savefig(save_path)
-    logger.info(f"Saved plot to {save_path}")
-    plt.close()
-
-
-def plot_fit_time_vs_n_trees(
-    results: dict[str, Any],
-    save_dir: str = "benchmarks/plots/effect_n_trees",
-):
-    """Create 2x2 plot showing fit time vs n_trees for all datasets."""
-    setup_plot_style()
-
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    axes = axes.flatten()
-
-    datasets = list(results["experiments"].keys())
-    colors = sns.color_palette("husl", len(datasets))
-
-    for ax, (dataset, color) in zip(axes, zip(datasets, colors)):
-        dataset_results = results["experiments"][dataset]
-        n_trees_grid = dataset_results["n_trees_grid"]
-
-        mean_times = []
-        std_times = []
-
-        for n_trees in n_trees_grid:
-            n_trees_result = dataset_results["n_trees_results"][n_trees]
-            mean_times.append(n_trees_result["mean_fit_time"])
-            std_times.append(n_trees_result["std_fit_time"])
-
-        mean_times = np.array(mean_times)
-        std_times = np.array(std_times)
-
-        # Plot with error bars
-        ax.errorbar(
-            n_trees_grid,
-            mean_times,
-            yerr=std_times,
-            fmt="s-",
-            color=color,
-            linewidth=2,
-            markersize=6,
-            capsize=4,
-            label=dataset,
-        )
-
-        ax.fill_between(n_trees_grid, mean_times - std_times, mean_times + std_times, alpha=0.2, color=color)
-
-        ax.set_xlabel("Number of Trees")
-        ax.set_ylabel("Fit Time (seconds)")
-        ax.set_title(f"{dataset}")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-
-    plt.suptitle("Computational Cost: Fit Time vs Number of Trees", fontsize=14, y=1.00)
-    plt.tight_layout()
-
-    os.makedirs(save_dir, exist_ok=True)
-    save_path = os.path.join(save_dir, "fit_time_vs_n_trees.png")
-    plt.savefig(save_path)
-    logger.info(f"Saved plot to {save_path}")
-    plt.close()
-
-
-def generate_all_plots(results: dict[str, Any]):
-    """Generate all plots."""
-    logger.info("📊 Generating plots...")
-
-    # Plot for each metric
-    all_metrics = POINT_METRICS + PROB_METRICS
-    # Add coverage metrics
-    coverage_metrics = [f"coverage_{int(level * 100)}" for level in COVERAGE_LEVELS]
-    all_metrics = all_metrics + coverage_metrics
-
-    for metric in all_metrics:
-        plot_metric_vs_n_trees(results, metric)
-
-    # Fit time plot
-    plot_fit_time_vs_n_trees(results)
-
-    logger.success("✅ All plots generated")
-
-
-# =============================================================================
 # Main
 # =============================================================================
 
@@ -549,9 +393,6 @@ def main():
         pbar.update(1)
 
     pbar.close()
-
-    # Generate plots
-    generate_all_plots(results)
 
     # Final save
     save_results(results)

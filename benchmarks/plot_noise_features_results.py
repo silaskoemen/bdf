@@ -12,6 +12,10 @@ Generates:
 Usage:
     pixi run noise-output
     # or: PYTHONPATH=src python -m benchmarks.plot_noise_features_results
+
+Tagged runs (from different pixi environments) are merged automatically: any
+file matching effect_noise_features*.json in RESULTS_DIR is loaded and their
+model-level data is combined per experiment key.
 """
 
 import json
@@ -48,10 +52,44 @@ DATASET_DISPLAY_NAMES = {
 # =============================================================================
 
 
-def load_results(filepath: Path = RESULTS_DIR / "effect_noise_features.json") -> dict:
-    """Load experiment results from JSON."""
-    with open(filepath) as f:
-        return json.load(f)
+def load_results(results_dir: Path = RESULTS_DIR) -> dict:
+    """Load and merge all tagged result files from results_dir.
+
+    Any file matching ``effect_noise_features*.json`` is loaded.  Model-level
+    data is merged per experiment key so that runs from different pixi
+    environments (e.g. BDF env and bench-models env) are combined into a
+    single view without either overwriting the other.
+    """
+    files = sorted(results_dir.glob("effect_noise_features*.json"))
+    if not files:
+        raise FileNotFoundError(f"No effect_noise_features*.json found in {results_dir}")
+
+    merged: dict = {}
+    for filepath in files:
+        logger.info(f"Loading {filepath}")
+        with open(filepath) as f:
+            data = json.load(f)
+
+        if not merged:
+            merged = data
+            continue
+
+        # Merge config.models list (preserve order, deduplicate)
+        existing_models: list[str] = merged.get("config", {}).get("models", [])
+        new_models: list[str] = data.get("config", {}).get("models", [])
+        merged["config"]["models"] = list(dict.fromkeys(existing_models + new_models))
+
+        # Merge experiments: for each key, merge the models sub-dict
+        for exp_key, exp_data in data.get("experiments", {}).items():
+            if exp_key not in merged["experiments"]:
+                merged["experiments"][exp_key] = exp_data
+            elif "error" not in exp_data and "models" in exp_data:
+                existing_exp = merged["experiments"][exp_key]
+                if "models" not in existing_exp:
+                    existing_exp["models"] = {}
+                existing_exp["models"].update(exp_data["models"])
+
+    return merged
 
 
 def results_to_dataframe(results: dict) -> pd.DataFrame:
@@ -75,6 +113,9 @@ def results_to_dataframe(results: dict) -> pd.DataFrame:
             row = {
                 "dataset": dataset,
                 "n_noise": n_noise,
+                "n_informative_features": exp_data.get("n_informative_features", 0),
+                "n_base_features": exp_data.get("n_base_features", 0),
+                "n_total_features": exp_data.get("n_total_features", 0),
                 "model": model_name,
                 "mean_fit_time": model_data["mean_fit_time"],
                 "mean_tuning_time": model_data["tuning_time"],
@@ -153,7 +194,6 @@ def plot_crps_degradation(
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=min(len(models), 5), bbox_to_anchor=(0.5, -0.02))
 
-    fig.suptitle("CRPS Degradation with Increasing Noise Features", fontsize=12, y=1.01)
     fig.tight_layout()
 
     if save_path:
@@ -227,7 +267,6 @@ def plot_crps_relative_degradation(
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=min(len(models), 5), bbox_to_anchor=(0.5, -0.02))
 
-    fig.suptitle("Relative CRPS Degradation (Normalized to Zero-Noise Baseline)", fontsize=12, y=1.01)
     fig.tight_layout()
 
     if save_path:
@@ -274,6 +313,45 @@ def plot_feature_selection_rates(
         ax_noise = axes[row_idx, 1]
         ds_df = feature_df[feature_df["dataset"] == dataset]
 
+        # Random-guessing reference lines: rate ∝ count / total for each noise level
+        # Use metadata from any model row for this dataset (all rows share the same values)
+        ref_df = ds_df.sort_values("n_noise").drop_duplicates("n_noise")
+        if not ref_df.empty and "n_total_features" in ref_df.columns and ref_df["n_total_features"].max() > 0:
+            ref_noise_counts = ref_df["n_noise"].values
+            n_informative_vals = ref_df["n_informative_features"].values
+            n_total_vals = ref_df["n_total_features"].values
+            # Avoid division by zero when n_total=0
+            valid = n_total_vals > 0
+            if valid.any():
+                random_info_rate = np.where(valid, n_informative_vals / n_total_vals, np.nan)
+                random_noise_rate = np.where(
+                    valid & (ref_noise_counts > 0),
+                    ref_noise_counts / n_total_vals,
+                    np.nan,
+                )
+                ax_info.plot(
+                    ref_noise_counts[valid],
+                    random_info_rate[valid],
+                    color="gray",
+                    linestyle="--",
+                    linewidth=1.0,
+                    alpha=0.7,
+                    label="Random guessing",
+                    zorder=1,
+                )
+                noise_valid = valid & (ref_noise_counts > 0)
+                if noise_valid.any():
+                    ax_noise.plot(
+                        ref_noise_counts[noise_valid],
+                        random_noise_rate[noise_valid],
+                        color="gray",
+                        linestyle="--",
+                        linewidth=1.0,
+                        alpha=0.7,
+                        label="Random guessing",
+                        zorder=1,
+                    )
+
         for model in models:
             model_df = ds_df[ds_df["model"] == model].sort_values("n_noise")
             if model_df.empty:
@@ -310,7 +388,6 @@ def plot_feature_selection_rates(
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=len(models), bbox_to_anchor=(0.5, -0.02))
 
-    fig.suptitle("Feature Selection Rates", fontsize=12, y=1.01)
     fig.tight_layout()
 
     if save_path:
@@ -428,7 +505,6 @@ def plot_per_feature_split_counts(
                 ax.set_ylabel(DATASET_DISPLAY_NAMES.get(dataset, dataset), fontsize=9)
             ax.tick_params(axis="x", labelsize=6)
 
-    fig.suptitle(f"Per-Feature Split Counts ($d_{{\\mathrm{{noise}}}}={noise_level}$)", fontsize=12, y=1.01)
     fig.tight_layout()
 
     if save_path:
@@ -506,7 +582,6 @@ def plot_coverage_degradation(
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=min(len(models) + 1, 6), bbox_to_anchor=(0.5, -0.02))
 
-    fig.suptitle(f"{coverage_level}% Prediction Interval Coverage vs. Noise Features", fontsize=12, y=1.01)
     fig.tight_layout()
 
     if save_path:
@@ -569,7 +644,6 @@ def plot_fit_time_scaling(
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=min(len(models), 5), bbox_to_anchor=(0.5, -0.02))
 
-    fig.suptitle("Fit Time Scaling with Noise Features", fontsize=12, y=1.01)
     fig.tight_layout()
 
     if save_path:

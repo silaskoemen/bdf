@@ -2,12 +2,15 @@
 \centering
 \caption{Empirical scaling exponents and overhead ratios (BDF vs.\ Random Forest).}
 \label{tab:complexity}
-\begin{tabular}{lcccc}
+\begin{tabular}{llcccc}
 \toprule
-Model & $n$ scaling & $d$ scaling & $T$ scaling & Overhead \\
+Phase & Model & $n$ scaling & $d$ scaling & $T$ scaling & Overhead \\
 \midrule
-BDF & $\mathcal{O}(n^{1.01})$ & $\mathcal{O}(d^{0.54})$ & $\mathcal{O}(T^{0.98})$ & $2.0\times$ \\
-Random Forest & $\mathcal{O}(n^{0.94})$ & $\mathcal{O}(d^{0.98})$ & $\mathcal{O}(T^{0.90})$ & $1\times$ (baseline) \\
+Fit & BDF & $\mathcal{O}(n^{0.87})$ & $\mathcal{O}(d^{0.62})$ & $\mathcal{O}(T^{0.95})$ & $1.6\times$ \\
+ & Random Forest & $\mathcal{O}(n^{0.97})$ & $\mathcal{O}(d^{0.98})$ & $\mathcal{O}(T^{1.00})$ & $1\times$ \\
+\midrule
+Predict & BDF & $\mathcal{O}(n^{1.09})$ & $\mathcal{O}(d^{0.28})$ & $\mathcal{O}(T^{0.99})$ & $7.6\times$ \\
+ & Random Forest & $\mathcal{O}(n^{0.68})$ & $\mathcal{O}(d^{0.01})$ & $\mathcal{O}(T^{0.94})$ & $1\times$ \\
 \bottomrule
 \end{tabular}
 \end{table}

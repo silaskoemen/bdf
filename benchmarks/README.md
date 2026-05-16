@@ -218,7 +218,6 @@ benchmarks/
 ├── label_noise_clas.py
 ├── performance.py
 ├── synthetic_data.py
-├── load_save_datasets.py
 ├── make_bdf_reg.py
 ├── compare_synthetic_results.py
 ├── compare_ood_results.py
@@ -239,7 +238,7 @@ This avoids data leakage while giving honest uncertainty estimates.
 
 ### Result Formats
 
-- **Main benchmarks**: YAML files in `results/custom/` (one per model), loaded by `calc_plot_*_metrics.py`
+- **Main benchmarks**: YAML files in `results/regression/` and `results/classification/` (one per model), loaded by `calc_plot_*_metrics.py`
 - **Study-specific**: JSON files in `results/{study_name}/`, each study also generates an auto-report (markdown)
 - **Plots**: PNG at 300 DPI in `plots/{study_name}/`
 - **Tables**: LaTeX files in `tables/{study_name}/`

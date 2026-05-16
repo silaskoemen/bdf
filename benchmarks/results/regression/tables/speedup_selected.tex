@@ -1,0 +1,21 @@
+\begin{table}[htbp]
+\centering
+\caption{Geometric mean speedup of BDF (best distribution per dataset) relative to baselines}
+\label{tab:speedup-selected}
+\begin{tabular}{lcccc}
+\toprule
+Model & Fit Speedup & $N$ & Tune Speedup & $N$ \\
+\midrule
+BART & 12.4$\times$ & 10 & 9.07$\times$ & 10 \\
+GaussianDE & 2.16$\times$ & 10 & 1.89$\times$ & 10 \\
+BDF (Normal) & 0.85$\times$ & 10 & 0.55$\times$ & 10 \\
+CatBoostUnc & 0.51$\times$ & 10 & 2.27$\times$ & 10 \\
+NGBoost & 0.36$\times$ & 10 & 0.29$\times$ & 10 \\
+ConfLGBM & 0.24$\times$ & 10 & 0.20$\times$ & 10 \\
+ConfRF & 0.14$\times$ & 10 & 0.23$\times$ & 10 \\
+BayesRidge & 5.3e-04$\times$ & 10 & 4.7e-03$\times$ & 10 \\
+KNNKDE & 1.9e-04$\times$ & 10 & 0.01$\times$ & 10 \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize{Geometric mean of per-dataset time ratios (model / BDF). Values $>1$: \mbox{BDF} is faster. $N$ = number of shared datasets.}}
+\end{table}

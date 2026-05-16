@@ -15,7 +15,12 @@ from typing import Optional
 
 from loguru import logger
 
-from benchmarks.utils.synthetic_plotting import create_synthetic_benchmark_summary, order_models
+from benchmarks.utils.synthetic_plotting import (
+    create_synthetic_benchmark_summary,
+    order_models,
+    plot_conditional_calibration_by_uncertainty,
+    plot_spread_skill,
+)
 
 # Configuration
 RESULTS_DIR = Path("benchmarks/results/synthetic_dgp")
@@ -161,6 +166,48 @@ def compute_crpss(all_results: dict) -> dict:
     return all_results
 
 
+def generate_per_dgp_plots(all_results: dict, plots_dir: Path) -> None:
+    """Generate combined spread-skill and conditional-calibration plots per DGP.
+
+    Mirrors the conformalization study's per-DGP comparison. The aggregated
+    metric keys from `synthetic_dgp_benchmark.py` already match the plotter
+    signatures, so we pass them through directly.
+    """
+    for dgp_name, dgp_data in all_results.items():
+        dgp_dir = plots_dir / "summary" / dgp_name
+        dgp_dir.mkdir(parents=True, exist_ok=True)
+
+        spread_by_model: dict = {}
+        cond_cal_by_model: dict = {}
+
+        for model_name, model_data in dgp_data.get("models", {}).items():
+            agg = model_data.get("aggregated_metrics", {})
+
+            if "spread_skill_pred_std" in agg and "spread_skill_rmse" in agg:
+                spread_by_model[model_name] = {
+                    "spread_skill_pred_std": agg["spread_skill_pred_std"],
+                    "spread_skill_rmse": agg["spread_skill_rmse"],
+                    "spread_skill_true_std": agg.get("spread_skill_true_std", {"mean": []}),
+                }
+
+            if "cond_cal_cov_90" in agg:
+                cond_cal_by_model[model_name] = {
+                    "cond_cal_cov_90": agg["cond_cal_cov_90"],
+                }
+
+        if spread_by_model:
+            plot_spread_skill(
+                results_by_model=spread_by_model,
+                save_path=dgp_dir / "spread_skill_all_models.pdf",
+            )
+
+        if cond_cal_by_model:
+            plot_conditional_calibration_by_uncertainty(
+                results_by_model=cond_cal_by_model,
+                save_path=dgp_dir / "cond_calibration_all_models.pdf",
+            )
+
+
 def generate_comparison_plots():
     """Generate cross-DGP comparison plots and tables.
 
@@ -211,6 +258,9 @@ def generate_comparison_plots():
         models=models,
         output_dir=summary_dir,
     )
+
+    # Combined per-DGP plots: spread-skill + conditional calibration by uncertainty decile
+    generate_per_dgp_plots(all_results, PLOTS_DIR)
 
     logger.info(f"  Saved comparison plots and tables to {summary_dir}")
 

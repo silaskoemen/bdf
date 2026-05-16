@@ -22,6 +22,7 @@ from .wrappers import (  # BARTRegressor,
     LGBMQuantileRegressorWrapper,
     NGBClassifierWrapper,
     NGBRegressorWrapper,
+    PyMCBARTRegressorWrapper,
     QuantileForestWrapper,
     TreeffuserWrapper,
 )
@@ -73,6 +74,8 @@ class ModelFactory:
                 return QuantileForestWrapper
             case "BARTPyRegressor":
                 return BARTPyRegressorWrapper
+            case "PyMCBARTRegressor":
+                return PyMCBARTRegressorWrapper
             case "Treeffuser":
                 return TreeffuserWrapper
             case "KNNKDE":

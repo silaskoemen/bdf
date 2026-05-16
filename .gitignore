@@ -21,6 +21,7 @@ target/
 
 multirun/
 .storage/
+plans/
 
 .ruff_cache/
 

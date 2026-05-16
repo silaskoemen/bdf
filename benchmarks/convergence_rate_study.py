@@ -503,7 +503,6 @@ def plot_convergence_grid(
 
         row_idx += 1
 
-    fig.suptitle(f"Convergence Rates (d={dimensionality})", fontsize=14, y=1.01)
     plt.tight_layout()
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -561,8 +560,7 @@ def plot_rate_comparison_bar(all_results: dict[str, Any], save_path: str):
         )
 
     ax.set_xlabel("Function smoothness class")
-    ax.set_ylabel("Convergence rate (-slope in log-log)")
-    ax.set_title("Convergence Rates by Smoothness Class")
+    ax.set_ylabel("Convergence rate ($-$slope in log-log)")
     ax.set_xticks(x + width)
     ax.set_xticklabels([sc_labels[sc] for sc in sc_order])
     ax.legend()
@@ -631,6 +629,96 @@ def generate_report(all_results: dict[str, Any], filepath: str):
     with open(filepath, "w") as f:
         f.write("\n".join(lines))
     logger.info(f"Report saved to {filepath}")
+
+
+# =============================================================================
+# LaTeX Table
+# =============================================================================
+
+
+def generate_convergence_latex_table(all_results: dict[str, Any], save_path: str) -> str:
+    """Generate LaTeX table of convergence rate exponents.
+
+    Rows = DGPs grouped by smoothness class, columns = BDF rate, RF rate, difference.
+    """
+    lines = [
+        "\\begin{table}[htbp]",
+        "\\centering",
+        "\\caption{Convergence rate exponents (slope in $\\log$ MSE vs $\\log n$).}",
+        "\\label{tab:convergence-rates}",
+        "\\begin{tabular}{llcccc}",
+        "\\toprule",
+        "DGP & $d$ & BDF rate & RF rate & $\\Delta$ (BDF$-$RF) & BDF $R^2$ \\\\",
+        "\\midrule",
+    ]
+
+    # Group by smoothness class
+    sc_order = ["smooth", "non_smooth", "mixed"]
+    sc_labels = {"smooth": "Smooth", "non_smooth": "Non-smooth", "mixed": "Mixed"}
+
+    grouped: dict[str, list[tuple[str, dict]]] = {sc: [] for sc in sc_order}
+    for dgp_name, dgp_data in sorted(all_results["dgps"].items()):
+        sc = dgp_data["smoothness_class"]
+        if sc in grouped:
+            grouped[sc].append((dgp_name, dgp_data))
+
+    for sc in sc_order:
+        if not grouped[sc]:
+            continue
+        lines.append(f"\\multicolumn{{6}}{{l}}{{\\textit{{{sc_labels[sc]}}}}} \\\\")
+
+        for dgp_name, dgp_data in grouped[sc]:
+            d = dgp_data["dimensionality"]
+            desc = dgp_data["description"]
+
+            bdf_rate = dgp_data["models"].get("BDF", {}).get("rate", {})
+            rf_rate = dgp_data["models"].get("RandomForest", {}).get("rate", {})
+
+            bdf_slope = bdf_rate.get("slope", float("nan"))
+            rf_slope = rf_rate.get("slope", float("nan"))
+            bdf_r2 = bdf_rate.get("r_squared", float("nan"))
+
+            bdf_str = f"{bdf_slope:.3f}" if np.isfinite(bdf_slope) else "---"
+            rf_str = f"{rf_slope:.3f}" if np.isfinite(rf_slope) else "---"
+            bdf_r2_str = f"{bdf_r2:.2f}" if np.isfinite(bdf_r2) else "---"
+
+            if np.isfinite(bdf_slope) and np.isfinite(rf_slope):
+                delta = bdf_slope - rf_slope
+                # Bold if BDF converges faster (more negative slope)
+                delta_str = f"{delta:.3f}"
+                if delta < -0.05:
+                    delta_str = f"\\textbf{{{delta_str}}}"
+            else:
+                delta_str = "---"
+
+            # Clean DGP name for display
+            display_name = desc.split("(")[0].strip()
+            lines.append(f"  {display_name} & {d} & {bdf_str} & {rf_str} & {delta_str} & {bdf_r2_str} \\\\")
+
+        lines.append("\\midrule")
+
+    # Remove trailing midrule, replace with bottomrule
+    if lines[-1] == "\\midrule":
+        lines[-1] = "\\bottomrule"
+
+    lines.extend(
+        [
+            "\\end{tabular}",
+            "\\par\\smallskip\\footnotesize{Rate = slope in $\\log(\\text{MSE})$ vs $\\log(n)$; "
+            "more negative = faster convergence. Bold $\\Delta$ where BDF converges faster by $>$0.05. "
+            f"Averaged over {len(all_results['metadata']['seeds'])} seeds.}}",
+            "\\end{table}",
+        ]
+    )
+
+    table_str = "\n".join(lines)
+
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    with open(save_path, "w") as f:
+        f.write(table_str)
+    logger.info(f"Saved LaTeX table to {save_path}")
+
+    return table_str
 
 
 # =============================================================================
@@ -724,15 +812,18 @@ def main():
             dgp_name,
             dgp_data["description"],
             dgp_data["models"],
-            f"{PLOTS_DIR}/individual/{dgp_name}.png",
+            f"{PLOTS_DIR}/individual/{dgp_name}.pdf",
         )
 
     # Grid plots per dimensionality
     for d in DIMENSIONALITIES:
-        plot_convergence_grid(all_results, d, f"{PLOTS_DIR}/grid_d{d}.png")
+        plot_convergence_grid(all_results, d, f"{PLOTS_DIR}/grid_d{d}.pdf")
 
     # Bar chart comparison
-    plot_rate_comparison_bar(all_results, f"{PLOTS_DIR}/rate_comparison.png")
+    plot_rate_comparison_bar(all_results, f"{PLOTS_DIR}/rate_comparison.pdf")
+
+    # LaTeX table
+    generate_convergence_latex_table(all_results, f"{PLOTS_DIR}/convergence_rates_table.tex")
 
     # Generate report
     generate_report(all_results, f"{RESULTS_DIR}/CONVERGENCE_RATES.md")

@@ -120,23 +120,30 @@ class KDEParams(BDFDistributionParams):
         return self
 
 
-class BayesianKDEParams(KDEParams):
-    """Parameters for Bayesian KDE with prior on bandwidth.
+class PseudoHKDEParams(KDEParams):
+    """Parameters for pseudo-Bayesian KDE with prior on bandwidth.
 
-    Extends KDE with pseudo-Bayesian bandwidth estimation:
-    posterior_h = (m_h * prior_h + n * data_h) / (m_h + n)
+    Posterior bandwidth is a log-space weighted mean of prior and leaf bandwidth:
+    log(h_post) = (m_h * log(prior_h) + n * log(h_leaf)) / (m_h + n)
+
+    Pass ``prior_h="auto"`` to set the prior to the global training bandwidth
+    (Scott/Silverman applied to all training targets), providing data-adaptive
+    shrinkage toward the global scale.
     """
 
     prior_h: float = Field(
         default=1.0,
         gt=0,
-        description="Prior bandwidth for pseudo-Bayesian estimation.",
+        description="Prior bandwidth. Pass 'auto' to use global training bandwidth.",
     )
     m_h: float = Field(
         default=1.0,
         gt=0,
         description="Prior weight for bandwidth (pseudo sample size).",
     )
+
+
+BayesianKDEParams = PseudoHKDEParams
 
 
 # ============================================================================
@@ -598,22 +605,52 @@ class KDE(BDFDistribution[K]):
         return samples.reshape(shape)
 
 
-class BayesianKDE(KDE[BayesianKDEParams]):
-    """Bayesian KDE with prior on bandwidth.
+class PseudoHKDE(KDE[PseudoHKDEParams]):
+    """Pseudo-Bayesian KDE with a prior on bandwidth, blended in log space.
 
-    **String Alias:** ``'bayesian_kde'``
+    **String Alias:** ``'PseudoHKDE'``
 
-    Posterior bandwidth is weighted average of prior and data-based estimate:
-    h_posterior = (m_h * h_prior + n * h_data) / (m_h + n)
+    Posterior bandwidth is a log-space weighted mean of prior and leaf estimate::
+
+        log(h_post) = (m_h * log(prior_h) + n * log(h_leaf)) / (m_h + n)
+
+    Working in log space is natural for scale parameters: it corresponds to a
+    geometric mean and gives multiplicative shrinkage.
+
+    Pass ``prior_h="auto"`` to resolve the prior to the global training bandwidth
+    (computed with the same Scott/Silverman rule as the leaf), so small leaves
+    shrink toward the global scale while large leaves trust their local estimate.
     """
 
-    params_cls: ClassVar[type[BDFDistributionParams]] = BayesianKDEParams
+    params_cls: ClassVar[type[BDFDistributionParams]] = PseudoHKDEParams
 
-    def __init__(self, params: BayesianKDEParams):
+    def __init__(self, params: PseudoHKDEParams):
         super().__init__(params)
 
+    @classmethod
+    def resolve_auto_params(cls, key: str, data: np.ndarray, params: dict | None = None) -> Any:
+        if key == "prior_h":
+            data = np.asarray(data, dtype=float).ravel()
+            bw_method = (params or {}).get("bandwidth", "scott")
+            min_bw = float((params or {}).get("min_bandwidth", 1e-6))
+            n = data.size
+            std = float(np.std(data, ddof=1))
+            if bw_method == "silverman":
+                iqr = float(np.subtract(*np.percentile(data, [75, 25])))
+                scale = min(std, iqr / 1.349) if iqr > 0 else std
+                if scale <= 0:
+                    scale = std
+                return max(min_bw, 0.9 * scale * n ** (-0.2))
+            elif isinstance(bw_method, (int, float)):
+                return max(min_bw, float(bw_method))
+            else:  # scott
+                return max(min_bw, std * n ** (-0.2))
+        raise NotImplementedError(f"PseudoHKDE does not implement auto-parameter resolution for '{key}'")
+
     def calc_posterior_params(self, data: np.ndarray) -> dict[str, float | np.ndarray]:
-        """Calculate posterior bandwidth using pseudo-Bayesian weighting."""
+        """Calculate posterior bandwidth via log-space shrinkage toward prior."""
+        import math
+
         data = np.asarray(data, dtype=float).ravel()
         n = data.size
 
@@ -624,8 +661,8 @@ class BayesianKDE(KDE[BayesianKDEParams]):
         prior_h = self.params.prior_h
         m_h = self.params.m_h
 
-        posterior_h = (m_h * prior_h + n * data_h) / (m_h + n)
-        posterior_h = max(posterior_h, self.params.min_bandwidth)
+        log_posterior_h = (m_h * math.log(prior_h) + n * math.log(data_h)) / (m_h + n)
+        posterior_h = max(math.exp(log_posterior_h), self.params.min_bandwidth)
 
         return {
             "data": data.copy(),
@@ -633,3 +670,6 @@ class BayesianKDE(KDE[BayesianKDEParams]):
             "data_bandwidth": float(data_h),
             "n": n,
         }
+
+
+BayesianKDE = PseudoHKDE

@@ -48,4 +48,6 @@ line-length = 120
 include = ["src/**/*.py", "compiled/**/*.py", "benchmarks/**/*.py", "tests/**/*.py"]
 exclude = ["examples", ".git", "__pycache__", "*.pyc", "venv*"]
 target-version = "py311"
+
+[tool.ruff.lint]
 ignore = ["E501", "E402"]

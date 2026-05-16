@@ -1,0 +1,13 @@
+\begin{table}
+\caption{Classification core results: recommendation}
+\label{tab:classification_core_recommendation}
+\begin{tabular}{lll}
+\toprule
+Regime & Recommendation & Rationale \\
+\midrule
+$n < 500$, conjugate distribution & NLE & Marginal likelihood regularises splits; NLL overfits at small $n$ \\
+$n \geq 500$, conjugate distribution & NLL + BIC & Cheaper per split; asymptotically equivalent to NLE \\
+Non-conjugate (KDE / SkewNormal) & LOO-CV & NLE unavailable; plug-in NLL overfits bandwidth; see future work \\
+\bottomrule
+\end{tabular}
+\end{table}

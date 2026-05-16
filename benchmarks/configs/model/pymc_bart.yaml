@@ -1,0 +1,33 @@
+# PyMC-BART regression model config (replaces the broken bartpy wrapper).
+
+name: pymc_bart
+target_type: regression
+class_name: PyMCBARTRegressor
+probabilistic: true
+
+compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+
+fixed_init_kwargs:
+  random_state: 1234
+  # PGBART is efficient; these draws/tune counts give stable posteriors while
+  # keeping runtime manageable. Tuning MCMC length is not meaningful here.
+  n_draws: 500
+  n_tune: 500
+  chains: 1
+  cores: 1
+
+tunable_init_kwargs:
+  n_trees:
+    type: int
+    low: 20
+    high: 200
+  # Depth prior: P(split at depth d) = alpha * (1 + d)^(-beta).
+  # Chipman et al. defaults are alpha=0.95, beta=2.0; we tune around them.
+  alpha:
+    type: float
+    low: 0.5
+    high: 0.99
+  beta:
+    type: float
+    low: 1.0
+    high: 4.0

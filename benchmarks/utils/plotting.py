@@ -290,7 +290,7 @@ def plot_auroc_and_ece(
     if not required.issubset(available):
         raise ValueError("Input must contain 'model' and 'dataset' columns")
 
-    metric_info = [("auroc", "AUROC"), ("ece", "ECE")]
+    metric_info = [("auroc", "AUROC"), ("auprc", "AUPRC"), ("ece", "ECE")]
 
     # Optional filtering (Polars)
     if models is not None:
@@ -319,7 +319,7 @@ def plot_auroc_and_ece(
     rng = np.random.default_rng(12345)  # deterministic jitter
 
     # Prepare figure
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5), dpi=300, sharey=False)
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5), dpi=300, sharey=False)
 
     for ax, (metric_col, title) in zip(axes, metric_info):
         if metric_col not in df.columns:

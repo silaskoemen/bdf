@@ -21,11 +21,11 @@ import numpy as np
 # =============================================================================
 
 # Directory containing YAML result files
-RESULTS_DIR = Path("benchmarks/results/custom")
+RESULTS_DIR = Path("benchmarks/results/classification")
 
 # Output directories
 PLOTS_DIR = Path("benchmarks/plots/classification")
-TABLES_DIR = Path("benchmarks/results/custom/tables_classification")
+TABLES_DIR = Path("benchmarks/results/classification/tables")
 
 # Plot format: "pdf" for vector (best for LaTeX), "png" for raster, or "both"
 PLOT_FORMAT = "pdf"
@@ -48,15 +48,25 @@ BASELINE_MODELS = [
 # Model display names and colors from shared style
 from benchmarks.utils.style import MODEL_COLORS, MODEL_DISPLAY_NAMES
 
-# Datasets (will be expanded as more are added)
+# Datasets are discovered at runtime from data/processed/*.meta.json (task=classification).
+# Explicit list preserved for reproducibility / deterministic ordering.
 DATASETS = [
+    "ionosphere",
     "breast_cancer_wisconsin",
-    "boston_housing_classification",
+    "credit_approval",
+    "heart_disease",
+    "pima_diabetes",
     "titanic",
+    "german_credit",
+    "aids_ctg_175",
+    "spambase",
+    "default_credit_card",
+    "bank_marketing",
+    "adult_income",
 ]
 
 # Metrics
-POINT_METRICS = ["accuracy", "f1", "auroc"]
+POINT_METRICS = ["accuracy", "f1", "auroc", "auprc"]
 PROB_METRICS = ["log_loss", "brier", "ece"]
 
 # Metric display names
@@ -64,7 +74,9 @@ METRIC_DISPLAY = {
     "accuracy": "Accuracy",
     "f1": "F1",
     "auroc": "AUROC",
+    "auprc": "AUPRC",
     "log_loss": "Log Loss",
+    "bss": "BSS",
     "brier": "Brier",
     "ece": "ECE",
 }
@@ -74,9 +86,11 @@ LOWER_IS_BETTER = {
     "accuracy": False,
     "f1": False,
     "auroc": False,
+    "auprc": False,
     "log_loss": True,
     "brier": True,
     "ece": True,
+    "bss": False,  # Higher Brier Skill Score is better
 }
 
 
@@ -195,15 +209,19 @@ def save_plot(fig_func, base_path: Path, **kwargs):
 def main():
     """Run complete classification benchmark analysis."""
 
+    import polars as pl
+
     from .utils.latex_tables import (
         generate_main_results_table,
         generate_per_dataset_table,
         generate_ranking_table,
+        generate_rel_to_best_table,
         generate_speedup_table,
         generate_win_tie_loss_table,
         save_latex_table,
     )
     from .utils.plotting import (
+        plot_auroc_and_ece,
         plot_critical_difference_diagram,
         plot_metric_comparison_bars,
         plot_metric_scatter,
@@ -289,12 +307,43 @@ def main():
     if len(datasets) < 3:
         print("    Warning: fewer than 3 datasets — statistical tests will have low power.")
 
+    # Compute BSS (Brier Skill Score): BSS = 1 − Brier / p(1−p)
+    # where p = class prevalence.  Brier_clim = p*(1−p) for a constant classifier.
+    from .pipeline.data import load as load_dataset
+
+    clim_brier = {}
+    for ds in datasets:
+        _, _, y = load_dataset(ds)
+        p = float(y.mean())
+        clim_brier[ds] = p * (1.0 - p)
+
+    bss_rows = []
+    for model in models:
+        for ds, clim_val in clim_brier.items():
+            row = df.filter((df["model"] == model) & (df["dataset"] == ds) & (df["metric"] == "brier"))
+            brier_mean = row.select("mean").to_series()[0]
+            brier_std = row.select("std").to_series()[0]
+            bss_rows.append(
+                {
+                    "model": model,
+                    "dataset": ds,
+                    "metric": "bss",
+                    "fold_values": [],
+                    "mean": float(1.0 - brier_mean / clim_val),
+                    "std": float(brier_std / clim_val),
+                    "n_folds": 0,
+                }
+            )
+
+    df = pl.concat([df, pl.DataFrame(bss_rows)])
+    print(f"    Computed BSS for {len(bss_rows)} model-dataset pairs")
+
     # -------------------------------------------------------------------------
     # 4. Statistical tests for key metrics
     # -------------------------------------------------------------------------
     print("\n[4] Running statistical significance tests...")
 
-    key_metrics = ["log_loss", "brier"]
+    key_metrics = ["log_loss", "brier", "bss"]
     friedman_results = {}
     nemenyi_results = {}
 
@@ -360,7 +409,10 @@ def main():
 
         for challenger, res in wilcoxon_res.items():
             sig = "*" if res.reject_null else ""
-            print(f"    BDF vs {challenger}: p = {res.p_value:.4f}{sig}, A12 = {res.a12:.3f}")
+            print(
+                f"    BDF vs {challenger}: p = {res.p_value:.4f}, "
+                f"p_adj = {res.adjusted_p_value:.4f}{sig}, A12 = {res.a12:.3f}"
+            )
 
     # -------------------------------------------------------------------------
     # 6. Win/Tie/Loss analysis
@@ -448,7 +500,7 @@ def main():
             )
 
     # 8b. Metric scatter plots
-    for metric in ["log_loss", "brier", "ece"]:
+    for metric in ["log_loss", "brier", "ece", "auroc", "auprc"]:
         metric_matrix, ds_list, model_list = get_metric_matrix(df, metric, models=models, datasets=datasets)
         if metric_matrix.size == 0:
             continue
@@ -491,7 +543,42 @@ def main():
                 model_display_names=MODEL_DISPLAY_NAMES,
             )
 
-    # 8d. Bar chart for Log Loss
+    # 8d. AUROC + AUPRC + ECE scatter (wide-format pivot required by plot_auroc_and_ece)
+    df_wide_auroc_ece = (
+        df.filter(pl.col("metric").is_in(["auroc", "auprc", "ece"]))
+        .select(["model", "dataset", "metric", "mean"])
+        .pivot(on="metric", index=["model", "dataset"], values="mean")
+    )
+    if not df_wide_auroc_ece.is_empty():
+        save_fig(
+            plot_auroc_and_ece,
+            "classification_auroc_ece",
+            df=df_wide_auroc_ece,
+            models=models,
+            datasets=datasets,
+        )
+
+    # 8e. Bar charts for AUROC and AUPRC
+    for disc_metric in ["auroc", "auprc"]:
+        disc_data = {}
+        for model in models:
+            model_df = df.filter((df["model"] == model) & (df["metric"] == disc_metric))
+            if not model_df.is_empty():
+                means = model_df.select("mean").to_series().to_list()
+                stds = model_df.select("std").to_series().to_list()
+                disc_data[model] = (np.mean(means), np.mean(stds))
+        if disc_data:
+            save_fig(
+                plot_metric_comparison_bars,
+                f"classification_{disc_metric}_comparison",
+                metric_data=disc_data,
+                metric_name=METRIC_DISPLAY.get(disc_metric, disc_metric.upper()),
+                lower_is_better=False,
+                model_colors=MODEL_COLORS,
+                model_display_names=MODEL_DISPLAY_NAMES,
+            )
+
+    # 8f. Bar chart for Log Loss
     log_loss_data = {}
     for model in models:
         model_df = df.filter((df["model"] == model) & (df["metric"] == "log_loss"))
@@ -511,7 +598,36 @@ def main():
             model_display_names=MODEL_DISPLAY_NAMES,
         )
 
-    # 8e. Reliability diagram
+    # 8g. BSS scatter and bar chart
+    bss_matrix, bss_ds_list, bss_model_list = get_metric_matrix(df, "bss", models=models, datasets=datasets)
+    save_fig(
+        plot_metric_scatter,
+        "classification_scatter_bss",
+        metric_matrix=bss_matrix,
+        models=bss_model_list,
+        datasets=bss_ds_list,
+        metric_name="BSS",
+        lower_is_better=False,
+        model_display_names=MODEL_DISPLAY_NAMES,
+    )
+    bss_bar_data = {}
+    for model in models:
+        mdf = df.filter((df["model"] == model) & (df["metric"] == "bss"))
+        bss_bar_data[model] = (
+            float(np.mean(mdf.select("mean").to_series())),
+            float(np.mean(mdf.select("std").to_series())),
+        )
+    save_fig(
+        plot_metric_comparison_bars,
+        "classification_bss_comparison",
+        metric_data=bss_bar_data,
+        metric_name="BSS",
+        lower_is_better=False,
+        model_colors=MODEL_COLORS,
+        model_display_names=MODEL_DISPLAY_NAMES,
+    )
+
+    # 8h. Reliability diagram
     calibration_data = {}
     for model_name, model_data in all_results.items():
         calibration_data[model_name] = {}
@@ -616,7 +732,7 @@ def main():
         )
         save_latex_table(wtl_table, TABLES_DIR / "classification_win_tie_loss.tex")
 
-    # Ranking table
+    # Ranking tables (Log Loss and Brier)
     if "log_loss" in friedman_results:
         ranking_table = generate_ranking_table(
             avg_ranks=friedman_results["log_loss"].avg_ranks,
@@ -626,6 +742,76 @@ def main():
             label="tab:rankings-log-loss",
         )
         save_latex_table(ranking_table, TABLES_DIR / "rankings_log_loss.tex")
+
+    if "brier" in friedman_results:
+        brier_ranking_table = generate_ranking_table(
+            avg_ranks=friedman_results["brier"].avg_ranks,
+            metric_name="Brier",
+            friedman_p=friedman_results["brier"].iman_davenport_p_value,
+            caption="Algorithm rankings by Brier Score",
+            label="tab:rankings-brier",
+        )
+        save_latex_table(brier_ranking_table, TABLES_DIR / "rankings_brier.tex")
+
+    # Relative-to-best table for Log Loss
+    ll_matrix_full, ds_list_full, model_list_full = get_metric_matrix(df, "log_loss", models=models, datasets=datasets)
+    rel_to_best_ll: dict[str, float] = {}
+    for j, model in enumerate(model_list_full):
+        ratios = []
+        for i in range(len(ds_list_full)):
+            row = ll_matrix_full[i, :]
+            if not np.isnan(ll_matrix_full[i, j]) and np.any(~np.isnan(row)):
+                best = np.nanmin(row)
+                if best > 0:
+                    ratios.append(ll_matrix_full[i, j] / best)
+        if ratios:
+            rel_to_best_ll[model] = float(np.mean(ratios))
+
+    if rel_to_best_ll:
+        rel_to_best_table = generate_rel_to_best_table(
+            rel_to_best=rel_to_best_ll,
+            metric_name="Log Loss",
+            model_display_names=MODEL_DISPLAY_NAMES,
+            caption="Average Log Loss relative to best model per dataset (lower is better; 1.0 = always best)",
+            label="tab:rel-to-best-log-loss",
+        )
+        save_latex_table(rel_to_best_table, TABLES_DIR / "rel_to_best_log_loss.tex")
+
+    # Per-dataset and ranking tables for BSS
+    bss_matrix_full, bss_ds_list, bss_model_list = get_metric_matrix(df, "bss", models=models, datasets=datasets)
+    bss_std_rows = [
+        [
+            df.filter((df["model"] == model) & (df["dataset"] == ds) & (df["metric"] == "bss"))
+            .select("std")
+            .to_series()[0]
+            for model in bss_model_list
+        ]
+        for ds in bss_ds_list
+    ]
+    save_latex_table(
+        generate_per_dataset_table(
+            models=bss_model_list,
+            datasets=bss_ds_list,
+            metric_matrix=bss_matrix_full,
+            std_matrix=np.array(bss_std_rows),
+            metric_name="BSS",
+            caption="Brier Skill Score per dataset (higher is better; baseline = train-prior classifier)",
+            label="tab:bss-per-dataset",
+            lower_is_better=False,
+        ),
+        TABLES_DIR / "bss_per_dataset.tex",
+    )
+    if "bss" in friedman_results:
+        save_latex_table(
+            generate_ranking_table(
+                avg_ranks=friedman_results["bss"].avg_ranks,
+                metric_name="BSS",
+                friedman_p=friedman_results["bss"].iman_davenport_p_value,
+                caption="Algorithm rankings by Brier Skill Score (higher is better)",
+                label="tab:rankings-bss",
+            ),
+            TABLES_DIR / "rankings_bss.tex",
+        )
 
     # Speedup table
     if speedup_data:

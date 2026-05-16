@@ -3,14 +3,15 @@ Experiment: Effect of Noise Features on Probabilistic Prediction Quality
 
 Investigates how adding pure noise features degrades the CRPS of BDF and baseline
 probabilistic models. Uses sklearn synthetic datasets (friedman1–3, make_regression)
-with fixed sample size and progressively more noise features: 0, 10, 50, 100, 500.
+with fixed sample size and progressively more noise features: 0, 10, 50, 100, 200.
 
 Also tracks feature selection behavior for BDF variants — proportion of times each
 noise feature is selected for splits.
 
-Models: BDFNormal, BDFKDE (always), ConformalRF, NGBoost, BART (bench-models env).
+Models: BDFNormal, BDFKDE (always), ConformalRF, NGBoost (bench-models env).
 """
 
+import argparse
 import json
 import os
 from time import time
@@ -39,7 +40,7 @@ N_FEATURES = 5  # Base number of informative features
 SAMPLE_SIZE = 2000
 N_POSTERIOR_SAMPLES = 1000
 
-NOISE_FEATURE_COUNTS = [0, 10, 50, 100, 500]
+NOISE_FEATURE_COUNTS = [0, 10, 50, 100, 200]
 
 # Dataset generators (return base features only)
 DATASET_GENERATORS: dict[str, Callable] = {
@@ -201,29 +202,6 @@ def get_available_models() -> dict[str, dict[str, Any]]:
     except ImportError:
         logger.info("✗ NGBoost not available (run in bench-models environment)")
 
-    try:
-        from .models.wrappers import BARTPyRegressorWrapper
-
-        available["BART"] = {
-            "class": BARTPyRegressorWrapper,
-            "fixed_init_kwargs": {},
-            "tunable_init_kwargs": {
-                "n_trees": {"type": "int", "low": 20, "high": 200},
-                "n_burn": {"type": "int", "low": 50, "high": 250},
-                "n_samples": {"type": "int", "low": 100, "high": 500},
-                "alpha": {"type": "float", "low": 0.5, "high": 0.99},
-                "beta": {"type": "float", "low": 0.5, "high": 3.0},
-            },
-            "tunable_params": {},
-            "fixed_params": {},
-            "has_params_dict": False,
-            "probabilistic": True,
-            "has_feature_selection": True,
-        }
-        logger.info("✓ BART available")
-    except ImportError:
-        logger.info("✗ BART not available (run in bench-models environment)")
-
     return available
 
 
@@ -280,21 +258,6 @@ def count_ngboost_feature_selections(model, n_features: int) -> np.ndarray:
     return counts
 
 
-def count_bart_feature_selections(model, n_features: int) -> np.ndarray:
-    """Count feature splits across all BART MCMC posterior samples and trees."""
-    counts = np.zeros(n_features, dtype=int)
-    if not hasattr(model.model_, "_model_samples"):
-        return counts
-    for model_sample in model.model_._model_samples:
-        for tree in model_sample.trees:
-            for decision_node in tree.decision_nodes:
-                if hasattr(decision_node, "split") and hasattr(decision_node.split, "splitting_variable"):
-                    feat_idx = decision_node.split.splitting_variable
-                    if feat_idx is not None and 0 <= feat_idx < n_features:
-                        counts[feat_idx] += 1
-    return counts
-
-
 def count_feature_selections(model, model_name: str, n_features: int) -> np.ndarray:
     """Dispatch feature counting to the right implementation."""
     config = MODEL_CONFIGS[model_name]
@@ -308,8 +271,6 @@ def count_feature_selections(model, model_name: str, n_features: int) -> np.ndar
             return count_confrf_feature_selections(model, n_features)
         elif model_name == "NGBoost":
             return count_ngboost_feature_selections(model, n_features)
-        elif model_name == "BART":
-            return count_bart_feature_selections(model, n_features)
     except Exception as e:
         logger.warning(f"Feature selection counting failed for {model_name}: {e}")
 
@@ -680,10 +641,18 @@ def run_experiment_for_dataset_and_noise(
     return results
 
 
-def save_results(
-    results: dict[str, Any], filepath: str = "benchmarks/results/effect_noise_features/effect_noise_features.json"
-):
-    """Save results to JSON file."""
+RESULTS_DIR = "benchmarks/results/effect_noise_features"
+
+
+def results_filepath(tag: str | None) -> str:
+    """Return output path for a given run tag (e.g. 'bdf', 'models', or None for combined)."""
+    suffix = f"_{tag}" if tag else ""
+    return f"{RESULTS_DIR}/effect_noise_features{suffix}.json"
+
+
+def save_results(results: dict[str, Any], tag: str | None = None) -> None:
+    """Save results to the tagged JSON file."""
+    filepath = results_filepath(tag)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     with open(filepath, "w") as f:
         json.dump(results, f, indent=2)
@@ -691,8 +660,33 @@ def save_results(
 
 
 def main():
-    """Main entry point."""
+    """Main entry point.
+
+    Use --tag to scope a run to a specific environment/model group and write
+    results to a separate file (e.g. effect_noise_features_bdf.json).  The
+    plot script merges all tagged files so no data is overwritten.
+
+    Examples::
+
+        # BDF environment
+        python -m benchmarks.effect_noise_features --tag bdf
+
+        # bench-models environment
+        python -m benchmarks.effect_noise_features --tag models
+    """
+    parser = argparse.ArgumentParser(description="Effect of noise features experiment")
+    parser.add_argument(
+        "--tag",
+        type=str,
+        default=None,
+        help="Output file suffix, e.g. 'bdf' → effect_noise_features_bdf.json. "
+        "Omit to write to the default (untagged) file.",
+    )
+    args, _ = parser.parse_known_args()
+    tag = args.tag
+
     logger.info("Starting Effect of Noise Features Experiment")
+    logger.info(f"Tag: {tag!r}  →  {results_filepath(tag)}")
     logger.info(f"Datasets: {list(DATASET_GENERATORS.keys())}")
     logger.info(f"Sample size: {SAMPLE_SIZE}")
     logger.info(f"Noise feature counts: {NOISE_FEATURE_COUNTS}")
@@ -730,11 +724,11 @@ def main():
                 traceback.print_exc()
                 results["experiments"][f"{dataset_name}_noise{n_noise}"] = {"error": str(e)}
 
-            save_results(results)
+            save_results(results, tag=tag)
             pbar.update(1)
 
     pbar.close()
-    save_results(results)
+    save_results(results, tag=tag)
     logger.success("Experiment complete!")
 
     return results

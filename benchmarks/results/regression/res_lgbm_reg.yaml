@@ -1,0 +1,134 @@
+datasets:
+  abalone_age:
+    best_params:
+      colsample_bytree: 0.6382321275715483
+      learning_rate: 0.027007907823707416
+      max_depth: 8
+      min_child_samples: 79
+      n_estimators: 199
+      num_leaves: 52
+      subsample: 0.6362963026413209
+    fitting_times:
+    - 0.49412083625793457
+    - 0.5054209232330322
+    - 0.502777099609375
+    - 0.5027139186859131
+    - 0.5014257431030273
+    - 0.4798581600189209
+    - 0.511016845703125
+    - 0.49082016944885254
+    - 0.5048308372497559
+    metadata:
+      n_features: 9
+      n_samples: 4177
+      name: abalone_age
+      target_domain: positive_integer
+    metrics:
+      mae:
+      - 1.4340069181324981
+      - 1.5957858106587173
+      - 1.5161976614917407
+      - 1.5000779253357557
+      - 1.3533140313347987
+      - 1.4999648653671465
+      - 1.5777221400779005
+      - 1.5447280976536524
+      - 1.5203934329411462
+      mse:
+      - 3.9682555233171817
+      - 5.131175609730483
+      - 4.324560296608452
+      - 4.86737273244096
+      - 3.270855746324883
+      - 4.5908338589862385
+      - 5.273399586221356
+      - 4.583164929927136
+      - 4.554307568186917
+      r2:
+      - 0.5488661113146487
+      - 0.5152813313769464
+      - 0.5811451735445545
+      - 0.604547254650283
+      - 0.5962236293992645
+      - 0.5740471472235141
+      - 0.5277998847297113
+      - 0.537435303728496
+      - 0.5711999298686573
+      rmse:
+      - 1.99204807254172
+      - 2.265209837902547
+      - 2.079557716585056
+      - 2.206212304480455
+      - 1.8085507309237645
+      - 2.142623125747092
+      - 2.2963883787855566
+      - 2.14083276552073
+      - 2.134082371462479
+    tuning:
+      best_value: .inf
+      metric: crps
+      n_trials: 50
+    tuning_time_seconds: 22.057186126708984
+metadata:
+  git_commit: 311a0c1a3242b3a43a72b76f88e8c78e42f6546a
+  git_dirty: true
+  n_splits: 10
+  seed: 1234
+  timestamp: '2026-04-19T22:23:59.791651+00:00'
+model_config:
+  class_name: LGBMRegressor
+  compatible_target_domains:
+  - real
+  - positive_real
+  - nonnegative_real
+  - integer
+  - positive_integer
+  - nonnegative_integer
+  fit_kwargs:
+    early_stopping_rounds: 10
+    verbose: -1
+  fixed_init_kwargs:
+    bagging_seed: 1234
+    boosting_type: gbdt
+    data_random_seed: 1234
+    deterministic: true
+    feature_fraction_seed: 1234
+    metric: mse
+    objective: regression
+    random_state: 1234
+    verbose: -1
+  log_transform_target: false
+  name: lgbm_reg
+  probabilistic: false
+  standardize_target: both
+  target_type: regression
+  tunable_init_kwargs:
+    colsample_bytree:
+      high: 1.0
+      low: 0.5
+      type: float
+    learning_rate:
+      high: 0.2
+      log: true
+      low: 0.001
+      type: float
+    max_depth:
+      high: 15
+      low: 2
+      type: int
+    min_child_samples:
+      high: 100
+      low: 5
+      type: int
+    n_estimators:
+      high: 250
+      low: 10
+      type: int
+    num_leaves:
+      high: 250
+      low: 5
+      type: int
+    subsample:
+      high: 1.0
+      low: 0.5
+      type: float

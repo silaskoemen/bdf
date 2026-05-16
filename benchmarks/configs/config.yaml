@@ -9,7 +9,9 @@ n_trials: 50  # Number of optuna trials per dataset
 sample_size: 1000  # Number of samples of predictive distribution to draw for prob. metrics
 
 # Tuning configuration
-tuning_metric: crps  # Metric to optimize during tuning: "mse", "crps"
+tuning_metric:
+  regression: crps      # "mse" or "crps"
+  classification: log_loss  # "log_loss" or "brier"
 tuning_sample_size: 100  # Number of samples for CRPS during tuning (smaller for speed)
 
 logging:

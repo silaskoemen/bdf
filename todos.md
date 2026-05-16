@@ -3,6 +3,7 @@
 - [ ] Write tests for all distributions, expose nll from Rust & check parity
 - [ ] Add allowed distributions to BDFRegressor and BDFClassifier docstrings, validate input
 - [ ] Allow numpy and pandas inputs
+- [ ] Evaluate whether Bayesian vs Frequentist warrants a separate experiment or simple loose Bayes approximates frequentist, e.g. student t performs well, another layer of regularization is enough
 
 ## BDFRegressor
 - [ ] Could think about `HurdleDistribution` (like KDE) which wraps classification with positive values for zero-inflation - only use if benchmark datasets have this property

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .utils.yaml_loader import aggregate_bdf_models
 
-RESULTS_DIR = Path("benchmarks/results/custom")
+RESULTS_DIR = Path("benchmarks/results/regression")
 
 # BDF models to consider for aggregation
 # Add new BDF distribution models here as they become available

@@ -67,7 +67,7 @@ tunable_params:
   #   categories: [gaussian, epanechnikov]
   score_correction:
     type: categorical
-    categories: [loo_cv, bic, null]
+    categories: [loo_cv, null] # bic excluded as k=1 is not principled
   # bandwidth_policy:
   #   type: categorical
   #   categories: [parent, per_split]

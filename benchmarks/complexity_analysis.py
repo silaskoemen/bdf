@@ -122,6 +122,9 @@ class ScalingResult:
     fixed_params: dict[str, int]
     estimated_slope: float | None = None
     r_squared: float | None = None
+    predict_timing_results: dict[int, TimingResult] = field(default_factory=dict)
+    predict_slope: float | None = None
+    predict_r_squared: float | None = None
 
 
 # =============================================================================
@@ -199,6 +202,36 @@ def measure_fit_time(
     )
 
 
+def measure_predict_time(
+    model,
+    X: np.ndarray,
+    n_repeats: int = N_REPEATS,
+) -> TimingResult:
+    """Measure prediction time with multiple repeats on an already-fitted model.
+
+    A throwaway warmup call is run first (not timed) to absorb any
+    first-call overhead (lazy allocation, caching, etc.).
+    """
+    # Warmup: untimed predict
+    model.predict(X)
+
+    times = []
+    for _ in range(n_repeats):
+        gc.collect()
+        start = time()
+        model.predict(X)
+        elapsed = time() - start
+        times.append(elapsed)
+
+    return TimingResult(
+        mean_time=float(np.mean(times)),
+        std_time=float(np.std(times)),
+        min_time=float(np.min(times)),
+        max_time=float(np.max(times)),
+        times=times,
+    )
+
+
 def measure_memory(
     model_factory,
     X: np.ndarray,
@@ -238,26 +271,27 @@ def fit_log_log_slope(x_values: list[int], y_values: list[float]) -> tuple[float
 
 
 def compute_overhead_ratios(all_results: dict[str, Any]) -> dict[str, dict[str, float]]:
-    """Compute BDF/RF timing ratio across all grid points for each axis."""
+    """Compute BDF/RF timing ratio across all grid points for each axis (fit and predict)."""
     ratios = {}
 
     for axis in ["n_scaling", "d_scaling", "tree_scaling"]:
-        bdf_timing = all_results["models"]["BDF"][axis]["timing"]
-        rf_timing = all_results["models"]["RandomForest"][axis]["timing"]
+        for timing_key, prefix in [("timing", ""), ("predict_timing", "predict_")]:
+            bdf_timing = all_results["models"]["BDF"][axis][timing_key]
+            rf_timing = all_results["models"]["RandomForest"][axis][timing_key]
 
-        axis_ratios = []
-        for key in bdf_timing:
-            if key in rf_timing:
-                ratio = bdf_timing[key]["mean_time"] / rf_timing[key]["mean_time"]
-                axis_ratios.append(ratio)
+            axis_ratios = []
+            for key in bdf_timing:
+                if key in rf_timing:
+                    ratio = bdf_timing[key]["mean_time"] / rf_timing[key]["mean_time"]
+                    axis_ratios.append(ratio)
 
-        ratios[axis] = {
-            "mean": float(np.mean(axis_ratios)),
-            "std": float(np.std(axis_ratios)),
-            "min": float(np.min(axis_ratios)),
-            "max": float(np.max(axis_ratios)),
-            "per_point": axis_ratios,
-        }
+            ratios[f"{prefix}{axis}"] = {
+                "mean": float(np.mean(axis_ratios)),
+                "std": float(np.std(axis_ratios)),
+                "min": float(np.min(axis_ratios)),
+                "max": float(np.max(axis_ratios)),
+                "per_point": axis_ratios,
+            }
 
     return ratios
 
@@ -311,6 +345,7 @@ def run_sample_size_scaling(
 
     timing_results = {}
     memory_results = {}
+    predict_timing_results = {}
 
     for n_samples in tqdm(n_samples_grid, desc=f"{model_name} n-scaling"):
         X, y = generate_data(n_samples, n_features)
@@ -319,13 +354,23 @@ def run_sample_size_scaling(
         timing_results[n_samples] = measure_fit_time(factory, X, y)
         memory_results[n_samples] = measure_memory(factory, X, y)
 
+        # Measure prediction time on a fitted model
+        fitted_model = factory()
+        fitted_model.fit(X, y)
+        predict_timing_results[n_samples] = measure_predict_time(fitted_model, X)
+        del fitted_model
+
         logger.debug(
-            f"  n={n_samples}: time={timing_results[n_samples].mean_time:.3f}s, "
+            f"  n={n_samples}: fit={timing_results[n_samples].mean_time:.3f}s, "
+            f"predict={predict_timing_results[n_samples].mean_time:.3f}s, "
             f"memory={memory_results[n_samples].peak_memory_mb:.1f}MB"
         )
 
     mean_times = [timing_results[n].mean_time for n in n_samples_grid]
     slope, r_squared = fit_log_log_slope(n_samples_grid, mean_times)
+
+    pred_times = [predict_timing_results[n].mean_time for n in n_samples_grid]
+    pred_slope, pred_r2 = fit_log_log_slope(n_samples_grid, pred_times)
 
     return ScalingResult(
         parameter_name="n_samples",
@@ -335,6 +380,9 @@ def run_sample_size_scaling(
         fixed_params={"n_features": n_features, "n_trees": n_trees},
         estimated_slope=slope,
         r_squared=r_squared,
+        predict_timing_results=predict_timing_results,
+        predict_slope=pred_slope,
+        predict_r_squared=pred_r2,
     )
 
 
@@ -353,6 +401,7 @@ def run_feature_scaling(
 
     timing_results = {}
     memory_results = {}
+    predict_timing_results = {}
 
     for n_features in tqdm(n_features_grid, desc=f"{model_name} d-scaling"):
         X, y = generate_data(n_samples, n_features)
@@ -361,13 +410,22 @@ def run_feature_scaling(
         timing_results[n_features] = measure_fit_time(factory, X, y)
         memory_results[n_features] = measure_memory(factory, X, y)
 
+        fitted_model = factory()
+        fitted_model.fit(X, y)
+        predict_timing_results[n_features] = measure_predict_time(fitted_model, X)
+        del fitted_model
+
         logger.debug(
-            f"  d={n_features}: time={timing_results[n_features].mean_time:.3f}s, "
+            f"  d={n_features}: fit={timing_results[n_features].mean_time:.3f}s, "
+            f"predict={predict_timing_results[n_features].mean_time:.3f}s, "
             f"memory={memory_results[n_features].peak_memory_mb:.1f}MB"
         )
 
     mean_times = [timing_results[d].mean_time for d in n_features_grid]
     slope, r_squared = fit_log_log_slope(n_features_grid, mean_times)
+
+    pred_times = [predict_timing_results[d].mean_time for d in n_features_grid]
+    pred_slope, pred_r2 = fit_log_log_slope(n_features_grid, pred_times)
 
     return ScalingResult(
         parameter_name="n_features",
@@ -377,6 +435,9 @@ def run_feature_scaling(
         fixed_params={"n_samples": n_samples, "n_trees": n_trees},
         estimated_slope=slope,
         r_squared=r_squared,
+        predict_timing_results=predict_timing_results,
+        predict_slope=pred_slope,
+        predict_r_squared=pred_r2,
     )
 
 
@@ -395,6 +456,7 @@ def run_tree_scaling(
 
     timing_results = {}
     memory_results = {}
+    predict_timing_results = {}
 
     for n_trees in tqdm(n_trees_grid, desc=f"{model_name} tree-scaling"):
         X, y = generate_data(n_samples, n_features)
@@ -403,13 +465,22 @@ def run_tree_scaling(
         timing_results[n_trees] = measure_fit_time(factory, X, y)
         memory_results[n_trees] = measure_memory(factory, X, y)
 
+        fitted_model = factory()
+        fitted_model.fit(X, y)
+        predict_timing_results[n_trees] = measure_predict_time(fitted_model, X)
+        del fitted_model
+
         logger.debug(
-            f"  n_trees={n_trees}: time={timing_results[n_trees].mean_time:.3f}s, "
+            f"  n_trees={n_trees}: fit={timing_results[n_trees].mean_time:.3f}s, "
+            f"predict={predict_timing_results[n_trees].mean_time:.3f}s, "
             f"memory={memory_results[n_trees].peak_memory_mb:.1f}MB"
         )
 
     mean_times = [timing_results[t].mean_time for t in n_trees_grid]
     slope, r_squared = fit_log_log_slope(n_trees_grid, mean_times)
+
+    pred_times = [predict_timing_results[t].mean_time for t in n_trees_grid]
+    pred_slope, pred_r2 = fit_log_log_slope(n_trees_grid, pred_times)
 
     return ScalingResult(
         parameter_name="n_trees",
@@ -419,6 +490,9 @@ def run_tree_scaling(
         fixed_params={"n_samples": n_samples, "n_features": n_features},
         estimated_slope=slope,
         r_squared=r_squared,
+        predict_timing_results=predict_timing_results,
+        predict_slope=pred_slope,
+        predict_r_squared=pred_r2,
     )
 
 
@@ -429,12 +503,14 @@ def run_tree_scaling(
 
 def scaling_result_to_dict(result: ScalingResult) -> dict[str, Any]:
     """Convert ScalingResult to JSON-serializable dict."""
-    return {
+    d = {
         "parameter_name": result.parameter_name,
         "parameter_values": result.parameter_values,
         "fixed_params": result.fixed_params,
         "estimated_slope": result.estimated_slope,
         "r_squared": result.r_squared,
+        "predict_slope": result.predict_slope,
+        "predict_r_squared": result.predict_r_squared,
         "timing": {
             str(k): {
                 "mean_time": v.mean_time,
@@ -444,6 +520,15 @@ def scaling_result_to_dict(result: ScalingResult) -> dict[str, Any]:
             }
             for k, v in result.timing_results.items()
         },
+        "predict_timing": {
+            str(k): {
+                "mean_time": v.mean_time,
+                "std_time": v.std_time,
+                "min_time": v.min_time,
+                "max_time": v.max_time,
+            }
+            for k, v in result.predict_timing_results.items()
+        },
         "memory": {
             str(k): {
                 "peak_memory_mb": v.peak_memory_mb,
@@ -452,6 +537,7 @@ def scaling_result_to_dict(result: ScalingResult) -> dict[str, Any]:
             for k, v in result.memory_results.items()
         },
     }
+    return d
 
 
 def save_results(results: dict[str, Any], filepath: str) -> None:
@@ -474,19 +560,15 @@ def setup_plot_style():
     apply_paper_style()
 
 
-def plot_main_text_figure(
+def _plot_scaling_row(
+    axes,
     all_results: dict[str, Any],
-    save_path: str,
+    timing_key: str,
+    slope_key: str,
+    r2_key: str,
+    ylabel: str,
 ):
-    """Create the main-text 3-panel figure: BDF vs RF scaling on n, d, T.
-
-    Each panel shows measured data with error bars, fitted slopes in legend,
-    and a dashed O(x^1) reference line.
-    """
-    setup_plot_style()
-
-    _, axes = plt.subplots(1, 3, figsize=(14, 4))
-
+    """Plot a row of 3 scaling panels (shared helper for fit/predict time)."""
     panels = [
         ("n_scaling", "Sample size $n$", "$n$"),
         ("d_scaling", "Features $d$", "$d$"),
@@ -497,10 +579,10 @@ def plot_main_text_figure(
         for model_name in ["BDF", "RandomForest"]:
             data = all_results["models"][model_name][axis_key]
             x_vals = data["parameter_values"]
-            y_means = [data["timing"][str(x)]["mean_time"] for x in x_vals]
-            y_stds = [data["timing"][str(x)]["std_time"] for x in x_vals]
-            slope = data["estimated_slope"]
-            r2 = data["r_squared"]
+            y_means = [data[timing_key][str(x)]["mean_time"] for x in x_vals]
+            y_stds = [data[timing_key][str(x)]["std_time"] for x in x_vals]
+            slope = data[slope_key]
+            r2 = data[r2_key]
 
             color = MODEL_COLORS[model_name]
             marker = MODEL_MARKERS[model_name]
@@ -522,18 +604,17 @@ def plot_main_text_figure(
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.set_xlabel(xlabel)
-        ax.set_ylabel("Fit time (s)")
+        ax.set_ylabel(ylabel)
 
         # Add O(x^1) reference line anchored to midpoint of BDF data
         bdf_data = all_results["models"]["BDF"][axis_key]
         bdf_x = bdf_data["parameter_values"]
-        bdf_y = [bdf_data["timing"][str(x)]["mean_time"] for x in bdf_x]
+        bdf_y = [bdf_data[timing_key][str(x)]["mean_time"] for x in bdf_x]
         x_arr = np.array(bdf_x, dtype=float)
         y_arr = np.array(bdf_y, dtype=float)
-        # Anchor at geometric midpoint
         log_x_mid = np.mean(np.log(x_arr))
         log_y_mid = np.mean(np.log(y_arr))
-        c = np.exp(log_y_mid - log_x_mid)  # slope=1 in log-log
+        c = np.exp(log_y_mid - log_x_mid)
         y_ref = c * x_arr
         ax.plot(
             x_arr,
@@ -547,6 +628,23 @@ def plot_main_text_figure(
         )
 
         ax.legend(fontsize=7.5, loc="upper left")
+
+
+def plot_main_text_figure(
+    all_results: dict[str, Any],
+    save_path: str,
+):
+    """Create the main-text 2x3-panel figure: fit time (top) and predict time (bottom).
+
+    Each panel shows measured data with error bars, fitted slopes in legend,
+    and a dashed O(x^1) reference line.
+    """
+    setup_plot_style()
+
+    fig, axes = plt.subplots(2, 3, figsize=(14, 7.5))
+
+    _plot_scaling_row(axes[0], all_results, "timing", "estimated_slope", "r_squared", "Fit time (s)")
+    _plot_scaling_row(axes[1], all_results, "predict_timing", "predict_slope", "predict_r_squared", "Predict time (s)")
 
     plt.tight_layout()
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -675,6 +773,8 @@ def generate_markdown_report(results: dict[str, Any], filepath: str) -> None:
         "",
         "## Empirical Scaling Exponents",
         "",
+        "### Fit Time",
+        "",
         "| Model | n Scaling | d Scaling | T Scaling |",
         "|-------|-----------|-----------|-----------|",
     ]
@@ -695,6 +795,32 @@ def generate_markdown_report(results: dict[str, Any], filepath: str) -> None:
             f"O(T^{t_s:.2f}) R²={t_r:.3f} |"
         )
 
+    lines.extend(
+        [
+            "",
+            "### Predict Time",
+            "",
+            "| Model | n Scaling | d Scaling | T Scaling |",
+            "|-------|-----------|-----------|-----------|",
+        ]
+    )
+
+    for model_name in ["BDF", "RandomForest"]:
+        data = results["models"][model_name]
+        n_s = data["n_scaling"]["predict_slope"]
+        n_r = data["n_scaling"]["predict_r_squared"]
+        d_s = data["d_scaling"]["predict_slope"]
+        d_r = data["d_scaling"]["predict_r_squared"]
+        t_s = data["tree_scaling"]["predict_slope"]
+        t_r = data["tree_scaling"]["predict_r_squared"]
+
+        label = MODEL_DISPLAY_NAMES.get(model_name, model_name)
+        lines.append(
+            f"| {label} | O(n^{n_s:.2f}) R²={n_r:.3f} | "
+            f"O(d^{d_s:.2f}) R²={d_r:.3f} | "
+            f"O(T^{t_s:.2f}) R²={t_r:.3f} |"
+        )
+
     # Overhead ratio
     if overhead:
         lines.extend(
@@ -702,11 +828,30 @@ def generate_markdown_report(results: dict[str, Any], filepath: str) -> None:
                 "",
                 "## Overhead Ratio (BDF / Random Forest)",
                 "",
+                "### Fit Overhead",
+                "",
                 "| Axis | Mean | Std | Min | Max |",
                 "|------|------|-----|-----|-----|",
             ]
         )
         for axis, label in [("n_scaling", "n"), ("d_scaling", "d"), ("tree_scaling", "T")]:
+            r = overhead[axis]
+            lines.append(f"| {label} | {r['mean']:.2f}x | {r['std']:.2f} | {r['min']:.2f}x | {r['max']:.2f}x |")
+
+        lines.extend(
+            [
+                "",
+                "### Predict Overhead",
+                "",
+                "| Axis | Mean | Std | Min | Max |",
+                "|------|------|-----|-----|-----|",
+            ]
+        )
+        for axis, label in [
+            ("predict_n_scaling", "n"),
+            ("predict_d_scaling", "d"),
+            ("predict_tree_scaling", "T"),
+        ]:
             r = overhead[axis]
             lines.append(f"| {label} | {r['mean']:.2f}x | {r['std']:.2f} | {r['min']:.2f}x | {r['max']:.2f}x |")
 
@@ -785,7 +930,7 @@ def generate_markdown_report(results: dict[str, Any], filepath: str) -> None:
 
 
 def generate_latex_table(results: dict[str, Any], filepath: str) -> None:
-    """Generate LaTeX table with scaling exponents and overhead ratios."""
+    """Generate LaTeX table with fit and predict scaling exponents and overhead ratios."""
     overhead = results.get("overhead_ratios", {})
 
     lines = [
@@ -793,12 +938,13 @@ def generate_latex_table(results: dict[str, Any], filepath: str) -> None:
         r"\centering",
         r"\caption{Empirical scaling exponents and overhead ratios (BDF vs.\ Random Forest).}",
         r"\label{tab:complexity}",
-        r"\begin{tabular}{lcccc}",
+        r"\begin{tabular}{llcccc}",
         r"\toprule",
-        r"Model & $n$ scaling & $d$ scaling & $T$ scaling & Overhead \\",
+        r"Phase & Model & $n$ scaling & $d$ scaling & $T$ scaling & Overhead \\",
         r"\midrule",
     ]
 
+    # Fit time rows
     for model_name in ["BDF", "RandomForest"]:
         data = results["models"][model_name]
         n_s = data["n_scaling"]["estimated_slope"]
@@ -807,15 +953,44 @@ def generate_latex_table(results: dict[str, Any], filepath: str) -> None:
         label = MODEL_DISPLAY_NAMES.get(model_name, model_name)
 
         if model_name == "BDF" and overhead:
-            # Average overhead across all axes
-            all_means = [overhead[a]["mean"] for a in overhead]
-            avg_overhead = np.mean(all_means)
+            fit_means = [overhead[a]["mean"] for a in ["n_scaling", "d_scaling", "tree_scaling"] if a in overhead]
+            avg_overhead = np.mean(fit_means)
             overhead_str = rf"${avg_overhead:.1f}\times$"
         else:
-            overhead_str = r"$1\times$ (baseline)"
+            overhead_str = r"$1\times$"
 
+        phase = "Fit" if model_name == "BDF" else ""
         lines.append(
-            rf"{label} & $\mathcal{{O}}(n^{{{n_s:.2f}}})$ & "
+            rf"{phase} & {label} & $\mathcal{{O}}(n^{{{n_s:.2f}}})$ & "
+            rf"$\mathcal{{O}}(d^{{{d_s:.2f}}})$ & "
+            rf"$\mathcal{{O}}(T^{{{t_s:.2f}}})$ & "
+            rf"{overhead_str} \\"
+        )
+
+    lines.append(r"\midrule")
+
+    # Predict time rows
+    for model_name in ["BDF", "RandomForest"]:
+        data = results["models"][model_name]
+        n_s = data["n_scaling"]["predict_slope"]
+        d_s = data["d_scaling"]["predict_slope"]
+        t_s = data["tree_scaling"]["predict_slope"]
+        label = MODEL_DISPLAY_NAMES.get(model_name, model_name)
+
+        if model_name == "BDF" and overhead:
+            pred_means = [
+                overhead[a]["mean"]
+                for a in ["predict_n_scaling", "predict_d_scaling", "predict_tree_scaling"]
+                if a in overhead
+            ]
+            avg_overhead = np.mean(pred_means) if pred_means else 0
+            overhead_str = rf"${avg_overhead:.1f}\times$"
+        else:
+            overhead_str = r"$1\times$"
+
+        phase = "Predict" if model_name == "BDF" else ""
+        lines.append(
+            rf"{phase} & {label} & $\mathcal{{O}}(n^{{{n_s:.2f}}})$ & "
             rf"$\mathcal{{O}}(d^{{{d_s:.2f}}})$ & "
             rf"$\mathcal{{O}}(T^{{{t_s:.2f}}})$ & "
             rf"{overhead_str} \\"
@@ -906,9 +1081,14 @@ def main():
     overhead = compute_overhead_ratios(all_results)
     all_results["overhead_ratios"] = overhead
     logger.info(
-        f"Overhead BDF/RF — n: {overhead['n_scaling']['mean']:.2f}x, "
+        f"Fit overhead BDF/RF — n: {overhead['n_scaling']['mean']:.2f}x, "
         f"d: {overhead['d_scaling']['mean']:.2f}x, "
         f"T: {overhead['tree_scaling']['mean']:.2f}x"
+    )
+    logger.info(
+        f"Predict overhead BDF/RF — n: {overhead['predict_n_scaling']['mean']:.2f}x, "
+        f"d: {overhead['predict_d_scaling']['mean']:.2f}x, "
+        f"T: {overhead['predict_tree_scaling']['mean']:.2f}x"
     )
 
     # Generate plots

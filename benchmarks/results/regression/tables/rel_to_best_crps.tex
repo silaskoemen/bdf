@@ -1,0 +1,20 @@
+\begin{table}[htbp]
+\centering
+\caption{Average CRPS relative to best model per dataset (lower is better; 1.0 = always best)}
+\label{tab:rel-to-best-crps}
+\begin{tabular}{clc}
+\toprule
+Rank & Model & Avg.\ CRPS / Best \\
+\midrule
+1 & BDF \textbf{$\star$} & 1.175 \\
+2 & ConfLGBM & 1.303 \\
+3 & CatBoostUnc & 1.313 \\
+4 & ConfRF & 1.751 \\
+5 & NGBoost & 1.875 \\
+6 & GaussianDE & 2.347 \\
+7 & BART & 3.088 \\
+8 & KNNKDE & 3.322 \\
+9 & BayesRidge & 4.466 \\
+\bottomrule
+\end{tabular}
+\end{table}

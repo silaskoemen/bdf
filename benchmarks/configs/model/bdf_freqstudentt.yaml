@@ -10,7 +10,7 @@ compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonn
 fixed_init_kwargs:
   dist: FrequentistStudentT
   random_state: 1234
-  verbose: 1
+  verbose: 0
   # max_depth: 50
 
 tunable_init_kwargs:
@@ -59,7 +59,7 @@ tunable_init_kwargs:
     high: 0.1
     log: true
 
-tunable_params: {}
+tunable_params: #{}
   # sigma_mu_auto_scale:
   #   type: float
   #   low: 0.01
@@ -68,9 +68,9 @@ tunable_params: {}
   # score_method:
   #   type: categorical
   #   categories: [nll, nle]
-  # score_correction:
-  #   type: categorical
-  #   categories: [bic, null]
+  score_correction:
+    type: categorical
+    categories: [bic, null]
 
 fixed_params:
   df: null # estimate from data via MoM
@@ -78,4 +78,4 @@ fixed_params:
   # sigma_mu: 'auto'  # Set prior std based on data
   tree_prior_mode: 'linear' # bernoulli, linear, defer
   # Should also include loo_cv for normal as 'fast path' is available - missing in Rust
-  score_correction: bic  # Bayesian information criterion for score correction if 'nll' is used
+  # score_correction: bic  # Bayesian information criterion for score correction if 'nll' is used

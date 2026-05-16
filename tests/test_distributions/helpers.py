@@ -240,6 +240,7 @@ def get_rust_implemented_distributions() -> list[str]:
         "GammaMVLambdaExponential",
         "KDE",
         "BayesianKDE",
+        "PseudoHKDE",
         "SkewNormalOmega",
         "BayesianSkewNormalOmega",
         "SkewNormalAlpha",

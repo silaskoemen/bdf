@@ -11,6 +11,8 @@ setup = "pip install --no-deps -e . && pre-commit install && pixi run build-rust
 clean = "rm -rf build/ dist/ *.egg-info"
 
 # benchmarking scripts
+fetch-data = "PYTHONPATH=src python -m scripts.fetch_datasets"
+process-data = "PYTHONPATH=src python -m scripts.process_datasets"
 bench-bdf = "PYTHONPATH=src python -m benchmarks.run"
 reg-suite = "PYTHONPATH=src python -m benchmarks.run_regression_suite"
 clas-suite = "PYTHONPATH=src python -m benchmarks.run_classification_suite"
@@ -20,7 +22,7 @@ perf = "PYTHONPATH=src python -m benchmarks.performance"
 prior-clas = "PYTHONPATH=src python -m benchmarks.effect_prior_clas"
 label-noise-clas = "PYTHONPATH=src python -m benchmarks.label_noise_clas"
 sample-size = "PYTHONPATH=src python -m benchmarks.effect_sample_size"
-noise-study = "PYTHONPATH=src python -m benchmarks.effect_noise_features"
+noise-study = "PYTHONPATH=src python -m benchmarks.effect_noise_features --tag bdf"
 noise-output = "PYTHONPATH=src python -m benchmarks.plot_noise_features_results"
 synth-study = "PYTHONPATH=src python -m benchmarks.synthetic_dgp_benchmark"
 synth-output = "PYTHONPATH=src python -m benchmarks.compare_synthetic_results"
@@ -37,6 +39,11 @@ ood = "PYTHONPATH=src python -m benchmarks.effect_out_of_distribution"
 dist-study = "PYTHONPATH=src python -m benchmarks.dist_misspecification_study"
 dist-output = "PYTHONPATH=src python -m benchmarks.plot_misspecification_results"
 oob-study = "PYTHONPATH=src python -m benchmarks.oob_weighting_study"
+ensemble-size-study = "PYTHONPATH=src python -m benchmarks.effect_n_trees"
+ensemble-size-output = "PYTHONPATH=src python -m benchmarks.plot_n_trees_results"
+convergence = "pixi run python -m benchmarks.convergence_rate_study"
+conform = "pixi run python -m benchmarks.conformalization_study"
+conform-output = "pixi run python -m benchmarks.compare_conformalization_results"
 
 # Documentation
 docs-build = "sphinx-build -b html docs/source docs/build/html"
@@ -46,7 +53,10 @@ docs-clean = "rm -rf docs/build"
 bench-models = "PYTHONPATH=src python -m benchmarks.run"
 reg-suite-models = "PYTHONPATH=src python -m benchmarks.run_regression_suite"
 clas-suite-models = "PYTHONPATH=src python -m benchmarks.run_classification_suite"
-load-data = "PYTHONPATH=src python -m benchmarks.load_save_datasets"
+load-data = "PYTHONPATH=src python -m scripts.fetch_datasets && PYTHONPATH=src python -m scripts.process_datasets"
+noise-study-models = "PYTHONPATH=src python -m benchmarks.effect_noise_features --tag models"
+synth-study-models= "PYTHONPATH=src python -m benchmarks.synthetic_dgp_benchmark"
+conform-models = "pixi run python -m benchmarks.conformalization_study"
 
 # ==========================================
 # 1. CORE DEPENDENCIES
@@ -96,6 +106,8 @@ polars = ">=1.36.1,<2"
 ucimlrepo = ">=0.0.7,<0.0.8"
 pyarrow = ">=23.0.0,<24"
 tabulate = ">=0.9.0,<0.10"
+scikit-learn = "*"  # for fetch_openml, fetch_california_housing in scripts/fetch_datasets.py
+pandas = "*"
 
 [feature.bench-models.dependencies]
 python = "3.11.*"  # pymc-bart needs 3.11+

@@ -58,6 +58,7 @@ def get_default_params_for_distribution(dist_name: str) -> dict:
         "GammaMVLambdaExponential": {"mean_lambda": 1.0, "var_lambda": 1.0},
         "KDE": {"bandwidth": 0.5, "kernel": "gaussian"},
         "BayesianKDE": {"bandwidth": 0.5, "kernel": "gaussian", "prior_h": 1.0, "m_h": 1.0},
+        "PseudoHKDE": {"bandwidth": 0.5, "kernel": "gaussian", "prior_h": 1.0, "m_h": 1.0},
         "SkewNormalOmega": {},
         "BayesianSkewNormalOmega": {},
         "SkewNormalAlpha": {},
@@ -85,6 +86,7 @@ TESTABLE_DISTRIBUTIONS = [
         "GammaMVLambdaExponential",
         "KDE",
         "BayesianKDE",
+        "PseudoHKDE",
     }
 ]
 
@@ -104,7 +106,7 @@ class TestAllDistributionsBasicContract:
 
     # KDE/BayesianKDE don't have parametric posteriors; calc_posterior_params
     # returns a non-dict representation, so exclude from this contract test.
-    DICT_POSTERIOR_DISTRIBUTIONS = [d for d in TESTABLE_DISTRIBUTIONS if d not in {"KDE", "BayesianKDE"}]
+    DICT_POSTERIOR_DISTRIBUTIONS = [d for d in TESTABLE_DISTRIBUTIONS if d not in {"KDE", "BayesianKDE", "PseudoHKDE"}]
 
     @pytest.mark.parametrize("dist_name", DICT_POSTERIOR_DISTRIBUTIONS)
     def test_calc_posterior_params_returns_dict(self, dist_name: str):

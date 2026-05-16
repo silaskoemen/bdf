@@ -1,6 +1,15 @@
+"""Regression benchmark suite entry point.
+
+Runs CustomOrchestrator for the regression task. Target-type filtering is
+handled inside the orchestrator via the model's `target_type` config field.
+
+Usage (from repo root):
+    pixi run reg-suite model=bdf_normalmunormal
+"""
+
 from loguru import logger
 
-from .pipeline.orchestrators import RegressionSuiteOrchestrator
+from .pipeline.orchestrators import CustomOrchestrator
 from .utils.benchmark_utils import setup_logging
 
 if __name__ == "__main__":
@@ -10,11 +19,11 @@ if __name__ == "__main__":
     @hydra.main(config_path="./configs/", config_name="config", version_base="1.3")
     def main(cfg: OmegaConf) -> None:
         setup_logging(cfg.logging)
-        logger.info("🚀 Starting benchmark run")
+        logger.info("🚀 Starting regression benchmark suite")
         logger.debug(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
-        orchestrator = RegressionSuiteOrchestrator(cfg)
+        orchestrator = CustomOrchestrator(cfg)
         results = orchestrator.run()
-        logger.success("🏁 Benchmark run completed")
+        logger.success("🏁 Regression benchmark suite completed")
         logger.debug(f"Final results:\n{results}")
 
     main()

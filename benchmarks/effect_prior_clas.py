@@ -11,11 +11,11 @@ from tqdm import tqdm
 
 from bdf.tree_classes.bdf_regressor import BDFClassifier
 
-from .pipeline.data import _load_titanic
+from .pipeline.data import load
 
 
 def plot_prior_heatmap():
-    X, y, _ = _load_titanic()
+    _, X, y = load("titanic")
     X_train, X_val, y_train, y_val = TTS(X, y, test_size=0.2, random_state=1234)
     results = np.zeros((21, 10, 6))  # [means, vars, (acc/prec/rec/auroc/f1/log)]
     for i, m in tqdm(enumerate(np.arange(0.0, 1.01, 0.05)), "Iterating through prior means", total=20):

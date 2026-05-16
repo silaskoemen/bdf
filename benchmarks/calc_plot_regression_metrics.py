@@ -20,11 +20,11 @@ import numpy as np
 # =============================================================================
 
 # Directory containing YAML result files
-RESULTS_DIR = Path("benchmarks/results/custom")
+RESULTS_DIR = Path("benchmarks/results/regression")
 
 # Output directories
-PLOTS_DIR = Path("benchmarks/plots/custom")
-TABLES_DIR = Path("benchmarks/results/custom/tables")
+PLOTS_DIR = Path("benchmarks/plots/regression")
+TABLES_DIR = Path("benchmarks/results/regression/tables")
 
 # Plot format: "pdf" for vector (best for LaTeX), "png" for raster, or "both"
 PLOT_FORMAT = "pdf"
@@ -47,9 +47,9 @@ BASELINE_MODELS = [
     "confrf",
     "gaussian_de",
     # "gp_reg",
-    "bartpy",  # Only 2 datasets - excluded
+    "pymc_bart",
     "ngboost_reg",  # add when available
-    # "qrf",  # TODO: crps calculation doesn't seem to work, gets nan
+    # "qrf",
     "catbunc_reg",
     "knnkde",
 ]
@@ -122,6 +122,7 @@ LOWER_IS_BETTER = {
     "coverage_95": False,
     "ci_width_90": True,  # Narrower is better (given good coverage)
     "interval_score_90": True,
+    "crpss": False,  # Higher skill score is better
 }
 
 
@@ -147,6 +148,7 @@ def main():
         generate_main_results_table,
         generate_per_dataset_table,
         generate_ranking_table,
+        generate_rel_to_best_table,
         generate_speedup_table,
         generate_win_tie_loss_table,
         save_latex_table,
@@ -297,7 +299,7 @@ def main():
     # -------------------------------------------------------------------------
     print("\n[4] Running statistical significance tests...")
 
-    key_metrics = ["rmse", "crps"]
+    key_metrics = ["rmse", "crps"] + (["crpss"] if crpss_df is not None else [])
     friedman_results = {}
     nemenyi_results = {}
 
@@ -590,7 +592,39 @@ def main():
             model_display_names=MODEL_DISPLAY_NAMES,
         )
 
-    # 7f. Calibration curve (empirical vs nominal coverage)
+    # 7f. CRPSS scatter and bar chart (skill score vs climatological baseline)
+    if crpss_df is not None:
+        crpss_matrix, crpss_ds_list, crpss_model_list = get_metric_matrix(df, "crpss", models=models, datasets=datasets)
+        save_fig(
+            plot_metric_scatter,
+            "regression_scatter_crpss",
+            metric_matrix=crpss_matrix,
+            models=crpss_model_list,
+            datasets=crpss_ds_list,
+            metric_name="CRPSS",
+            lower_is_better=False,
+            model_display_names=MODEL_DISPLAY_NAMES,
+        )
+
+        crpss_bar_data = {}
+        for model in models:
+            model_df = df.filter((df["model"] == model) & (df["metric"] == "crpss"))
+            if not model_df.is_empty():
+                means = model_df.select("mean").to_series().to_list()
+                stds = model_df.select("std").to_series().to_list()
+                crpss_bar_data[model] = (float(np.mean(means)), float(np.mean(stds)))
+        if crpss_bar_data:
+            save_fig(
+                plot_metric_comparison_bars,
+                "regression_crpss_comparison",
+                metric_data=crpss_bar_data,
+                metric_name="CRPSS",
+                lower_is_better=False,
+                model_colors=MODEL_COLORS,
+                model_display_names=MODEL_DISPLAY_NAMES,
+            )
+
+    # 7g. Calibration curve (empirical vs nominal coverage)
     coverage_curves = extract_coverage_curves(all_results, datasets=datasets)
     if coverage_curves:
         save_fig(
@@ -709,6 +743,53 @@ def main():
     )
     save_latex_table(per_dataset_table, TABLES_DIR / "crps_per_dataset.tex")
 
+    # Per-dataset table for CRPSS
+    if crpss_df is not None:
+        crpss_matrix, crpss_ds_list, crpss_model_list = get_metric_matrix(df, "crpss", models=models, datasets=datasets)
+        crpss_std_rows = []
+        for ds in crpss_ds_list:
+            row_stds = []
+            for model in crpss_model_list:
+                mdf = df.filter((df["model"] == model) & (df["dataset"] == ds) & (df["metric"] == "crpss"))
+                row_stds.append(mdf.select("std").to_series()[0] if not mdf.is_empty() else np.nan)
+            crpss_std_rows.append(row_stds)
+
+        crpss_per_dataset_table = generate_per_dataset_table(
+            models=crpss_model_list,
+            datasets=crpss_ds_list,
+            metric_matrix=crpss_matrix,
+            std_matrix=np.array(crpss_std_rows),
+            metric_name="CRPSS",
+            caption="CRPS Skill Score per dataset (higher is better; baseline = climatological model)",
+            label="tab:crpss-per-dataset",
+            lower_is_better=False,
+        )
+        save_latex_table(crpss_per_dataset_table, TABLES_DIR / "crpss_per_dataset.tex")
+
+    # Relative-to-best table for CRPS
+    crps_matrix_full, ds_list_full, model_list_full = get_metric_matrix(df, "crps", models=models, datasets=datasets)
+    rel_to_best_crps: dict[str, float] = {}
+    for j, model in enumerate(model_list_full):
+        ratios = []
+        for i in range(len(ds_list_full)):
+            row = crps_matrix_full[i, :]
+            if not np.isnan(crps_matrix_full[i, j]) and np.any(~np.isnan(row)):
+                best = np.nanmin(row)
+                if best > 0:
+                    ratios.append(crps_matrix_full[i, j] / best)
+        if ratios:
+            rel_to_best_crps[model] = float(np.mean(ratios))
+
+    if rel_to_best_crps:
+        rel_to_best_table = generate_rel_to_best_table(
+            rel_to_best=rel_to_best_crps,
+            metric_name="CRPS",
+            model_display_names=MODEL_DISPLAY_NAMES,
+            caption="Average CRPS relative to best model per dataset (lower is better; 1.0 = always best)",
+            label="tab:rel-to-best-crps",
+        )
+        save_latex_table(rel_to_best_table, TABLES_DIR / "rel_to_best_crps.tex")
+
     # Win/Tie/Loss table
     if "crps" in wtl_results:
         wtl_table = generate_win_tie_loss_table(
@@ -720,7 +801,7 @@ def main():
         )
         save_latex_table(wtl_table, TABLES_DIR / "win_tie_loss.tex")
 
-    # Ranking table
+    # Ranking tables (CRPS and CRPSS)
     if "crps" in friedman_results:
         ranking_table = generate_ranking_table(
             avg_ranks=friedman_results["crps"].avg_ranks,
@@ -730,6 +811,16 @@ def main():
             label="tab:rankings-crps",
         )
         save_latex_table(ranking_table, TABLES_DIR / "rankings_crps.tex")
+
+    if "crpss" in friedman_results:
+        crpss_ranking_table = generate_ranking_table(
+            avg_ranks=friedman_results["crpss"].avg_ranks,
+            metric_name="CRPSS",
+            friedman_p=friedman_results["crpss"].iman_davenport_p_value,
+            caption="Algorithm rankings by CRPS Skill Score (higher is better)",
+            label="tab:rankings-crpss",
+        )
+        save_latex_table(crpss_ranking_table, TABLES_DIR / "rankings_crpss.tex")
 
     # Speedup tables (selected distribution and default Normal)
     if speedup_selected:

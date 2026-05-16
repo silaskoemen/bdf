@@ -28,7 +28,18 @@ apply_paper_style()
 COLORS = SEMANTIC_COLORS
 
 # Consistent model styling across all summary figures
-MODEL_ORDER = ["BDFNormal", "BDFKDE", "ConformalRF", "NGBoost", "BART"]
+MODEL_ORDER = [
+    "BDFNormal",
+    "BDFKDE",
+    "ConfBDFNormal",
+    "ConfBDFKDE",
+    "ConformalRF",
+    "NGBoost",
+    "BART",
+    "CatBoostUncertainty",
+    "ConfCatBoost",
+    "CQRCatBoost",
+]
 
 
 def order_models(models: list[str]) -> list[str]:
@@ -237,7 +248,7 @@ HIGHER_IS_BETTER_METRICS = {"r2", "crpss"}
 def plot_dgp_comparison_table(
     results_dict: dict,
     models: list[str],
-    metrics: list[str] = ["rmse", "crps", "crpss", "gt_mean_rmse", "gt_variance_rmse"],
+    metrics: list[str] = ["crpss", "crps", "rmse", "gt_mean_rmse", "gt_variance_rmse"],
     save_path: Optional[Path] = None,
 ) -> None:
     """Create a table comparing models across different DGPs.
@@ -1099,7 +1110,7 @@ def plot_main_body_predictions(
 def plot_main_body_metric_table(
     results_dict: dict,
     models: list[str],
-    metrics: list[str] = ["crps", "crpss", "coverage_90", "gt_mean_rmse", "gt_variance_rmse"],
+    metrics: list[str] = ["crpss", "crps", "coverage_90", "gt_mean_rmse", "gt_variance_rmse"],
     save_path: Optional[Path] = None,
 ) -> None:
     """Main-body figure: compact metric table across all DGPs.
@@ -1267,7 +1278,7 @@ def create_synthetic_benchmark_summary(
     plot_dgp_comparison_table(
         results_dict,
         models,
-        metrics=["rmse", "crps", "crpss", "gt_mean_rmse", "gt_variance_rmse"],
+        metrics=["crpss", "crps", "rmse", "gt_mean_rmse", "gt_variance_rmse"],
         save_path=output_dir / "dgp_comparison_table.pdf",
     )
 
@@ -1335,3 +1346,128 @@ def create_synthetic_benchmark_summary(
     )
 
     print(f"\nSummary plots saved to {output_dir}")
+
+
+def plot_spread_skill(
+    results_by_model: dict,
+    save_path: Optional[Path] = None,
+) -> None:
+    """Spread-skill diagram: predicted std (per decile bin) vs empirical RMSE.
+
+    A well-calibrated model lies on the diagonal.  Under-dispersed models sit
+    above it; over-dispersed below.  Ground-truth std is overlaid as a dashed
+    line when available (heteroscedastic DGPs).
+
+    Args:
+        results_by_model: {model_name: aggregated_metrics_dict}.
+            Each entry needs "spread_skill_pred_std" and "spread_skill_rmse"
+            as {"mean": [n_bins floats]}.  Optionally "spread_skill_true_std".
+        save_path: Path to save the figure (PDF/PNG).
+    """
+    fig, ax = plt.subplots(figsize=(7, 6))
+
+    all_vals: list[float] = []
+
+    for model_name in order_models(list(results_by_model.keys())):
+        model_data = results_by_model[model_name]
+        pred_stds_raw = model_data.get("spread_skill_pred_std", {}).get("mean")
+        rmses_raw = model_data.get("spread_skill_rmse", {}).get("mean")
+        if pred_stds_raw is None or rmses_raw is None:
+            continue
+
+        pred_stds = np.array(pred_stds_raw, dtype=float)
+        rmses = np.array(rmses_raw, dtype=float)
+        valid = ~(np.isnan(pred_stds) | np.isnan(rmses))
+        pred_stds, rmses = pred_stds[valid], rmses[valid]
+        if len(pred_stds) == 0:
+            continue
+
+        color = _get_color(model_name)
+        label = _get_display_name(model_name)
+        ax.plot(pred_stds, rmses, "o-", color=color, label=label, linewidth=1.5, markersize=5)
+        all_vals.extend(pred_stds.tolist() + rmses.tolist())
+
+        true_stds_raw = model_data.get("spread_skill_true_std", {}).get("mean")
+        if true_stds_raw is not None:
+            true_stds = np.array(true_stds_raw, dtype=float)[valid]
+            if not np.all(np.isnan(true_stds)):
+                ax.plot(pred_stds, true_stds, "--", color=color, alpha=0.45, linewidth=1.0, label=f"{label} (true σ)")
+                all_vals.extend(true_stds[~np.isnan(true_stds)].tolist())
+
+    if all_vals:
+        lim = max(all_vals) * 1.08
+        ax.plot([0, lim], [0, lim], "k--", linewidth=1.0, alpha=0.5, label="Perfect (diagonal)")
+        ax.set_xlim(0, lim)
+        ax.set_ylim(0, lim)
+
+    ax.set_xlabel("Mean predicted std per decile", fontsize=11)
+    ax.set_ylabel("Empirical RMSE per decile", fontsize=11)
+    ax.set_title("Spread-Skill Diagram", fontsize=12, fontweight="bold")
+    ax.legend(loc="best", framealpha=0.9, fontsize=9)
+    ax.grid(alpha=0.15)
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
+        print(f"Saved spread-skill plot to {save_path}")
+    else:
+        plt.show()
+    plt.close(fig)
+
+
+def plot_conditional_calibration_by_uncertainty(
+    results_by_model: dict,
+    save_path: Optional[Path] = None,
+    level: float = 0.90,
+) -> None:
+    """Empirical coverage per predicted-uncertainty decile at a given nominal level.
+
+    A model with adaptive uncertainty maintains near-nominal coverage in every
+    bin.  Non-adaptive models (e.g. CatBoost with Gaussian uncertainty) may
+    over- or under-cover systematically in certain uncertainty ranges.
+
+    Args:
+        results_by_model: {model_name: aggregated_metrics_dict}.
+            Needs f"cond_cal_cov_{int(level*100)}" as {"mean": [n_bins floats]}.
+        save_path: Path to save the figure.
+        level: Nominal coverage level (default 0.90).
+    """
+    level_key = f"cond_cal_cov_{int(level * 100)}"
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    bin_labels = np.arange(1, 11)
+
+    for model_name in order_models(list(results_by_model.keys())):
+        model_data = results_by_model[model_name]
+        cov_raw = model_data.get(level_key, {}).get("mean")
+        if cov_raw is None:
+            continue
+
+        cov = np.array(cov_raw, dtype=float)
+        color = _get_color(model_name)
+        label = _get_display_name(model_name)
+        ax.plot(bin_labels[: len(cov)], cov, "o-", color=color, label=label, linewidth=1.5, markersize=6)
+
+    ax.axhline(level, color="black", linestyle="--", linewidth=1.5, label=f"Nominal {int(level * 100)}%", alpha=0.7)
+    ax.fill_between([0.5, 10.5], [level - 0.05] * 2, [level + 0.05] * 2, alpha=0.06, color="black")
+
+    ax.set_xlabel("Predicted uncertainty decile (1 = lowest, 10 = highest)", fontsize=11)
+    ax.set_ylabel(f"Empirical {int(level * 100)}% coverage", fontsize=11)
+    ax.set_title(
+        f"Conditional Calibration by Predicted Uncertainty ({int(level * 100)}% intervals)",
+        fontsize=12,
+        fontweight="bold",
+    )
+    ax.set_xlim(0.5, 10.5)
+    ax.set_xticks(bin_labels)
+    ax.set_ylim(0, 1)
+    ax.legend(loc="best", framealpha=0.9, fontsize=9)
+    ax.grid(alpha=0.15)
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
+        print(f"Saved conditional calibration plot to {save_path}")
+    else:
+        plt.show()
+    plt.close(fig)

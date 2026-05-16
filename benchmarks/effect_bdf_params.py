@@ -737,7 +737,6 @@ def plot_sensitivity_curve(
         ax.set_title(f"{dgp}")
         ax.legend(loc="best")
 
-    plt.suptitle(f"Sensitivity Analysis: {param_name} (metric: {metric})", fontsize=14, y=1.02)
     plt.tight_layout()
 
     if save_path:
@@ -877,7 +876,6 @@ def plot_combined_sensitivity(
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", ncol=len(DGPS), bbox_to_anchor=(0.5, 1.08))
 
-    plt.suptitle(f"BDF Parameter Sensitivity (metric: {metric})", fontsize=14, y=1.12)
     plt.tight_layout()
 
     if save_path:
@@ -1108,6 +1106,117 @@ def generate_summary_tables(
     return tables
 
 
+def generate_latex_recommendation_table(
+    all_results: dict[str, "AblationResults"],
+    save_path: Path | None = None,
+    metric: str | None = None,
+) -> str:
+    """Generate LaTeX table summarizing recommended parameter ranges.
+
+    Rows = parameters, columns = best value per DGP + overall recommendation.
+    """
+    primary_metric = metric or PRIMARY_METRIC
+
+    sample_results = next(iter(all_results.values()))
+    sample_df = sample_results.to_dataframe()
+    dgp_names = sorted(sample_df["dgp"].unique().tolist())
+
+    params = [p for p in all_results.keys() if p != "scoring"]
+
+    col_spec = "l" + "c" * len(dgp_names) + "c"
+    lines = [
+        "\\begin{table}[htbp]",
+        "\\centering",
+        f"\\caption{{Recommended hyperparameter values ({primary_metric.upper()} $\\downarrow$).}}",
+        "\\label{tab:param-sensitivity}",
+        f"\\begin{{tabular}}{{{col_spec}}}",
+        "\\toprule",
+    ]
+
+    dgp_headers = " & ".join(d.replace("_", "\\_") for d in dgp_names)
+    lines.append(f"Parameter & {dgp_headers} & Recommended \\\\")
+    lines.append("\\midrule")
+
+    for param_name in params:
+        df = all_results[param_name].to_dataframe()
+        best_vals = []
+        cells = [param_name.replace("_", "\\_")]
+
+        for dgp in dgp_names:
+            dgp_df = df[df["dgp"] == dgp]
+            if dgp_df.empty or primary_metric not in dgp_df.columns:
+                cells.append("---")
+                continue
+            grouped = dgp_df.groupby("param_value")[primary_metric].mean()
+            best_val = grouped.idxmin()
+            best_vals.append(best_val)
+
+            # Format: bold if different from default
+            default_val = DEFAULT_PARAMS.get(param_name)
+            val_str = f"{best_val:g}" if isinstance(best_val, float) else str(best_val)
+            if best_val != default_val:
+                val_str = f"\\textbf{{{val_str}}}"
+            cells.append(val_str)
+
+        # Overall recommendation: mode of best values, or default if consistent
+        if best_vals:
+            from collections import Counter
+
+            most_common = Counter(best_vals).most_common(1)[0][0]
+            rec_str = f"{most_common:g}" if isinstance(most_common, float) else str(most_common)
+        else:
+            rec_str = "---"
+        cells.append(rec_str)
+
+        lines.append(" & ".join(cells) + " \\\\")
+
+    # Scoring method row
+    if "scoring" in all_results:
+        df = all_results["scoring"].to_dataframe()
+        cells = ["score\\_method"]
+        best_scorings = []
+        for dgp in dgp_names:
+            dgp_df = df[df["dgp"] == dgp]
+            if dgp_df.empty or primary_metric not in dgp_df.columns:
+                cells.append("---")
+                continue
+            grouped = dgp_df.groupby("param_value")[primary_metric].mean()
+            best_scoring = grouped.idxmin()
+            best_scorings.append(best_scoring)
+            cells.append(str(best_scoring))
+
+        if best_scorings:
+            from collections import Counter
+
+            most_common = Counter(best_scorings).most_common(1)[0][0]
+            cells.append(str(most_common))
+        else:
+            cells.append("---")
+
+        lines.append("\\midrule")
+        lines.append(" & ".join(cells) + " \\\\")
+
+    lines.extend(
+        [
+            "\\bottomrule",
+            "\\end{tabular}",
+            "\\par\\smallskip\\footnotesize{Best value per DGP (bold = differs from default). "
+            "Recommended = most frequent best value across DGPs.}",
+            "\\end{table}",
+        ]
+    )
+
+    table_str = "\n".join(lines)
+
+    if save_path:
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(save_path, "w") as f:
+            f.write(table_str)
+        logger.info(f"Saved LaTeX table to {save_path}")
+
+    return table_str
+
+
 # =============================================================================
 # Main Execution
 # =============================================================================
@@ -1150,7 +1259,7 @@ def generate_all_plots(all_results: dict[str, AblationResults]):
             param_name,
             metric=PRIMARY_METRIC,
             log_scale=(param_name != "min_samples_leaf"),
-            save_path=PLOTS_DIR / f"sensitivity_{param_name}.png",
+            save_path=PLOTS_DIR / f"sensitivity_{param_name}.pdf",
         )
 
     # Scoring comparison
@@ -1159,21 +1268,21 @@ def generate_all_plots(all_results: dict[str, AblationResults]):
         plot_scoring_comparison(
             df,
             metric=PRIMARY_METRIC,
-            save_path=PLOTS_DIR / "scoring_comparison.png",
+            save_path=PLOTS_DIR / "scoring_comparison.pdf",
         )
 
     # Combined sensitivity plot
     plot_combined_sensitivity(
         all_results,
         metric=PRIMARY_METRIC,
-        save_path=PLOTS_DIR / "combined_sensitivity.png",
+        save_path=PLOTS_DIR / "combined_sensitivity.pdf",
     )
 
     # Heatmap summary
     plot_heatmap_summary(
         all_results,
         metric=PRIMARY_METRIC,
-        save_path=PLOTS_DIR / "sensitivity_heatmap.png",
+        save_path=PLOTS_DIR / "sensitivity_heatmap.pdf",
     )
 
     # Additional plots for other metrics
@@ -1181,8 +1290,15 @@ def generate_all_plots(all_results: dict[str, AblationResults]):
         plot_combined_sensitivity(
             all_results,
             metric=metric,
-            save_path=PLOTS_DIR / f"combined_sensitivity_{metric}.png",
+            save_path=PLOTS_DIR / f"combined_sensitivity_{metric}.pdf",
         )
+
+    # LaTeX recommendation table
+    generate_latex_recommendation_table(
+        all_results,
+        metric=PRIMARY_METRIC,
+        save_path=PLOTS_DIR / "param_recommendation_table.tex",
+    )
 
     logger.info(f"All plots saved to {PLOTS_DIR}")
 
@@ -1207,7 +1323,7 @@ def generate_classification_plots(
             param_name,
             metric=primary_metric,
             log_scale=(param_name != "min_samples_leaf"),
-            save_path=plots_dir / f"clas_sensitivity_{param_name}.png",
+            save_path=plots_dir / f"clas_sensitivity_{param_name}.pdf",
         )
 
     # Scoring comparison
@@ -1216,21 +1332,28 @@ def generate_classification_plots(
         plot_scoring_comparison(
             df,
             metric=primary_metric,
-            save_path=plots_dir / "clas_scoring_comparison.png",
+            save_path=plots_dir / "clas_scoring_comparison.pdf",
         )
 
     # Combined sensitivity plot
     plot_combined_sensitivity(
         all_results,
         metric=primary_metric,
-        save_path=plots_dir / "clas_combined_sensitivity.png",
+        save_path=plots_dir / "clas_combined_sensitivity.pdf",
     )
 
     # Heatmap summary
     plot_heatmap_summary(
         all_results,
         metric=primary_metric,
-        save_path=plots_dir / "clas_sensitivity_heatmap.png",
+        save_path=plots_dir / "clas_sensitivity_heatmap.pdf",
+    )
+
+    # LaTeX recommendation table
+    generate_latex_recommendation_table(
+        all_results,
+        metric=primary_metric,
+        save_path=plots_dir / "clas_param_recommendation_table.tex",
     )
 
     logger.info(f"Classification plots saved to {plots_dir}")

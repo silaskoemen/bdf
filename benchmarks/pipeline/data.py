@@ -1,15 +1,24 @@
-"""File for benchmark utility functions.
+"""Dataset loading for benchmarks.
 
-This file contains utility functions to load various regression and classification datasets
-for benchmarking purposes. Includes loading of datasets in pandas format, as well as a registry
-and possible variable transformations to ensure compatibility with the benchmarking pipeline.
+Datasets are pre-fetched (scripts/fetch_datasets.py) and pre-processed
+(scripts/process_datasets.py) into data/processed/<name>.parquet plus
+data/processed/<name>.meta.json. This module discovers them by task and
+exposes uniform (metadata, X, y) tuples.
+
+Target column in every processed parquet is literally `target`.
 """
 
+from __future__ import annotations
+
+import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Iterator
+from pathlib import Path
+from typing import Iterator
 
 import pandas as pd
+
+PROCESSED_DIR = Path("data/processed")
 
 
 class TargetDomain(Enum):
@@ -39,195 +48,52 @@ class DatasetMetadata:
         }
 
 
-# ===========================================================
-# REGRESSION DATASETS
-# ===========================================================
+def _load_meta(name: str) -> dict:
+    with open(PROCESSED_DIR / f"{name}.meta.json") as f:
+        return json.load(f)
 
 
-def _load_abalone_age():
-    columns = [
-        "sex",
-        "length",
-        "diameter",
-        "height",
-        "whole_weight",
-        "shucked_weight",
-        "viscera_weight",
-        "shell_weight",
-        "age",
-    ]
-    data = pd.read_csv("data/raw/abalone_age.csv", names=columns)
-    X = data.drop("age", axis=1)
-    # Encode sex in [M, F, I]
-    X = pd.get_dummies(X, columns=["sex"], drop_first=True)
-    X = X.astype(float)
-    y = data["age"]
-    return X, y, "positive_integer"
+def load(name: str) -> tuple[DatasetMetadata, pd.DataFrame, pd.Series]:
+    """Load a processed dataset by name.
+
+    Returns:
+        Tuple (metadata, X, y) where X has only feature columns and y is the
+        `target` column cast to the appropriate dtype.
+    """
+    df = pd.read_parquet(PROCESSED_DIR / f"{name}.parquet")
+    meta = _load_meta(name)
+    y = df["target"]
+    X = df.drop(columns=["target"])
+    return (
+        DatasetMetadata(
+            name=meta["name"],
+            target_domain=TargetDomain(meta["domain"]),
+            n_samples=X.shape[0],
+            n_features=X.shape[1],
+        ),
+        X,
+        y,
+    )
 
 
-def _load_parkinsons_updrs():
-    data = pd.read_csv("data/raw/parkinsons_updrs.csv")
-    # Should prob rename columns with '%' char
-    X = data.drop(columns=["motor_UPDRS", "total_UPDRS", "subject#"], axis=1)
-    X.columns = X.columns.str.replace("%", "percent").str.replace(":", "_")
-    y = data["total_UPDRS"]
-    return X, y, "positive_real"
-
-
-def _load_boston_housing():
-    data = pd.read_csv("data/raw/boston_housing.csv")
-    data = data.dropna()
-    X = data.drop(columns=["MEDV"])
-    y = data["MEDV"]
-    return X, y, "positive_real"
-
-
-def _load_realestate():
-    data = pd.read_csv("data/raw/realestate.csv")
-    X = data.drop(columns=["Y house price of unit area", "No"])
-    y = data["Y house price of unit area"]
-    return X, y, "positive_real"
-
-
-def _load_wine_quality():
-    data = pd.read_csv("data/raw/wine_quality.csv", sep=";")
-    X = data.drop("quality", axis=1)
-    y = data["quality"]
-    return X, y, "positive_integer"
-
-
-def _load_kin8nm():
-    data = pd.read_csv("data/raw/kin8nm.csv")
-    X = data.drop("y", axis=1)
-    y = data["y"]
-    return X, y, "positive_real"
-
-
-def _load_concrete_strength():
-    data = pd.read_csv("data/raw/concrete_strength.csv")
-    X = data.drop("Concrete compressive strength", axis=1)
-    y = data["Concrete compressive strength"]
-    return X, y, "positive_real"
-
-
-def _load_energy_efficiency():
-    data = pd.read_csv("data/raw/energy_efficiency.csv")
-    X = data.drop("Y1", axis=1)
-    y = data["Y1"]
-    return X, y, "positive_real"
-
-
-def _load_combined_cycle_power_plant():
-    data = pd.read_csv("data/raw/combined_cycle_power_plant.csv")
-    X = data.drop("PE", axis=1)
-    y = data["PE"]
-    return X, y, "positive_real"
-
-
-def _load_superconductor():
-    data = pd.read_csv("data/raw/superconductor.csv")
-    X = data.drop("critical_temp", axis=1)
-    y = data["critical_temp"]
-    return X, y, "positive_real"
-
-
-def _load_bike_sharing():
-    data = pd.read_csv("data/raw/bike_sharing.csv").drop(columns=["dteday"])
-    X = data.drop("cnt", axis=1)
-    y = data["cnt"]
-    return X, y, "positive_integer"
-
-
-# Registry of name - load functions for datasets
-REGRESSION_DATASET_REGISTRY: dict[str, Callable] = {
-    "abalone_age": _load_abalone_age,
-    "bike_sharing": _load_bike_sharing,
-    "boston_housing": _load_boston_housing,
-    "combined_cycle_power_plant": _load_combined_cycle_power_plant,
-    "concrete_strength": _load_concrete_strength,
-    "energy_efficiency": _load_energy_efficiency,
-    "kin8nm": _load_kin8nm,
-    "parkinsons_updrs": _load_parkinsons_updrs,
-    "realestate": _load_realestate,
-    "superconductor": _load_superconductor,
-    "wine_quality": _load_wine_quality,
-}
+def _discover(task: str) -> list[str]:
+    """List processed datasets of a given task, sorted by name."""
+    if not PROCESSED_DIR.exists():
+        return []
+    names = []
+    for meta_path in sorted(PROCESSED_DIR.glob("*.meta.json")):
+        with open(meta_path) as f:
+            meta = json.load(f)
+        if meta.get("task") == task:
+            names.append(meta["name"])
+    return names
 
 
 def available_regression_datasets() -> Iterator[tuple[DatasetMetadata, pd.DataFrame, pd.Series]]:
-    for name, load_fct in REGRESSION_DATASET_REGISTRY.items():
-        X, y, target_domain = load_fct()
-        yield (
-            DatasetMetadata(
-                name=name, target_domain=TargetDomain(target_domain), n_samples=X.shape[0], n_features=X.shape[1]
-            ),
-            X,
-            y,
-        )
-
-
-# ===========================================================
-# CLASSIFICATION DATASETS
-# ===========================================================
-
-
-def _load_breast_cancer_wisconsin():
-    data = pd.read_csv("data/raw/breast_cancer_wisconsin.csv", header=0)
-    X = data.drop("Class", axis=1)
-    y = data["Class"]
-    return X, y, "binary"
-
-
-def _load_iris():
-    data = pd.read_csv("data/raw/iris.csv", header=0)
-    X = data.drop("target", axis=1)
-    y = data["target"]
-    return X, y, "multiclass"
-
-
-def _load_wine_quality_classification():
-    data = pd.read_csv("data/raw/wine_quality_classification.csv")
-    X = data.drop("target", axis=1)
-    y = data["target"]
-    return X, y, "multiclass"
-
-
-def _load_boston_housing_classification():
-    data = pd.read_csv("data/raw/boston_housing.csv")
-    data = data.dropna()
-    X = data.drop(columns=["MEDV"])
-    y = data["MEDV"]
-    y = (y > y.mean()).astype(float)  # Convert to binary classification problem
-    return X, y, "binary"
-
-
-def _load_titanic():
-    data = pd.read_csv("data/raw/titanic.csv")
-    drop_cols = ["PassengerId", "Ticket", "Embarked", "Name", "Cabin"]
-    data = data.dropna(subset=data.columns.difference(drop_cols))
-    X = data.drop(columns=["Survived", "PassengerId", "Ticket", "Embarked", "Name", "Cabin"], axis=1)
-    X["Sex"] = (X["Sex"] == "male").astype(int)
-    y = data["Survived"]
-    return X, y, "binary"
-
-
-CLASSIFICATION_DATASET_REGISTRY: dict[str, Callable] = {
-    # "breast_cancer": _load_breast_cancer,
-    # "iris": _load_iris,
-    # "wine_quality_classification": _load_wine_quality_classification,
-    "boston_housing_classification": _load_boston_housing_classification,
-    "titanic": _load_titanic,
-    "breast_cancer_wisconsin": _load_breast_cancer_wisconsin,
-}
+    for name in _discover("regression"):
+        yield load(name)
 
 
 def available_classification_datasets() -> Iterator[tuple[DatasetMetadata, pd.DataFrame, pd.Series]]:
-    for name, load_fct in CLASSIFICATION_DATASET_REGISTRY.items():
-        X, y, target_domain = load_fct()
-        yield (
-            DatasetMetadata(
-                name=name, target_domain=TargetDomain(target_domain), n_samples=X.shape[0], n_features=X.shape[1]
-            ),
-            X,
-            y,
-        )
+    for name in _discover("classification"):
+        yield load(name)

@@ -4,7 +4,7 @@ from typing import Literal
 import numpy as np
 import pytest
 
-from bdf.distributions.kde import KDE, BayesianKDE, BayesianKDEParams, KDEParams
+from bdf.distributions.kde import KDE, BayesianKDE, BayesianKDEParams, KDEParams, PseudoHKDE, PseudoHKDEParams
 
 # -----------------------------
 # Pure-python reference helpers
@@ -295,16 +295,48 @@ def test_kde_translation_invariance_fixed_bandwidth():
     assert nll1 == pytest.approx(nll2, rel=0, abs=1e-10)
 
 
-def test_bayesian_kde_posterior_bandwidth_formula():
+def test_pseudo_h_kde_posterior_bandwidth_formula():
+    import math
+
     y = np.array([0.0, 1.0, 2.0, 3.0], dtype=float)
-    params = BayesianKDEParams(bandwidth=0.5, kernel="gaussian", prior_h=2.0, m_h=3.0, min_bandwidth=1e-10)
-    dist = BayesianKDE(params)
+    params = PseudoHKDEParams(bandwidth=0.5, kernel="gaussian", prior_h=2.0, m_h=3.0, min_bandwidth=1e-10)
+    dist = PseudoHKDE(params)
 
     post = dist.calc_posterior_params(y)
     data_h = float(post["data_bandwidth"])
     n = float(post["n"])
-    expected = (params.m_h * params.prior_h + n * data_h) / (params.m_h + n)
+    expected = math.exp((params.m_h * math.log(params.prior_h) + n * math.log(data_h)) / (params.m_h + n))
     assert float(post["bandwidth"]) == pytest.approx(expected, rel=0, abs=1e-14)
+
+
+def test_pseudo_h_kde_alias_equals_bayesian_kde():
+    assert BayesianKDE is PseudoHKDE
+    assert BayesianKDEParams is PseudoHKDEParams
+
+
+def test_pseudo_h_kde_shrinks_toward_prior():
+    import math
+
+    # Fixed prior_h clearly different from what Scott's rule gives on either leaf
+    prior_h = 5.0
+    m_h = 10.0
+    params = PseudoHKDEParams(bandwidth="scott", prior_h=prior_h, m_h=m_h, min_bandwidth=1e-10)
+    dist = PseudoHKDE(params)
+
+    # Small leaf (n=4): should stay close to prior
+    small_y = np.array([0.0, 0.5, 1.0, 1.5])
+    post_small = dist.calc_posterior_params(small_y)
+    small_h = float(post_small["bandwidth"])
+    small_data_h = float(post_small["data_bandwidth"])
+    assert abs(math.log(small_h) - math.log(prior_h)) < abs(math.log(small_data_h) - math.log(prior_h))
+
+    # Large leaf (n=500): dominated by data bandwidth
+    rng = np.random.default_rng(0)
+    large_y = rng.normal(0, 0.1, 500)  # tight cluster -> small data_h << prior_h
+    post_large = dist.calc_posterior_params(large_y)
+    large_h = float(post_large["bandwidth"])
+    large_data_h = float(post_large["data_bandwidth"])
+    assert abs(math.log(large_h) - math.log(large_data_h)) < abs(math.log(large_h) - math.log(prior_h))
 
 
 def test_kde_fft_param_validation_rejects_epanechnikov():

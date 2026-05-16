@@ -1,0 +1,17 @@
+\begin{table}[htbp]
+\centering
+\caption{Win/Tie/Loss for Log Loss (BDF vs baselines)}
+\label{tab:classification-win-tie-loss}
+\begin{tabular}{lccccc}
+\toprule
+Comparison & Wins & Ties & Losses & Total & Sign test $p$ \\
+\midrule
+BDF vs rf\_clas & 3 & 0 & 0 & 3 & 0.250 \\
+BDF vs lgbm\_clas & 1 & 2 & 0 & 3 & 1.000 \\
+BDF vs ngboost\_clas & 2 & 0 & 1 & 3 & 1.000 \\
+BDF vs calrf\_clas & 3 & 0 & 0 & 3 & 0.250 \\
+BDF vs knn\_clas & 3 & 0 & 0 & 3 & 0.250 \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize{Wins = control better, Losses = challenger better. Ties = $<$1\% relative difference. Bold $p$ = significant.}
+\end{table}
