@@ -14,7 +14,7 @@ import json
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator
 
 import pandas as pd
 
@@ -38,14 +38,28 @@ class DatasetMetadata:
     target_domain: TargetDomain
     n_samples: int
     n_features: int
+    task: str | None = None
+    original_target: str | None = None
+    n_samples_before_na_drop: int | None = None
+    encoding_applied: str | None = None
+    source_provenance: dict[str, Any] | None = None
 
     def to_dict(self) -> dict:
-        return {
+        out = {
             "name": self.name,
             "target_domain": self.target_domain.value,
             "n_samples": self.n_samples,
             "n_features": self.n_features,
         }
+        optional = {
+            "task": self.task,
+            "original_target": self.original_target,
+            "n_samples_before_na_drop": self.n_samples_before_na_drop,
+            "encoding_applied": self.encoding_applied,
+            "source_provenance": self.source_provenance,
+        }
+        out.update({k: v for k, v in optional.items() if v is not None})
+        return out
 
 
 def _load_meta(name: str) -> dict:
@@ -70,6 +84,11 @@ def load(name: str) -> tuple[DatasetMetadata, pd.DataFrame, pd.Series]:
             target_domain=TargetDomain(meta["domain"]),
             n_samples=X.shape[0],
             n_features=X.shape[1],
+            task=meta.get("task"),
+            original_target=meta.get("original_target"),
+            n_samples_before_na_drop=meta.get("n_samples_before_na_drop"),
+            encoding_applied=meta.get("encoding_applied"),
+            source_provenance=meta.get("source_provenance"),
         ),
         X,
         y,

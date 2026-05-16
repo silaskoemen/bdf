@@ -46,10 +46,10 @@ BASELINE_MODELS = [
     "conflgbm",
     "confrf",
     "gaussian_de",
-    # "gp_reg",
-    "pymc_bart",
-    "ngboost_reg",  # add when available
-    # "qrf",
+    # "gp_reg",  # excluded from main aggregate: scaling/provenance limitations
+    # "pymc_bart",  # prohibitively expensive for adequate chains/draws; supplement only
+    "ngboost_reg",
+    "qrf",
     "catbunc_reg",
     "knnkde",
 ]
@@ -69,14 +69,18 @@ DATASETS = [
     "abalone_age",
     "bike_sharing",
     "boston_housing",
+    "california_housing",
     "combined_cycle_power_plant",
     "concrete_strength",
     "energy_efficiency",
+    "forest_fires",
     "kin8nm",
+    "naval_propulsion",
     "parkinsons_updrs",
-    "realestate",
+    "protein_tertiary_structure",
     "superconductor",
     "wine_quality",
+    "yacht_hydrodynamics",
 ]
 
 # Metrics configuration

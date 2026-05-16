@@ -1,39 +1,12 @@
 \documentclass[twoside,11pt]{article}
 
-% Review token: f9NQetrIl5CWRPGaCk8R9sRfUhpeFK50wI3TTNK6_2M
-
-\usepackage{blindtext, comment, enumitem}
-
-% Any additional packages needed should be included after jmlr2e.
-% Note that jmlr2e.sty includes epsfig, amssymb, natbib and graphicx,
-% and defines many common macros, such as 'proof' and 'example'.
-%
-% It also sets the bibliographystyle to plainnat; for more information on
-% natbib citation styles, see the natbib documentation, a copy of which
-% is archived at http://www.jmlr.org/format/natbib.pdf
-
-% Available options for package jmlr2e are:
-%
-%   - abbrvbib : use abbrvnat for the bibliography style
-%   - nohyperref : do not load the hyperref package
-%   - preprint : remove JMLR specific information from the template,
-%         useful for example for posting to preprint servers.
-%
-% Example of using the package with custom options:
-%
-% \usepackage[abbrvbib, preprint]{jmlr2e}
-
-\usepackage{jmlr2e, algorithmic, algorithm, amsmath, xcolor, booktabs, underscore}
+\usepackage[preprint]{jmlr2e}
+\usepackage{algorithmic, algorithm, amsmath, xcolor, booktabs, underscore, comment, enumitem}
 
 % Definitions of handy macros can go here
 
 \newcommand{\dataset}{{\cal{D}}}
 \newcommand{\fracpartial}[2]{\frac{\partial #1}{\partial  #2}}
-
-% Heading arguments are {volume}{year}{pages}{date submitted}{date published}{paper id}{author-full-names}
-
-\usepackage{lastpage}
-% \jmlrheading{23}{2022}{1-\pageref{LastPage}}{1/21; Revised 5/22}{9/22}{21-0000}{Silas Koemen}
 
 % Short headings should be running head and authors last names
 
@@ -45,9 +18,6 @@
 \title{Bayesian Distributional Forests: A Unified Framework for Probabilistic Tree Ensembles}
 
 \author{\name Silas Koemen \email research@silaskoemen.com}
-
-
-\editor{--}
 
 \maketitle
 
@@ -268,7 +238,7 @@ To account for dependence among candidates (e.g., correlated features or adjacen
 \end{equation}
 When $\gamma = 1$, this recovers the exact Bayesian model selection penalty under the specified prior. When $\gamma < 1$, the penalty is reduced to reflect an effective number of distinguishable candidates smaller than the nominal count.
 
-Substituting~\eqref{eq:split_gain} and~\eqref{eq:prior_logodds} into~\eqref{eq:posterior_odds} yields the \emph{net gain}:
+Substituting~\eqref{eq:split_gain} and~\eqref{eq:prior_logodds_fixed} into~\eqref{eq:posterior_odds} yields the \emph{net gain}:
 \begin{equation}\label{eq:net_gain}
 \Delta_{\mathrm{net}}(s;\ell)
 \;=\;
@@ -579,7 +549,7 @@ The fixed-partition theory provides rigorous grounding for the leaf-level infere
 % ==========================================
 % SECTION 6: CONCLUSION AND DISCUSSION
 % ==========================================
-\section{Conclusion}
+\section{Discussion and Conclusion}\label{sec:discussion}
 
 We introduced Bayesian Distributional Forests (BDF), a tree-based framework that performs Bayesian inference over full predictive distributions at the leaf level and selects splits via (approximate) marginal likelihood. By fitting parametric posterior distributions in each leaf, BDF unifies ideas from decision trees, Bayesian modeling, and distributional learning, with regularization arising jointly from likelihood assumptions and global priors.
 
@@ -589,11 +559,7 @@ BDF is not designed to be the most accurate point predictor, and it is not: dedi
 
 From a computational perspective, BDF retains the scalability of tree-based models and requires no auxiliary calibration dataset. With accelerated split finding implemented in Rust, BDF fits in time comparable to LightGBM and is tens of times faster than other uncertainty-aware methods. The framework is modular: likelihood families, prior structures, and approximate inference schemes can be substituted without altering the learning algorithm.
 
-Overall, Bayesian Distributional Forests provide a practical and principled alternative to existing probabilistic tree methods for applications where calibrated predictive distributions are the primary requirement, bridging scalable tree ensembles and Bayesian uncertainty-aware inference.
-
-\section{Discussion and Future Work}\label{sec:discussion}
-
-This work positions Bayesian Distributional Forests (BDF) as a practical compromise between scalable tree-based models and Bayesian distributional learning. By fitting posterior distributions in tree leaves and selecting splits via (approximate) marginal likelihood, BDF enables uncertainty-aware prediction without sacrificing the computational efficiency of modern ensemble methods. While the empirical results demonstrate strong probabilistic performance across both regression and classification tasks, several aspects of the approach merit further discussion.
+Overall, Bayesian Distributional Forests provide a practical and principled alternative to existing probabilistic tree methods for applications where calibrated predictive distributions are the primary requirement. Several aspects of the approach merit further discussion.
 
 \paragraph{Interpretation of empirical findings.}
 The central empirical pattern across our benchmarks is that BDF attains the best average relative CRPS and the lowest average interval-score rank while simultaneously achieving nominal coverage---a combination that the baseline methods in our comparison do not jointly deliver. Methods with strong point accuracy (CatBoost with uncertainty, NGBoost) exhibit severe undercoverage; conformalized methods achieve nominal coverage but at worse average CRPS. BDF is not the strongest point predictor: dedicated gradient-boosted baselines (LightGBM, CatBoost) remain ahead on RMSE, and BDF trails these methods by roughly 20\% relative to the per-dataset best. We view this as the expected cost of a distributional objective; the model is not being optimized for a point functional.
@@ -617,42 +583,14 @@ Overall, we view Bayesian Distributional Forests as a flexible foundation rather
 
 \acks{The author declares no conflict of interest and received no funding for this research.}
 
-% Manual newpage inserted to improve layout of sample file - not
-% needed in general before appendices/bibliography.
-
 \newpage
 
 \bibliography{sample}
 
 \newpage
-%\vskip 0.2in
-% ==========================================
-% APPENDIX  —  Reworked Skeleton (Sections A–C)
-% ==========================================
-% DESIGN PRINCIPLES:
-%   • Unified notation: \ell = leaf index, R_\ell = leaf region,
-%     \Omega reserved ONLY for a generic fixed region in C.4–C.5.
-%     All other sections use \ell.  D_\ell = leaf data, n_\ell = leaf size.
-%   • Target: A (1.5pp) + B (0.75pp) + C (10–12pp) ≈ 13–14pp.
-%     Leaves room for D (2–4pp) + E (5–10pp) within ~25–28pp total appendix.
-%   • Redundancy removed: B.2 (BIC from Laplace) is cut; C.3 owns
-%     that derivation.  B.3 (EB / generalized Bayes) is cut entirely
-%     unless tied to a robustness experiment in Section E.
-%   • Every TODO includes the precise technical content to write,
-%     incorporating the review feedback below.
-% ==========================================
 
 \appendix
 
-% ------------------------------------------
-% APPENDIX A: Conjugate Leaf Updates
-% ------------------------------------------
-% TARGET: 1.5 pages.  Pure reference table.
-% CHANGES vs. original skeleton:
-%   • Add domination envelope g(y) for each family (needed by C.4(d)).
-%   • Add note on unknown-variance (Normal–InvGamma) or explicitly
-%     state that sigma^2 is always EB-fixed.
-% ------------------------------------------
 \section{Conjugate Leaf Models}\label{app:conjugate_updates}
 
 For each conjugate family used in experiments we record the posterior,
@@ -660,38 +598,6 @@ posterior predictive, log marginal likelihood, and sufficient statistics.
 All updates are $O(1)$ per observation.
 
 \subsection{Normal--Normal (Known Variance)}\label{app:conjugate_normal}
-
-% SETTING:
-%   y_i | mu ~ N(mu, sigma^2),  sigma^2 known (fixed by EB, see Sec 2).
-%   mu ~ N(mu_0, tau_0^2).
-%
-% FILL IN (4 items, each ≤3 lines):
-%
-% 1. POSTERIOR:
-%      tau_ell^{-2} = tau_0^{-2} + n_ell / sigma^2
-%      hat_mu_ell   = tau_ell^2 (mu_0 / tau_0^2  +  sum_y / sigma^2)
-%      mu | D_ell ~ N(hat_mu_ell, tau_ell^2)
-%
-% 2. POSTERIOR PREDICTIVE:
-%      p(y* | D_ell) = N(y*; hat_mu_ell, sigma^2 + tau_ell^2)
-%
-% 3. LOG MARGINAL LIKELIHOOD (in terms of suff. stats n_ell, sum_y, sum_y2):
-%      log m(D_ell) = -(n_ell/2) log(2 pi sigma^2)
-%                     + (1/2) log(tau_0^2 / (tau_0^2 + n_ell sigma^{-2})^{-1})
-%                       ... [standard textbook form; write out fully]
-%
-% 4. SUFFICIENT STATISTICS: (n_ell, sum_y, sum_y2).  O(1) add/remove.
-%
-% 5. DOMINATION ENVELOPE (for C.4(d)):
-%      Since Theta = [mu_min, mu_max] is compact (Proposition 1(i)),
-%        sup_{mu in Theta} N(y; mu, sigma^2)
-%          = N(y; mu*(y), sigma^2)   where mu*(y) = clamp(y, mu_min, mu_max)
-%          <= (2 pi sigma^2)^{-1/2}  =: g(y).
-%      g is integrable (it is constant), so the domination condition holds.
-%
-%      NOTE: if Theta = R (non-compact), the envelope is still
-%      (2 pi sigma^2)^{-1/2} but compactness is used elsewhere;
-%      state that we require Theta compact as in Proposition 1(i).
 
 Let $\bar{y}_\ell = n_\ell^{-1}\sum_{i:\mathbf{x}_i\in R_\ell} y_i$ denote the leaf sample mean. The sufficient statistics are $(n_\ell, \sum_i y_i, \sum_i y_i^2)$ and are maintained in $O(1)$ per insertion or removal.
 
@@ -725,26 +631,6 @@ Let $\Theta = [\mu_{\min}, \mu_{\max}]$ be the compact mean interval required by
 
 \subsection{Beta--Bernoulli}\label{app:conjugate_beta}
 
-% SETTING:
-%   y_i | p ~ Bernoulli(p),   p ~ Beta(alpha_0, beta_0).
-%
-% FILL IN (4 items):
-%
-% 1. POSTERIOR:  p | D_ell ~ Beta(alpha_0 + s_ell, beta_0 + n_ell - s_ell)
-%    where s_ell = sum y_i.
-%
-% 2. PREDICTIVE:  p(y*=1 | D_ell) = (alpha_0 + s_ell) / (alpha_0 + beta_0 + n_ell)
-%
-% 3. LOG MARGINAL:
-%    log m(D_ell) = log B(alpha_0 + s_ell, beta_0 + n_ell - s_ell)
-%                 - log B(alpha_0, beta_0)
-%
-% 4. SUFFICIENT STATISTICS: (n_ell, s_ell).  O(1) updates.
-%
-% 5. DOMINATION ENVELOPE:
-%    Y in {0,1}, so p(y|theta) <= 1 for all theta.
-%    g(y) = 1 is trivially integrable (sum over two points).
-
 Let $s_\ell = \sum_{i:\mathbf{x}_i\in R_\ell} y_i$ denote the count of positive outcomes; the sufficient statistics are $(n_\ell, s_\ell)$ and are maintained in $O(1)$.
 
 \paragraph{Posterior.}
@@ -769,50 +655,13 @@ where $B(a,b) = \Gamma(a)\Gamma(b)/\Gamma(a+b)$ is the Beta function.
 \begin{remark}[Unknown variance]
 All experiments use a known (EB-fixed) observation variance $\sigma^2$;
 see Section~\ref{par:empirical_bayes}.
-% IF you later add a Normal–InvGamma experiment, insert that
-% subsection here with the same 5-item template.
-% Otherwise this remark suffices to preempt the reviewer question.
 \end{remark}
 
-
-% ------------------------------------------
-% APPENDIX B: Non-Conjugate Approximations
-% ------------------------------------------
-% TARGET: 0.75 pages (compressed from 1.5–2).
-% CHANGES vs. original:
-%   • B.2 (BIC from Laplace) is REMOVED — C.3 owns the full derivation.
-%     We state only the Laplace posterior here; the reader is directed to C.3
-%     for the marginal-likelihood expansion.
-%   • B.3 (EB shrinkage / generalized Bayes) is REMOVED unless tied
-%     to an experiment in Section E.  If needed, add a single paragraph.
-% ------------------------------------------
 \section{Laplace Approximation for Non-Conjugate Leaves}
 \label{app:approximate-bayesian-calculations-non-conjugate}
 
 When the likelihood--prior pair is not conjugate, BDF approximates the
 leaf posterior by a Gaussian centered at the MAP estimate.
-
-% FILL IN (single subsection, ~0.5 page):
-%
-%   1. MAP estimate:
-%      hat_theta^MAP = argmax [ log pi(theta|eta) + sum log p(y_i|theta) ]
-%
-%   2. Hessian:
-%      H = - nabla^2 [ log pi(theta|eta) + ell_n(theta) ] |_{hat_theta^MAP}
-%
-%   3. Gaussian approximation:
-%      pi(theta | D_ell) ≈ N(hat_theta^MAP, H^{-1})
-%
-%   4. Approximate predictive:
-%      p(y* | D_ell) ≈ int p(y*|theta) N(theta; hat_theta, H^{-1}) dtheta
-%      Evaluate numerically or via further Laplace expansion.
-%
-%   5. FORWARD REFERENCE: "The associated BIC approximation to the
-%      log marginal likelihood, and its validity as a surrogate for the
-%      NLE in split selection, is established in Appendix C.3."
-%
-%   This removes the redundancy: the expansion appears once, in C.3,
-%   where it is needed for the uniformity argument.
 
 \paragraph{MAP estimate and curvature.}
 Let $\ell_n(\theta_\ell) = \sum_{i:\mathbf{x}_i\in R_\ell} \log p(y_i\mid\theta_\ell)$ denote the leaf log-likelihood. The leaf posterior mode is
@@ -840,14 +689,6 @@ evaluated in closed form for Gaussian-linearized likelihoods and numerically (Ga
 
 The associated BIC approximation to the log marginal likelihood, together with its validity as a surrogate for the NLE in split selection, is established in Appendix~\ref{app:bic_uniform}.
 
-
-% ------------------------------------------
-% APPENDIX C: Proofs and Derivations
-% ------------------------------------------
-% TARGET: 10–12 pages total (compressed from 12–15).
-% SAVINGS: C.1 tightened, C.2 streamlined, C.8 kept to 0.5pp.
-% LOAD-BEARING: C.2 (split = BF), C.3 (uniform BIC), C.5 (split consistency).
-% ------------------------------------------
 \input{appendix/proofs.tex}
 
 \input{appendix/experimental_setup.tex}

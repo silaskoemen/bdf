@@ -351,7 +351,7 @@ def test_kde_fft_param_validation_rejects_epanechnikov():
 
 @pytest.mark.parametrize("kernel", ["gaussian", "epanechnikov"])
 def test_rust_python_split_equivalence_pairwise_parent(kernel: Literal["gaussian", "epanechnikov"]):
-    bdf_rs = pytest.importorskip("bdf_rs")
+    bdf_rs = pytest.importorskip("bdf._bdf_rs")
 
     rng = np.random.default_rng(0)
     n = 60
@@ -410,7 +410,7 @@ def test_rust_python_split_equivalence_pairwise_parent(kernel: Literal["gaussian
 
 
 def test_rust_compact_support_close_to_exact_gaussian():
-    bdf_rs = pytest.importorskip("bdf_rs")
+    bdf_rs = pytest.importorskip("bdf._bdf_rs")
 
     rng = np.random.default_rng(1)
     n = 120
@@ -458,7 +458,7 @@ def test_rust_compact_support_close_to_exact_gaussian():
 
 
 def test_rust_fft_close_to_pairwise_gaussian():
-    bdf_rs = pytest.importorskip("bdf_rs")
+    bdf_rs = pytest.importorskip("bdf._bdf_rs")
 
     rng = np.random.default_rng(2)
     n = 300
@@ -507,7 +507,7 @@ def test_rust_fft_close_to_pairwise_gaussian():
 
 
 def test_rust_switch_backend_matches_fft_when_forced():
-    bdf_rs = pytest.importorskip("bdf_rs")
+    bdf_rs = pytest.importorskip("bdf._bdf_rs")
 
     rng = np.random.default_rng(3)
     n = 200

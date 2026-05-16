@@ -1,7 +1,7 @@
-import bdf_rs
 import numpy as np
 import pytest
 
+from bdf import _bdf_rs as bdf_rs
 from bdf.distributions.distribution_manager import DistributionManager
 from bdf.distributions.normal import NormalMuNormal
 

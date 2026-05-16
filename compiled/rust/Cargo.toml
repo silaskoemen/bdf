@@ -1,10 +1,10 @@
 [package]
 name = "bdf_rs"
-version = "0.1.0"
+version = "0.1.0-rc1"
 edition = "2024"
 
 [lib]
-name = "bdf_rs"
+name = "_bdf_rs"
 crate-type = ["cdylib"]
 
 # Optimize runtime performance

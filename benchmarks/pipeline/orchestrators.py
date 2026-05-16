@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 from datetime import datetime, timezone
 from time import time
 from typing import Callable, Literal
@@ -417,6 +418,8 @@ class CustomOrchestrator(BaseOrchestrator):
         git_commit = _get_git_commit_hash()
         git_dirty = _is_git_dirty()
         timestamp = datetime.now(timezone.utc).isoformat()
+        dataset_filter = getattr(self.cfg, "datasets", None)
+        dataset_filter = list(dataset_filter) if dataset_filter else None
 
         # Warn if running with uncommitted changes
         if git_dirty:
@@ -440,6 +443,11 @@ class CustomOrchestrator(BaseOrchestrator):
                 "git_dirty": git_dirty,
                 "seed": self.cfg.seed,
                 "n_splits": self.cfg.n_splits,
+                "sample_size": getattr(self.cfg, "sample_size", None),
+                "tuning_sample_size": getattr(self.cfg, "tuning_sample_size", None),
+                "tuning_metric": OmegaConf.to_container(getattr(self.cfg, "tuning_metric", {}), resolve=True),
+                "datasets_filter": dataset_filter,
+                "command": " ".join(sys.argv),
             },
             "datasets": {},
         }
@@ -452,6 +460,10 @@ class CustomOrchestrator(BaseOrchestrator):
         os.makedirs("benchmarks/results/optuna/", exist_ok=True)
 
         for metadata, X, y in dataset_iterator():
+            if dataset_filter is not None and metadata.name not in dataset_filter:
+                logger.info(f"⏭️ Skipping {metadata.name}: not in configured dataset filter")
+                continue
+
             if not self._is_compatible(metadata):
                 logger.warning(f"⏭️ Skipping {metadata.name}: incompatible target domain {metadata.target_domain.value}")
                 continue
@@ -717,5 +729,8 @@ class CustomOrchestrator(BaseOrchestrator):
         subdir = "regression" if self.target_type == "regression" else "classification"
         out_dir = f"benchmarks/results/{subdir}/"
         os.makedirs(out_dir, exist_ok=True)
-        with open(f"{out_dir}res_{self.model_cfg.name}.yaml", "w") as f:
+        result_suffix = getattr(self.cfg, "result_suffix", "") or ""
+        if not result_suffix and getattr(self.cfg, "datasets", None):
+            result_suffix = "_filtered"
+        with open(f"{out_dir}res_{self.model_cfg.name}{result_suffix}.yaml", "w") as f:
             yaml.dump(results, f, default_flow_style=False, allow_unicode=True)

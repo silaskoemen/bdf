@@ -119,7 +119,7 @@ class BDFNode:
         """
         try:
             # Import and use the Rust implementation
-            import bdf_rs
+            from bdf import _bdf_rs as bdf_rs
 
             # Create distribution spec with native and fallback options
             dist_spec = self.distribution.to_rust_spec()

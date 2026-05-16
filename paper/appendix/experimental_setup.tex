@@ -3,72 +3,12 @@
 \subsection{Models}\label{app:experimental-setup-models}
 
 \subsubsection{Regression Models}\label{app:experimental-setup-reg-models}
-Distributional random forests (DRF) are a closely related approach for estimating conditional distributions using random forests. However, to the best of our knowledge, the only publicly available DRF implementations are deprecated and not easily integrated into our experimental stack. We therefore do not include DRF as a numerical baseline, and instead compare against a broad set of actively maintained probabilistic tree and boosting methods (NGBoost, BART, CatBoost‑UQ, quantile RF, XGBoostLSS), as well as GP, Bayesian linear models, conformal methods, and deep ensembles.
-\paragraph{Bayesian Linear Regression (BLR)}
-Probabilistic linear model placing a prior on coefficients~\citep{bishop2006pattern}. Provides posterior distributions over predictions.
+The regression benchmark compares BDF leaf families against probabilistic and calibrated tabular baselines. The BDF variants include conjugate Normal, Student-$t$, Poisson/Exponential, and KDE-style leaves where compatible with the target domain. Baselines include Bayesian ridge regression~\citep{bishop2006pattern}, Bayesian additive regression trees~\citep{chipman2010bart}, Gaussian processes~\citep{williams2006gaussian}, NGBoost~\citep{duan2020ngboost}, CatBoost with uncertainty, conformalized LightGBM/random-forest baselines, quantile-regression forests~\citep{meinshausen2006quantile}, Gaussian density estimation, $k$NN-KDE, and a climatological reference model used for skill scores. Exact constructor settings and tuning ranges are specified in the YAML files under \texttt{benchmarks/configs/model/}; the result artifacts record the resolved configuration used for each run.
 
-\paragraph{Bayesian Additive Regression Trees (BART)}
-Ensemble of regression trees with a fully Bayesian formulation, capturing nonlinearities and uncertainty~\citep{chipman2010bart}.
-
-\paragraph{Gaussian Processes (GP)}
-Nonparametric model defining a distribution over functions; provides predictive mean and variance~\citep{williams2006gaussian}.
-
-\paragraph{XGBoost / LightGBM / CatBoost}
-High-performance gradient-boosted tree ensembles for point prediction~\citep{chen2016xgboost, ke2017lightgbm, dorogush2018catboost}.
-
-\paragraph{NGBoost}
-Probabilistic boosting framework outputting predictive distributions~\citep{duan2020ngboost}.
-
-\paragraph{Quantile Regression Forests (QRF)}
-Nonparametric method for conditional quantiles~\citep{meinshausen2006quantile}.
-
-\paragraph{Distributional Forests (DF)}
-Ensembles predicting full parametric distributions of the target~\citep{schlosser2019distributional}.
-
-\paragraph{Conformal Prediction (MAPIE)}
-Split-conformal approach to produce calibrated prediction intervals from any base model~\citep{taquet2022mapie}.
+Distributional random forests are a closely related approach for estimating conditional distributions using forests. We do not include them as a numerical baseline because the available implementations were not practically compatible with the benchmark environment; this omission is treated as a limitation rather than evidence against that method family.
 
 \subsubsection{Classification Models}\label{app:experimental-setup-clas-models}
-
-\paragraph{Classical Models}
-\begin{itemize}
-    \item \textbf{Logistic Regression}: Linear model for binary classification estimating class probabilities via the logistic function.
-    \item \textbf{Decision Trees}: Non-linear model partitioning the feature space and assigning class labels based on majority vote in each region.
-    \item \textbf{Support Vector Machines (SVM)}: Finds hyperplanes separating classes, effective in high-dimensional feature spaces.
-    \item \textbf{Naive Bayes}: Probabilistic classifier assuming feature independence, providing class probability estimates.
-    \item \textbf{k-Nearest Neighbors (k-NN)}: Non-parametric method classifying samples based on the majority label of nearest neighbors.
-\end{itemize}
-
-\paragraph{Ensemble Methods}
-\begin{itemize}
-    \item \textbf{Random Forest}: Ensemble of decision trees trained on bootstrapped samples, improving accuracy through averaging.
-    \item \textbf{AdaBoost}: Sequentially combines weak classifiers, focusing on misclassified instances to improve performance.
-    \item \textbf{Gradient Boosting Machines (GBM)}: Sequential tree ensembles that iteratively correct previous errors.
-    \item \textbf{XGBoost}: Optimized gradient boosting framework known for speed and accuracy.
-    \item \textbf{LightGBM}: Histogram-based gradient boosting framework enabling faster training on large datasets.
-    \item \textbf{CatBoost}: Gradient boosting framework handling categorical features efficiently without explicit encoding.
-\end{itemize}
-
-\paragraph{Probabilistic Models}
-\begin{itemize}
-    \item \textbf{Naive Bayes}: Provides probabilistic predictions of class labels.
-    \item \textbf{Gaussian Processes (GP)}: Non-parametric model giving predictive distributions over classes.
-    \item \textbf{Bayesian Additive Regression Trees (BART)}: Ensemble of trees with Bayesian inference, capturing uncertainty in predictions.
-    \item \textbf{GP-BART}: Combines Gaussian Processes with BART for improved modeling of complex data structures with uncertainty.
-    \item \textbf{NGBoost}: Distributional boosting. Although e.g. Exponential distribution also available always significantly worse so to ensure fair use of optuna trials we set distribution to Normal.
-\end{itemize}
-
-\paragraph{Neural Networks}
-\begin{itemize}
-    \item \textbf{Multi-Layer Perceptron (MLP)}: Feedforward neural network for classification.
-    \item \textbf{Probabilistic Neural Networks (PNNs)}: NN with output layer being the probability of the target variable, trained via Bernoulli log-likelihood.
-\end{itemize}
-
-\paragraph{Advanced Techniques}
-\begin{itemize}
-    \item \textbf{NGBoost}: Gradient boosting framework that outputs probabilistic predictions.
-    \item \textbf{Conformal Prediction (MAPIE)}: Provides valid prediction intervals for any underlying classifier.
-\end{itemize}
+The classification benchmark is binary. The submitted comparison includes BDF with Beta--Bernoulli leaves, random forests, LightGBM, NGBoost, calibrated random forests, and $k$-nearest-neighbor classification. All reported classification metrics are computed from predicted probabilities for the positive class. Multiclass BDF variants based on Dirichlet--multinomial leaves are implemented in the distribution library but are outside the scope of the submitted classification experiments.
 
 \subsection{Regression Metrics}\label{app:computational-setup-regression-metrics}
 
@@ -101,7 +41,7 @@ Split-conformal approach to produce calibrated prediction intervals from any bas
     \text{CRPS}(F, y) = \int_{-\infty}^{\infty} \big(F(z) - \mathbf{1}\{y \le z\}\big)^2 dz
 \end{align}
 
-\paragraph{Prediction Interval Coverage Accuracy (PICA):} As defined in KOEMEN ET AL 2025, measures the average absolute deviation between desired and empirical coverage of predictive intervals.
+\paragraph{Prediction Interval Coverage Accuracy (PICA):} Following \citet{koemen2026fast}, this measures the absolute deviation between desired and empirical coverage of predictive intervals.
 \begin{align}
     \text{PICA}_\alpha = |\hat{c}_\alpha - \alpha|
 \end{align}

@@ -21,7 +21,7 @@ from bdf.utils.distribution_helpers import import_all_distributions
 
 # Try to import Rust extension
 try:
-    import bdf_rs
+    from bdf import _bdf_rs as bdf_rs
 
     HAS_RUST = True
 except ImportError:

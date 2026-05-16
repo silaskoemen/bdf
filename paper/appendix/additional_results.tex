@@ -57,9 +57,6 @@ This appendix collects supporting evidence for the experiments in Section~\ref{s
     \label{fig:regression-scatter}
 \end{figure}
 
-% TODO: re-insert the per-dataset CRPS / RMSE / coverage tables here once the
-% regression experiments finish running. Templates remain commented below.
-
 % ==========================================
 % A.2 REAL-DATA: CLASSIFICATION DETAILS
 % ==========================================
@@ -125,12 +122,8 @@ This subsection expands the synthetic-DGP analysis of Section~\ref{subsec:exp_sy
 \end{figure}
 
 \paragraph{Per-DGP predictive densities.}
-Figure~\ref{fig:bimodal-predictions} shows model-level conditional-calibration diagnostics on the bimodal mixture DGP as a representative example. Remaining per-model diagnostics (conditional calibration, local calibration, spread--skill) for the other four DGPs are available in \texttt{plots/synthetic/<dgp>/} and \texttt{plots/conformalization/<dgp>/} and are omitted here for brevity.
+Figure~\ref{fig:bimodal-predictions} shows model-level conditional-calibration diagnostics on the bimodal mixture DGP as a representative example. The remaining per-DGP panels summarize conditional calibration and spread--skill diagnostics for the other synthetic DGPs.
 
-% TODO for each DGP subfolder: pick one representative plot (e.g., the conditional_densities
-% panel per method, consolidated as a grid) and include here. Listed as placeholders:
-
-% Bimodal mixture
 \begin{figure}[!ht]
     \centering
     \includegraphics[width=\textwidth]{plots/conformalization/bimodal_mixture/cond_calibration_all_models.pdf}

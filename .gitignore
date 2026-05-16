@@ -31,12 +31,16 @@ multirun/
 *.db
 
 **/*.npz
+**/*.so
+**/*.rst
 
 .DS_Store
 
 outputs/figures/
 
 .hypothesis/
+
+docs/build/
 
 **/*.json
 **/*.csv

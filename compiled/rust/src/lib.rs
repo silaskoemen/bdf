@@ -255,7 +255,7 @@ fn calculate_nll(
 }
 
 #[pymodule]
-fn bdf_rs(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _bdf_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(find_best_split, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_nll, m)?)?;
     Ok(())

@@ -38,7 +38,7 @@ from tests.test_distributions.helpers import (
 
 # Try to import Rust extension
 try:
-    import bdf_rs
+    from bdf import _bdf_rs as bdf_rs
 
     HAS_RUST = True
 except ImportError:

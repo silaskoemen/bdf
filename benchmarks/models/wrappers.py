@@ -1297,6 +1297,11 @@ class GaussianDeepEnsembleWrapper(BaseEstimator, RegressorMixin):
         early_stopping_patience: int = 20,
         val_fraction: float = 0.1,
         min_var: float = 1e-6,
+        log_var_min: float = -10.0,
+        log_var_max: float = 5.0,
+        mu_clip: float = 10.0,
+        grad_clip_norm: float = 5.0,
+        weight_decay: float = 1e-4,
         random_state: int | None = None,
     ):
         self.n_estimators = n_estimators
@@ -1307,6 +1312,11 @@ class GaussianDeepEnsembleWrapper(BaseEstimator, RegressorMixin):
         self.early_stopping_patience = early_stopping_patience
         self.val_fraction = val_fraction
         self.min_var = min_var
+        self.log_var_min = log_var_min
+        self.log_var_max = log_var_max
+        self.mu_clip = mu_clip
+        self.grad_clip_norm = grad_clip_norm
+        self.weight_decay = weight_decay
         self.random_state = random_state
 
         self.networks_: list = []
@@ -1340,6 +1350,9 @@ class GaussianDeepEnsembleWrapper(BaseEstimator, RegressorMixin):
         """Gaussian negative log-likelihood loss."""
         import torch
 
+        if self.mu_clip is not None:
+            mu = self.mu_clip * torch.tanh(mu / self.mu_clip)
+        log_var = torch.clamp(log_var, min=self.log_var_min, max=self.log_var_max)
         var = torch.exp(log_var) + self.min_var
         nll = 0.5 * (torch.log(var) + (y_true - mu) ** 2 / var)
         return nll.mean()
@@ -1373,7 +1386,7 @@ class GaussianDeepEnsembleWrapper(BaseEstimator, RegressorMixin):
 
         # Build network
         network = self._build_network(X.shape[1], seed)
-        optimizer = torch.optim.Adam(network.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(network.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
 
         # Early stopping state
         best_val_loss = float("inf")
@@ -1389,6 +1402,8 @@ class GaussianDeepEnsembleWrapper(BaseEstimator, RegressorMixin):
                 mu, log_var = out[:, 0:1], out[:, 1:2]
                 loss = self._gaussian_nll_loss(y_batch, mu, log_var)
                 loss.backward()
+                if self.grad_clip_norm is not None:
+                    torch.nn.utils.clip_grad_norm_(network.parameters(), self.grad_clip_norm)
                 optimizer.step()
 
             # Validation
@@ -1467,6 +1482,9 @@ class GaussianDeepEnsembleWrapper(BaseEstimator, RegressorMixin):
                 out = network(X_t)
                 mu = out[:, 0].numpy()
                 log_var = out[:, 1].numpy()
+                if self.mu_clip is not None:
+                    mu = self.mu_clip * np.tanh(mu / self.mu_clip)
+                log_var = np.clip(log_var, self.log_var_min, self.log_var_max)
                 var = np.exp(log_var) + self.min_var
 
             # Un-standardize
@@ -1547,6 +1565,11 @@ class GaussianDeepEnsembleWrapper(BaseEstimator, RegressorMixin):
             "early_stopping_patience": self.early_stopping_patience,
             "val_fraction": self.val_fraction,
             "min_var": self.min_var,
+            "log_var_min": self.log_var_min,
+            "log_var_max": self.log_var_max,
+            "mu_clip": self.mu_clip,
+            "grad_clip_norm": self.grad_clip_norm,
+            "weight_decay": self.weight_decay,
             "random_state": self.random_state,
         }
 

@@ -4790,9 +4790,9 @@ packages:
   - statsmodels
   - tqdm
 - pypi: ./
-  name: bdf
-  version: 0.1.0
-  sha256: 6d40e365a0bb39047e08cb4ff91b2f3beb94302db3724b53055b193c8483468d
+  name: bayesian-distributional-forest
+  version: 0.1.0rc1
+  sha256: e8e8c22d6cb1143cff0f91b6ee3dc710167b7a8a8fefbae2f087db5e6020bdfa
   requires_dist:
   - numpy
   - pandas>=2.0

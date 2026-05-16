@@ -6,15 +6,15 @@
 \toprule
 Model & Fit Speedup & $N$ & Tune Speedup & $N$ \\
 \midrule
-BART & 14.6$\times$ & 10 & 16.4$\times$ & 10 \\
-GaussianDE & 2.55$\times$ & 10 & 3.42$\times$ & 10 \\
-BDF & 1.18$\times$ & 10 & 1.81$\times$ & 10 \\
-CatBoostUnc & 0.60$\times$ & 10 & 4.11$\times$ & 10 \\
-NGBoost & 0.42$\times$ & 10 & 0.52$\times$ & 10 \\
-ConfLGBM & 0.28$\times$ & 10 & 0.37$\times$ & 10 \\
-ConfRF & 0.17$\times$ & 10 & 0.42$\times$ & 10 \\
-BayesRidge & 6.2e-04$\times$ & 10 & 8.5e-03$\times$ & 10 \\
-KNNKDE & 2.3e-04$\times$ & 10 & 0.02$\times$ & 10 \\
+GaussianDE & 1.96$\times$ & 15 & 3.22$\times$ & 15 \\
+BDF & 1.12$\times$ & 15 & 1.79$\times$ & 15 \\
+CatBoostUnc & 0.55$\times$ & 15 & 3.50$\times$ & 15 \\
+NGBoost & 0.42$\times$ & 15 & 0.53$\times$ & 15 \\
+QRF & 0.31$\times$ & 15 & 0.55$\times$ & 15 \\
+ConfLGBM & 0.21$\times$ & 15 & 0.29$\times$ & 15 \\
+ConfRF & 0.13$\times$ & 15 & 0.37$\times$ & 15 \\
+BayesRidge & 5.3e-04$\times$ & 15 & 7.5e-03$\times$ & 15 \\
+KNNKDE & 2.2e-04$\times$ & 15 & 0.02$\times$ & 15 \\
 \bottomrule
 \end{tabular}
 \par\smallskip\footnotesize{Geometric mean of per-dataset time ratios (model / BDF (Normal)). Values $>1$: \mbox{BDF (Normal)} is faster. $N$ = number of shared datasets.}}

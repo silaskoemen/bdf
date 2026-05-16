@@ -1,7 +1,7 @@
-import bdf_rs
 import numpy as np
 import pytest
 
+from bdf import _bdf_rs as bdf_rs
 from bdf.distributions.distribution_manager import DistributionManager
 from bdf.tree_classes.bdf_node import BDFNode
 from bdf.tree_classes.bdf_regressor import BDFRegressor

@@ -1,6 +1,0 @@
-﻿bdf.distributions.NormGammaNormalParams
-=======================================
-
-.. currentmodule:: bdf.distributions
-
-.. autoclass:: NormGammaNormalParams
