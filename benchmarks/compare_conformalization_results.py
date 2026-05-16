@@ -224,7 +224,7 @@ def plot_conditional_coverage_heatmap(
 
     from matplotlib.colors import TwoSlopeNorm
 
-    cmap = plt.cm.RdYlGn  # red=under, yellow=on-target, green=over
+    cmap = plt.cm.RdYlGn  # red=under, yellow=on-target, green=over  # ty:ignore[unresolved-attribute]
 
     for col, dgp_name in enumerate(dgp_names):
         ax = axes[0, col]

@@ -1,0 +1,1055 @@
+% ------------------------------------------
+% APPENDIX C: Proofs and Derivations
+% ------------------------------------------
+\section{Proofs and Derivations}\label{app:proofs}
+
+\subsection{Evidence Decomposition and Prequential Factorization}
+\label{app:evidence_decomposition}
+
+\begin{lemma}[Evidence decomposition within a leaf]
+Fix a leaf $\ell$ and hyperparameters $\eta$. Let
+\[
+m(\mathcal{D}_\ell)
+=
+\int \pi(\theta_\ell\mid\eta)
+p(\mathcal{D}_\ell\mid\theta_\ell)\,d\theta_\ell .
+\]
+Then
+\[
+-\log m(\mathcal{D}_\ell)
+=
+-\mathbb{E}_{\pi(\theta_\ell\mid \mathcal{D}_\ell,\eta)}
+\!\left[\log p(\mathcal{D}_\ell\mid\theta_\ell)\right]
++
+\mathrm{KL}\!\left(
+\pi(\theta_\ell\mid\mathcal{D}_\ell,\eta)
+\,\Vert\,
+\pi(\theta_\ell\mid\eta)
+\right).
+\]
+\end{lemma}
+
+\begin{proof}
+By Bayes' rule,
+\[
+\pi(\theta_\ell\mid\mathcal{D}_\ell,\eta)
+=
+\frac{
+\pi(\theta_\ell\mid\eta)
+p(\mathcal{D}_\ell\mid\theta_\ell)
+}{
+m(\mathcal{D}_\ell)
+}.
+\]
+Rearranging,
+\[
+\log m(\mathcal{D}_\ell)
+=
+\log p(\mathcal{D}_\ell\mid\theta_\ell)
++
+\log\pi(\theta_\ell\mid\eta)
+-
+\log\pi(\theta_\ell\mid\mathcal{D}_\ell,\eta).
+\]
+Taking posterior expectation gives
+\[
+\log m(\mathcal{D}_\ell)
+=
+\mathbb{E}_{\pi(\theta_\ell\mid\mathcal{D}_\ell,\eta)}
+[\log p(\mathcal{D}_\ell\mid\theta_\ell)]
+-
+\mathrm{KL}\!\left(
+\pi(\theta_\ell\mid\mathcal{D}_\ell,\eta)
+\,\Vert\,
+\pi(\theta_\ell\mid\eta)
+\right).
+\]
+Negating both sides proves the claim.
+\end{proof}
+
+\begin{lemma}[Prequential factorization within a leaf]
+Let $(y_{\ell,1},\dots,y_{\ell,n_\ell})$ be any ordering of the responses in leaf $\ell$.
+Define
+\[
+p(y_{\ell,i}\mid\mathcal{D}_{\ell,1:i-1},\eta)
+=
+\int p(y_{\ell,i}\mid\theta_\ell)
+\pi(\theta_\ell\mid\mathcal{D}_{\ell,1:i-1},\eta)\,d\theta_\ell .
+\]
+Then
+\[
+m(\mathcal{D}_\ell)
+=
+\prod_{i=1}^{n_\ell}
+p(y_{\ell,i}\mid\mathcal{D}_{\ell,1:i-1},\eta).
+\]
+\end{lemma}
+
+\begin{proof}
+For the first $i$ observations in the chosen order,
+\[
+m(\mathcal{D}_{\ell,1:i})
+=
+\int
+\pi(\theta_\ell\mid\eta)
+\prod_{t=1}^{i}p(y_{\ell,t}\mid\theta_\ell)
+\,d\theta_\ell .
+\]
+Hence
+\[
+m(\mathcal{D}_{\ell,1:i})
+=
+m(\mathcal{D}_{\ell,1:i-1})
+\int
+p(y_{\ell,i}\mid\theta_\ell)
+\pi(\theta_\ell\mid\mathcal{D}_{\ell,1:i-1},\eta)
+\,d\theta_\ell .
+\]
+Thus
+\[
+\frac{
+m(\mathcal{D}_{\ell,1:i})
+}{
+m(\mathcal{D}_{\ell,1:i-1})
+}
+=
+p(y_{\ell,i}\mid\mathcal{D}_{\ell,1:i-1},\eta).
+\]
+Multiplying over $i=1,\dots,n_\ell$ telescopes to the stated factorization.
+\end{proof}
+
+\begin{remark}[Order invariance]
+The individual prequential factors depend on the ordering, but their product does not. The joint likelihood within a fixed leaf is conditionally i.i.d.\ given $\theta_\ell$, so
+$\prod_i p(y_{\ell,i}\mid\theta_\ell)$ is symmetric in the observations. Integrating against the prior preserves this symmetry. No separate exchangeability assumption is required beyond conditional i.i.d.\ within a fixed partition.
+\end{remark}
+
+
+\subsection{Split Gain as a Log Bayes Factor}
+\label{app:split_bayes_factor}
+
+\begin{proposition}[Split gain as log Bayes factor]
+\label{prop:split_bf}
+Fix a node $\ell$ and a candidate split $s$ producing children $\ell_L$ and $\ell_R$.
+Under independent child priors,
+\[
+\Delta S(s;\ell)
+=
+S(\mathcal{D}_\ell)
+-
+S(\mathcal{D}_{\ell_L})
+-
+S(\mathcal{D}_{\ell_R})
+=
+\log \mathrm{BF}(s),
+\]
+where $\mathrm{BF}(s)$ is the Bayes factor in favor of splitting node $\ell$ according to $s$.
+\end{proposition}
+
+\begin{proof}
+Consider two local models. Under the stop model $M_0$, all observations in $\ell$ share a single parameter:
+\[
+M_0:\qquad
+y_i\mid\theta_\ell \sim p(y_i\mid\theta_\ell),
+\qquad
+\theta_\ell\sim\pi(\theta_\ell\mid\eta).
+\]
+Its marginal likelihood is
+\[
+m_0(\mathcal{D}_\ell)
+=
+m(\mathcal{D}_\ell)
+=
+\int
+\pi(\theta_\ell\mid\eta)
+p(\mathcal{D}_\ell\mid\theta_\ell)
+\,d\theta_\ell .
+\]
+
+Under the split model $M_1(s)$, the observations in the two children have independent parameters:
+\[
+M_1(s):\qquad
+y_i\mid \mathbf{x}_i\in R_{\ell_L},\theta_L\sim p(y_i\mid\theta_L),
+\qquad
+y_i\mid \mathbf{x}_i\in R_{\ell_R},\theta_R\sim p(y_i\mid\theta_R),
+\]
+with
+\[
+\pi(\theta_L,\theta_R\mid\eta)
+=
+\pi(\theta_L\mid\eta)\pi(\theta_R\mid\eta).
+\]
+Conditional on the split $s$, the likelihood factorizes:
+\[
+p(\mathcal{D}_\ell\mid\theta_L,\theta_R,s)
+=
+p(\mathcal{D}_{\ell_L}\mid\theta_L)
+p(\mathcal{D}_{\ell_R}\mid\theta_R).
+\]
+Therefore the split-model marginal likelihood is
+\[
+m_1(\mathcal{D}_\ell\mid s)
+=
+m(\mathcal{D}_{\ell_L})m(\mathcal{D}_{\ell_R}).
+\]
+The Bayes factor in favor of the split is
+\[
+\mathrm{BF}(s)
+=
+\frac{
+m_1(\mathcal{D}_\ell\mid s)
+}{
+m_0(\mathcal{D}_\ell)
+}
+=
+\frac{
+m(\mathcal{D}_{\ell_L})m(\mathcal{D}_{\ell_R})
+}{
+m(\mathcal{D}_\ell)
+}.
+\]
+Taking logs and using $S(\mathcal{D})=-\log m(\mathcal{D})$,
+\[
+\log \mathrm{BF}(s)
+=
+\log m(\mathcal{D}_{\ell_L})
++
+\log m(\mathcal{D}_{\ell_R})
+-
+\log m(\mathcal{D}_\ell)
+=
+S(\mathcal{D}_\ell)
+-
+S(\mathcal{D}_{\ell_L})
+-
+S(\mathcal{D}_{\ell_R})
+=
+\Delta S(s;\ell).
+\]
+\end{proof}
+
+\begin{proposition}[Local posterior-odds decomposition]
+\label{prop:local_posterior_odds}
+Suppose the structural prior factorizes node-wise as
+\[
+P(T)
+=
+\prod_{v\in\mathcal{I}(T)}
+p_d(v)\,p(s_v\mid \mathrm{split},d_v)
+\prod_{\ell\in\mathcal{L}(T)}
+\{1-p_d(\ell)\},
+\]
+where $\mathcal{I}(T)$ denotes the internal nodes, $d_v$ is the depth of node $v$, and
+\[
+p_d(v)
+=
+\sigma(-\alpha-\delta d_v).
+\]
+If, conditional on splitting, the prior over split identities is feature-first and cutpoint-conditional,
+\[
+p(s=(j,c)\mid \mathrm{split})
+=
+\frac{1}{K}\frac{1}{m_j},
+\]
+then the local posterior log-odds of splitting node $\ell$ by $s=(j,c)$, holding the rest of the tree fixed, are
+\[
+\log
+\frac{
+P(M_{\mathrm{split}},s\mid\mathcal{D})
+}{
+P(M_{\mathrm{stop}}\mid\mathcal{D})
+}
+=
+\Delta S(s;\ell)
+-
+\alpha
+-
+\delta d
+-
+\log K
+-
+\log m_j .
+\]
+With tempering, the algorithm replaces the final split-identity cost by
+$\gamma(\log K+\log m_j)$.
+\end{proposition}
+
+\begin{proof}
+Let $T_{\mathrm{stop}}$ denote the tree in which node $\ell$ is terminal, and let $T_{\mathrm{split}}$ denote the tree obtained by splitting $\ell$ according to $s=(j,c)$ and making its two children terminal.
+
+All factors in the tree prior away from node $\ell$ are identical in $T_{\mathrm{stop}}$ and $T_{\mathrm{split}}$, so they cancel in the prior odds. The local prior odds are therefore
+\[
+\frac{
+P(T_{\mathrm{split}},s)
+}{
+P(T_{\mathrm{stop}})
+}
+=
+\frac{
+p_d(\ell)\,p(s\mid\mathrm{split})\{1-p_{d+1}\}^2
+}{
+1-p_d(\ell)
+}.
+\]
+If the child terminal probabilities are included explicitly, the local log prior odds are
+\[
+\log\frac{p_d(\ell)}{1-p_d(\ell)}
++
+\log p(s\mid\mathrm{split})
++
+2\log(1-p_{d+1}).
+\]
+For the logistic structural prior,
+\[
+\log\frac{p_d(\ell)}{1-p_d(\ell)}
+=
+-\alpha-\delta d.
+\]
+Moreover,
+\[
+\log p(s\mid\mathrm{split})
+=
+-\log K-\log m_j.
+\]
+Thus,
+\[
+\log
+\frac{
+P(T_{\mathrm{split}},s)
+}{
+P(T_{\mathrm{stop}})
+}
+=
+-\alpha-\delta d-\log K-\log m_j
++
+2\log(1-p_{d+1}).
+\]
+If the implementation uses the simpler linear depth penalty, the child-terminal term is omitted or absorbed into the structural penalty. This gives
+\[
+\log
+\frac{
+P(T_{\mathrm{split}},s)
+}{
+P(T_{\mathrm{stop}})
+}
+=
+-\alpha-\delta d-\log K-\log m_j.
+\]
+Adding the log Bayes factor from Proposition~\ref{prop:split_bf} yields the stated posterior log-odds. The tempered version replaces the exact split-identity code length by
+$\gamma(\log K+\log m_j)$; for $\gamma\ne1$, this is no longer the log prior odds of a coherent probability distribution over the original candidate set, but a penalized Bayes factor criterion.
+\end{proof}
+
+
+\subsection{BIC as an Asymptotic Surrogate for Split Selection}
+\label{app:bic_uniform}
+
+\begin{lemma}[Laplace expansion for leaf scores]
+\label{lem:laplace_leaf}
+Let $\mathcal{D}_\ell$ be a fixed leaf sample of size $n_\ell$.
+Assume that the parametric family is identifiable, twice continuously differentiable, has positive-definite Fisher information at the relevant pseudo-true parameter $\theta_\ell^\star$, and that the prior is positive and continuous in a neighborhood of $\theta_\ell^\star$.
+Then
+\[
+-\log m(\mathcal{D}_\ell)
+=
+-\log p(\mathcal{D}_\ell\mid\hat{\theta}_\ell)
++
+\frac{k}{2}\log n_\ell
++
+C_\ell
++
+o_p(1),
+\]
+where $\hat{\theta}_\ell$ is the MLE or MAP, $k=\dim(\theta)$, and $C_\ell=O_p(1)$.
+\end{lemma}
+
+\begin{proof}
+Write
+\[
+m(\mathcal{D}_\ell)
+=
+\int
+\pi(\theta\mid\eta)
+\exp\{\ell_{n_\ell}(\theta)\}
+\,d\theta,
+\qquad
+\ell_{n_\ell}(\theta)
+=
+\sum_{i:\mathbf{x}_i\in R_\ell}
+\log p(y_i\mid\theta).
+\]
+A second-order Taylor expansion around the MLE $\hat{\theta}_\ell$ gives
+\[
+\ell_{n_\ell}(\theta)
+=
+\ell_{n_\ell}(\hat{\theta}_\ell)
+-
+\frac{1}{2}
+(\theta-\hat{\theta}_\ell)^\top
+H_{n_\ell}(\hat{\theta}_\ell)
+(\theta-\hat{\theta}_\ell)
++
+o_p(1),
+\]
+uniformly on neighborhoods shrinking at rate $n_\ell^{-1/2}$, where
+\[
+H_{n_\ell}(\hat{\theta}_\ell)
+=
+-\nabla^2\ell_{n_\ell}(\hat{\theta}_\ell).
+\]
+Under the regularity assumptions,
+\[
+n_\ell^{-1}H_{n_\ell}(\hat{\theta}_\ell)
+\to
+I(\theta_\ell^\star)
+\]
+in probability, with $I(\theta_\ell^\star)$ positive definite.
+
+The Laplace approximation therefore gives
+\[
+m(\mathcal{D}_\ell)
+=
+\exp\{\ell_{n_\ell}(\hat{\theta}_\ell)\}
+\pi(\hat{\theta}_\ell\mid\eta)
+(2\pi)^{k/2}
+|H_{n_\ell}(\hat{\theta}_\ell)|^{-1/2}
+\{1+o_p(1)\}.
+\]
+Taking negative logs,
+\[
+-\log m(\mathcal{D}_\ell)
+=
+-\ell_{n_\ell}(\hat{\theta}_\ell)
+-
+\log \pi(\hat{\theta}_\ell\mid\eta)
+-
+\frac{k}{2}\log(2\pi)
++
+\frac{1}{2}\log |H_{n_\ell}(\hat{\theta}_\ell)|
++
+o_p(1).
+\]
+Since
+\[
+\log |H_{n_\ell}(\hat{\theta}_\ell)|
+=
+k\log n_\ell
++
+\log |I(\theta_\ell^\star)|
++
+o_p(1),
+\]
+we obtain
+\[
+-\log m(\mathcal{D}_\ell)
+=
+-\log p(\mathcal{D}_\ell\mid\hat{\theta}_\ell)
++
+\frac{k}{2}\log n_\ell
++
+C_\ell
++
+o_p(1),
+\]
+where
+\[
+C_\ell
+=
+-\log\pi(\theta_\ell^\star\mid\eta)
+-
+\frac{k}{2}\log(2\pi)
++
+\frac{1}{2}\log |I(\theta_\ell^\star)|.
+\]
+The prior positivity and positive-definite information assumptions ensure $C_\ell=O(1)$.
+
+If $\hat{\theta}_\ell$ is taken to be the MAP rather than the MLE, then under the same regularity conditions
+\[
+\hat{\theta}_\ell^{\mathrm{MAP}}
+-
+\hat{\theta}_\ell^{\mathrm{MLE}}
+=
+O_p(n_\ell^{-1}).
+\]
+Because the log-likelihood is locally quadratic with curvature $O_p(n_\ell)$, the induced difference in log-likelihood is $O_p(n_\ell\cdot n_\ell^{-2})=O_p(n_\ell^{-1})$, which is absorbed into the remainder.
+\end{proof}
+
+\begin{proposition}[Uniform BIC surrogate validity over a bounded candidate set]
+\label{prop:bic_split_validity}
+At a fixed node $\ell$, suppose the candidate split set has bounded cardinality
+\[
+C \le K\lfloor 1/\eta_{\mathrm{cut}}\rfloor .
+\]
+Under the assumptions of Lemma~\ref{lem:laplace_leaf}, uniformly over candidate splits $s$,
+\[
+\Delta S_{\mathrm{BIC}}(s;\ell)
+-
+\Delta S_{\mathrm{NLE}}(s;\ell)
+=
+O_p(1).
+\]
+\end{proposition}
+
+\begin{proof}
+For any fixed candidate split $s$,
+Lemma~\ref{lem:laplace_leaf} gives
+\[
+S_{\mathrm{NLE}}(\mathcal{D}_A)
+=
+S_{\mathrm{BIC}}(\mathcal{D}_A)
++
+C_A
++
+o_p(1)
+\]
+for $A\in\{\ell,\ell_L(s),\ell_R(s)\}$, where each $C_A=O_p(1)$.
+Therefore
+\[
+\Delta S_{\mathrm{BIC}}(s;\ell)
+-
+\Delta S_{\mathrm{NLE}}(s;\ell)
+=
+C_\ell
+-
+C_{\ell_L(s)}
+-
+C_{\ell_R(s)}
++
+o_p(1)
+=
+O_p(1).
+\]
+
+It remains only to justify uniformity over $s$.
+The constants $C_{\ell_L(s)}$ and $C_{\ell_R(s)}$ depend on the candidate split through the corresponding pseudo-true parameters.
+By compactness of $\Theta$ and continuity of
+\[
+\theta \mapsto \log |I(\theta)|,
+\qquad
+\theta \mapsto \log \pi(\theta\mid\eta),
+\]
+these constants are bounded over all admissible pseudo-true parameters.
+Since the candidate set is finite with cardinality bounded independently of $n_\ell$, the maximum of finitely many $O_p(1)$ remainders remains $O_p(1)$.
+Hence the approximation error in split gain is uniformly $O_p(1)$ over the candidate set.
+\end{proof}
+
+\begin{remark}[Misspecification]
+Under misspecification, the likelihood concentrates around the KL minimizer
+\[
+\theta^\star
+=
+\arg\min_{\theta\in\Theta}
+\mathrm{KL}(f_0^\ell\Vert p_\theta).
+\]
+The Laplace expansion remains centered at the pseudo-true parameter under standard misspecified likelihood theory. The curvature term in the posterior approximation is governed by the expected negative Hessian
+\[
+I(\theta^\star)
+=
+-\mathbb{E}_{f_0^\ell}
+\nabla^2\log p_{\theta^\star}(Y),
+\]
+whereas the frequentist sampling distribution of the MLE involves the sandwich covariance
+\[
+I(\theta^\star)^{-1}
+J(\theta^\star)
+I(\theta^\star)^{-1},
+\qquad
+J(\theta^\star)
+=
+\mathrm{Var}_{f_0^\ell}
+\{\nabla\log p_{\theta^\star}(Y)\}.
+\]
+Thus the BIC expression should be understood as a Laplace-type complexity surrogate under misspecification, not as an exact posterior model-selection criterion.
+\end{remark}
+
+
+\subsection{Proof of Proposition~\ref{prop:leaf_concentration}}
+\label{app:proof_leaf_concentration}
+
+\begin{proof}
+Fix a measurable region $\Omega$ and condition on $\mathbf{X}\in\Omega$.
+The responses are assumed i.i.d.\ from $f_0^\Omega$.
+
+\paragraph{Posterior consistency.}
+By compactness of $\Theta$, continuity of the likelihood, identifiability at the KL minimizer $\theta^\star$, and prior positivity in a neighborhood of $\theta^\star$, every KL neighborhood of $\theta^\star$ has positive prior mass.
+The standard posterior consistency theorem for parametric models therefore yields, for every $\epsilon>0$,
+\[
+\pi(
+\|\theta-\theta^\star\|>\epsilon
+\mid
+\mathcal{D}_\Omega,\eta
+)
+\to 0
+\]
+in $P_0$-probability.
+
+\paragraph{Well-specified Bernstein--von Mises.}
+If $f_0^\Omega=p_{\theta_0}$ for some interior point $\theta_0$, then the smoothness and positive-definite Fisher information assumptions imply local asymptotic normality at $\theta_0$.
+Since the prior is positive and continuous at $\theta_0$, the classical Bernstein--von Mises theorem gives
+\[
+\left\|
+\pi(\theta\mid\mathcal{D}_\Omega,\eta)
+-
+\mathcal{N}\!\left(
+\hat{\theta}_\Omega,
+n_\Omega^{-1}I(\theta_0)^{-1}
+\right)
+\right\|_{\mathrm{TV}}
+\to 0.
+\]
+
+\paragraph{Misspecified case.}
+If $f_0^\Omega$ is not contained in the model, then the posterior concentrates around the KL minimizer
+\[
+\theta^\star
+=
+\arg\min_{\theta\in\Theta}
+\mathrm{KL}(f_0^\Omega\Vert p_\theta).
+\]
+Under the assumed interiority of $\theta^\star$, local asymptotic normality of the misspecified likelihood, nonsingular curvature
+\[
+I(\theta^\star)
+=
+-\mathbb{E}_{f_0^\Omega}
+\nabla^2\log p_{\theta^\star}(Y),
+\]
+and prior positivity at $\theta^\star$, the misspecified Bernstein--von Mises theorem gives a Gaussian posterior approximation centered near the MLE with covariance
+\[
+n_\Omega^{-1}I(\theta^\star)^{-1}.
+\]
+The sandwich covariance
+\[
+I(\theta^\star)^{-1}
+J(\theta^\star)
+I(\theta^\star)^{-1}/n_\Omega
+\]
+describes the frequentist sampling distribution of the estimator, not the ordinary Bayesian posterior covariance.
+
+For Beta--Bernoulli leaves, if the pseudo-true success probability lies on the boundary, $p^\star\in\{0,1\}$, the interiority condition fails and the Gaussian BvM approximation is not asserted. In that case posterior concentration still holds at the boundary, and the posterior predictive converges to the corresponding degenerate Bernoulli distribution.
+
+\paragraph{Predictive convergence.}
+The posterior predictive is
+\[
+p_\Omega(y\mid\mathcal{D}_\Omega,\eta)
+=
+\int p_\theta(y)
+\pi(\theta\mid\mathcal{D}_\Omega,\eta)
+\,d\theta.
+\]
+Let $B_\epsilon=\{\theta:\|\theta-\theta^\star\|\le\epsilon\}$.
+Then
+\[
+\begin{aligned}
+\int
+\left|
+p_\Omega(y\mid\mathcal{D}_\Omega,\eta)
+-
+p_{\theta^\star}(y)
+\right|dy
+&\le
+\int_{B_\epsilon}
+\int
+|p_\theta(y)-p_{\theta^\star}(y)|dy
+\,\pi(d\theta\mid\mathcal{D}_\Omega,\eta) \\
+&\quad
++
+2\pi(B_\epsilon^c\mid\mathcal{D}_\Omega,\eta).
+\end{aligned}
+\]
+The second term converges to zero by posterior consistency.
+The first term can be made arbitrarily small by continuity of $\theta\mapsto p_\theta$ in $L^1$ near $\theta^\star$.
+For the leaf families considered here, this $L^1$ continuity follows from smoothness and domination by an integrable envelope. Hence
+\[
+\int
+\left|
+p_\Omega(y\mid\mathcal{D}_\Omega,\eta)
+-
+p_{\theta^\star}(y)
+\right|dy
+\to 0.
+\]
+\end{proof}
+
+
+\subsection{Per-Node Split Consistency}
+\label{app:split_consistency}
+
+\begin{theorem}[Per-node split consistency]
+\label{thm:split_consistency}
+Let $R_\ell$ be a fixed node region at depth $d$ with $n_\ell\to\infty$.
+Assume the regularity conditions of Proposition~\ref{prop:leaf_concentration}, and assume the candidate set has bounded cardinality
+\[
+C \le K\lfloor 1/\eta_{\mathrm{cut}}\rfloor .
+\]
+
+\emph{Beneficial split.}
+If a candidate split $s^\star$ produces child regions with
+\[
+n_{\ell_L}/n_\ell \to \rho\in(0,1)
+\]
+and strictly positive population gain
+\[
+\Delta_{\mathrm{pop}}(s^\star)>0,
+\]
+then
+\[
+\Delta_{\mathrm{net}}(s^\star;\ell)
+\to +\infty
+\]
+in probability.
+
+\emph{Spurious split.}
+If the unsplit model is correctly specified at node $\ell$, so that
+$f_0^\ell=p_{\theta_0}$ for some $\theta_0\in\mathrm{int}(\Theta)$, and all candidate splits are population-equivalent, then
+\[
+\max_s \Delta_{\mathrm{net}}(s;\ell)
+\to -\infty
+\]
+in probability.
+\end{theorem}
+
+\begin{proof}
+We prove the two claims separately.
+
+\paragraph{Beneficial split.}
+For any region $A$, the prequential representation gives
+\[
+S(\mathcal{D}_A)
+=
+-\log m(\mathcal{D}_A)
+=
+\sum_{i=1}^{n_A}
+-\log p(y_{A,i}\mid \mathcal{D}_{A,1:i-1},\eta).
+\]
+By posterior concentration in Proposition~\ref{prop:leaf_concentration}, the one-step posterior predictive converges to the KL-optimal predictive density $p_{\theta_A^\star}$.
+Consequently, under standard integrability conditions for the log score,
+\[
+\frac{1}{n_A}S(\mathcal{D}_A)
+\to
+\mathbb{E}_{f_0^A}
+[-\log p_{\theta_A^\star}(Y)]
+\]
+in probability. This is the usual prequential convergence result: once the posterior predictive converges pointwise in the appropriate log-score sense, the Cesàro mean of the sequential log-losses converges to the limiting risk.
+
+Apply this to the parent and the two children of $s^\star$.
+Let
+\[
+R_\ell^\star
+=
+\mathbb{E}_{f_0^\ell}
+[-\log p_{\theta_\ell^\star}(Y)],
+\]
+and define $R_L^\star,R_R^\star$ analogously. Since
+$n_{\ell_L}/n_\ell\to\rho$,
+\[
+\Delta S(s^\star;\ell)
+=
+S(\mathcal{D}_\ell)
+-
+S(\mathcal{D}_{\ell_L})
+-
+S(\mathcal{D}_{\ell_R})
+\]
+satisfies
+\[
+\frac{1}{n_\ell}\Delta S(s^\star;\ell)
+\to
+R_\ell^\star
+-
+\rho R_L^\star
+-
+(1-\rho)R_R^\star
+=
+\Delta_{\mathrm{pop}}(s^\star)
+>
+0.
+\]
+Hence
+\[
+\Delta S(s^\star;\ell)
+=
+n_\ell\Delta_{\mathrm{pop}}(s^\star)
++
+o_p(n_\ell).
+\]
+The net gain subtracts only the structural and split-selection penalty:
+\[
+\Delta_{\mathrm{net}}(s^\star;\ell)
+=
+\Delta S(s^\star;\ell)
+-
+\gamma(\log K+\log m_j)
+-
+\alpha
+-
+\delta d.
+\]
+At fixed depth $d$ and bounded candidate count, the penalty is $O(1)$.
+Therefore
+\[
+\Delta_{\mathrm{net}}(s^\star;\ell)
+=
+n_\ell\Delta_{\mathrm{pop}}(s^\star)
++
+o_p(n_\ell)
+-
+O(1)
+\to +\infty
+\]
+in probability.
+
+\paragraph{Spurious split.}
+Fix a candidate split $s$.
+Under the stop model $M_0$, the node has one $k$-dimensional parameter.
+Under the split model $M_1(s)$, the two children have independent $k$-dimensional parameters, so the split model has $2k$ parameters.
+The stop model is nested inside the split model through the smooth constraint
+\[
+\theta_L=\theta_R.
+\]
+
+By the Laplace expansion in Lemma~\ref{lem:laplace_leaf},
+\[
+-\log m_0(\mathcal{D}_\ell)
+=
+-\ell_0(\hat{\theta})
++
+\frac{k}{2}\log n_\ell
++
+O_p(1),
+\]
+whereas
+\[
+-\log m_1(\mathcal{D}_\ell\mid s)
+=
+-\ell_1(\hat{\theta}_L,\hat{\theta}_R)
++
+\frac{2k}{2}\log n_\ell
++
+O_p(1).
+\]
+The use of $\log n_\ell$ for both child penalties is valid up to $O(1)$ because
+$n_{\ell_L}/n_\ell\to\rho\in(0,1)$ implies
+\[
+\log n_{\ell_L}
+=
+\log n_\ell + O(1),
+\qquad
+\log n_{\ell_R}
+=
+\log n_\ell + O(1).
+\]
+
+Under the null of no population split, the likelihood-ratio statistic
+\[
+2\{\ell_1(\hat{\theta}_L,\hat{\theta}_R)-\ell_0(\hat{\theta})\}
+\]
+is $O_p(1)$ by the standard regular nested-model likelihood theory.
+Therefore
+\[
+\log \mathrm{BF}(s)
+=
+\log m_1(\mathcal{D}_\ell\mid s)
+-
+\log m_0(\mathcal{D}_\ell)
+=
+-\frac{k}{2}\log n_\ell
++
+O_p(1).
+\]
+
+Now take the maximum over the bounded candidate set.
+Write
+\[
+\log \mathrm{BF}(s_j)
+=
+-\frac{k}{2}\log n_\ell
++
+R_j,
+\qquad
+R_j=O_p(1),
+\]
+for $j=1,\dots,C$.
+Since $C$ is fixed,
+\[
+\max_{1\le j\le C}R_j=O_p(1).
+\]
+Thus
+\[
+\max_s \log \mathrm{BF}(s)
+=
+-\frac{k}{2}\log n_\ell
++
+O_p(1).
+\]
+The net gain subtracts a nonnegative finite penalty:
+\[
+\max_s \Delta_{\mathrm{net}}(s;\ell)
+\le
+-\frac{k}{2}\log n_\ell
++
+O_p(1)
+-
+\alpha
+-
+\delta d
+-
+\gamma(\log K+\log m_j).
+\]
+Since the leading term diverges to $-\infty$,
+\[
+\max_s \Delta_{\mathrm{net}}(s;\ell)
+\to -\infty
+\]
+in probability.
+\end{proof}
+
+\begin{remark}[Per-node versus global consistency]
+Theorem~\ref{thm:split_consistency} is a local statement at a fixed node. It does not imply global consistency of the greedily grown tree. A global result would require controlling the adaptively selected sequence of nodes and candidate partitions, for example through metric entropy or VC-type bounds for the class of trees reachable by the algorithm. This is beyond the scope of the present analysis.
+\end{remark}
+
+
+\subsection{Depth Growth}
+\label{app:depth_bound}
+
+\begin{lemma}[Depth growth under balanced splitting]
+\label{lem:depth_bound}
+Assume:
+\begin{enumerate}[label=(\roman*)]
+    \item every accepted split satisfies a balance condition: each child receives at least a fixed fraction $\rho_{\min}\in(0,1/2]$ of the parent observations;
+    \item the per-observation split gain is bounded, so $\Delta S(s;\ell)\le B n_\ell$ for some $B<\infty$;
+    \item the candidate count is bounded;
+    \item $\delta>0$.
+\end{enumerate}
+Then the maximum accepted depth satisfies
+\[
+d^\star = O(\log n).
+\]
+\end{lemma}
+
+\begin{proof}
+Along any root-to-leaf path, the balance condition implies that a node at depth $d$ has at most
+\[
+n_\ell
+\le
+n(1-\rho_{\min})^d
+\]
+observations, where the upper bound follows by repeatedly following the larger child.
+
+By the bounded gain assumption,
+\[
+\Delta S(s;\ell)
+\le
+B n(1-\rho_{\min})^d.
+\]
+For a split at depth $d$ to be accepted, it must satisfy
+\[
+B n(1-\rho_{\min})^d
+>
+\alpha
++
+\delta d
++
+\gamma(\log K+\log m_j).
+\]
+The left-hand side decays exponentially in $d$, while the right-hand side grows at least linearly because $\delta>0$.
+The crossover occurs when
+\[
+(1-\rho_{\min})^d
+\lesssim
+\frac{\delta d}{Bn}.
+\]
+Solving this implicit inequality gives
+\[
+d
+=
+O(\log n).
+\]
+\end{proof}
+
+\begin{remark}[Minimum leaf size alone is insufficient]
+A fixed minimum leaf size $n_{\min}$ does not by itself imply logarithmic depth: a sequence of highly unbalanced splits can peel off $n_{\min}$ observations at each level and produce depth $O(n/n_{\min})$.
+Thus the logarithmic depth statement requires either an explicit balance condition, a maximum-depth constraint, or an additional argument ruling out highly unbalanced accepted splits.
+\end{remark}
+
+
+\subsection{Empirical Bayes Perturbation}
+\label{app:eb_perturbation}
+
+\begin{lemma}[Empirical Bayes perturbation]
+\label{lem:eb_perturbation}
+Let $\eta_0$ be the population hyperparameter and suppose
+\[
+\hat{\eta}-\eta_0=O_p(n^{-1/2}).
+\]
+Assume that, for all leaves considered,
+$\eta\mapsto S(\mathcal{D}_\ell;\eta)$ is continuously differentiable in a neighborhood of $\eta_0$ and that
+\[
+\sup_{\ell}
+\sup_{\eta\in\mathcal{N}(\eta_0)}
+\|
+\nabla_\eta S(\mathcal{D}_\ell;\eta)
+\|
+=
+O_p(1).
+\]
+Then
+\[
+\sup_\ell
+\left|
+S(\mathcal{D}_\ell;\hat{\eta})
+-
+S(\mathcal{D}_\ell;\eta_0)
+\right|
+=
+O_p(n^{-1/2}).
+\]
+\end{lemma}
+
+\begin{proof}
+By the mean-value theorem, for each leaf $\ell$ there exists a point
+$\tilde{\eta}_\ell$ on the line segment between $\eta_0$ and $\hat{\eta}$ such that
+\[
+S(\mathcal{D}_\ell;\hat{\eta})
+-
+S(\mathcal{D}_\ell;\eta_0)
+=
+\nabla_\eta S(\mathcal{D}_\ell;\tilde{\eta}_\ell)^\top
+(\hat{\eta}-\eta_0).
+\]
+Taking suprema over leaves,
+\[
+\sup_\ell
+\left|
+S(\mathcal{D}_\ell;\hat{\eta})
+-
+S(\mathcal{D}_\ell;\eta_0)
+\right|
+\le
+\left[
+\sup_\ell
+\sup_{\eta\in\mathcal{N}(\eta_0)}
+\|
+\nabla_\eta S(\mathcal{D}_\ell;\eta)
+\|
+\right]
+\|\hat{\eta}-\eta_0\|.
+\]
+The first factor is $O_p(1)$ by assumption and the second is
+$O_p(n^{-1/2})$, giving the result.
+\end{proof}
+
+\begin{remark}[Scope of the EB bound]
+The gradient condition is model-specific. For Normal--Normal leaves it requires control of leaf sufficient statistics, such as leaf means; sub-Gaussian or bounded-response assumptions are sufficient. For Beta--Bernoulli leaves, boundedness of the response and compactness of the hyperparameter search domain give the required control away from degenerate prior parameters. This result should therefore be interpreted as a regularity statement for the empirical Bayes plug-in approximation, not as an automatic consequence of the BDF algorithm.
+\end{remark}
+
+
+\subsection{Ensemble Log-Loss Bound}
+\label{app:ensemble_bound}
+
+We do not include a separate proof of the ensemble inequality because it is an immediate application of Jensen's inequality. Since $-\log$ is convex,
+\[
+-\log\left(\frac{1}{M}\sum_{m=1}^M p^{(m)}(y\mid x)\right)
+\le
+\frac{1}{M}\sum_{m=1}^M
+-\log p^{(m)}(y\mid x).
+\]
+Strict inequality holds at a given $(x,y)$ whenever the component densities
+$p^{(m)}(y\mid x)$ are not all equal. This proves that the mixture log-loss is no worse than the average tree log-loss, but it does not imply improvement over the best single tree.

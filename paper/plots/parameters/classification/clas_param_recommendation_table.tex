@@ -1,0 +1,18 @@
+\begin{table}[htbp]
+\centering
+\caption{Recommended hyperparameter values (LOG_LOSS $\downarrow$).}
+\label{tab:param-sensitivity}
+\begin{tabular}{lcccc}
+\toprule
+Parameter & circles & make\_classification & moons & Recommended \\
+\midrule
+alpha & \textbf{0.1} & \textbf{0.5} & \textbf{0.1} & 0.1 \\
+gamma & \textbf{0} & 0.1 & \textbf{0.001} & 0 \\
+delta & \textbf{0.1} & 0.01 & \textbf{0} & 0.1 \\
+min\_samples\_leaf & \textbf{5} & \textbf{5} & \textbf{5} & 5 \\
+\midrule
+score\_method & nll & nle & nll_bic & nll \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize{Best value per DGP (bold = differs from default). Recommended = most frequent best value across DGPs.}
+\end{table}

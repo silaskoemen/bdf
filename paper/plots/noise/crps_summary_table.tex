@@ -1,0 +1,41 @@
+\begin{table}[htbp]
+\centering
+\caption{CRPS ($\downarrow$) across datasets and noise feature counts.}
+\label{tab:noise-features-crps}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+$d_{\text{noise}}$ & BDF (KDE) & BDF (Normal) & Conformal RF & NGBoost \\
+\midrule
+\multicolumn{5}{l}{\textit{Friedman 1}} \\
+0 & 1.099 ± 0.056 & 1.057 ± 0.051 & 1.013 ± 0.057 & \textbf{0.720 ± 0.046} \\
+10 & 1.169 ± 0.058 & 1.123 ± 0.056 & 1.093 ± 0.053 & \textbf{0.751 ± 0.048} \\
+50 & 1.242 ± 0.059 & 1.218 ± 0.058 & 1.187 ± 0.064 & \textbf{0.778 ± 0.061} \\
+100 & 1.281 ± 0.059 & 1.243 ± 0.053 & 1.226 ± 0.065 & \textbf{0.812 ± 0.062} \\
+200 & 1.313 ± 0.059 & 1.287 ± 0.064 & 1.269 ± 0.064 & \textbf{0.809 ± 0.061} \\
+\midrule
+\multicolumn{5}{l}{\textit{Friedman 2}} \\
+0 & 13.502 ± 0.636 & 11.557 ± 0.549 & \textbf{9.807 ± 0.943} & 10.402 ± 0.888 \\
+10 & 14.199 ± 0.696 & 12.537 ± 0.666 & \textbf{10.149 ± 0.958} & 10.302 ± 0.915 \\
+50 & 14.718 ± 0.820 & 14.804 ± 0.811 & 11.600 ± 1.102 & \textbf{11.552 ± 1.201} \\
+100 & 15.203 ± 0.778 & 15.113 ± 0.882 & 12.385 ± 1.165 & \textbf{9.486 ± 0.720} \\
+200 & 15.947 ± 0.733 & 15.077 ± 0.606 & 13.369 ± 1.244 & \textbf{9.840 ± 0.953} \\
+\midrule
+\multicolumn{5}{l}{\textit{Friedman 3}} \\
+0 & 0.068 ± 0.004 & \textbf{0.068 ± 0.003} & 0.069 ± 0.006 & 0.069 ± 0.005 \\
+10 & 0.070 ± 0.004 & \textbf{0.069 ± 0.004} & 0.071 ± 0.006 & 0.069 ± 0.005 \\
+50 & 0.072 ± 0.004 & 0.071 ± 0.004 & 0.073 ± 0.006 & \textbf{0.071 ± 0.005} \\
+100 & 0.073 ± 0.005 & 0.072 ± 0.005 & 0.075 ± 0.007 & \textbf{0.070 ± 0.005} \\
+200 & 0.074 ± 0.004 & 0.073 ± 0.004 & 0.077 ± 0.007 & \textbf{0.069 ± 0.005} \\
+\midrule
+\multicolumn{5}{l}{\textit{Linear Regression}} \\
+0 & 9.778 ± 0.445 & 9.487 ± 0.433 & 8.885 ± 0.653 & \textbf{6.673 ± 0.396} \\
+10 & 10.266 ± 0.439 & 9.812 ± 0.416 & 9.511 ± 0.647 & \textbf{6.901 ± 0.420} \\
+50 & 10.797 ± 0.471 & 10.627 ± 0.442 & 10.232 ± 0.644 & \textbf{6.942 ± 0.384} \\
+100 & 11.143 ± 0.432 & 11.080 ± 0.425 & 10.572 ± 0.614 & \textbf{6.985 ± 0.378} \\
+200 & 11.418 ± 0.470 & 11.123 ± 0.438 & 10.941 ± 0.670 & \textbf{7.203 ± 0.383} \\
+\bottomrule
+\end{tabular}
+}%
+\par\smallskip\footnotesize{Bold indicates best CRPS per row. Values are mean ± std over 9 evaluation folds (tuned on fold 0).}
+\end{table}

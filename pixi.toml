@@ -45,6 +45,8 @@ convergence = "pixi run python -m benchmarks.convergence_rate_study"
 conform = "pixi run python -m benchmarks.conformalization_study"
 conform-output = "pixi run python -m benchmarks.compare_conformalization_results"
 
+paper = { cmd = "latexmk -pdf -interaction=nonstopmode sample.tex", cwd = "paper" }
+
 # Documentation
 docs-build = "sphinx-build -b html docs/source docs/build/html"
 docs-clean = "rm -rf docs/build"

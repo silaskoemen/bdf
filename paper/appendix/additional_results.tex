@@ -1,0 +1,577 @@
+\section{Additional Empirical Results}\label{app:additional-results}
+
+This appendix collects supporting evidence for the experiments in Section~\ref{sec:experiments}. Each subsection mirrors the corresponding main-body subsection (where one exists) and is organized so that the headline diagnostic appears first, followed by a more exhaustive ``plot atlas'' for reference.
+
+% ==========================================
+% A.1 REAL-DATA: REGRESSION DETAILS
+% ==========================================
+\subsection{Regression benchmarks: additional results}\label{app:regression-additional}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{plots/regression/regression_cd_crps.pdf}
+    \caption{Critical-difference diagram of CRPS ranks across regression datasets.}
+    \label{fig:cd-crps}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{plots/regression/regression_pit_histograms.pdf}
+    \caption{PIT histograms per method. BDF is near-uniform with mild central mass; CatBoost-UQ and NGBoost show excess mass at the tails, indicating intervals that are too narrow.}
+    \label{fig:pit-histograms}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.75\textwidth]{plots/regression/regression_calibration_curve.pdf}
+    \caption{Calibration of confidence intervals per model, averaged across regression datasets.}
+    \label{fig:regression-calibration}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/regression/regression_coverage_vs_width_rank.pdf}
+    \caption{Empirical coverage versus interval-width rank.}
+    \label{fig:coverage-vs-width-rank}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{plots/regression/regression_rel_to_best_rmse.pdf}
+    \caption{Average RMSE relative to the per-dataset best model.}
+    \label{fig:rmse-rel-to-best}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/regression/regression_cd_rmse.pdf}
+    \caption{Critical-difference diagram of RMSE ranks across regression datasets.}
+    \label{fig:cd-rmse}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/regression/regression_scatter_crps.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/regression/regression_scatter_rmse.pdf}
+    \caption{Per-dataset scatter plots: BDF versus each baseline on CRPS (left) and RMSE (right).}
+    \label{fig:regression-scatter}
+\end{figure}
+
+% TODO: re-insert the per-dataset CRPS / RMSE / coverage tables here once the
+% regression experiments finish running. Templates remain commented below.
+
+% ==========================================
+% A.2 REAL-DATA: CLASSIFICATION DETAILS
+% ==========================================
+\subsection{Classification benchmarks: additional results}\label{app:classification-additional}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/classification/classification_cd_log_loss.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/classification/classification_cd_brier.pdf}
+    \caption{Critical-difference diagrams on log-loss (left) and Brier score (right).}
+    \label{fig:classification-cd}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{plots/classification/classification_rel_to_best_brier.pdf}
+    \caption{Average Brier score relative to the per-dataset best classifier.}
+    \label{fig:classification-rel-to-best-brier}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/classification/classification_log_loss_comparison.pdf}
+    \caption{Per-dataset log-loss comparison.}
+    \label{fig:classification-log-loss-comparison}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.32\textwidth]{plots/classification/classification_scatter_log_loss.pdf}\hfill
+    \includegraphics[width=0.32\textwidth]{plots/classification/classification_scatter_brier.pdf}\hfill
+    \includegraphics[width=0.32\textwidth]{plots/classification/classification_scatter_ece.pdf}
+    \caption{Per-dataset scatter plots of BDF versus each baseline on log-loss, Brier score, and ECE.}
+    \label{fig:classification-scatter}
+\end{figure}
+
+% ==========================================
+% A.3 SYNTHETIC DGP DIAGNOSTICS
+% ==========================================
+\subsection{Synthetic DGP diagnostics}\label{app:synthetic-diagnostics}
+
+This subsection expands the synthetic-DGP analysis of Section~\ref{subsec:exp_synthetic} with per-DGP diagnostics (spread--skill, conditional calibration, PIT) and per-method predictive densities.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/synthetic/summary/dgp_overview.pdf}
+    \caption{Overview of the five synthetic DGPs.}
+    \label{fig:dgp-overview}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/synthetic/summary/pit_histograms.pdf}
+    \caption{PIT histograms per method, averaged across synthetic DGPs.}
+    \label{fig:synthetic-pit}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/synthetic/summary/variance_estimation_quality.pdf}
+    \caption{Quality of conditional variance estimates on heteroscedastic DGPs.}
+    \label{fig:synthetic-variance}
+\end{figure}
+
+\paragraph{Per-DGP predictive densities.}
+Figure~\ref{fig:bimodal-predictions} shows model-level conditional-calibration diagnostics on the bimodal mixture DGP as a representative example. Remaining per-model diagnostics (conditional calibration, local calibration, spread--skill) for the other four DGPs are available in \texttt{plots/synthetic/<dgp>/} and \texttt{plots/conformalization/<dgp>/} and are omitted here for brevity.
+
+% TODO for each DGP subfolder: pick one representative plot (e.g., the conditional_densities
+% panel per method, consolidated as a grid) and include here. Listed as placeholders:
+
+% Bimodal mixture
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/conformalization/bimodal_mixture/cond_calibration_all_models.pdf}
+    \caption{Bimodal mixture: conditional calibration across methods.}
+    \label{fig:bimodal-predictions}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/conformalization/heavy_tailed/cond_calibration_all_models.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/conformalization/heteroscedastic_sinusoidal/cond_calibration_all_models.pdf}\\
+    \includegraphics[width=0.49\textwidth]{plots/conformalization/sparse_sampling/cond_calibration_all_models.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/conformalization/step_function/cond_calibration_all_models.pdf}
+    \caption{Conditional calibration by method for the remaining synthetic DGPs: heavy-tailed (top-left), heteroscedastic sinusoidal (top-right), sparse sampling (bottom-left), step function (bottom-right).}
+    \label{fig:synthetic-cond-calibration-per-dgp}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/conformalization/heavy_tailed/spread_skill_all_models.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/conformalization/heteroscedastic_sinusoidal/spread_skill_all_models.pdf}\\
+    \includegraphics[width=0.49\textwidth]{plots/conformalization/sparse_sampling/spread_skill_all_models.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/conformalization/step_function/spread_skill_all_models.pdf}
+    \caption{Spread--skill diagnostics on the remaining synthetic DGPs. Layout matches Figure~\ref{fig:synthetic-cond-calibration-per-dgp}.}
+    \label{fig:synthetic-spread-skill-per-dgp}
+\end{figure}
+
+% ==========================================
+% A.4 PARAMETER SENSITIVITY
+% ==========================================
+\subsection{Parameter sensitivity}\label{app:additional-param-sensitivity}
+
+We study sensitivity to the four tunable hyperparameters $(\alpha, \delta, \gamma, \texttt{min\_samples\_leaf})$. The heatmap and combined panel below summarize the regression sweep; individual per-parameter plots follow.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/parameters/regression/combined_sensitivity.pdf}
+    \caption{Combined parameter sensitivity on regression: CRPS and coverage as each parameter varies.}
+    \label{fig:param-combined-regression}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.8\textwidth]{plots/parameters/regression/sensitivity_heatmap.pdf}
+    \caption{Joint $(\alpha, \delta)$ sensitivity heatmap on regression.}
+    \label{fig:param-heatmap-regression}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/parameters/regression/sensitivity_alpha.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/parameters/regression/sensitivity_delta.pdf}\\
+    \includegraphics[width=0.49\textwidth]{plots/parameters/regression/sensitivity_gamma.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/parameters/regression/sensitivity_min_samples_leaf.pdf}
+    \caption{Regression: sensitivity to $\alpha$, $\delta$, $\gamma$, and \texttt{min\_samples\_leaf}.}
+    \label{fig:param-individual-regression}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/parameters/classification/clas_combined_sensitivity.pdf}
+    \caption{Combined parameter sensitivity on classification.}
+    \label{fig:param-combined-classification}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.8\textwidth]{plots/parameters/classification/clas_sensitivity_heatmap.pdf}
+    \caption{Joint $(\alpha, \delta)$ sensitivity heatmap on classification.}
+    \label{fig:param-heatmap-classification}
+\end{figure}
+
+\input{plots/parameters/regression/param_recommendation_table.tex}
+\input{plots/parameters/classification/clas_param_recommendation_table.tex}
+
+% ==========================================
+% A.5 SCORING-METHOD: FULL RESULTS
+% ==========================================
+\subsection{Scoring method: full results}\label{app:scoring-method-full}
+
+This subsection contains the robustness-split CD diagrams, real-data comparisons, and recommendation tables referenced from Section~\ref{subsec:exp_scoring}.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/scoring_method/regression/fig3_cd_diagram_robustness.pdf}
+    \caption{Scoring-method CD diagram on robustness regression datasets.}
+    \label{fig:scoring-regression-cd-robust}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/scoring_method/regression/fig4_regression_robustness.pdf}
+    \caption{Per-dataset robustness results for the regression scoring-method comparison.}
+    \label{fig:scoring-regression-robustness}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/scoring_method/classification/fig3_cd_diagram_core.pdf}
+    \caption{Scoring-method CD diagram on core classification datasets.}
+    \label{fig:scoring-classification-cd-core}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/scoring_method/classification/fig3_cd_diagram_robustness.pdf}
+    \caption{Scoring-method CD diagram on robustness classification datasets.}
+    \label{fig:scoring-classification-cd-robust}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/scoring_method/classification/fig4_classification_robustness.pdf}
+    \caption{Per-dataset robustness results for the classification scoring-method comparison.}
+    \label{fig:scoring-classification-robustness}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{plots/scoring_method/real_data/fig3_cd_diagram_real_data.pdf}
+    \caption{Scoring-method CD diagram on the real-data benchmark suite.}
+    \label{fig:scoring-real-data-cd}
+\end{figure}
+
+\input{tables/scoring_method/regression/core_summary_by_n.tex}
+\input{tables/scoring_method/regression/core_best_by_n.tex}
+\input{tables/scoring_method/regression/robustness_summary_by_n.tex}
+\input{tables/scoring_method/regression/robustness_best_by_n.tex}
+\input{tables/scoring_method/classification/core_summary_by_n.tex}
+\input{tables/scoring_method/classification/core_best_by_n.tex}
+\input{tables/scoring_method/classification/core_recommendation.tex}
+\input{tables/scoring_method/classification/robustness_summary_by_n.tex}
+\input{tables/scoring_method/classification/robustness_best_by_n.tex}
+\input{tables/scoring_method/classification/robustness_recommendation.tex}
+\input{tables/scoring_method/real_data/merged_real_data.tex}
+\input{tables/scoring_method/real_data/real_data_summary_by_n.tex}
+\input{tables/scoring_method/real_data/real_data_best_by_n.tex}
+\input{tables/scoring_method/real_data/real_data_recommendation.tex}
+
+% ==========================================
+% A.6 COMPLEXITY: ADDITIONAL PLOTS
+% ==========================================
+\subsection{Complexity: additional results}\label{app:complexity-additional}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/complexity/memory_comparison.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/complexity/overhead_ratio.pdf}
+    \caption{Peak memory (left) and overhead ratio versus a non-probabilistic GBDT baseline (right).}
+    \label{fig:complexity-extras}
+\end{figure}
+
+% ==========================================
+% A.7 MISSPECIFICATION
+% ==========================================
+\subsection{Likelihood misspecification}\label{app:misspecification}
+
+We evaluate robustness of BDF when the assumed leaf likelihood does not match the data-generating distribution.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/misspecification/degradation_summary.pdf}
+    \caption{CRPS degradation of each BDF leaf family as the DGP deviates from the assumed likelihood.}
+    \label{fig:misspecification-degradation}
+\end{figure}
+
+\input{tables/misspecification/misspecification_crps.tex}
+\input{tables/misspecification/tree_complexity.tex}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/misspecification/misspecification_heatmap_absolute.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/misspecification/misspecification_heatmap_relative.pdf}
+    \caption{Absolute (left) and relative (right) CRPS as a function of the true DGP (rows) and assumed leaf likelihood (columns).}
+    \label{fig:misspecification-heatmap}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/misspecification/coverage_comparison.pdf}
+    \caption{Empirical coverage under misspecification.}
+    \label{fig:misspecification-coverage}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/misspecification/pit_histogram_panel.pdf}
+    \caption{PIT histograms under misspecification.}
+    \label{fig:misspecification-pit}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/misspecification/cd_diagrams.pdf}
+    \caption{Critical-difference diagrams across misspecification regimes.}
+    \label{fig:misspecification-cd}
+\end{figure}
+
+% ==========================================
+% A.8 NOISE FEATURES
+% ==========================================
+\subsection{Noise features and multiplicity correction}\label{app:noise}
+
+We study robustness to pure-noise features, which directly probe the tempered selection penalty $\gamma \log(K \cdot m_j)$ in Eq.~\eqref{eq:net_gain}.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/noise/crps_relative_degradation.pdf}
+    \caption{Relative CRPS degradation as noise features are added.}
+    \label{fig:noise-crps-relative}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/noise/feature_selection_rates.pdf}
+    \caption{Frequency with which signal versus noise features are selected as split variables.}
+    \label{fig:noise-feature-selection}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/noise/coverage_degradation_90.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/noise/crps_degradation.pdf}
+    \caption{Absolute 90\% coverage (left) and CRPS (right) degradation as noise features are added.}
+    \label{fig:noise-degradation}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/noise/per_feature_counts_noise100.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/noise/fit_time_scaling.pdf}
+    \caption{Per-feature split counts at $100$ noise features (left) and fit-time scaling (right).}
+    \label{fig:noise-extra}
+\end{figure}
+
+\input{plots/noise/crps_summary_table.tex}
+
+% ==========================================
+% A.9 CONVERGENCE
+% ==========================================
+\subsection{Convergence and learning curves}\label{app:convergence}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/convergence/rate_comparison.pdf}
+    \caption{Empirical convergence rates of BDF versus random forests on a suite of DGPs.}
+    \label{fig:convergence-rate}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/convergence/grid_d5.pdf}
+    \caption{Learning curves at $d=5$ across DGPs.}
+    \label{fig:convergence-grid-d5}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/convergence/grid_d1.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/convergence/grid_d10.pdf}
+    \caption{Learning curves at $d=1$ (left) and $d=10$ (right).}
+    \label{fig:convergence-grid-d1-d10}
+\end{figure}
+
+\input{plots/convergence/convergence_rates_table.tex}
+
+% Per-DGP individual learning curves are retained in plots/convergence/individual/
+% and are omitted here to save space.
+
+% ==========================================
+% A.10 ENSEMBLE SIZE
+% ==========================================
+\subsection{Ensemble size}\label{app:ensemble-size}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/ensemble_size/combined_summary.pdf}
+    \caption{CRPS, coverage, and fit time as a function of the number of trees $M$.}
+    \label{fig:ensemble-combined}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.32\textwidth]{plots/ensemble_size/crps_vs_n_trees.pdf}\hfill
+    \includegraphics[width=0.32\textwidth]{plots/ensemble_size/coverage_vs_n_trees.pdf}\hfill
+    \includegraphics[width=0.32\textwidth]{plots/ensemble_size/fit_time_vs_n_trees.pdf}
+    \caption{Individual panels: CRPS, coverage, and fit time as a function of $M$.}
+    \label{fig:ensemble-individual}
+\end{figure}
+
+\input{plots/ensemble_size/crps_summary_table.tex}
+
+% ==========================================
+% A.11 CONFORMALIZATION COMPARISON
+% ==========================================
+\subsection{Post-hoc conformalization}\label{app:conformalization}
+
+We evaluate whether wrapping BDF in a split-conformal layer changes rankings, and compare against conformalized RF and CatBoost.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/conformalization/global_coverage_summary.pdf}
+    \caption{Global coverage before and after conformalization across methods.}
+    \label{fig:conformalization-global}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{plots/conformalization/width_vs_coverage_90.pdf}
+    \caption{Interval width versus 90\% coverage before and after conformalization.}
+    \label{fig:conformalization-width-coverage}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{plots/conformalization/cond_coverage_heatmap_90.pdf}
+    \caption{Conditional 90\% coverage heatmap by covariate stratum.}
+    \label{fig:conformalization-cond-coverage}
+\end{figure}
+
+% Per-DGP conformalization diagnostics are available in plots/conformalization/<dgp>/
+% and are not reproduced here.
+
+% ==========================================
+% TEMPLATES FOR REGRESSION / TIMING / WIN-TIE-LOSS TABLES
+% (kept commented until the regression experiments finish running)
+% ==========================================
+
+% \begin{table}[htbp]
+% \centering
+% \caption{BDF distribution selection per dataset}
+% \label{tab:bdf-selection}
+% \begin{tabular}{ll}
+% \toprule
+% Dataset & Selected Distribution \\
+% \midrule
+% abalone\_age & kde \\
+% bike\_sharing & freqstudentt \\
+% boston\_housing & freqstudentt \\
+% combined\_cycle\_power\_plant & freqstudentt \\
+% concrete\_strength & normalmeanstudentt \\
+% energy\_efficiency & normalmeanstudentt \\
+% kin8nm & freqstudentt \\
+% parkinsons\_updrs & freqstudentt \\
+% realestate & normalmeanstudentt \\
+% superconductor & freqstudentt \\
+% wine\_quality & freqstudentt \\
+% \bottomrule
+% \end{tabular}
+% \par\smallskip\footnotesize{Selection based on CRPS from hyperparameter tuning (fold 0).}
+% \end{table}
+
+% \begin{table}[htbp]
+% \centering
+% \caption{CRPS per dataset}
+% \label{tab:crps-per-dataset}
+% \resizebox{\textwidth}{!}{%
+% \begin{tabular}{lccccccccc}
+% \toprule
+% Dataset & BDF & bayesridge\_reg & conflgbm & confrf & gaussian\_de & bartpy & ngboost\_reg & catbunc\_reg & knnkde \\
+% \midrule
+% abalone\_age & 1.063 ± 0.060 & 1.176 ± 0.071 & 1.107 ± 0.074 & 1.095 ± 0.072 & \textbf{1.050 ± 0.060} & 1.385 ± 0.098 & 1.098 ± 0.064 & 1.099 ± 0.070 & 1.106 ± 0.073 \\
+% bike\_sharing & 18.898 ± 0.503 & 77.224 ± 1.575 & 18.646 ± 0.541 & 25.111 ± 0.741 & 22.601 ± 1.071 & 35.470 ± 2.394 & 27.761 ± 1.091 & \textbf{16.860 ± 0.483} & 26.184 ± 0.433 \\
+% boston\_housing & 1.731 ± 0.327 & 2.534 ± 0.459 & 1.775 ± 0.289 & 1.998 ± 0.384 & 1.835 ± 0.454 & 2.092 ± 0.446 & 1.730 ± 0.312 & \textbf{1.718 ± 0.381} & 3.507 ± 0.568 \\
+% combined\_cycle\_power\_plant & 1.672 ± 0.023 & 2.822 ± 0.055 & \textbf{1.599 ± 0.042} & 2.027 ± 0.045 & 2.090 ± 0.044 & 2.747 ± 0.098 & 1.870 ± 0.089 & 1.623 ± 0.043 & 2.080 ± 0.040 \\
+% concrete\_strength & 2.765 ± 0.290 & 5.878 ± 0.283 & 2.366 ± 0.355 & 3.532 ± 0.363 & 2.841 ± 0.287 & 3.430 ± 0.269 & 2.311 ± 0.401 & \textbf{2.073 ± 0.311} & 4.848 ± 0.389 \\
+% energy\_efficiency & 0.272 ± 0.026 & 1.640 ± 0.152 & 0.246 ± 0.023 & 0.550 ± 0.076 & 0.849 ± 0.128 & 0.388 ± 0.048 & 0.215 ± 0.022 & \textbf{0.210 ± 0.024} & 1.049 ± 0.063 \\
+% kin8nm & 0.078 ± 0.002 & 0.114 ± 0.003 & 0.064 ± 0.001 & 0.090 ± 0.003 & \textbf{0.040 ± 0.001} & 0.121 ± 0.005 & 0.088 ± 0.003 & 0.062 ± 0.002 & 0.072 ± 0.002 \\
+% parkinsons\_updrs & \textbf{0.342 ± 0.034} & 5.561 ± 0.236 & 0.762 ± 0.079 & 1.122 ± 0.065 & 2.918 ± 0.131 & 4.097 ± 0.395 & 1.961 ± 0.074 & 1.056 ± 0.040 & 4.818 ± 0.168 \\
+% realestate & \textbf{3.295 ± 0.443} & 4.669 ± 0.583 & 3.608 ± 0.437 & 3.519 ± 0.458 & 4.094 ± 0.623 & 4.181 ± 0.389 & 3.496 ± 0.337 & 3.449 ± 0.386 & 4.089 ± 0.549 \\
+% superconductor & \textbf{3.580 ± 0.108} & 9.730 ± 0.180 & 4.243 ± 0.117 & 5.265 ± 0.159 & 5.449 ± 0.099 & 8.388 ± 0.207 & 5.148 ± 0.133 & 4.023 ± 0.107 & 4.780 ± 0.101 \\
+% wine\_quality & \textbf{0.283 ± 0.014} & 0.419 ± 0.016 & 0.339 ± 0.012 & 0.378 ± 0.016 & 0.371 ± 0.012 & 0.508 ± 0.024 & 0.373 ± 0.016 & 0.345 ± 0.017 & --- \\
+% \midrule
+% \textit{Average} & 3.089 ± 0.166 & 10.161 ± 0.328 & 3.159 ± 0.179 & 4.063 ± 0.217 & 4.013 ± 0.265 & 5.710 ± 0.398 & 4.186 ± 0.231 & \textbf{2.956 ± 0.169} & 5.253 ± 0.239 \\
+% \bottomrule
+% \end{tabular}
+% }
+% \par\smallskip\footnotesize{CRPS values. Bold = best per row.}
+% \end{table}
+
+% \begin{table}[htbp]
+% \centering
+% \caption{Regression benchmark results across datasets}
+% \label{tab:regression-main}
+% \begin{tabular}{lcccc}
+% \toprule
+% Model & RMSE $\downarrow$ & CRPS $\downarrow$ & Cov@90 $\uparrow$ & PICA $\downarrow$ \\
+% \midrule
+% BDF & 6.974 ± 0.600 & 3.089 ± 0.166 & \textbf{0.945 ± 0.019} & 0.045 ± 0.010 \\
+% bayesridge\_reg & 18.581 ± 0.688$^{***}$ & 10.161 ± 0.328$^{***}$ & 0.906 ± 0.020 & 0.029 ± 0.008 \\
+% conflgbm & 6.477 ± 0.503 & 3.159 ± 0.179 & 0.895 ± 0.023 & \textbf{0.020 ± 0.008} \\
+% confrf & 8.062 ± 0.563$^{***}$ & 4.063 ± 0.217$^{***}$ & 0.892 ± 0.026 & 0.020 ± 0.009 \\
+% gaussian\_de & 9.216 ± 0.721$^{**}$ & 4.013 ± 0.265$^{**}$ & 0.914 ± 0.022 & 0.025 ± 0.011 \\
+% bartpy & 10.026 ± 0.769$^{**}$ & 5.710 ± 0.398$^{***}$ & 0.383 ± 0.044 & 0.485 ± 0.040 \\
+% ngboost\_reg & 8.509 ± 0.593 & 4.186 ± 0.231 & 0.768 ± 0.032 & 0.115 ± 0.023 \\
+% catbunc\_reg & \textbf{6.050 ± 0.490} & \textbf{2.956 ± 0.169} & 0.651 ± 0.034 & 0.220 ± 0.026 \\
+% knnkde & 9.620 ± 0.558$^{**}$ & 5.253 ± 0.239$^{**}$ & 0.938 ± 0.015 & 0.058 ± 0.009 \\
+% \bottomrule
+% \end{tabular}
+% \par\smallskip\footnotesize{Results averaged over 11 datasets. Bold = best. Significance: * $p<0.05$, ** $p<0.01$, *** $p<0.001$ (Wilcoxon vs control).}}
+% \end{table}
+
+% \begin{table}[htbp]
+% \centering
+% \caption{Geometric mean speedup of BDF (Normal) relative to baselines}
+% \label{tab:speedup-normal}
+% \begin{tabular}{lcccc}
+% \toprule
+% Model & Fit Speedup & $N$ & Tune Speedup & $N$ \\
+% \midrule
+% BART & 11.9$\times$ & 11 & 11.1$\times$ & 11 \\
+% BDF & 7.27$\times$ & 11 & 4.97$\times$ & 11 \\
+% CatBoostUnc & 2.32$\times$ & 11 & 7.46$\times$ & 11 \\
+% NGBoost & 2.16$\times$ & 11 & 0.64$\times$ & 11 \\
+% ConfRF & 1.00$\times$ & 11 & 0.56$\times$ & 11 \\
+% BayesRidge & 3.1e-03$\times$ & 11 & 0.02$\times$ & 11 \\
+% KNNKDE & 9.8e-04$\times$ & 11 & 0.04$\times$ & 11 \\
+% ConfLGBM & --- & 0 & 0.34$\times$ & 11 \\
+% GaussianDE & --- & 0 & 5.50$\times$ & 11 \\
+% \bottomrule
+% \end{tabular}
+% \par\smallskip\footnotesize{Geometric mean of per-dataset time ratios (model / BDF (Normal)). Values $>1$: \mbox{BDF (Normal)} is faster. $N$ = number of shared datasets.}}
+% \end{table}
+
+% \begin{table}[htbp]
+% \centering
+% \caption{Win/Tie/Loss for CRPS (BDF vs baselines)}
+% \label{tab:win-tie-loss}
+% \begin{tabular}{lccccc}
+% \toprule
+% Comparison & Wins & Ties & Losses & Total & Sign test $p$ \\
+% \midrule
+% BDF vs bayesridge\_reg & 11 & 0 & 0 & 11 & \textbf{0.001} \\
+% BDF vs conflgbm & 6 & 0 & 5 & 11 & 1.000 \\
+% BDF vs confrf & 11 & 0 & 0 & 11 & \textbf{0.001} \\
+% BDF vs gaussian\_de & 9 & 0 & 2 & 11 & 0.065 \\
+% BDF vs bartpy & 11 & 0 & 0 & 11 & \textbf{0.001} \\
+% BDF vs ngboost\_reg & 8 & 1 & 2 & 11 & 0.109 \\
+% BDF vs catbunc\_reg & 5 & 1 & 5 & 11 & 1.000 \\
+% BDF vs knnkde & 9 & 0 & 1 & 10 & 0.021 \\
+% \bottomrule
+% \end{tabular}
+% \par\smallskip\footnotesize{Wins = control better, Losses = challenger better. Ties = $<$1\% relative difference. Bold $p$ = significant.}
+% \end{table}

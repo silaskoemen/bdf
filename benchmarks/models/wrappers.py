@@ -281,8 +281,12 @@ class NGBRegressorWrapper(NGBRegressor):
         )
 
     def fit(self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series, **kwargs):
-        X_np = X.values if hasattr(X, "values") else X  # pyright: ignore[reportAttributeAccessIssue]
-        y_np = y.values if hasattr(y, "values") else y  # pyright: ignore[reportAttributeAccessIssue]
+        X_np: np.ndarray = (
+            X.values if hasattr(X, "values") else X
+        )  # pyright: ignore[reportAttributeAccessIssue] # ty:ignore[invalid-assignment]
+        y_np: np.ndarray = (
+            y.values if hasattr(y, "values") else y
+        )  # pyright: ignore[reportAttributeAccessIssue] # ty:ignore[invalid-assignment]
 
         if y_np.ndim > 1:
             y_np = y_np.ravel()
@@ -352,8 +356,12 @@ class NGBClassifierWrapper(NGBClassifier):
         )
 
     def fit(self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series, **kwargs):
-        X_np = X.values if hasattr(X, "values") else X  # pyright: ignore[reportAttributeAccessIssue]
-        y_np = y.values if hasattr(y, "values") else y  # pyright: ignore[reportAttributeAccessIssue]
+        X_np: np.ndarray = (
+            X.values if hasattr(X, "values") else X
+        )  # pyright: ignore[reportAttributeAccessIssue]  # ty:ignore[invalid-assignment]
+        y_np: np.ndarray = (
+            y.values if hasattr(y, "values") else y
+        )  # pyright: ignore[reportAttributeAccessIssue]  # ty:ignore[invalid-assignment]
 
         # Ensure y is 1D integer array for classification
         if y_np.ndim > 1:

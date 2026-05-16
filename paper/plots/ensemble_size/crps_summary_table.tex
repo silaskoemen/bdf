@@ -1,0 +1,20 @@
+\begin{table}[htbp]
+\centering
+\caption{CRPS ($\downarrow$) as a function of ensemble size.}
+\label{tab:n-trees-crps}
+\begin{tabular}{lcccc}
+\toprule
+$n_{\text{trees}}$ & Friedman 1 & Friedman 2 & Friedman 3 & Linear Regression \\
+\midrule
+5 & 1.271 ± 0.064 & 14.175 ± 0.939 & 0.071 ± 0.005 & 33.608 ± 1.729 \\
+10 & 1.211 ± 0.063 & 11.318 ± 0.656 & 0.069 ± 0.004 & 31.333 ± 1.685 \\
+25 & 1.147 ± 0.047 & \textbf{10.780 ± 0.605} & 0.068 ± 0.004 & 28.644 ± 1.502 \\
+50 & \textbf{1.119 ± 0.047} & 12.044 ± 0.586$^{\dagger}$ & 0.067 ± 0.004$^{\dagger}$ & 28.362 ± 1.394$^{\dagger}$ \\
+100 & 1.139 ± 0.053$^{\dagger}$ & 11.887 ± 0.620 & 0.067 ± 0.004 & 28.285 ± 1.539 \\
+200 & 1.133 ± 0.050 & 10.888 ± 0.369 & \textbf{0.066 ± 0.004} & \textbf{27.894 ± 1.671} \\
+\midrule
+Fit time (s) & 0.9 ± 0.0 & 0.6 ± 0.0 & 0.7 ± 0.0 & 1.4 ± 0.1 \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize{Bold indicates best CRPS per column. $^{\dagger}$ marks the plateau point where CRPS improvement drops below 1\%. Fit time shown for $n_{\text{trees}}=200$. Values are mean $\pm$ std over 9 evaluation folds.}
+\end{table}
