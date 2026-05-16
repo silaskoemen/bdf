@@ -4,7 +4,7 @@ requires = ["maturin>=1.4,<2.0"]
 
 [project]
 name = "bayesian-distributional-forest"
-version = "0.1.0rc1"
+version = "0.1.0rc2"
 description = "Bayesian Distributional Forest: probabilistic random forests with full predictive distributions"
 authors = [
     {name = "Silas Koemen", email = "research@silaskoemen.com"},
