@@ -4791,8 +4791,8 @@ packages:
   - tqdm
 - pypi: ./
   name: bayesian-distributional-forest
-  version: 0.1.0rc1
-  sha256: e8e8c22d6cb1143cff0f91b6ee3dc710167b7a8a8fefbae2f087db5e6020bdfa
+  version: 0.1.0rc3
+  sha256: dd627246a09c9912478abc93e55cf0afb902b8edeeeeb1962bc917069df6d3ea
   requires_dist:
   - numpy
   - pandas>=2.0

@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+\centering
+\caption{Conditional calibration diagnostics by predicted-IQR decile.}
+\label{tab:conditional-diagnostics}
+\begin{tabular}{lccccc}
+\toprule
+Model & Global Cov@90 & Mean $|\Delta|$ & Min $\Delta$ & IS@90 & CRPS \\
+\midrule
+BDF & 0.945 & 0.045 & 0.041 & 27.917 & 3.295 \\
+QRF & 0.937 & 0.035 & 0.026 & 27.897 & 2.758 \\
+ConfLGBM & 0.899 & 0.003 & -0.008 & 36.141 & 3.575 \\
+NGBoost & 0.852 & 0.048 & -0.065 & 38.925 & 4.938 \\
+CatBoostUnc & 0.721 & 0.179 & -0.203 & 31.608 & 3.263 \\
+\bottomrule
+\end{tabular}
+\end{table}

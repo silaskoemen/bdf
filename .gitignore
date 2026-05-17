@@ -29,6 +29,7 @@ multirun/
 
 **/*.db
 *.db
+**/*.bst
 
 **/*.npz
 **/*.so

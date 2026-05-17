@@ -57,6 +57,28 @@ This appendix collects supporting evidence for the experiments in Section~\ref{s
     \label{fig:regression-scatter}
 \end{figure}
 
+\subsection{Conditional calibration by predicted uncertainty}\label{app:conditional-diagnostics}
+
+Marginal coverage can hide failures that occur only in low- or high-uncertainty regions. To check whether the regression intervals remain calibrated locally, we recompute evaluation predictions using the stored best hyperparameters and bin test points by each method's predicted interquartile range (IQR). Within each decile we report empirical 90\% coverage, 90\% interval score, and CRPS. This diagnostic is self-calibration by predicted uncertainty: the bins are method-specific, so the heatmap should be read as a check of each model's own uncertainty ranking rather than a matched covariate-stratum comparison.
+
+\input{tables/conditional_diagnostics/conditional_diagnostics_summary.tex}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.85\textwidth]{plots/conditional_diagnostics/conditional_coverage_heatmap_90.pdf}
+    \caption{Conditional 90\% coverage error by predicted-IQR decile. Values near zero indicate nominal conditional coverage within each method's own uncertainty bins. BDF and QRF are stable and slightly conservative; NGBoost and CatBoost-UQ under-cover across most bins.}
+    \label{fig:conditional-coverage-heatmap}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.8\textwidth]{plots/conditional_diagnostics/conditional_interval_score_90.pdf}
+    \caption{Mean 90\% interval score by predicted-IQR decile. Lower is better. BDF and QRF are broadly similar; BDF has a modest dataset-averaged interval-score advantage, while QRF attains lower CRPS. Conformalized LightGBM achieves near-nominal conditional coverage but pays for it through substantially larger interval scores.}
+    \label{fig:conditional-interval-score}
+\end{figure}
+
+Overall, the conditional analysis does not reveal a failure mode for either BDF or QRF. Both methods maintain slightly conservative coverage across predicted-uncertainty deciles. BDF has a modest advantage in dataset-averaged 90\% interval score, whereas QRF has lower CRPS. The main qualitative separation is instead between calibrated distributional methods and sharper plug-in competitors: CatBoost-UQ and NGBoost under-cover, while conformalized LightGBM achieves coverage at the cost of worse interval scores.
+
 % ==========================================
 % A.2 REAL-DATA: CLASSIFICATION DETAILS
 % ==========================================
@@ -119,6 +141,20 @@ This subsection expands the synthetic-DGP analysis of Section~\ref{subsec:exp_sy
     \includegraphics[width=\textwidth]{plots/synthetic/summary/variance_estimation_quality.pdf}
     \caption{Quality of conditional variance estimates on heteroscedastic DGPs.}
     \label{fig:synthetic-variance}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{plots/synthetic/summary/calibration_curves.pdf}
+    \caption{Average calibration across synthetic DGPs. BDF tracks the diagonal closely; CatBoost-UQ and NGBoost are systematically overconfident.}
+    \label{fig:synthetic-calibration}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.95\textwidth]{plots/synthetic/summary/main_metric_table.pdf}
+    \caption{Summary of CRPS, 90\% coverage, and interval score across synthetic DGPs.}
+    \label{fig:synthetic-summary-table}
 \end{figure}
 
 \paragraph{Per-DGP predictive densities.}
@@ -205,6 +241,27 @@ We study sensitivity to the four tunable hyperparameters $(\alpha, \delta, \gamm
 \subsection{Scoring method: full results}\label{app:scoring-method-full}
 
 This subsection contains the robustness-split CD diagrams, real-data comparisons, and recommendation tables referenced from Section~\ref{subsec:exp_scoring}.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/scoring_method/regression/fig1_regression_interaction.pdf}
+    \caption{Regression: interaction between split criterion (NLE vs.\ BIC) and sample size.}
+    \label{fig:scoring-regression-interaction}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{plots/scoring_method/regression/fig3_cd_diagram_core.pdf}
+    \caption{Critical-difference diagram of scoring-method variants on core regression datasets.}
+    \label{fig:scoring-regression-cd}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{plots/scoring_method/classification/fig1_classification_interaction.pdf}
+    \caption{Classification counterpart of Figure~\ref{fig:scoring-regression-interaction}.}
+    \label{fig:scoring-classification-interaction}
+\end{figure}
 
 \begin{figure}[!ht]
     \centering

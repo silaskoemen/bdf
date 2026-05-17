@@ -3,7 +3,7 @@
 % ==========================================
 \section{Experiments}\label{sec:experiments}
 
-This section evaluates Bayesian Distributional Forests (BDF) against a suite of probabilistic tabular baselines on four axes: (i) real-data benchmarks covering regression and classification (Section~\ref{subsec:exp_real}), (ii) controlled synthetic data-generating processes that probe distributional shape recovery (Section~\ref{subsec:exp_synthetic}), (iii) the choice of split-scoring criterion (Section~\ref{subsec:exp_scoring}), and (iv) computational complexity (Section~\ref{subsec:exp_complexity}). Additional ablations—parameter sensitivity, misspecification, noise features, convergence behavior, ensemble size, and conformalization comparisons—are deferred to Appendix~\ref{app:additional-results}.
+This section evaluates Bayesian Distributional Forests (BDF) against a suite of probabilistic tabular baselines on four axes: (i) real-data benchmarks covering regression and classification (Section~\ref{subsec:exp_real}), (ii) controlled synthetic data-generating processes that probe distributional shape recovery (Section~\ref{subsec:exp_synthetic}), (iii) the choice of split-scoring criterion (Section~\ref{subsec:exp_scoring}), and (iv) computational complexity (Section~\ref{subsec:exp_complexity}). Additional ablations---conditional calibration by predicted uncertainty, parameter sensitivity, misspecification, noise features, convergence behavior, ensemble size, and conformalization comparisons---are deferred to Appendix~\ref{app:additional-results}.
 
 % ==========================================
 % 5.1 REAL-DATA BENCHMARKS
@@ -18,7 +18,7 @@ We evaluate on a collection of tabular regression and classification datasets so
 % HEADLINE PLOT: CRPS relative to best (average).
 \begin{figure}[!ht]
     \centering
-    \includegraphics[width=\textwidth]{plots/regression/regression_rel_to_best_crps.pdf}
+    \includegraphics[width=0.78\textwidth]{plots/regression/regression_rel_to_best_crps.pdf}
     \caption{Average CRPS relative to the per-dataset best model. Lower is better; $1.0$ would indicate the best CRPS on every dataset.}
     \label{fig:crps-rel-to-best}
 \end{figure}
@@ -33,7 +33,7 @@ Figure~\ref{fig:crps-rel-to-best} summarizes probabilistic accuracy via CRPS rel
     \label{fig:coverage-vs-interval-score-rank}
 \end{figure}
 
-Figure~\ref{fig:coverage-vs-interval-score-rank} positions each method by its empirical coverage against the average interval-score rank. BDF simultaneously attains the best interval-score rank and coverage close to the nominal levels, slightly on the conservative side. Point-accurate competitors such as CatBoost-with-Uncertainty and NGBoost fall substantially below nominal coverage, reflecting the standard sharpness--calibration tradeoff. Conformalized forests achieve nominal coverage but at the cost of CRPS and interval score. PIT histograms in Appendix~\ref{app:additional-results} (Figure~\ref{fig:pit-histograms}) corroborate this picture: BDF is near-uniform with mild central mass; CatBoost and NGBoost accumulate mass at $\{0,1\}$.
+Figure~\ref{fig:coverage-vs-interval-score-rank} positions each method by its empirical coverage against the average interval-score rank. BDF simultaneously attains the best interval-score rank and coverage close to the nominal levels, slightly on the conservative side. Point-accurate competitors such as CatBoost-with-Uncertainty and NGBoost fall substantially below nominal coverage, reflecting the standard sharpness--calibration tradeoff. Conformalized forests achieve nominal coverage but at the cost of CRPS and interval score. PIT histograms in Appendix~\ref{app:additional-results} (Figure~\ref{fig:pit-histograms}) corroborate this picture: BDF is near-uniform with mild central mass; CatBoost and NGBoost accumulate mass at $\{0,1\}$. Appendix~\ref{app:conditional-diagnostics} repeats the calibration analysis conditional on predicted uncertainty deciles; BDF and QRF are both stable and slightly conservative, while conformalized LightGBM preserves coverage only with substantially worse interval scores.
 
 \paragraph{Point accuracy.}
 BDF is not optimized for point prediction; on RMSE it sits roughly $22\%$ off the per-dataset best, behind CatBoost and LightGBM. We view this as the expected cost of a distributional objective rather than a failure mode; the full RMSE comparison and scatterplots are reported in Appendix~\ref{app:additional-results} (Figures~\ref{fig:rmse-rel-to-best}, \ref{fig:regression-scatter}).
@@ -43,7 +43,7 @@ BDF is not optimized for point prediction; on RMSE it sits roughly $22\%$ off th
 % HEADLINE PLOT 1: Relative-to-best log-loss.
 \begin{figure}[!ht]
     \centering
-    \includegraphics[width=\textwidth]{plots/classification/classification_rel_to_best_log_loss.pdf}
+    \includegraphics[width=0.78\textwidth]{plots/classification/classification_rel_to_best_log_loss.pdf}
     \caption{Average log-loss relative to the per-dataset best classifier.}
     \label{fig:classification-rel-to-best-log-loss}
 \end{figure}
@@ -51,7 +51,7 @@ BDF is not optimized for point prediction; on RMSE it sits roughly $22\%$ off th
 % HEADLINE PLOT 2: Reliability diagram.
 \begin{figure}[!ht]
     \centering
-    \includegraphics[width=0.9\textwidth]{plots/classification/classification_reliability_diagram.pdf}
+    \includegraphics[width=0.68\textwidth]{plots/classification/classification_reliability_diagram.pdf}
     \caption{Reliability diagrams averaged across classification datasets. BDF predictions are well aligned with the identity line across probability bins.}
     \label{fig:classification-reliability}
 \end{figure}
@@ -74,25 +74,9 @@ We construct five synthetic DGPs---\emph{heteroscedastic sinusoidal}, \emph{bimo
     \label{fig:synthetic-predictions-grid}
 \end{figure}
 
-% HEADLINE PLOT: calibration curves aggregated across DGPs.
-\begin{figure}[!ht]
-    \centering
-    \includegraphics[width=0.9\textwidth]{plots/synthetic/summary/calibration_curves.pdf}
-    \caption{Average calibration across synthetic DGPs. BDF tracks the diagonal closely; CatBoost-UQ and NGBoost are systematically overconfident.}
-    \label{fig:synthetic-calibration}
-\end{figure}
-
 Figure~\ref{fig:synthetic-predictions-grid} compares predicted conditional distributions across DGPs and methods. Several patterns emerge. On the \emph{bimodal mixture} DGP, only BDF recovers a visibly bimodal predictive density: the forest mixture~\eqref{eq:forest_mixture} over randomized partitions assigns mass to both modes whenever different trees isolate different component regions, whereas unimodal baselines (NGBoost, CatBoost-UQ) collapse to the mean of the mixture and underestimate tail mass. On the \emph{step function} DGP, BDF produces sharp transitions aligned with the discontinuities---a direct consequence of evidence-based splitting, which accepts partitions whenever the log Bayes factor exceeds the depth/multiplicity threshold (Section~\ref{subsec:theory_split_bf})---while smooth methods (Gaussian process baselines, Bayesian ridge) spread uncertainty across the discontinuity.
 
-On the \emph{heavy-tailed} DGP, BDF with Student-$t$ leaves attains near-nominal coverage with tighter interval width than Gaussian-leaf variants, confirming that leaf-family choice controls tail behavior without requiring global distributional assumptions. The \emph{heteroscedastic sinusoidal} and \emph{sparse sampling} DGPs stress local variance estimation: the per-leaf posterior on the scale parameter inflates predictive width where data are sparse, as desired, while contracting it where they are dense. The aggregated calibration curve (Figure~\ref{fig:synthetic-calibration}) summarizes these patterns: BDF tracks the diagonal closely at all nominal levels, whereas CatBoost-UQ and NGBoost are systematically overconfident. Per-DGP spread--skill plots, conditional calibration heatmaps, and PIT histograms are provided in Appendix~\ref{app:synthetic-diagnostics}.
-
-% SUMMARY TABLE (kept as PDF image since underlying asset is a PDF table).
-\begin{figure}[!ht]
-    \centering
-    \includegraphics[width=0.95\textwidth]{plots/synthetic/summary/main_metric_table.pdf}
-    \caption{Summary of CRPS, 90\% coverage, and interval score across synthetic DGPs.}
-    \label{fig:synthetic-summary-table}
-\end{figure}
+On the \emph{heavy-tailed} DGP, BDF with Student-$t$ leaves attains near-nominal coverage with tighter interval width than Gaussian-leaf variants, confirming that leaf-family choice controls tail behavior without requiring global distributional assumptions. The \emph{heteroscedastic sinusoidal} and \emph{sparse sampling} DGPs stress local variance estimation: the per-leaf posterior on the scale parameter inflates predictive width where data are sparse, as desired, while contracting it where they are dense. Aggregate calibration curves, metric tables, per-DGP spread--skill plots, conditional calibration heatmaps, and PIT histograms are provided in Appendix~\ref{app:synthetic-diagnostics}.
 
 % ==========================================
 % 5.3 SCORING METHOD ABLATION
@@ -101,33 +85,7 @@ On the \emph{heavy-tailed} DGP, BDF with Student-$t$ leaves attains near-nominal
 
 A core design choice in BDF is the use of the negative log evidence (NLE) for conjugate leaves and its BIC surrogate otherwise (Section~\ref{subsec:split_scoring}). We verify empirically that (i) NLE and BIC agree asymptotically on conjugate families, and (ii) NLE provides a non-trivial advantage in the small-leaf regime where BIC's $O(1)$ remainder is non-negligible.
 
-% HEADLINE PLOT 1: interaction plot showing NLE vs. BIC across sample sizes.
-\begin{figure}[!ht]
-    \centering
-    \includegraphics[width=\textwidth]{plots/scoring_method/regression/fig1_regression_interaction.pdf}
-    \caption{Regression: interaction between split criterion (NLE vs.\ BIC) and sample size. NLE dominates in small-leaf regimes; the gap closes as $n_\ell$ grows, consistent with Section~\ref{subsec:theory_surrogates}.}
-    \label{fig:scoring-regression-interaction}
-\end{figure}
-
-% HEADLINE PLOT 2: CD diagram summarizing scoring comparison on core datasets.
-\begin{figure}[!ht]
-    \centering
-    \includegraphics[width=0.9\textwidth]{plots/scoring_method/regression/fig3_cd_diagram_core.pdf}
-    \caption{Critical-difference diagram of scoring-method variants on core regression datasets.}
-    \label{fig:scoring-regression-cd}
-\end{figure}
-
-% HEADLINE PLOT 3: classification counterpart.
-\begin{figure}[!ht]
-    \centering
-    \includegraphics[width=\textwidth]{plots/scoring_method/classification/fig1_classification_interaction.pdf}
-    \caption{Classification counterpart of Figure~\ref{fig:scoring-regression-interaction}.}
-    \label{fig:scoring-classification-interaction}
-\end{figure}
-
-Figure~\ref{fig:scoring-regression-interaction} confirms the theoretical prediction of Section~\ref{subsec:theory_surrogates}: NLE and BIC converge in ranking and acceptance behavior as leaf sample size grows, and their gap is concentrated in the small-$n_\ell$ regime where the $O(1)$ remainder in~\eqref{eq:laplace_bic_theory} is numerically comparable to the fit improvement. In this regime NLE dominates because it accounts for posterior shrinkage toward the prior via the Occam factor in~\eqref{eq:evidence_decomposition}, whereas BIC applies a fixed $\tfrac{k}{2}\log n_\ell$ penalty that underweights this effect. The critical-difference diagram in Figure~\ref{fig:scoring-regression-cd} shows NLE outperforming BIC on core regression datasets at the 5\% significance level; the classification counterpart (Figure~\ref{fig:scoring-classification-interaction}) exhibits the same qualitative pattern but with a smaller absolute gap, reflecting the less pronounced small-leaf Occam effect for the Beta--Bernoulli family.
-
-The practical implication is straightforward: conjugate families should use NLE whenever closed-form evidence is available, while non-conjugate leaves may rely on BIC with minimal loss at moderate $n_\ell$. Robustness-split CD diagrams (Figures~\ref{fig:scoring-regression-cd-robust},~\ref{fig:scoring-classification-cd-robust}) and real-data comparisons (Figure~\ref{fig:scoring-real-data-cd}) in Appendix~\ref{app:scoring-method-full} corroborate this recommendation across heterogeneous data regimes.
+The empirical pattern matches the theory in Section~\ref{subsec:theory_surrogates}: NLE and BIC converge in ranking and acceptance behavior as leaf sample size grows, and their gap is concentrated in the small-$n_\ell$ regime where the $O(1)$ Laplace remainder in~\eqref{eq:laplace_bic_theory} is numerically comparable to the split gain. In this regime NLE benefits from exact posterior shrinkage via the Occam factor~\eqref{eq:evidence_decomposition}, whereas BIC applies a fixed $\tfrac{k}{2}\log n_\ell$ penalty. The practical implication is that conjugate families should use NLE whenever closed-form evidence is available, while non-conjugate leaves may rely on BIC with minimal loss at moderate $n_\ell$. Interaction plots, CD diagrams, robustness splits, and real-data comparisons are reported in Appendix~\ref{app:scoring-method-full}.
 
 % ==========================================
 % 5.4 COMPLEXITY
@@ -147,4 +105,4 @@ The practical implication is straightforward: conjugate families should use NLE 
 Figure~\ref{fig:complexity-scaling} reports wall-clock fit time as a function of dataset size. BDF scales comparably to LightGBM and is tens of times faster than NGBoost, BART, and CatBoost-UQ on the same hardware and hyperparameter budget. Three design choices explain this profile: (i) sufficient-statistic leaf updates are $O(1)$ per observation (Appendix~\ref{app:conjugate_updates}); (ii) the fixed-resolution candidate cutpoint grid bounds the split search at each node by $K \cdot \lfloor 1/\eta\rfloor$, independent of $n$ (Section~\ref{subsec:complexity_growth}); and (iii) trees are trained independently and admit trivial parallelization over the ensemble. Memory usage and the overhead ratio relative to a non-probabilistic GBDT baseline are reported in Appendix~\ref{app:complexity-additional} (Figure~\ref{fig:complexity-extras}).
 
 \paragraph{Ablation overview.}
-Beyond the four axes covered in this section, we run six additional diagnostic experiments: parameter sensitivity (Appendix~\ref{app:additional-param-sensitivity}), likelihood misspecification (Appendix~\ref{app:misspecification}), robustness to noise features (Appendix~\ref{app:noise}), convergence and learning curves (Appendix~\ref{app:convergence}), ensemble size (Appendix~\ref{app:ensemble-size}), and post-hoc conformalization (Appendix~\ref{app:conformalization}). These experiments confirm the qualitative findings above and characterize the regions of parameter and data space where BDF's advantages are largest.
+Beyond the four axes covered in this section, we run seven additional diagnostic experiments: conditional calibration by predicted uncertainty (Appendix~\ref{app:conditional-diagnostics}), parameter sensitivity (Appendix~\ref{app:additional-param-sensitivity}), likelihood misspecification (Appendix~\ref{app:misspecification}), robustness to noise features (Appendix~\ref{app:noise}), convergence and learning curves (Appendix~\ref{app:convergence}), ensemble size (Appendix~\ref{app:ensemble-size}), and post-hoc conformalization (Appendix~\ref{app:conformalization}). These experiments confirm the qualitative findings above and characterize the regions of parameter and data space where BDF's advantages are largest.
