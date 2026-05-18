@@ -2,6 +2,8 @@
 
 Comprehensive empirical evaluation of Bayesian Distributional Forests. The suite covers real-data performance, synthetic ground-truth validation, ablation studies, complexity analysis, and convergence rate theory — everything needed for a publication-quality assessment.
 
+> For end-to-end commands to reproduce the paper (data fetch, suite runs, conditional diagnostics, paper build) see [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md). This README is a study-by-study tour of what the suite does and where each result lives.
+
 ## Quick Reference
 
 | What you want to do | Command | Script |
@@ -26,7 +28,7 @@ Comprehensive empirical evaluation of Bayesian Distributional Forests. The suite
 | Beta prior effect (classification) | `pixi run prior-clas` | `effect_prior_clas.py` |
 | Quick out-of-box performance | `pixi run perf` | `performance.py` |
 
-The `bench-models` pixi environment adds external baselines (NGBoost, LightGBM, XGBoost, CatBoost, etc.) that are not in the default environment.
+The `benchmark` pixi environment adds external baselines (NGBoost, LightGBM, XGBoost, CatBoost, etc.) that are not in the default environment.
 
 ## Studies Overview
 
@@ -254,7 +256,7 @@ Both can have fixed and tunable subsets. The `configs/model/` YAML files define 
 ### Environments
 
 - **Default** (`pixi run`): BDF + sklearn baselines (RandomForest, GaussianProcess)
-- **bench-models** (`pixi run -e bench-models`): Adds NGBoost, LightGBM, XGBoost, CatBoost, QuantileForest, ConformalRF, etc.
+- **benchmark** (`pixi run -e benchmark`): Adds NGBoost, LightGBM, XGBoost, CatBoost, QuantileForest, ConformalRF, etc.
 - **test** (`pixi run -e test`): For running pytest
 
 ## Adding a New Study

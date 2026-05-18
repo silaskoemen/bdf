@@ -7,7 +7,7 @@ name = "bayesian-distributional-forest"
 version = "0.1.0rc3"
 description = "Bayesian Distributional Forest: probabilistic random forests with full predictive distributions"
 authors = [
-    {name = "Silas Koemen", email = "research@silaskoemen.com"},
+    {name = "Anonymous"},
 ]
 readme = "README.md"
 requires-python = ">=3.11,<3.14"

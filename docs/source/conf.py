@@ -13,8 +13,8 @@ sys.path.insert(0, os.path.abspath("../../src"))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "bdf"
-copyright = "2025-2026, Silas Koemen"
-author = "Silas Koemen"
+copyright = "2025-2026, The Bayesian Distributional Forest Authors"
+author = "Anonymous"
 release = "0.0.1"
 
 # -- General configuration ---------------------------------------------------

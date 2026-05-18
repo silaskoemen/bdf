@@ -4792,7 +4792,7 @@ packages:
 - pypi: ./
   name: bayesian-distributional-forest
   version: 0.1.0rc3
-  sha256: dd627246a09c9912478abc93e55cf0afb902b8edeeeeb1962bc917069df6d3ea
+  sha256: fd4bcdc72276f221692ff1d300ba8f32db80663f30e428a46e23c76c8616cbb7
   requires_dist:
   - numpy
   - pandas>=2.0

@@ -2,7 +2,7 @@
 name = "bdf"
 version = "0.1.0"
 description = "Bayesian Distributional Forest"
-authors = ["Silas Koemen <research@silaskoemen.com>"]
+authors = ["Anonymous"]
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64", "win-64"]
 

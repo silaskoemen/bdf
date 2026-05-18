@@ -4995,7 +4995,7 @@ datasets:
       n_trials: 50
     tuning_time_seconds: 75.36716294288635
 metadata:
-  command: /Users/silaskoemen/Documents/Projects/BayesianDistributionalForest/benchmarks/run.py
+  command: ./benchmarks/run.py
     model=gaussian_de
   datasets_filter: null
   git_commit: 6e0286f4a2640693a409d05c89f1197ac0f7b3e8

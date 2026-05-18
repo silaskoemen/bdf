@@ -1,16 +1,22 @@
 # Bayesian Distributional Forest
 
-A Python package for Bayesian Distributional Forest (BDF), a probabilistic extension of random forests that provides full predictive distributions rather than just point estimates.
+A Python package for Bayesian Distributional Forest (BDF), a probabilistic extension of random forests that returns full predictive distributions rather than point estimates.
 
 ## Overview
 
-Bayesian Distributional Forest is a machine learning model that combines the flexibility of decision trees with Bayesian inference to generate predictive distributions for each data point. Instead of predicting a single value, BDF predicts an entire probability distribution, giving you valuable uncertainty information for your predictions.
+BDF combines forest-style tree induction with Bayesian inference at the leaves. Each leaf carries a posterior over a user-chosen distribution family, splits are scored under that family (via the marginal likelihood or a plug-in surrogate), and predictions are obtained by aggregating per-tree posterior predictives. The result is a single tree-ensemble template that exposes uncertainty natively across regression, classification, and richer leaf families.
 
 Key features:
-- Full posterior predictive distributions for each prediction
-- Uncertainty quantification out of the box
-- Customizable priors for different distribution families
-- Parallelized training and prediction
+- Full posterior predictive distributions for each prediction.
+- Pluggable leaf families with Bayesian priors (Normal, Student-t, Beta-Bernoulli, Gamma-Poisson, KDE, and more).
+- Sklearn-style `fit` / `predict` API.
+- Parallel tree fitting with a Rust split-finding backend (PyO3).
+
+Unsupported in the current release:
+- Native categorical features (one-hot encode upstream).
+- Native missing-value handling.
+- Sample weights.
+- Multiclass classification (binary only; Dirichlet–multinomial leaves are implemented in the distribution library but out of scope for the published benchmarks).
 
 ## Installation
 
@@ -18,7 +24,7 @@ Key features:
 pip install bayesian-distributional-forest
 ```
 
-To run all benchmarks, the BART (bartpy) uses the deprecated sklearn package and is no longer actively maintained. You need to set the environment variable
+The benchmark suite optionally compares BDF against [bartpy](https://github.com/JakeColtman/bartpy), which depends on a deprecated `sklearn` package. To install it set:
 
 ```bash
 export SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
@@ -28,102 +34,89 @@ export SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
 
 ```python
 import numpy as np
-from bdf import BayesianDistributionalForest
+from bdf.tree_classes.bdf_regressor import BDFRegressor
 
-# Generate some example data
-X = np.random.randn(1000, 5)
-y = np.random.randn(1000)
+rng = np.random.default_rng(0)
+X = rng.standard_normal((1000, 5))
+y = X[:, 0] + 0.5 * rng.standard_normal(1000)
 
-# Initialize the model
-bdf_model = BayesianDistributionalForest(
-    n_estimators=100,
-    prior_type='gaussian',
-    max_depth=10
+model = BDFRegressor(
+    dist="NormalMuNormal",
+    params={"mu_mu": "auto", "sigma_mu": "auto"},
+    n_trees=50,
+    max_depth=50,
+    min_samples_leaf=10,
+    gamma=0.1,
 )
+model.fit(X, y)
 
-# Train the model
-bdf_model.fit(X, y)
-
-# Get predictive distributions
-predictive_dists = bdf_model.predict_distribution(X[:5])
-
-# Get mean predictions
-y_pred = bdf_model.predict(X[:5])
-
-# Get quantiles of the predictive distribution
-y_lower, y_upper = bdf_model.predict_interval(X[:5], interval_width=0.9)
+mean = model.predict(X)                            # point predictions
+variance = model.predict(X, method="var")          # predictive variance
+samples = model.predict(X, method="samples",       # posterior predictive draws
+                        method_params={"n_samples": 200})
+lower, upper = model.predict_quantiles(X, q=[0.05, 0.95]).T   # 90% interval
 ```
 
-## Documentation
-
-For detailed documentation, visit [docs.bayesiandistributionalforest.io](https://docs.bayesiandistributionalforest.io).
-
-## Examples
-
-### Regression with Uncertainty
+## Regression with Heteroscedastic Uncertainty
 
 ```python
-from bdf import BayesianDistributionalForest
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+from bdf.tree_classes.bdf_regressor import BDFRegressor
 
-# Generate data with heteroscedastic noise
+rng = np.random.default_rng(0)
 X = np.linspace(-10, 10, 1000).reshape(-1, 1)
-y = X.ravel() ** 2 / 20 + np.random.normal(scale=np.abs(X.ravel()) / 2)
+y = X.ravel() ** 2 / 20 + rng.normal(scale=np.abs(X.ravel()) / 2 + 0.1)
 
-# Split data
 X_train, X_test = X[:800], X[800:]
 y_train, y_test = y[:800], y[800:]
 
-# Train model
-model = BayesianDistributionalForest(n_estimators=100, prior_type='gaussian')
+model = BDFRegressor(dist="NormalMuNormal", n_trees=100)
 model.fit(X_train, y_train)
 
-# Predict with uncertainty
-mean_preds = model.predict(X_test)
-lower, upper = model.predict_interval(X_test, interval_width=0.95)
+mean = model.predict(X_test)
+lower, upper = model.predict_quantiles(X_test, q=[0.025, 0.975]).T
 
-# Plot results
-plt.figure(figsize=(10, 6))
-plt.scatter(X_train, y_train, alpha=0.3, label='Training data')
-plt.scatter(X_test, y_test, alpha=0.3, label='Test data')
-plt.plot(X_test, mean_preds, 'r-', label='Predicted mean')
-plt.fill_between(X_test.ravel(), lower, upper, alpha=0.2, color='r', label='95% predictive interval')
-plt.legend()
-plt.show()
+plt.scatter(X_train, y_train, alpha=0.3, label="train")
+plt.scatter(X_test, y_test, alpha=0.3, label="test")
+plt.plot(X_test, mean, "r-", label="predicted mean")
+plt.fill_between(X_test.ravel(), lower, upper, alpha=0.2, color="r", label="95% interval")
+plt.legend(); plt.show()
 ```
 
-## How It Works
+## Classification
 
-Bayesian Distributional Forest builds on the random forest algorithm with key differences:
-1. Each leaf node models a distribution rather than a point estimate
-2. Bayesian priors are used to regularize the leaf distributions
-3. The final prediction combines distributions from multiple trees to form a mixture distribution
+```python
+from bdf.tree_classes.bdf_regressor import BDFClassifier
 
-## Available Priors
+clf = BDFClassifier(dist="BetaMVBernoulli", n_trees=50)
+clf.fit(X_train, y_train)
+probabilities = clf.predict_proba(X_test)   # P(y = 1 | x)
+predictions = clf.predict(X_test)
+```
 
-- Gaussian
-- Student's t
-- Laplace
-- Custom (user-defined)
+## Available Distributions
+
+Distribution names are passed through the `dist=` argument. The full registry is in `src/bdf/distributions/`; selected families used in the paper:
+
+- `NormalMuNormal`, `NormalMuInvGammaSigmaNormal` (Normal leaves with conjugate priors)
+- `FreqStudentT`, `NormalMeanStudentT` (heavy-tailed)
+- `GammaMVLambdaPoisson`, `ExponentialGammaAB` (count / positive)
+- `KDE`, `BayesianKDE` (nonparametric)
+- `BetaMVBernoulli`, `BetaABBernoulli` (binary classification)
+
+## Reproducing the Paper
+
+Empirical results and the paper build are reproducible end-to-end through pixi tasks. See [`benchmarks/REPRODUCIBILITY.md`](benchmarks/REPRODUCIBILITY.md) for the full pipeline (data fetch, benchmark runs, conditional diagnostics, plot/table aggregation, and paper build) and [`benchmarks/README.md`](benchmarks/README.md) for a tour of all studies.
+
+## Documentation
+
+Local docs build with `pixi run docs-build`; output lands in `docs/build/html/`.
 
 ## Contributing
 
-Contributions are welcome! Please check out our [contributing guidelines](CONTRIBUTING.md).
-
-## Citation
-
-If you use this package in your research, please cite:
-
-```
-@software{bayesian_distributional_forest,
-  title = {Bayesian Distributional Forest},
-  author = {Author, A.},
-  url = {https://github.com/username/BayesianDistributionalForest},
-  year = {2023}
-}
-```
+Contributions are welcome. Please open an issue describing the change before submitting a PR.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

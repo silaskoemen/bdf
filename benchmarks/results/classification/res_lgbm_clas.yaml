@@ -1909,7 +1909,7 @@ datasets:
       n_trials: 50
     tuning_time_seconds: 25.697865962982178
 metadata:
-  command: /Users/silaskoemen/Documents/Projects/BayesianDistributionalForest/benchmarks/run.py
+  command: ./benchmarks/run.py
     model=lgbm_clas
   datasets_filter: null
   git_commit: 92ac58e17f047b939d3ade9033e0840c6af6a638
