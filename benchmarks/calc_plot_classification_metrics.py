@@ -42,7 +42,6 @@ BASELINE_MODELS = [
     "ngboost_clas",
     "calrf_clas",
     "knn_clas",
-    "gp_clas",
 ]
 
 # Model display names and colors from shared style
@@ -613,9 +612,11 @@ def main():
     bss_bar_data = {}
     for model in models:
         mdf = df.filter((df["model"] == model) & (df["metric"] == "bss"))
+        means = mdf.select("mean").to_series().to_list()
+        stds = mdf.select("std").to_series().to_list()
         bss_bar_data[model] = (
-            float(np.mean(mdf.select("mean").to_series())),
-            float(np.mean(mdf.select("std").to_series())),
+            float(np.mean(means)),
+            float(np.mean(stds)),
         )
     save_fig(
         plot_metric_comparison_bars,

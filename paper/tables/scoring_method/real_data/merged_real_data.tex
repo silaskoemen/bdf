@@ -1,6 +1,8 @@
 \begin{table}
+\centering
 \caption{Real-data results (5-fold CV, 3 seeds). Skill score column is CRPSS for regression and BSS for classification. Hyperparameters are held fixed across scoring methods to isolate split-selection effects.}
 \label{tab:a2_real_data}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{llrllll}
 \toprule
 task & dataset & n & scoring & skill_score & fit_time_s & predict_time_s \\
@@ -47,4 +49,5 @@ classification & pima_diabetes & 768 & nll_aic & 0.3108 ± 0.0469 & 0.04 & 0.00 
 classification & pima_diabetes & 768 & nll_bic & 0.3113 ± 0.0464 & 0.04 & 0.00 \\
 \bottomrule
 \end{tabular}
+}
 \end{table}

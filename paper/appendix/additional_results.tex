@@ -7,6 +7,16 @@ This appendix collects supporting evidence for the experiments in Section~\ref{s
 % ==========================================
 \subsection{Regression benchmarks: additional results}\label{app:regression-additional}
 
+\input{../benchmarks/results/regression/tables/rel_to_best_crps.tex}
+
+\input{../benchmarks/results/regression/tables/rankings_crpss.tex}
+
+\input{../benchmarks/results/regression/tables/win_tie_loss.tex}
+
+\input{../benchmarks/results/regression/tables/crps_per_dataset.tex}
+
+\input{../benchmarks/results/regression/tables/bdf_distribution_selection.tex}
+
 \begin{figure}[!ht]
     \centering
     \includegraphics[width=0.9\textwidth]{plots/regression/regression_cd_crps.pdf}
@@ -57,6 +67,8 @@ This appendix collects supporting evidence for the experiments in Section~\ref{s
     \label{fig:regression-scatter}
 \end{figure}
 
+\FloatBarrier
+
 \subsection{Conditional calibration by predicted uncertainty}\label{app:conditional-diagnostics}
 
 Marginal coverage can hide failures that occur only in low- or high-uncertainty regions. To check whether the regression intervals remain calibrated locally, we recompute evaluation predictions using the stored best hyperparameters and bin test points by each method's predicted interquartile range (IQR). Within each decile we report empirical 90\% coverage, 90\% interval score, and CRPS. This diagnostic is self-calibration by predicted uncertainty: the bins are method-specific, so the heatmap should be read as a check of each model's own uncertainty ranking rather than a matched covariate-stratum comparison.
@@ -79,10 +91,20 @@ Marginal coverage can hide failures that occur only in low- or high-uncertainty 
 
 Overall, the conditional analysis does not reveal a failure mode for either BDF or QRF. Both methods maintain slightly conservative coverage across predicted-uncertainty deciles. BDF has a modest advantage in dataset-averaged 90\% interval score, whereas QRF has lower CRPS. The main qualitative separation is instead between calibrated distributional methods and sharper plug-in competitors: CatBoost-UQ and NGBoost under-cover, while conformalized LightGBM achieves coverage at the cost of worse interval scores.
 
+\FloatBarrier
+
 % ==========================================
 % A.2 REAL-DATA: CLASSIFICATION DETAILS
 % ==========================================
 \subsection{Classification benchmarks: additional results}\label{app:classification-additional}
+
+\input{../benchmarks/results/classification/tables/rel_to_best_log_loss.tex}
+
+\input{../benchmarks/results/classification/tables/rankings_log_loss.tex}
+
+\input{../benchmarks/results/classification/tables/rankings_brier.tex}
+
+\input{../benchmarks/results/classification/tables/classification_win_tie_loss.tex}
 
 \begin{figure}[!ht]
     \centering
@@ -115,6 +137,8 @@ Overall, the conditional analysis does not reveal a failure mode for either BDF 
     \label{fig:classification-scatter}
 \end{figure}
 
+\FloatBarrier
+
 % ==========================================
 % A.3 SYNTHETIC DGP DIAGNOSTICS
 % ==========================================
@@ -122,7 +146,7 @@ Overall, the conditional analysis does not reveal a failure mode for either BDF 
 
 This subsection expands the synthetic-DGP analysis of Section~\ref{subsec:exp_synthetic} with per-DGP diagnostics (spread--skill, conditional calibration, PIT) and per-method predictive densities.
 
-\begin{figure}[!ht]
+\begin{figure}[!htp]
     \centering
     \includegraphics[width=\textwidth]{plots/synthetic/summary/dgp_overview.pdf}
     \caption{Overview of the five synthetic DGPs.}
@@ -187,6 +211,8 @@ Figure~\ref{fig:bimodal-predictions} shows model-level conditional-calibration d
     \label{fig:synthetic-spread-skill-per-dgp}
 \end{figure}
 
+\FloatBarrier
+
 % ==========================================
 % A.4 PARAMETER SENSITIVITY
 % ==========================================
@@ -234,6 +260,8 @@ We study sensitivity to the four tunable hyperparameters $(\alpha, \delta, \gamm
 
 \input{plots/parameters/regression/param_recommendation_table.tex}
 \input{plots/parameters/classification/clas_param_recommendation_table.tex}
+
+\FloatBarrier
 
 % ==========================================
 % A.5 SCORING-METHOD: FULL RESULTS
@@ -320,6 +348,8 @@ This subsection contains the robustness-split CD diagrams, real-data comparisons
 \input{tables/scoring_method/real_data/real_data_best_by_n.tex}
 \input{tables/scoring_method/real_data/real_data_recommendation.tex}
 
+\FloatBarrier
+
 % ==========================================
 % A.6 COMPLEXITY: ADDITIONAL PLOTS
 % ==========================================
@@ -332,6 +362,8 @@ This subsection contains the robustness-split CD diagrams, real-data comparisons
     \caption{Peak memory (left) and overhead ratio versus a non-probabilistic GBDT baseline (right).}
     \label{fig:complexity-extras}
 \end{figure}
+
+\FloatBarrier
 
 % ==========================================
 % A.7 MISSPECIFICATION
@@ -347,8 +379,19 @@ We evaluate robustness of BDF when the assumed leaf likelihood does not match th
     \label{fig:misspecification-degradation}
 \end{figure}
 
-\input{tables/misspecification/misspecification_crps.tex}
-\input{tables/misspecification/tree_complexity.tex}
+\begin{table}[!ht]
+    \centering
+    \caption{CRPS under likelihood misspecification. Bold entries mark the best mean CRPS in each DGP row; stars mark the correctly specified or closest available leaf family.}
+    \label{tab:misspecification-crps}
+    \input{tables/misspecification/misspecification_crps.tex}
+\end{table}
+
+\begin{table}[!ht]
+    \centering
+    \caption{Average tree depth and node count under likelihood misspecification.}
+    \label{tab:misspecification-tree-complexity}
+    \input{tables/misspecification/tree_complexity.tex}
+\end{table}
 
 \begin{figure}[!ht]
     \centering
@@ -374,10 +417,12 @@ We evaluate robustness of BDF when the assumed leaf likelihood does not match th
 
 \begin{figure}[!ht]
     \centering
-    \includegraphics[width=\textwidth]{plots/misspecification/cd_diagrams.pdf}
+    \includegraphics[height=0.72\textheight,keepaspectratio]{plots/misspecification/cd_diagrams.pdf}
     \caption{Critical-difference diagrams across misspecification regimes.}
     \label{fig:misspecification-cd}
 \end{figure}
+
+\FloatBarrier
 
 % ==========================================
 % A.8 NOISE FEATURES
@@ -418,6 +463,8 @@ We study robustness to pure-noise features, which directly probe the tempered se
 
 \input{plots/noise/crps_summary_table.tex}
 
+\FloatBarrier
+
 % ==========================================
 % A.9 CONVERGENCE
 % ==========================================
@@ -450,6 +497,8 @@ We study robustness to pure-noise features, which directly probe the tempered se
 % Per-DGP individual learning curves are retained in plots/convergence/individual/
 % and are omitted here to save space.
 
+\FloatBarrier
+
 % ==========================================
 % A.10 ENSEMBLE SIZE
 % ==========================================
@@ -472,6 +521,8 @@ We study robustness to pure-noise features, which directly probe the tempered se
 \end{figure}
 
 \input{plots/ensemble_size/crps_summary_table.tex}
+
+\FloatBarrier
 
 % ==========================================
 % A.11 CONFORMALIZATION COMPARISON

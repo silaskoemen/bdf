@@ -695,8 +695,18 @@ class KNNKDE(BaseEstimator, RegressorMixin):
         samples = np.empty((n_obs, n_samples))
 
         for i in range(n_obs):
-            kde = stats.gaussian_kde(neighbor_values[i], bw_method=self.bandwidth)
-            samples[i] = kde.resample(n_samples).flatten()
+            values = np.asarray(neighbor_values[i], dtype=float)
+            finite_values = values[np.isfinite(values)]
+
+            if finite_values.size < 2 or np.allclose(finite_values, finite_values[0]):
+                samples[i] = np.random.choice(finite_values, size=n_samples, replace=True)
+                continue
+
+            try:
+                kde = stats.gaussian_kde(finite_values, bw_method=self.bandwidth)
+                samples[i] = kde.resample(n_samples).flatten()
+            except (np.linalg.LinAlgError, ValueError):
+                samples[i] = np.random.choice(finite_values, size=n_samples, replace=True)
 
         return samples
 

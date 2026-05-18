@@ -10,6 +10,58 @@ Distributional random forests are a closely related approach for estimating cond
 \subsubsection{Classification Models}\label{app:experimental-setup-clas-models}
 The classification benchmark is binary. The submitted comparison includes BDF with Beta--Bernoulli leaves, random forests, LightGBM, NGBoost, calibrated random forests, and $k$-nearest-neighbor classification. All reported classification metrics are computed from predicted probabilities for the positive class. Multiclass BDF variants based on Dirichlet--multinomial leaves are implemented in the distribution library but are outside the scope of the submitted classification experiments.
 
+\subsection{Benchmark Protocol}\label{app:benchmark-protocol}
+All real-data benchmarks use seed $1234$ and ten deterministic train/test folds. Hyperparameters are selected on fold 0 using Optuna with 50 trials and the task-appropriate proper score: CRPS for regression and log-loss for classification. The selected hyperparameters are then held fixed and evaluated on folds 1--9; tables report means and standard errors over these nine evaluation folds.
+
+For tuning, each trial uses at most 100 training examples to keep the model-selection budget comparable across methods. Final fold evaluation uses the benchmark sample cap of 1000 observations where applicable, with larger datasets subsampled by the benchmark harness and smaller datasets evaluated at their available processed size. Search spaces are defined in \texttt{benchmarks/configs/model/*.yaml}, and each result YAML records the resolved model configuration, dataset metadata, seed, fold count, tuning metric, tuning time, and fold-level metrics.
+
+Failed folds or mathematically undefined predictions are not silently imputed. A result file is treated as locked only when every in-scope dataset has all nine evaluation folds for the metrics used in the paper; partial GP and BART runs are therefore excluded from the main aggregate and treated as out-of-scope supplementary evidence. The final regression aggregate includes BDF, QRF, conformalized LightGBM/RF, NGBoost, CatBoost-UQ, Gaussian deep ensembles, Bayesian ridge, and $k$NN-KDE, plus a climatological reference for CRPSS normalization. The final classification aggregate includes BDF, RF, LightGBM, NGBoost, calibrated RF, and $k$NN.
+
+\subsection{Preprocessing and Dataset Inventory}\label{app:dataset-inventory}
+Datasets are processed by the repository scripts into numeric design matrices. Numeric columns are used directly, categorical columns are one-hot encoded, and rows with unresolved missing values are dropped during processing; the processed metadata records the number of samples before and after this step. Native categorical handling is not used, even for models that could support it, so all methods receive the same feature matrix. Regression targets are standardized inside each training fold for methods that require standardized targets and predictions are inverse-transformed before scoring; classification labels are encoded as binary targets with probabilities reported for the positive class.
+
+\begin{table}[!ht]
+\centering
+\scriptsize
+\caption{Processed real-data benchmark inventory. $n$ and $p$ denote processed sample and feature counts. Source provenance and preprocessing details are stored in \texttt{data/processed/*.meta.json}.}
+\label{tab:dataset-inventory}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllrrl}
+\toprule
+Dataset & Task & Target domain & $n$ & $p$ & Source \\
+\midrule
+abalone\_age & Reg. & positive\_integer & 4177 & 9 & UCI \\
+bike\_sharing & Reg. & positive\_integer & 17379 & 12 & UCI \\
+boston\_housing & Reg. & positive\_real & 506 & 13 & OpenML \\
+california\_housing & Reg. & positive\_real & 20640 & 8 & sklearn \\
+combined\_cycle\_power\_plant & Reg. & positive\_real & 9568 & 4 & UCI \\
+concrete\_strength & Reg. & positive\_real & 1030 & 8 & UCI \\
+energy\_efficiency & Reg. & positive\_real & 768 & 8 & UCI \\
+forest\_fires & Reg. & real & 517 & 27 & UCI \\
+kin8nm & Reg. & real & 8192 & 8 & OpenML \\
+naval\_propulsion & Reg. & positive\_real & 11934 & 16 & UCI/URL \\
+parkinsons\_updrs & Reg. & positive\_real & 5875 & 19 & UCI \\
+protein\_tertiary\_structure & Reg. & nonnegative\_real & 45730 & 9 & UCI/URL \\
+superconductor & Reg. & positive\_real & 21263 & 81 & UCI \\
+wine\_quality & Reg. & positive\_integer & 1599 & 11 & UCI/URL \\
+yacht\_hydrodynamics & Reg. & positive\_real & 308 & 6 & UCI/URL \\
+adult\_income & Clas. & binary & 45222 & 95 & UCI \\
+aids\_ctg\_175 & Clas. & binary & 2139 & 23 & UCI \\
+bank\_marketing & Clas. & binary & 41188 & 53 & UCI/URL \\
+breast\_cancer\_wisconsin & Clas. & binary & 569 & 30 & UCI \\
+credit\_approval & Clas. & binary & 653 & 37 & UCI \\
+default\_credit\_card & Clas. & binary & 30000 & 23 & UCI \\
+german\_credit & Clas. & binary & 1000 & 48 & UCI \\
+heart\_disease & Clas. & binary & 297 & 18 & UCI \\
+ionosphere & Clas. & binary & 351 & 34 & UCI \\
+pima\_diabetes & Clas. & binary & 768 & 8 & OpenML \\
+spambase & Clas. & binary & 4601 & 57 & UCI \\
+titanic & Clas. & binary & 1043 & 8 & OpenML \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
 \subsection{Regression Metrics}\label{app:computational-setup-regression-metrics}
 
 \subsubsection{Point Metrics}
