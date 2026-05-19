@@ -1,10 +1,9 @@
 import numpy as np
-import pytest
 from sklearn.datasets import make_regression
 
 from bdf import _bdf_rs as bdf_rs
 from bdf.distributions.distribution_manager import DistributionManager
-from bdf.tree_classes.bdf_regressor import BDFRegressor
+from bdf.tree_classes.bdf_regressor import BDFClassifier, BDFRegressor
 
 
 def test_end_to_end_regression():
@@ -39,6 +38,32 @@ def test_end_to_end_regression():
 
     loaded_preds = loaded.predict(X)
     assert np.allclose(preds, loaded_preds)
+
+
+def test_fit_returns_self_for_sklearn_style_api():
+    X, y = make_regression(n_samples=80, n_features=4, n_informative=2, noise=5.0, random_state=42)
+
+    regressor = BDFRegressor(
+        dist="NormalMuNormal",
+        params={"mu_mu": "auto", "sigma_mu": "auto", "sigma_mu_auto_scale": 1.0},
+        n_trees=3,
+        min_samples_leaf=5,
+        n_jobs=1,
+    )
+    assert regressor.fit(X, y) is regressor
+
+    y_binary = (y > np.median(y)).astype(float)
+    classifier = BDFClassifier(
+        dist="BetaMVBernoulli",
+        params={"mean_p": "auto", "var_p": 0.05},
+        n_trees=3,
+        min_samples_leaf=5,
+        n_jobs=1,
+    )
+    assert classifier.fit(X, y_binary) is classifier
+    proba = classifier.predict_proba(X[:5])
+    assert proba.shape == (5, 2)
+    np.testing.assert_allclose(proba.sum(axis=1), 1.0)
 
 
 def test_distribution_parameters():

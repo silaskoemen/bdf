@@ -12,6 +12,8 @@ Key features:
 - Sklearn-style `fit` / `predict` API.
 - Parallel tree fitting with a Rust split-finding backend (PyO3).
 
+If the Rust extension is unavailable at runtime, split search emits a warning and falls back to the slower Python implementation.
+
 Unsupported in the current release:
 - Native categorical features (one-hot encode upstream).
 - Native missing-value handling.
@@ -91,7 +93,7 @@ from bdf.tree_classes.bdf_regressor import BDFClassifier
 
 clf = BDFClassifier(dist="BetaMVBernoulli", n_trees=50)
 clf.fit(X_train, y_train)
-probabilities = clf.predict_proba(X_test)   # P(y = 1 | x)
+p_positive = clf.predict_proba(X_test)[:, 1]   # P(y = 1 | x)
 predictions = clf.predict(X_test)
 ```
 

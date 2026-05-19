@@ -1,7 +1,7 @@
 Models
 ======
 
-BDF provides two sklearn-compatible estimators that share the same interface
+BDF provides two sklearn-style estimators that share the same interface
 via the :class:`~bdf.tree_classes.bdf_regressor.BDFModel` base class.
 
 Regressor

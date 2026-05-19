@@ -249,6 +249,8 @@ class BDFModel(BaseEstimator):
             avg_depth = np.mean([tree.get_max_depth() for tree in self.trees])
             print(f"Fitted {self.n_trees} trees with average nodes: {avg_nodes:.2f}, average depth: {avg_depth:.2f}")
 
+        return self
+
     def _compute_oob_weights(
         self,
         X: np.ndarray,
@@ -807,7 +809,7 @@ class BDFModel(BaseEstimator):
 class BDFRegressor(BDFModel, RegressorMixin):
     """BDF Regressor for regression tasks with continuous targets.
 
-    Provides sklearn-compatible interface with flexible prediction methods
+    Provides a sklearn-style interface with flexible prediction methods
     for uncertainty quantification.
     """
 
@@ -858,9 +860,6 @@ class BDFRegressor(BDFModel, RegressorMixin):
             "mean",  # mean of means
             "median",  # median of pooled samples
             "var",  # mean of variances
-            "var-samples",  # variance of pooled samples
-            "interval",  # one or more intervals at confidence levels
-            "quantile",  # one or more quantiles
             "samples",  # pooled samples
             "params",  # distribution parameters from each tree
         ] = "mean",
@@ -907,7 +906,7 @@ class BDFRegressor(BDFModel, RegressorMixin):
 class BDFClassifier(BDFModel, ClassifierMixin):
     """BDF Classifier for binary classification tasks.
 
-    Provides sklearn-compatible interface with predict() returning class labels
+    Provides a sklearn-style interface with predict() returning class labels
     and predict_proba() returning class probabilities. All underlying predict_XXX
     methods operate on the probability of the positive class (class 1).
     """
@@ -952,7 +951,7 @@ class BDFClassifier(BDFModel, ClassifierMixin):
             )
 
         # Call parent fit (classification never standardizes targets)
-        super().fit(X, y, verbose=verbose)
+        return super().fit(X, y, verbose=verbose)
 
     def predict_proba(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
         """Predict class probabilities for X.

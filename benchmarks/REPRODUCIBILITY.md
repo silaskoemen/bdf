@@ -34,7 +34,7 @@ Each stage is a pixi task; nothing requires bare `python -m …` invocations.
 
 ## 1. Data
 
-UCI/OpenML datasets are downloaded, not bundled. The two-step pipeline writes processed numeric matrices under `data/processed/` together with `*.meta.json` provenance files that record the source, processed sample/feature counts, and the target domain.
+UCI/OpenML datasets are downloaded, not bundled. The repository intentionally provides fetch/process scripts and tracked result artifacts rather than redistributing raw or processed benchmark datasets. The two-step pipeline writes processed numeric matrices under `data/processed/` together with `*.meta.json` provenance files that record the source, processed sample/feature counts, and the target domain.
 
 ```bash
 pixi run fetch-data           # downloads raw files (one-time, network required)
