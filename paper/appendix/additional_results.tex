@@ -218,7 +218,7 @@ Figure~\ref{fig:bimodal-predictions} shows model-level conditional-calibration d
 % ==========================================
 \subsection{Parameter sensitivity}\label{app:additional-param-sensitivity}
 
-We study sensitivity to the four tunable hyperparameters $(\alpha, \delta, \gamma, \texttt{min\_samples\_leaf})$. The heatmap and combined panel below summarize the regression sweep; individual per-parameter plots follow.
+We study sensitivity to the four tree-construction hyperparameters $(\alpha, \delta, \gamma, \texttt{min\_samples\_leaf})$, holding the EB prior-strength defaults fixed in this one-at-a-time sweep. Thus these plots characterize structural regularization and minimum-leaf-size effects, while the main real-data benchmark handles prior strength through the validation protocol in Appendix~\ref{app:benchmark-protocol}. The heatmap and combined panel below summarize the regression sweep; individual per-parameter plots follow.
 
 \begin{figure}[!ht]
     \centering

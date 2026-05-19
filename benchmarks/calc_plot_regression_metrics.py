@@ -49,7 +49,9 @@ BASELINE_MODELS = [
     # "gp_reg",  # excluded from main aggregate: scaling/provenance limitations
     # "pymc_bart",  # prohibitively expensive for adequate chains/draws; supplement only
     "ngboost_reg",
+    "xgboostlss_gaussian",
     "qrf",
+    # "drf",  # distributional random forest (Cevid et al.) via R drf + rpy2; include after running result file
     "catbunc_reg",
     "knnkde",
 ]

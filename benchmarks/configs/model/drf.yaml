@@ -1,0 +1,35 @@
+# Distributional Random Forests (Cevid et al., 2022) via R drf package + rpy2.
+# Requires the R `drf` package installed in the R that rpy2 binds to, e.g.:
+#   pixi run --environment benchmark Rscript -e 'install.packages("drf", repos="https://cloud.r-project.org")'
+
+name: drf
+target_type: regression
+class_name: DRFRegressor
+probabilistic: true
+
+compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+
+fixed_init_kwargs:
+  random_state: 1234
+  splitting_rule: FourierMMD
+  honesty: true
+  honesty_fraction: 0.5
+
+tunable_init_kwargs:
+  num_trees:
+    type: int
+    low: 50
+    high: 500
+  min_node_size:
+    type: int
+    low: 5
+    high: 50
+  # number of fourier basis functions for FourierMMD splitting rule
+  num_features:
+    type: int
+    low: 5
+    high: 30
+  sample_fraction:
+    type: float
+    low: 0.3
+    high: 0.8

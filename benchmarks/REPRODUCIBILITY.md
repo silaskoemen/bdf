@@ -18,9 +18,9 @@ The exact dependency versions are pinned in `pixi.lock`, which is checked into t
 | Environment | Used for | Notable contents |
 |---|---|---|
 | `default` | BDF, sklearn baselines, paper build, tests, lint | `bdf`, sklearn, matplotlib, hydra, optuna, scoringrules |
-| `benchmark` | External baselines (NGBoost, LightGBM, XGBoost, CatBoost, QRF, ConformalRF, BART, Treeffuser) | adds `lightgbm`, `xgboost`, `ngboost`, `catboost`, `quantile-forest`, `pymc-bart`, `bartpy`, `treeffuser`, `torch` |
+| `benchmark` | External baselines (NGBoost, LightGBM, XGBoostLSS, CatBoost, QRF, ConformalRF, BART, Treeffuser) | adds `lightgbm`, `xgboost`, `xgboostlss`, `ngboost`, `catboost`, `quantile-forest`, `pymc-bart`, `treeffuser`, `torch` |
 
-`bartpy` depends on a deprecated `sklearn` shim; export `SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True` before solving the `benchmark` environment if the install fails.
+The deprecated `bartpy` dependency is intentionally not part of the benchmark environment; the maintained PyMC-BART wrapper is retained for supplementary BART runs.
 
 ## Pipeline Overview
 

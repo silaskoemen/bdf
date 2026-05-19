@@ -65,6 +65,7 @@ _BDF_VARIANT = "#D95550"  # lighter crimson for BDF variants (e.g. KDE)
 
 _RF = "#2D7D46"  # forest green
 _QRF = "#5A9E6F"  # sage green
+_DRF = "#3F8F58"  # mid-forest green (distinct from RF/QRF)
 _BART = "#8B6914"  # dark goldenrod
 _CONF_RF = "#6B8E23"  # olive drab
 _CAL_RF = "#A0522D"  # sienna
@@ -75,6 +76,7 @@ _CQR_CATBOOST = "#7FB3D3"  # sky blue (CQR-CatBoost, adaptive)
 
 _LGBM = "#2E86AB"  # steel blue
 _NGBOOST = "#4169E1"  # royal blue
+_XGBLSS = "#1F77B4"  # xgboost blue
 _CATBOOST = "#1B4F72"  # dark navy
 _CONF_LGBM = "#5DADE2"  # light blue
 _LGBM_QREG = "#6BAED6"  # sky blue
@@ -108,6 +110,8 @@ MODEL_COLORS: dict[str, str] = {
     "rf_clas": _RF,
     "QRF": _QRF,
     "qrf": _QRF,
+    "DRF": _DRF,
+    "drf": _DRF,
     "BART": _BART,
     "bartpy": _BART,
     "pymc_bart": _BART,
@@ -125,6 +129,8 @@ MODEL_COLORS: dict[str, str] = {
     "NGBoost": _NGBOOST,
     "ngboost_reg": _NGBOOST,
     "ngboost_clas": _NGBOOST,
+    "XGBoostLSS": _XGBLSS,
+    "xgboostlss_gaussian": _XGBLSS,
     "CatBoostUnc": _CATBOOST,
     "CatBoostUncertainty": _CATBOOST,
     "catbunc_reg": _CATBOOST,
@@ -166,6 +172,7 @@ MODEL_DISPLAY_NAMES: dict[str, str] = {
     "rf_reg": "RF",
     "rf_clas": "RF",
     "qrf": "QRF",
+    "drf": "DRF",
     "bartpy": "BART",
     "pymc_bart": "BART",
     "confrf": "ConfRF",
@@ -177,6 +184,7 @@ MODEL_DISPLAY_NAMES: dict[str, str] = {
     "lgbm_qreg": "LGBM-QR",
     "ngboost_reg": "NGBoost",
     "ngboost_clas": "NGBoost",
+    "xgboostlss_gaussian": "XGBoostLSS",
     "catbunc_reg": "CatBoostUnc",
     "CatBoostUncertainty": "CatBoost (Unc)",
     "ConfCatBoost": "Conf-CatBoost",

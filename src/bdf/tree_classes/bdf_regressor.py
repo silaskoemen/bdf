@@ -41,7 +41,7 @@ class BDFModel(BaseEstimator):
     gamma : float, default=0.1
         Complexity penalty applied to each split. Higher values produce
         simpler trees. Must be in [0, 1].
-    delta : float, default=0.01
+    delta : float, default=0.001
         Depth decay parameter. For ``tree_prior_mode="linear"`` controls
         per-depth penalty decay. For ``"defer"``/``"bernoulli"`` modes, must
         be in (0, 1).
@@ -106,7 +106,7 @@ class BDFModel(BaseEstimator):
         params: dict,
         n_trees: int = 50,
         alpha: float = 0.0,
-        gamma: float = 0.01,
+        gamma: float = 0.1,
         delta: float = 0.001,
         tree_prior_mode: Literal["linear", "defer", "bernoulli"] = "linear",
         max_depth: int = 50,

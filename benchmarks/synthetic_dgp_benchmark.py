@@ -213,6 +213,35 @@ def get_available_models() -> dict[str, dict[str, Any]]:
     except ImportError:
         logger.info("✗ Climatological baseline not available (run in benchmark environment)")
 
+    # Quantile Regression Forest
+    try:
+        from .models.wrappers import QuantileForestWrapper
+
+        available["QRF"] = {
+            "class": QuantileForestWrapper,
+            "fixed_init_kwargs": {
+                "random_state": SEED,
+                "max_samples_leaf": None,
+                "bootstrap": True,
+                "criterion": "squared_error",
+            },
+            "tunable_init_kwargs": {
+                "n_estimators": {"type": "int", "low": 50, "high": 300},
+                "max_depth": {"type": "int", "low": 2, "high": 30},
+                "min_samples_split": {"type": "int", "low": 2, "high": 50},
+                "min_samples_leaf": {"type": "int", "low": 1, "high": 50},
+                "max_features": {"type": "float", "low": 0.1, "high": 1.0},
+                "max_samples": {"type": "float", "low": 0.5, "high": 1.0},
+            },
+            "tunable_params": {},
+            "fixed_params": {},
+            "has_params_dict": False,
+            "probabilistic": True,
+        }
+        logger.info("✓ QRF available")
+    except ImportError:
+        logger.info("✗ QRF not available (install quantile-forest or run in benchmark environment)")
+
     # Conformal RF
     try:
         from .models.wrappers import ConformalizedRFWrapper

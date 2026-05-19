@@ -389,6 +389,137 @@ class NGBClassifierWrapper(NGBClassifier):
         return samples
 
 
+class XGBoostLSSRegressorWrapper(BaseEstimator, RegressorMixin):
+    """Sklearn-compatible wrapper for XGBoostLSS univariate regression.
+
+    XGBoostLSS follows the native XGBoost API rather than sklearn's estimator
+    API. This wrapper keeps the benchmark interface consistent by exposing
+    fit(), predict(), and predict_samples().
+    """
+
+    PREDICTION_TYPE: PredictionType = "samples"
+
+    def __init__(
+        self,
+        dist_name="Gaussian",
+        stabilization="None",
+        response_fn="exp",
+        loss_fn="nll",
+        n_estimators=100,
+        eta=0.05,
+        max_depth=3,
+        gamma=0.0,
+        subsample=1.0,
+        colsample_bytree=1.0,
+        min_child_weight=1.0,
+        booster="gbtree",
+        verbosity=0,
+        nthread=None,
+        random_state=None,
+    ):
+        self.dist_name = dist_name
+        self.stabilization = stabilization
+        self.response_fn = response_fn
+        self.loss_fn = loss_fn
+        self.n_estimators = n_estimators
+        self.eta = eta
+        self.max_depth = max_depth
+        self.gamma = gamma
+        self.subsample = subsample
+        self.colsample_bytree = colsample_bytree
+        self.min_child_weight = min_child_weight
+        self.booster = booster
+        self.verbosity = verbosity
+        self.nthread = nthread
+        self.random_state = random_state
+        self.model_ = None
+
+    def _make_distribution(self):
+        if self.dist_name == "Gaussian":
+            from xgboostlss.distributions.Gaussian import Gaussian
+
+            return Gaussian(
+                stabilization=self.stabilization,
+                response_fn=self.response_fn,
+                loss_fn=self.loss_fn,
+            )
+        if self.dist_name == "StudentT":
+            from xgboostlss.distributions.StudentT import StudentT
+
+            return StudentT(
+                stabilization=self.stabilization,
+                response_fn=self.response_fn,
+                loss_fn=self.loss_fn,
+            )
+        if self.dist_name == "Laplace":
+            from xgboostlss.distributions.Laplace import Laplace
+
+            return Laplace(
+                stabilization=self.stabilization,
+                response_fn=self.response_fn,
+                loss_fn=self.loss_fn,
+            )
+        raise ValueError(f"Unsupported XGBoostLSS distribution: {self.dist_name}")
+
+    def _xgb_params(self) -> dict:
+        params = {
+            "eta": self.eta,
+            "max_depth": int(self.max_depth),
+            "gamma": self.gamma,
+            "subsample": self.subsample,
+            "colsample_bytree": self.colsample_bytree,
+            "min_child_weight": self.min_child_weight,
+            "booster": self.booster,
+            "verbosity": self.verbosity,
+        }
+        if self.random_state is not None:
+            params["seed"] = int(self.random_state)
+        if self.nthread is not None:
+            params["nthread"] = int(self.nthread)
+        return params
+
+    def fit(self, X, y):
+        import xgboost as xgb
+        from xgboostlss.model import XGBoostLSS
+
+        self.model_ = XGBoostLSS(self._make_distribution())
+        dtrain = xgb.DMatrix(X, label=np.asarray(y), nthread=self.nthread)
+        self.model_.train(
+            self._xgb_params(),
+            dtrain,
+            num_boost_round=int(self.n_estimators),
+            verbose_eval=False,
+        )
+        return self
+
+    def _dmatrix(self, X):
+        import xgboost as xgb
+
+        return xgb.DMatrix(X, nthread=self.nthread)
+
+    def predict(self, X):
+        if self.model_ is None:
+            raise ValueError("Model has not been fitted.")
+        params = self.model_.predict(self._dmatrix(X), pred_type="parameters")
+        if "loc" in params:
+            return np.asarray(params["loc"], dtype=float)
+        if "location" in params:
+            return np.asarray(params["location"], dtype=float)
+        samples = self.predict_samples(X, n_samples=200)
+        return np.mean(samples, axis=1)
+
+    def predict_samples(self, X, n_samples=100):
+        if self.model_ is None:
+            raise ValueError("Model has not been fitted.")
+        samples = self.model_.predict(
+            self._dmatrix(X),
+            pred_type="samples",
+            n_samples=n_samples,
+            seed=self.random_state if self.random_state is not None else 1234,
+        )
+        return np.asarray(samples, dtype=float)
+
+
 # =============================================================================
 # LightGBM Quantile Regression Wrapper
 # =============================================================================
@@ -646,6 +777,22 @@ class QuantileForestWrapper(BaseEstimator, RegressorMixin):
             preds = preds.reshape(-1, 1)
         return np.sort(preds, axis=1)
 
+    def predict_samples(self, X, n_samples=100):
+        """Generate approximate predictive samples from the predicted quantile function.
+
+        The underlying quantile forest exposes quantiles rather than analytic sampling.
+        For diagnostics that expect samples, draw uniforms and invert the row-wise
+        empirical quantile curve by linear interpolation.
+        """
+        quantile_levels = np.asarray(sorted(self.quantiles), dtype=float)
+        quantile_preds = self.predict_quantiles(X)
+        rng = np.random.default_rng(self.random_state)
+        uniforms = rng.uniform(size=(quantile_preds.shape[0], n_samples))
+        samples = np.empty_like(uniforms)
+        for i, row in enumerate(quantile_preds):
+            samples[i] = np.interp(uniforms[i], quantile_levels, row, left=row[0], right=row[-1])
+        return samples
+
     def get_params(self, deep=True):
         params = {
             "n_estimators": self.n_estimators,
@@ -658,6 +805,209 @@ class QuantileForestWrapper(BaseEstimator, RegressorMixin):
     def set_params(self, **params):
         for key in ("n_estimators", "quantiles", "random_state"):
             if key in params:
+                setattr(self, key, params.pop(key))
+        self.kwargs.update(params)
+        return self
+
+
+class DRFWrapper(BaseEstimator, RegressorMixin):
+    """Distributional Random Forests (Cevid et al., 2022) via rpy2 + the R drf package.
+
+    The deprecated python-package shipped with the upstream drf repo
+    (https://github.com/lorismichel/drf) is unmaintained; this wrapper re-implements
+    the same call surface against a system R installation. drf returns, for each test
+    point, a set of weights over the training responses; quantiles, samples, and the
+    predictive mean are derived from those weights without imposing a parametric form.
+    """
+
+    PREDICTION_TYPE: PredictionType = "quantiles"
+
+    # Matches QuantileForestWrapper so the benchmark harness sees a consistent quantile grid.
+    DEFAULT_QUANTILES = QuantileForestWrapper.DEFAULT_QUANTILES
+
+    def __init__(
+        self,
+        num_trees: int = 500,
+        splitting_rule: str = "FourierMMD",
+        num_features: int = 10,
+        min_node_size: int = 15,
+        mtry: int | None = None,
+        sample_fraction: float = 0.5,
+        honesty: bool = True,
+        honesty_fraction: float = 0.5,
+        ci_group_size: int = 1,
+        quantiles: list[float] | None = None,
+        random_state: int | None = None,
+        **kwargs,
+    ):
+        self.num_trees = num_trees
+        self.splitting_rule = splitting_rule
+        self.num_features = num_features
+        self.min_node_size = min_node_size
+        self.mtry = mtry
+        self.sample_fraction = sample_fraction
+        self.honesty = honesty
+        self.honesty_fraction = honesty_fraction
+        # ci.group.size > 1 enables DRF's paired-tree variance estimation, which forces
+        # sample.fraction < 0.5. We only consume the weights matrix (not DRF's CIs), so set
+        # this to 1 by default to free the sample_fraction tuning range.
+        self.ci_group_size = ci_group_size
+        self.quantiles = quantiles if quantiles is not None else list(self.DEFAULT_QUANTILES)
+        self.random_state = random_state
+        self.kwargs = kwargs
+        self._fit_obj = None
+        self._y_train = None
+
+    @staticmethod
+    def _load_drf():
+        # libomp on macOS is loaded both by conda-numpy and R/BLAS; allow duplicate init.
+        import os
+
+        os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
+        from rpy2.robjects.packages import importr  # local import keeps module load cheap
+
+        try:
+            return importr("drf")
+        except Exception as exc:
+            raise ImportError(
+                "The R package 'drf' is not installed in the R that rpy2 binds to. "
+                "Install it with:\n"
+                '  Rscript -e \'install.packages("drf", repos="https://cloud.r-project.org")\'\n'
+                "(use the Rscript on PATH inside the pixi benchmark env)."
+            ) from exc
+
+    def _drf_kwargs(self) -> dict:
+        # Map snake_case to drf's dot-named R args. None values are dropped so drf picks defaults.
+        out = {
+            "num.trees": self.num_trees,
+            "splitting.rule": self.splitting_rule,
+            "num.features": self.num_features,
+            "min.node.size": self.min_node_size,
+            "sample.fraction": self.sample_fraction,
+            "honesty": self.honesty,
+            "honesty.fraction": self.honesty_fraction,
+            "ci.group.size": self.ci_group_size,
+        }
+        if self.mtry is not None:
+            out["mtry"] = self.mtry
+        if self.random_state is not None:
+            out["seed"] = int(self.random_state)
+        out.update(self.kwargs)
+        return out
+
+    def fit(self, X, y):
+        import rpy2.robjects as ro
+        from rpy2.robjects import default_converter, numpy2ri, pandas2ri
+        from rpy2.robjects.conversion import localconverter
+
+        drf_pkg = self._load_drf()
+        X_arr = np.asarray(X, dtype=float)
+        y_arr = np.asarray(y, dtype=float).reshape(-1, 1)
+        if X_arr.ndim == 1:
+            X_arr = X_arr.reshape(-1, 1)
+        self._y_train = y_arr.ravel()
+
+        if self.random_state is not None:
+            ro.r(f"set.seed({int(self.random_state)})")
+
+        # rpy2 needs `**{"num.trees": ...}` to pass dot-named args through.
+        with localconverter(default_converter + numpy2ri.converter + pandas2ri.converter):
+            self._fit_obj = drf_pkg.drf(X_arr, y_arr, **self._drf_kwargs())
+        return self
+
+    def _predict_weights(self, X) -> np.ndarray:
+        """Return the n_test x n_train weight matrix for the given test points."""
+        from rpy2.robjects import default_converter, numpy2ri, pandas2ri
+        from rpy2.robjects.conversion import localconverter
+        from rpy2.robjects.packages import importr
+
+        if self._fit_obj is None:
+            raise RuntimeError("DRFWrapper: call fit() before predict.")
+
+        drf_pkg = self._load_drf()
+        base_r = importr("base")
+        X_arr = np.asarray(X, dtype=float)
+        if X_arr.ndim == 1:
+            X_arr = X_arr.reshape(-1, 1)
+
+        with localconverter(default_converter + numpy2ri.converter + pandas2ri.converter):
+            r_out = drf_pkg.predict_drf(self._fit_obj, newdata=X_arr)
+            # predict.drf returns a NamedList with $weights as a dgCMatrix (sparse). Densify in R,
+            # then numpy2ri picks up the resulting double matrix on the Python side.
+            weights_dense = base_r.as_matrix(r_out.getbyname("weights"))
+            weights = np.asarray(weights_dense)
+
+        # weights rows should already sum to 1; renormalize defensively against numerical drift.
+        row_sums = weights.sum(axis=1, keepdims=True)
+        row_sums[row_sums == 0] = 1.0
+        return weights / row_sums
+
+    def predict(self, X):
+        weights = self._predict_weights(X)
+        return weights @ self._y_train  # weighted mean per row
+
+    def predict_quantiles(self, X) -> np.ndarray:
+        """Return shape (n_obs, n_quantiles) weighted empirical quantiles from leaf weights."""
+        weights = self._predict_weights(X)
+        y_train = np.asarray(self._y_train, dtype=float)
+        order = np.argsort(y_train)
+        y_sorted = y_train[order]
+        weights_sorted = weights[:, order]
+        # Use the same weighted-quantile rule as QRF wrapper (Type-7-like via interp on cum weights).
+        cum = np.cumsum(weights_sorted, axis=1) - 0.5 * weights_sorted
+        cum /= cum[:, -1:].clip(min=1e-12)
+        quantiles = np.asarray(sorted(self.quantiles), dtype=float)
+        out = np.empty((weights.shape[0], quantiles.size), dtype=float)
+        for i in range(weights.shape[0]):
+            out[i] = np.interp(quantiles, cum[i], y_sorted)
+        return out
+
+    def predict_samples(self, X, n_samples: int = 100) -> np.ndarray:
+        weights = self._predict_weights(X)
+        y_train = np.asarray(self._y_train, dtype=float)
+        rng = np.random.default_rng(self.random_state)
+        n_test = weights.shape[0]
+        n_train = weights.shape[1]
+        samples = np.empty((n_test, n_samples), dtype=float)
+        for i in range(n_test):
+            idx = rng.choice(n_train, size=n_samples, replace=True, p=weights[i])
+            samples[i] = y_train[idx]
+        return samples
+
+    def get_params(self, deep=True):
+        params = {
+            "num_trees": self.num_trees,
+            "splitting_rule": self.splitting_rule,
+            "num_features": self.num_features,
+            "min_node_size": self.min_node_size,
+            "mtry": self.mtry,
+            "sample_fraction": self.sample_fraction,
+            "honesty": self.honesty,
+            "honesty_fraction": self.honesty_fraction,
+            "ci_group_size": self.ci_group_size,
+            "quantiles": self.quantiles,
+            "random_state": self.random_state,
+        }
+        params.update(self.kwargs)
+        return params
+
+    def set_params(self, **params):
+        explicit_keys = {
+            "num_trees",
+            "splitting_rule",
+            "num_features",
+            "min_node_size",
+            "mtry",
+            "sample_fraction",
+            "honesty",
+            "honesty_fraction",
+            "ci_group_size",
+            "quantiles",
+            "random_state",
+        }
+        for key in list(params.keys()):
+            if key in explicit_keys:
                 setattr(self, key, params.pop(key))
         self.kwargs.update(params)
         return self

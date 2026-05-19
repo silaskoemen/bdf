@@ -1,5 +1,5 @@
 \documentclass[10pt]{article} % For LaTeX2e
-\usepackage[preprint]{tmlr}
+\usepackage{tmlr}
 
 % tmlr.sty defines \AND for separating authors. The algorithmic environment
 % redefines \AND for boolean conjunctions inside its own scope, which clashes
@@ -24,9 +24,9 @@
 \newcommand{\dataset}{{\cal{D}}}
 \newcommand{\fracpartial}[2]{\frac{\partial #1}{\partial  #2}}
 
-\title{Bayesian Distributional Forests: A Unified Framework for Probabilistic Tree Ensembles}
+\title{Bayesian Leaf Distributional Forests: Evidence-Regularized Probabilistic Tree Ensembles}
 
-\author{\name Silas Koemen \email research@silaskoemen.com}
+\author{\name Anonymous Authors}
 
 \def\month{05}
 \def\year{2026}
@@ -41,13 +41,13 @@
 \makeatletter\let\AND\@undefined\makeatother
 
 \begin{abstract}%   <- trailing '%' for backward compatibility of .sty file
-We introduce \emph{Bayesian Distributional Forests} (BDF), a probabilistic tree ensemble framework that performs Bayesian inference \emph{within leaves} and outputs \emph{full posterior predictive distributions} rather than point estimates.
-BDF trains trees by optimizing an additive \emph{log-score} objective over leaves: for conjugate likelihood--prior pairs this score is the \emph{negative log evidence} (a prequential Bayesian log-loss), while for broader likelihood families it can be replaced by principled surrogates such as Laplace/BIC approximations or cross-validated log predictive density.
+We introduce \emph{Bayesian Distributional Forests} (BDF), a probabilistic tree ensemble framework that performs Bayesian inference \emph{within leaves} when conjugate leaf models are available, while retaining greedy forest construction and randomized ensembling globally.
+BDF trains trees by optimizing an additive \emph{log-score} objective over leaves: for conjugate likelihood--prior pairs this score is the \emph{negative log evidence} (a prequential Bayesian log-loss), while for broader likelihood families it can be replaced by principled surrogates such as plug-in negative log-likelihood with Laplace/BIC correction or cross-validated log predictive density.
 A global MDL-style penalty controls tree growth and complements the implicit regularization induced by Bayesian leaf uncertainty.
 
 BDF applies uniformly to regression and classification, supports weakly informative or empirical Bayes priors to stabilize small leaves, and admits fast training via closed-form sufficient-statistic updates and scalable split search.
 Across diverse benchmark datasets, BDF is competitive with the strongest probabilistic baselines: quantile regression forests attain the lowest aggregate CRPS/CRPSS, while BDF is the strongest parametric probabilistic model by relative CRPS and has the best average 90\% interval-score rank with nominal or slightly conservative coverage. In binary classification, BDF attains the best average log-loss rank, trails LightGBM only slightly in relative log-loss, and remains statistically indistinguishable from the strongest tree and boosting baselines under Holm-corrected paired tests.
-Overall, BDF bridges Bayesian distributional prediction and modern tree ensembles by making Bayesian leaf predictives and log-score-based split selection computationally practical at scale.
+Overall, BDF bridges Bayesian leaf prediction and modern tree ensembles by making evidence-regularized split selection and probabilistic leaf mixtures computationally practical at scale.
 \end{abstract}
 
 \section{Introduction}\label{sec:intro}
@@ -67,25 +67,25 @@ At the other end of the spectrum, fully Bayesian tree models place priors over t
 While conceptually appealing, such methods often rely on MCMC over tree structures, which can be substantially more expensive than modern split search and less straightforward to deploy at scale or with diverse likelihood families.
 Recent work revisits Bayesian tree induction from a MAP perspective (e.g., MAPTree) \citep{sullivan2024maptree}, but a core tension remains: \emph{Bayesian structure inference} is expensive, whereas \emph{fast split optimization} is central to how trees are used in practice.
 
-This paper targets the regime in which tree ensembles are most effective: large-scale split search, many candidate partitions, and the need for uncertainty-aware prediction without full posterior sampling over tree structures.
+This paper targets the regime in which tree ensembles are most effective: scalable split search, many candidate partitions, and the need for uncertainty-aware prediction without full posterior sampling over tree structures.
 We introduce \emph{Bayesian Distributional Forests} (BDF), which upgrade classical forests to probabilistic predictors by performing \emph{Bayesian inference within each leaf} and selecting splits via \emph{log predictive scores}.
 
 \paragraph{Key idea: Bayesian leaves + log-score-based split selection.}
 BDF treats each leaf as a Bayesian model with prior $\pi(\theta_\ell\mid\eta)$, posterior $\pi(\theta_\ell\mid\mathcal{D}_\ell,\eta)$, and posterior predictive $p_\ell(y\mid \mathcal{D}_\ell,\eta)$.
-Tree induction is expressed through an summed leaf score $\sum_{\ell} S(\mathcal{D}_\ell)$, where $S$ is a negative log-score associated with the leaf predictor.
+Tree induction is expressed through a summed leaf score $\sum_{\ell} S(\mathcal{D}_\ell)$, where $S$ is a negative log-score associated with the leaf predictor.
 For conjugate likelihood--prior pairs, $S$ is the \emph{negative log evidence}, which admits a prequential interpretation as Bayesian cumulative log-loss.
 When exact evidence is unavailable or empirically conservative (e.g., under misspecification or small-leaf regimes), the same objective can be instantiated with principled alternatives such as Laplace/BIC evidence surrogates or cross-validated log predictive density (LOO or $K$-fold).
-A global MDL-style penalty $\lambda\,|\mathcal{L}(T)|\log n$ controls tree growth and accounts for multiplicity in greedy split search.
+A global MDL-style structural code controls tree growth: in the implementation used for all reported results, this code is the depth-dependent logistic prior plus the tempered split-identity penalty derived in Section~\ref{subsec:complexity_growth}.
 
 \paragraph{Scalable probabilistic ensembles.}
 BDF is not a posterior sampler over tree structures.
-Instead, it combines Bayesian leaf predictives with standard randomized ensemble training (bagging and feature subsampling), producing predictions by mixing leaf-level posterior predictives across trees.
+Instead, it combines Bayesian or evidence-regularized probabilistic leaves with standard randomized ensemble training (bagging and feature subsampling), producing predictions by mixing leaf-level predictive distributions across trees.
 This retains the computational profile of classical forests while yielding coherent predictive distributions.
 
 \paragraph{Contributions.}
 \begin{enumerate}
-\item We introduce Bayesian Distributional Forests, a scalable probabilistic tree ensemble framework built around Bayesian leaf inference and posterior predictive distributions.
-\item We formalize split selection through an additive leaf-wise log-score objective, and show how exact evidence (conjugate leaves), Laplace/BIC surrogates, and predictive scores (LOO/$K$-fold, AIC) fit into a single training principle with MDL-style complexity control.
+\item We introduce Bayesian Distributional Forests, a scalable probabilistic tree ensemble framework built around Bayesian leaf inference where available and evidence-regularized probabilistic leaves more generally.
+\item We formalize split selection through an additive leaf-wise log-score objective, and show how exact evidence (conjugate leaves), Laplace/BIC surrogates, and predictive scores (LOO/$K$-fold, AIC) fit into a single training principle with MDL-style complexity control; the headline experiments focus on exact NLE and BIC/Laplace variants.
 \item We provide a theoretical perspective connecting evidence-based training to prequential log scoring and the Occam effect in marginal likelihood, and clarifying when predictive surrogates are preferable (e.g., misspecification or conservative evidence).
 \item We empirically demonstrate that BDF is a competitive calibrated distributional predictor: QRF leads aggregate CRPS/CRPSS, while BDF is the strongest parametric probabilistic model by relative CRPS, has the best average 90\% interval-score rank, achieves nominal coverage, and attains the best average log-loss rank in binary classification.
 \end{enumerate}
@@ -96,6 +96,7 @@ BDF sits between scalable tree ensembles, distributional prediction, and Bayesia
 
 \paragraph{Distributional tree methods.}
 Distributional regression forests \citep{schlosser2019distributional} fit distributional models in leaves and use likelihood/score-based splits; Distributional Random Forests \citep{cevid2022distributional} estimate conditional distributions through forest-induced weights. These methods produce useful probabilistic predictions, but they rely on plug-in or weighted-neighborhood estimates rather than leaf-level posteriors. BDF instead treats each leaf as a Bayesian model, integrates over leaf-parameter uncertainty in the predictive distribution, and can use the evidence itself as a split score.
+Mondrian forests and Mondrian-process tree priors \citep{lakshminarayanan2014mondrian} provide a related route to scalable online random partitions with uncertainty-aware predictions; BDF differs by using evidence-based greedy split selection and explicit Bayesian posterior predictives inside each leaf.
 
 \paragraph{Quantile and conformal prediction.}
 Quantile regression forests \citep[QRF;][]{meinshausen2006quantile} estimate conditional quantiles from forest-induced neighborhoods and provide a strong nonparametric baseline for predictive intervals and CRPS. Conformal prediction \citep{vovk2005algorithmic,lei2018distribution,romano2019conformalized} gives distribution-free marginal coverage by calibrating residual or quantile scores on held-out data, and can wrap high-performing point or quantile predictors such as random forests and LightGBM. These methods are complementary to BDF: QRF avoids parametric leaf likelihoods but does not maintain Bayesian leaf posteriors, while conformal wrappers guarantee marginal coverage without directly modeling the full conditional density or leaf-parameter uncertainty.
@@ -112,7 +113,7 @@ Bayesian CART and BART \citep{denison1998bayesian,chipman2010bart} place priors 
 % ==========================================
 \section{Methodology}\label{sec:methodology}
 
-Bayesian Distributional Forests (BDF) extend classical tree ensembles by replacing point-valued leaf predictions with \emph{Bayesian predictive distributions} and selecting partitions using \emph{log predictive scores}. The canonical instantiation---and the primary focus of this paper---uses conjugate likelihood--prior pairs, for which the leaf posterior, posterior predictive, and marginal likelihood are available in closed form. This yields exact Bayesian leaf inference with the computational profile of standard trees, since all updates reduce to low-dimensional sufficient statistics.
+Bayesian Distributional Forests (BDF) extend classical tree ensembles by replacing point-valued leaf predictions with \emph{probabilistic leaf distributions} and selecting partitions using \emph{log predictive scores}. The canonical instantiation uses conjugate likelihood--prior pairs, for which the leaf posterior, posterior predictive, and marginal likelihood are available in closed form. This yields exact Bayesian leaf inference with the computational profile of standard trees, since all updates reduce to low-dimensional sufficient statistics. The empirical suite also includes broader leaf families, such as plug-in Student-$t$ and KDE leaves, whose split scores use likelihood-based evidence surrogates but whose predictions do not integrate over all leaf parameters.
 
 We emphasize at the outset that BDF is best understood as a method that uses \emph{locally exact Bayesian inference as modular building blocks} within a greedy, penalized tree-construction framework. The leaf-level inference is exactly Bayesian (for conjugate families); the split-scoring criterion has a principled Bayesian interpretation; but the overall procedure---greedy search, empirical Bayes hyperparameters, tempered selection penalties---involves pragmatic approximations that depart from a fully Bayesian treatment of the tree structure. This design is deliberate: it captures the primary benefits of Bayesian leaf modeling (uncertainty quantification, automatic Occam penalties) while retaining the scalability of frequentist tree algorithms.
 
@@ -154,10 +155,10 @@ Conditional on the leaf parameter $\theta_\ell$ and the leaf assignment, observa
 For conjugate likelihood--prior pairs (e.g.\ Normal--Normal, Beta--Bernoulli), the posterior, posterior predictive, and marginal likelihood are available in closed form. All updates reduce to sufficient statistics, enabling constant-time leaf re-scoring during split search. Concrete update equations for the leaf families used in this paper are collected in Appendix~\ref{app:conjugate_updates}.
 
 \paragraph{Non-conjugate leaves.}
-When the likelihood--prior pair is not conjugate, closed-form expressions are generally unavailable. BDF then requires only that each candidate leaf admits a tractable approximate predictive density that can be evaluated during split search. We use a \emph{Laplace approximation} to the posterior, yielding a Gaussian approximation centered at the posterior mode (MAP estimate), and the associated BIC approximation to the log marginal likelihood (Section~\ref{subsec:split_scoring}, eq.~\eqref{eq:bic_leaf}). Further approximate Bayesian strategies (e.g., empirical Bayes shrinkage, generalized Bayes updates) are documented in Appendix~\ref{app:approximate-bayesian-calculations-non-conjugate} but are not required for the core theory or the main empirical results. Among the leaf families used in our experiments, the Student-$t$ likelihood admits no conjugate prior and is the principal family where BIC is exercised at split scoring time; the remaining families used (Normal--Normal, Normal--Inverse-Gamma, Beta--Bernoulli, Gamma--Poisson) use the exact NLE~\eqref{eq:nle_leaf}.
+When the likelihood--prior pair is not conjugate, closed-form expressions are generally unavailable. BDF then requires only that each candidate leaf admits a tractable predictive density and an additive split score that can be evaluated during split search. In the reported implementation, non-conjugate Student-$t$ leaves use plug-in negative log-likelihood with BIC correction as a Laplace-style approximation to the evidence (Section~\ref{subsec:split_scoring}, eq.~\eqref{eq:bic_leaf}); their posterior predictive is not available, so prediction uses the fitted Student-$t$ leaf distribution. KDE leaves similarly use predictive-score corrections such as LOO-CV rather than a closed-form evidence. Thus the Bayesian interpretation is exact for conjugate leaves and approximate or likelihood-regularized for these broader leaf families. The exact specifications used in experiments are summarized in Appendix~\ref{app:conjugate_updates}.
 
 \paragraph{Empirical Bayes hyperparameters.}\label{par:empirical_bayes}
-By default, $\eta$ is set from training data only, jointly with the other BDF hyperparameters on the tuning fold; the full protocol (search space, splits, and the separation between EB estimation and held-out evaluation) is given in Appendix~\ref{app:benchmark-protocol}. For the Normal--Normal leaf model $y \mid \mu \sim \mathcal{N}(\mu, \sigma^2)$, $\mu \sim \mathcal{N}(\mu_0, \tau_0^2)$ with known $\sigma^2$, we set $\mu_0 = \bar{y}_n$ and treat $\tau_0^2$ as a tunable hyperparameter controlling the degree of shrinkage. For the Beta--Bernoulli model, the prior $\mathrm{Beta}(\alpha_0, \beta_0)$ is calibrated so that $\alpha_0/(\alpha_0+\beta_0)$ matches the empirical class frequency, while $\alpha_0+\beta_0$ is selected by marginal likelihood over a small grid.
+By default, $\eta$ is set from training data only, jointly with the other BDF hyperparameters on the tuning fold; the full protocol (search space, splits, and the separation between EB estimation and held-out evaluation) is given in Appendix~\ref{app:benchmark-protocol}. For the Normal--Normal leaf model $y \mid \mu \sim \mathcal{N}(\mu, \sigma^2)$, $\mu \sim \mathcal{N}(\mu_0, \tau_0^2)$ with known $\sigma^2$, we set $\mu_0 = \bar{y}_n$ and treat $\tau_0^2$ as a tunable hyperparameter controlling the degree of shrinkage. For the Beta--Bernoulli model, the prior $\mathrm{Beta}(\alpha_0, \beta_0)$ is calibrated so that $\alpha_0/(\alpha_0+\beta_0)$ matches the empirical class frequency, while the prior's variance $\frac{\alpha_0\beta_0}{(\alpha_0+\beta_0)^2(\alpha_0+\beta_0+1)}$ is a tunable hyperparameter. In the main benchmarks, prior strength is therefore selected as part of validation rather than fixed by a universal rule; the separate ablations isolate tree regularization, minimum leaf size, and the scoring criterion, but do not constitute a one-at-a-time EB prior-strength study.
 
 Because $\hat\eta$ is estimated from the training fold prior to tree construction, the priors across leaves are coupled through this plug-in estimate. As a result, the exact factorization of the marginal likelihood across leaves (eq.~\eqref{eq:global_nle_sum}) holds only conditional on $\eta$. In the theoretical development (Section~\ref{sec:theory}), we treat $\eta$ as fixed.
 
@@ -165,13 +166,13 @@ Under standard regularity conditions, $\hat\eta$ is $\sqrt{n}$-consistent. The i
 
 \subsection{Split Scoring}\label{subsec:split_scoring}
 
-BDF selects splits by maximizing an additive tree-level score,
+BDF selects splits by minimizing an additive tree-level negative log score,
 \begin{equation}\label{eq:additive_tree_score}
-\mathrm{Score}(T;\mathcal{D}_n)
+\mathrm{Loss}(T;\mathcal{D}_n)
 =
 \sum_{\ell\in\mathcal{L}(T)} S(\mathcal{D}_\ell),
 \end{equation}
-where $S(\mathcal{D}_\ell)$ is a leaf-level log score measuring the quality of the probabilistic predictor in leaf~$\ell$. For conjugate leaves, $S$ is the negative log marginal likelihood (evidence). For non-conjugate leaves, $S$ is its BIC approximation.
+where $S(\mathcal{D}_\ell)$ is a leaf-level negative log score measuring the quality of the probabilistic predictor in leaf~$\ell$. For conjugate leaves, $S$ is the negative log marginal likelihood (evidence). For non-conjugate plug-in leaves, $S$ is the negative log-likelihood with an evidence surrogate such as BIC.
 
 \paragraph{Negative log evidence (NLE) for conjugate leaves.}
 The primary split criterion uses the marginal likelihood,
@@ -192,7 +193,7 @@ m(\mathcal{D}_\ell)
 for any permutation $\sigma$ of the leaf indices, where each factor is the one-step-ahead posterior predictive. The NLE thus equals the cumulative log-loss of a sequentially updated Bayesian forecaster---a connection to prequential model validation that we formalize in Section~\ref{subsec:theory_prequential}.
 
 \paragraph{BIC surrogate for non-conjugate leaves.}
-When the marginal likelihood is not available in closed form, we approximate~\eqref{eq:nle_leaf} by
+When the marginal likelihood is not available in closed form, we use the Laplace/BIC surrogate
 \begin{equation}\label{eq:bic_leaf}
 S_{\mathrm{BIC}}(\mathcal{D}_\ell)
 =
@@ -200,7 +201,10 @@ S_{\mathrm{BIC}}(\mathcal{D}_\ell)
 +
 \frac{k_\ell}{2}\log n_\ell,
 \end{equation}
-where $\hat{\theta}_\ell^{\,\mathrm{MAP}} = \arg\max_\theta \pi(\theta \mid \eta) \prod_i p(y_i \mid \theta)$ is the posterior mode and $k_\ell = \dim(\theta_\ell)$. We use the MAP rather than the MLE to maintain consistency with the Bayesian framework; the two coincide asymptotically, and the $O(1)$ difference between them is absorbed into the remainder of the Laplace expansion (Section~\ref{subsec:theory_surrogates}). Under standard regularity conditions, $S_{\mathrm{BIC}}$ approximates the NLE up to $O(1)$ error as $n_\ell \to \infty$ \citep{schwarz1978estimating}. A theoretical comparison of the two criteria, including finite-sample behavior and implications for split selection under misspecification, is given in Section~\ref{subsec:theory_surrogates}.
+where $\hat{\theta}_\ell^{\,\mathrm{MAP}}$ is the posterior mode when a prior is specified, the MLE for purely plug-in leaves, and $k_\ell = \dim(\theta_\ell)$. The MAP and MLE coincide asymptotically under regularity conditions, and the $O(1)$ difference between them is absorbed into the remainder of the Laplace expansion (Section~\ref{subsec:theory_surrogates}). Under standard regularity conditions, $S_{\mathrm{BIC}}$ approximates the NLE up to $O(1)$ error as $n_\ell \to \infty$ \citep{schwarz1978estimating}. A theoretical comparison of the two criteria, including finite-sample behavior and implications for split selection under misspecification, is given in Section~\ref{subsec:theory_surrogates}.
+
+\paragraph{Predictive-score variants.}
+The additive framework also permits replacing $S$ by a negative held-out or approximate out-of-sample log predictive score, such as LOO, $K$-fold, or AIC-corrected plug-in likelihood. These variants are useful when marginal likelihood is unavailable or too sensitive to prior specification: the main experiments use exact NLE for conjugate leaves, NLL+BIC for the dominant plug-in Student-$t$ leaves, and LOO/$K$-fold only in configurations (notably KDE) where the computational cost is acceptable.
 
 \paragraph{Split gain.}
 Given a candidate split $s$ at leaf $\ell$ producing children $(\ell_L,\ell_R)$, the \emph{split gain} under score $S$ is
@@ -212,9 +216,9 @@ S(\mathcal{D}_\ell) - S(\mathcal{D}_{\ell_L}) - S(\mathcal{D}_{\ell_R}).
 Since $S$ is a negative log score (lower is better), a positive gain $\Delta S > 0$ indicates that the two-leaf model provides a better probabilistic fit than the unsplit leaf. Under independent priors on $\theta_{\ell_L}$ and $\theta_{\ell_R}$ (as assumed throughout), $\Delta S(s;\ell)$ equals the log Bayes factor in favor of splitting when $S$ is the NLE; this connection is formalized in Section~\ref{subsec:theory_split_bf}.
 
 \paragraph{Relation to distributional forests.}
-Likelihood-based distributional forests \citep{schlosser2019distributional} select splits by improvements in plug-in (pseudo-)likelihood using MLE leaf estimates, and Distributional Random Forests \citep[DRF;][]{cevid2022distributional} use maximum mean discrepancy (MMD) as the split criterion. BDF differs in two respects: (i) leaves produce full posterior predictive distributions~\eqref{eq:leaf_ppd} rather than plug-in point estimates, yielding uncertainty quantification that accounts for limited leaf sample sizes; and (ii) split selection optimizes a log-score objective that integrates out leaf parameters via the evidence~\eqref{eq:nle_leaf}, rather than conditioning on point estimates.
+Likelihood-based distributional forests \citep{schlosser2019distributional} select splits by improvements in plug-in (pseudo-)likelihood using MLE leaf estimates, and Distributional Random Forests \citep[DRF;][]{cevid2022distributional} use maximum mean discrepancy (MMD) as the split criterion. BDF differs in two respects: (i) conjugate leaves produce full posterior predictive distributions~\eqref{eq:leaf_ppd}, while broader leaves expose explicit fitted predictive distributions such as Student-$t$ or KDE; and (ii) split selection optimizes a log-score objective that integrates out leaf parameters via the evidence~\eqref{eq:nle_leaf} where available, or uses a stated evidence surrogate otherwise.
 
-Relative to DRF specifically, BDF's leaf object is an explicit parametric (or nonparametric, in the KDE case) posterior predictive rather than an implicit weighted-neighborhood smoother. The leaf family determines which distributional features can be captured \emph{within} a single leaf: Student-$t$ leaves accommodate heavy tails, Poisson and Gamma--Poisson leaves count data, Beta--Bernoulli leaves binary outcomes, and (Bayesian) KDE leaves multimodal or otherwise non-parametric conditional densities. The forest mixture adds further flexibility on top of this. Split selection in DRF optimizes a distribution-free MMD criterion that can capture shifts no fixed parametric family represents; the evidence criterion used by BDF directly penalizes complexity and rewards calibrated probabilistic fit when the leaf family is well chosen. Compared with BART and the scalable variant XBART~\citep{he2019xbart}, BDF gives up posterior uncertainty over partition structures in exchange for greedy growth, training-fold EB hyperparameters, and randomized ensembling: BART quantifies tree-structure uncertainty through MCMC over topologies, whereas BDF's randomization comes from bootstrap and feature subsampling, with uncertainty residing within-leaf rather than over-trees.
+Relative to DRF specifically, BDF's leaf object is an explicit parametric (or nonparametric, in the KDE case) predictive distribution rather than an implicit weighted-neighborhood smoother. The leaf family determines which distributional features can be captured \emph{within} a single leaf: Student-$t$ leaves accommodate heavy tails, Poisson and Gamma--Poisson leaves count data, Beta--Bernoulli leaves binary outcomes, and KDE leaves multimodal or otherwise non-parametric conditional densities. The forest mixture adds further flexibility on top of this. Split selection in DRF optimizes a distribution-free MMD criterion that can capture shifts no fixed parametric family represents; the evidence or evidence-surrogate criterion used by BDF directly penalizes complexity and rewards calibrated probabilistic fit when the leaf family is well chosen. Compared with BART and the scalable variant XBART~\citep{he2019xbart}, BDF gives up posterior uncertainty over partition structures in exchange for greedy growth, training-fold EB hyperparameters, and randomized ensembling: BART quantifies tree-structure uncertainty through MCMC over topologies, whereas BDF's randomization comes from bootstrap and feature subsampling.
 
 
 \subsection{Complexity Control and Greedy Growth}\label{subsec:complexity_growth}
@@ -232,13 +236,13 @@ We control tree complexity through a penalized splitting criterion. At each cand
 The prior probability of splitting at depth $d$ follows a logistic model, $p(\mathrm{split} \mid d) = \sigma(-\alpha - \delta d)$, with $\alpha, \delta > 0$.
 Conditional on splitting, we place a prior over split parameters $(j,c)$ by first selecting a feature uniformly and then a cutpoint uniformly among that feature's candidates. That is, $P(j) = 1/K$ and $P(c \mid j) = 1/m_j$, yielding a prior contribution $-\log K - \log m_j$ to the log-odds.
 
-To account for dependence among candidates (e.g., correlated features or adjacent cutpoints inducing similar partitions), we introduce a tempering parameter $\gamma \in (0,1]$:
+To account for dependence among candidates (e.g., correlated features or adjacent cutpoints inducing similar partitions), we introduce a tempering parameter $\gamma \in [0,1]$:
 \begin{equation}\label{eq:prior_logodds_fixed}
 \log \frac{P(M_{\mathrm{split}}, s)}{P(M_{\mathrm{stop}})}
 \;=\;
 -\alpha - \delta d - \gamma(\log K + \log m_j).
 \end{equation}
-When $\gamma = 1$, this recovers the exact Bayesian model selection penalty under the specified prior. When $\gamma < 1$, the penalty is reduced to reflect an effective number of distinguishable candidates smaller than the nominal count.
+When $\gamma = 1$, this recovers the split-identity component of the Bayesian model selection penalty under the specified prior, up to the child-stopping terms discussed in Appendix~\ref{app:split_bayes_factor}. When $\gamma < 1$, the penalty is reduced to reflect an effective number of distinguishable candidates smaller than the nominal count; $\gamma=0$ removes the split-identity multiplicity correction while retaining the structural depth penalty.
 
 Substituting~\eqref{eq:split_gain} and~\eqref{eq:prior_logodds_fixed} into~\eqref{eq:posterior_odds} yields the \emph{net gain}:
 \begin{equation}\label{eq:net_gain}
@@ -258,11 +262,11 @@ Under approximately balanced splits, $n_\ell \approx n / 2^{d-1}$, which yields 
 This relation implies a typical depth scaling $d = O(\log n)$ under balanced partitioning. We emphasize that this is a heuristic scaling law rather than a formal upper bound: highly unbalanced splits can produce deeper paths, although such paths are discouraged by both diminishing sample sizes and the depth penalty.
 
 \begin{remark}[Interpretation via description length]\label{rem:mdl}
-The net gain~\eqref{eq:net_gain} admits a minimum description length (MDL) interpretation. The term $\Delta S$ is the reduction in data coding cost under the prequential code~\eqref{eq:prequential}. The remaining terms form a structural code: $\alpha + \delta d$ nats to signal a split at depth $d$, and $\gamma\log(K \cdot m_j)$ nats to encode the split identity. The linear depth penalty corresponds to a geometric prior on tree depth (the maximum-entropy distribution subject to a finite expected-depth constraint). The parameter $\gamma$ controls the assumed coding precision: $\gamma = 1$ assigns the full code length (no redundancy among candidates), while $\gamma < 1$ assigns a shorter code reflecting candidate redundancy. BART \citep{chipman2010bart} uses the branching-process prior $p(\text{split} \mid d) = \alpha'(1+d)^{-\beta'}$, yielding a heavier-tailed depth distribution; we find that the exponential tail of the logistic prior provides sufficient flexibility under greedy growth with early stopping (Appendix~\ref{app:additional-param-sensitivity}).
+The net gain~\eqref{eq:net_gain} admits a minimum description length (MDL) interpretation. The term $\Delta S$ is the reduction in data coding cost under the prequential code~\eqref{eq:prequential}. The remaining terms form a structural code: $\alpha + \delta d$ nats to signal a split at depth $d$, and $\gamma\log(K \cdot m_j)$ nats to encode the split identity. The linear depth penalty corresponds to a geometric prior on tree depth (the maximum-entropy distribution subject to a finite expected-depth constraint). The parameter $\gamma$ controls the assumed coding precision: $\gamma = 1$ assigns the full split-identity code length, $\gamma < 1$ assigns a shorter code reflecting candidate redundancy, and $\gamma=0$ omits this code. BART \citep{chipman2010bart} uses the branching-process prior $p(\text{split} \mid d) = \alpha'(1+d)^{-\beta'}$, yielding a heavier-tailed depth distribution; we find that the exponential tail of the logistic prior provides sufficient flexibility under greedy growth with early stopping (Appendix~\ref{app:additional-param-sensitivity}).
 \end{remark}
 
 \paragraph{Hyperparameter selection.}
-The penalty parameters $(\alpha, \delta, \gamma)$ are selected on the tuning fold jointly with the remaining BDF hyperparameters; see Appendix~\ref{app:benchmark-protocol} for the search space, objective, and split protocol. The defaults $\alpha = 0.001$, $\delta = 0.01$, $\gamma = 0.5$ are used as fallback values when no tuning fold is available. We find empirically that $\gamma < 1$ improves performance on datasets with correlated features or finely discretized cutpoints, consistent with the effective-multiplicity interpretation (Appendix~\ref{app:additional-param-sensitivity}).
+The penalty parameters $(\alpha, \delta, \gamma)$ are selected on the tuning fold jointly with the remaining BDF hyperparameters; see Appendix~\ref{app:benchmark-protocol} for the search space, objective, and split protocol. The implementation defaults are $\alpha = 0$, $\delta = 0.001$, $\gamma = 0.1$ and are used only when no tuning fold is available. We find empirically that $\gamma < 1$ improves performance on datasets with correlated features or finely discretized cutpoints, consistent with the effective-multiplicity interpretation (Appendix~\ref{app:additional-param-sensitivity}).
 
 \paragraph{Greedy construction.}
 We implement the criterion~\eqref{eq:net_gain} within a best-first greedy strategy (Algorithm~\ref{alg:bdf_tree}), which maintains a priority queue of candidate splits ordered by $\Delta_{\mathrm{net}}$ and expands the highest-gain split at each step.
@@ -296,7 +300,7 @@ We implement the criterion~\eqref{eq:net_gain} within a best-first greedy strate
 
 A Bayesian Distributional Forest is an ensemble of $M$ randomized trees $\{T^{(m)}\}_{m=1}^M$ trained independently (and thus fully parallelizable) using standard diversity mechanisms: bootstrap or row subsampling of training data, and random feature subsampling at each split.
 
-For a test input $\mathbf{x}^\star$, each tree contributes the posterior predictive from its assigned leaf,
+For a test input $\mathbf{x}^\star$, each tree contributes the predictive distribution from its assigned leaf,
 \[
 p^{(m)}(y^\star\mid \mathbf{x}^\star,\mathcal{D}_n)
 =
@@ -310,7 +314,7 @@ p_{\mathrm{BDF}}(y^\star\mid \mathbf{x}^\star,\mathcal{D}_n)
 \end{equation}
 This mixture can represent complex predictive shapes (e.g., multimodality, skewness) even when individual leaves are simple parametric families.
 
-Equation~\eqref{eq:forest_mixture} is a frequentist ensemble of Bayesian leaf predictors: each tree provides an exact posterior predictive within its leaves, and the forest averages over randomized partition structures. This is distinct from full Bayesian model averaging over tree topologies, as pursued in BART \citep{chipman2010bart}. BART places a prior over the space of tree structures and uses MCMC to approximate the posterior over topologies, yielding (in principle) coherent posterior uncertainty over the partition itself. BDF instead fixes each tree greedily and averages over the randomization in the bootstrap and feature subsampling, trading full posterior coherence over tree structures for computational scalability and parallelism. The Bayesian character of BDF resides in the leaf-level inference and the evidence-based split criterion, not in a posterior over trees.
+Equation~\eqref{eq:forest_mixture} is a frequentist ensemble of probabilistic leaf predictors: conjugate leaves provide exact posterior predictives, while plug-in or KDE leaves provide the fitted predictive distribution specified by their leaf family. This is distinct from full Bayesian model averaging over tree topologies, as pursued in BART \citep{chipman2010bart}. BART places a prior over the space of tree structures and uses MCMC to approximate the posterior over topologies, yielding (in principle) coherent posterior uncertainty over the partition itself. BDF instead fixes each tree greedily and averages over the randomization in the bootstrap and feature subsampling, trading full posterior coherence over tree structures for computational scalability and parallelism. The Bayesian character of BDF resides in conjugate leaf-level inference and the evidence-based split criterion; for broader plug-in leaves it is an evidence-regularized greedy forest.
 
 
 % =====================================================
@@ -479,6 +483,11 @@ p_\ell(y^\star \mid \mathcal{D}_\ell,\eta) \;=\; \mathcal{N}\!\left(y^\star;\; \
 \paragraph{Domination envelope.}
 Let $\Theta = [\mu_{\min}, \mu_{\max}]$ be the compact mean interval required by Proposition~\ref{prop:leaf_concentration}(i). Then $\sup_{\mu\in\Theta} \mathcal{N}(y;\mu,\sigma^2) \le (2\pi\sigma^2)^{-1/2} =: g(y)$, a constant upper bound that is trivially integrable against any Gaussian-tailed data measure. This envelope is invoked in Appendix~\ref{app:proof_leaf_concentration}(d) for the predictive $L^1$ convergence argument.
 
+\begin{remark}[Known observation variance]
+The Normal--Normal experiments use an EB-fixed observation variance $\sigma^2$;
+see Section~\ref{par:empirical_bayes}.
+\end{remark}
+
 
 \subsection{Beta--Bernoulli}\label{app:conjugate_beta}
 
@@ -503,10 +512,135 @@ where $B(a,b) = \Gamma(a)\Gamma(b)/\Gamma(a+b)$ is the Beta function.
 
 \paragraph{Domination envelope.} Since $\mathcal{Y}=\{0,1\}$, $\sup_{\theta\in\Theta}p(y\mid\theta)\le 1$ and $g\equiv 1$ is trivially integrable on the two-point sample space.
 
-\begin{remark}[Unknown variance]
-All experiments use a known (EB-fixed) observation variance $\sigma^2$;
-see Section~\ref{par:empirical_bayes}.
-\end{remark}
+\subsection{Gamma--Poisson Count Leaves}\label{app:conjugate_poisson}
+
+For non-negative integer targets, BDF uses the conjugate Gamma--Poisson model. We write the Gamma prior in shape-rate form,
+\[
+\lambda \sim \mathrm{Gamma}(\alpha_0,\beta_0),
+\qquad
+y_i\mid \lambda \sim \mathrm{Poisson}(\lambda),
+\]
+where $\mathbb{E}[\lambda]=\alpha_0/\beta_0$ and $\mathrm{Var}(\lambda)=\alpha_0/\beta_0^2$. The implementation also exposes the equivalent mean-variance parameterization
+\[
+\alpha_0=\mu_\lambda^2/v_\lambda,
+\qquad
+\beta_0=\mu_\lambda/v_\lambda,
+\]
+with \texttt{auto} values set from training-fold moments and tuned prior scale.
+
+\paragraph{Posterior.}
+Let $s_\ell=\sum_{i:\mathbf{x}_i\in R_\ell} y_i$. Then
+\begin{equation}\label{eq:poisson_posterior}
+\lambda\mid\mathcal{D}_\ell,\eta
+\sim
+\mathrm{Gamma}(\alpha_\ell,\beta_\ell),
+\qquad
+\alpha_\ell=\alpha_0+s_\ell,
+\quad
+\beta_\ell=\beta_0+n_\ell .
+\end{equation}
+The sufficient statistics are $(n_\ell,s_\ell)$.
+
+\paragraph{Posterior predictive.}
+Integrating out $\lambda$ gives a Negative-Binomial predictive distribution,
+\begin{equation}\label{eq:poisson_predictive}
+p_\ell(y^\star=k\mid\mathcal{D}_\ell,\eta)
+=
+\mathrm{NegBin}\!\left(k;\alpha_\ell,\frac{\beta_\ell}{1+\beta_\ell}\right),
+\end{equation}
+where the second argument is the success probability in the SciPy convention. The predictive mean and variance are
+\[
+\mathbb{E}[Y^\star\mid\mathcal{D}_\ell]=\frac{\alpha_\ell}{\beta_\ell},
+\qquad
+\mathrm{Var}(Y^\star\mid\mathcal{D}_\ell)=
+\frac{\alpha_\ell(1+\beta_\ell)}{\beta_\ell^2}.
+\]
+
+\paragraph{Log marginal likelihood.}
+\begin{equation}\label{eq:poisson_log_marginal}
+\log m(\mathcal{D}_\ell)
+=
+\log\Gamma(\alpha_\ell)-\log\Gamma(\alpha_0)
++\alpha_0\log\beta_0
+-\alpha_\ell\log\beta_\ell
+-\sum_i \log(y_i!).
+\end{equation}
+
+\subsection{Student-$t$ Leaves}\label{app:student_t_leaves}
+
+Student-$t$ leaves are used for robust real-valued regression. They are not conjugate in the implementation, so they do not provide exact NLE or posterior predictives. Split scoring uses plug-in negative log-likelihood with BIC correction, which is the Laplace-style evidence surrogate in Eq.~\eqref{eq:bic_leaf}; prediction uses the fitted Student-$t$ leaf distribution.
+
+\paragraph{Frequentist Student-$t$.}
+The plug-in model is
+\[
+y_i \mid \mu,\sigma,\nu \sim t_\nu(\mu,\sigma),
+\qquad
+\theta=(\mu,\sigma,\nu),
+\]
+with $\nu>2$ when the variance is used. The implementation estimates $\mu$ and $\sigma$ by method of moments, EM/IRLS, or numerical MLE, and estimates $\nu$ when it is not fixed. The default benchmark configuration estimates $\nu$ from the leaf data by method of moments and uses
+\begin{equation}\label{eq:student_t_bic}
+S_{\mathrm{t,BIC}}(\mathcal{D}_\ell)
+=
+-\sum_{i:\mathbf{x}_i\in R_\ell}
+\log t_{\hat\nu_\ell}(y_i;\hat\mu_\ell,\hat\sigma_\ell)
++\frac{k_\ell}{2}\log n_\ell,
+\end{equation}
+where $k_\ell=3$ if $\nu$ is estimated and $k_\ell=2$ if it is fixed. The leaf predictive is the fitted density
+\[
+p_\ell(y^\star\mid\mathcal{D}_\ell)
+=
+t_{\hat\nu_\ell}(y^\star;\hat\mu_\ell,\hat\sigma_\ell).
+\]
+
+\paragraph{Normal-mean Student-$t$.}
+The \texttt{NormalMeanStudentT} variant adds shrinkage on the location parameter,
+\[
+\mu \sim \mathcal{N}(\mu_0,\sigma_0^2),
+\qquad
+y_i\mid\mu,\sigma,\nu\sim t_\nu(\mu,\sigma).
+\]
+Because this is still non-conjugate, the implementation uses a CLT-style Normal update for the location and plug-in estimates for $(\sigma,\nu)$. With leaf sample mean $\bar y_\ell$ and variance $s_\ell^2$,
+\[
+v_{\mu,\ell}^{-1}=\sigma_0^{-2}+n_\ell/s_\ell^2,
+\qquad
+\hat\mu_\ell=v_{\mu,\ell}\left(\mu_0/\sigma_0^2+n_\ell\bar y_\ell/s_\ell^2\right).
+\]
+Degrees of freedom are fixed or estimated from excess kurtosis, and $\sigma$ is recovered from
+$\mathrm{Var}(Y)=\sigma^2\nu/(\nu-2)$. Splits again use Eq.~\eqref{eq:student_t_bic}, now centered at the shrinkage estimate $\hat\mu_\ell$.
+
+\subsection{KDE Leaves}\label{app:kde_leaves}
+
+KDE leaves are non-parametric predictive leaves used when a unimodal parametric likelihood is too restrictive. They do not have a closed-form Bayesian evidence in the current implementation.
+For a leaf with centers $\{y_i\}_{i=1}^{n_\ell}$ and bandwidth $h_\ell>0$, the predictive density is
+\begin{equation}\label{eq:kde_predictive}
+p_\ell(y^\star\mid\mathcal{D}_\ell,h_\ell)
+=
+\frac{1}{n_\ell h_\ell}\sum_{i=1}^{n_\ell}
+K\!\left(\frac{y^\star-y_i}{h_\ell}\right),
+\end{equation}
+with Gaussian or Epanechnikov kernels. Bandwidth is either fixed, Scott/Silverman rule-of-thumb, or pseudo-Bayesian shrinkage toward a global bandwidth $h_0$:
+\begin{equation}\label{eq:kde_bandwidth_shrinkage}
+\log h_\ell^{\mathrm{post}}
+=
+\frac{m_h\log h_0+n_\ell\log h_\ell^{\mathrm{local}}}{m_h+n_\ell}.
+\end{equation}
+
+\paragraph{Split score.}
+The default KDE score is leave-one-out negative log predictive density,
+\begin{equation}\label{eq:kde_loo}
+S_{\mathrm{KDE\text{-}LOO}}(\mathcal{D}_\ell)
+=
+-\sum_{i=1}^{n_\ell}
+\log\left[
+\frac{1}{(n_\ell-1)h_\ell}
+\sum_{j\ne i}
+K\!\left(\frac{y_i-y_j}{h_\ell}\right)
+\right],
+\end{equation}
+with BIC or $K$-fold corrections available as alternatives. For computational efficiency, the split search may use a parent bandwidth for all candidate children and refine the top candidate splits with child-specific bandwidths.
+
+\paragraph{Mixture evaluation.}
+For all sample-based leaves, including KDE and Student-$t$, the forest predictive in Eq.~\eqref{eq:forest_mixture} is evaluated by drawing from the assigned leaf distribution in each tree and pooling samples across trees. CRPS, PIT, central intervals, and interval scores are then computed from the pooled samples; quantile-native baselines such as QRF use their reported quantile grid directly.
 
 \section{Laplace Approximation for Non-Conjugate Leaves}
 \label{app:approximate-bayesian-calculations-non-conjugate}

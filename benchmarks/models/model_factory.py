@@ -16,6 +16,7 @@ from .wrappers import (  # BARTRegressor,
     ClimatologicalRegressor,
     ConformalizedLGBMWrapper,
     ConformalizedRFWrapper,
+    DRFWrapper,
     GaussianDeepEnsembleWrapper,
     GPClassifierWrapper,
     GPRegressorWrapper,
@@ -25,6 +26,7 @@ from .wrappers import (  # BARTRegressor,
     PyMCBARTRegressorWrapper,
     QuantileForestWrapper,
     TreeffuserWrapper,
+    XGBoostLSSRegressorWrapper,
 )
 
 # from treeffuser import Treeffuser
@@ -86,6 +88,10 @@ class ModelFactory:
                 return ConformalizedRFWrapper
             case "GaussianDeepEnsemble":
                 return GaussianDeepEnsembleWrapper
+            case "XGBoostLSSRegressor":
+                return XGBoostLSSRegressorWrapper
+            case "DRFRegressor":
+                return DRFWrapper
             case "ClimatologicalRegressor":
                 return ClimatologicalRegressor
             case _:
