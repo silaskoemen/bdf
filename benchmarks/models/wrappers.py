@@ -1,4 +1,7 @@
 # pyright: reportMissingImports=false
+import gc
+import multiprocessing as mp
+import queue
 import warnings
 from typing import Literal
 
@@ -810,6 +813,48 @@ class QuantileForestWrapper(BaseEstimator, RegressorMixin):
         return self
 
 
+def _drf_worker_loop(request_queue, response_queue):
+    """Own one embedded R session for a subprocess-backed DRFWrapper."""
+    model = None
+    try:
+        while True:
+            command, args = request_queue.get()
+            if command == "close":
+                break
+
+            try:
+                if command == "fit":
+                    params, X_arr, y_arr = args
+                    params["backend"] = "inprocess"
+                    model = DRFWrapper(**params)
+                    model.fit(X_arr, y_arr)
+                    response_queue.put(("ok", None))
+                    continue
+
+                if model is None:
+                    raise RuntimeError("DRF worker received predict before fit.")
+
+                if command == "predict":
+                    result = model.predict(args[0])
+                elif command == "predict_quantiles":
+                    result = model.predict_quantiles(args[0])
+                elif command == "predict_samples":
+                    result = model.predict_samples(args[0], n_samples=args[1])
+                else:
+                    raise ValueError(f"Unknown DRF worker command: {command}")
+                response_queue.put(("ok", result))
+            except BaseException as exc:
+                import traceback
+
+                response_queue.put(("error", repr(exc), traceback.format_exc()))
+    finally:
+        try:
+            if model is not None:
+                model._r_gc()
+        except Exception:
+            pass
+
+
 class DRFWrapper(BaseEstimator, RegressorMixin):
     """Distributional Random Forests (Cevid et al., 2022) via rpy2 + the R drf package.
 
@@ -836,6 +881,8 @@ class DRFWrapper(BaseEstimator, RegressorMixin):
         honesty: bool = True,
         honesty_fraction: float = 0.5,
         ci_group_size: int = 1,
+        predict_batch_size: int = 256,
+        backend: str = "subprocess",
         quantiles: list[float] | None = None,
         random_state: int | None = None,
         **kwargs,
@@ -852,18 +899,48 @@ class DRFWrapper(BaseEstimator, RegressorMixin):
         # sample.fraction < 0.5. We only consume the weights matrix (not DRF's CIs), so set
         # this to 1 by default to free the sample_fraction tuning range.
         self.ci_group_size = ci_group_size
+        self.predict_batch_size = predict_batch_size
+        self.backend = backend
         self.quantiles = quantiles if quantiles is not None else list(self.DEFAULT_QUANTILES)
         self.random_state = random_state
         self.kwargs = kwargs
         self._fit_obj = None
         self._y_train = None
+        self._worker_process = None
+        self._request_queue = None
+        self._response_queue = None
 
     @staticmethod
-    def _load_drf():
+    def _configure_r_runtime():
         # libomp on macOS is loaded both by conda-numpy and R/BLAS; allow duplicate init.
         import os
 
         os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+        # rpy2 embeds a single R runtime in the Python process. The DRF benchmark calls into
+        # R repeatedly during Optuna and CV evaluation; disabling R's byte-code JIT avoids a
+        # known fatal failure mode where R cannot initialize the JIT after its session is stressed.
+        os.environ.setdefault("R_ENABLE_JIT", "0")
+
+        import rpy2.robjects as ro
+
+        try:
+            ro.r("compiler::enableJIT(0)")
+        except Exception:
+            pass
+
+    @staticmethod
+    def _r_gc():
+        try:
+            import rpy2.robjects as ro
+
+            ro.r("gc(FALSE)")
+        except Exception:
+            pass
+        gc.collect()
+
+    @classmethod
+    def _load_drf(cls):
+        cls._configure_r_runtime()
 
         from rpy2.robjects.packages import importr  # local import keeps module load cheap
 
@@ -897,6 +974,11 @@ class DRFWrapper(BaseEstimator, RegressorMixin):
         return out
 
     def fit(self, X, y):
+        if self.backend == "subprocess":
+            return self._fit_subprocess(X, y)
+        if self.backend != "inprocess":
+            raise ValueError(f"Unknown DRF backend: {self.backend}")
+
         import rpy2.robjects as ro
         from rpy2.robjects import default_converter, numpy2ri, pandas2ri
         from rpy2.robjects.conversion import localconverter
@@ -914,10 +996,91 @@ class DRFWrapper(BaseEstimator, RegressorMixin):
         # rpy2 needs `**{"num.trees": ...}` to pass dot-named args through.
         with localconverter(default_converter + numpy2ri.converter + pandas2ri.converter):
             self._fit_obj = drf_pkg.drf(X_arr, y_arr, **self._drf_kwargs())
+        self._r_gc()
         return self
 
-    def _predict_weights(self, X) -> np.ndarray:
-        """Return the n_test x n_train weight matrix for the given test points."""
+    def _fit_subprocess(self, X, y):
+        self.close()
+        X_arr = np.asarray(X, dtype=float)
+        y_arr = np.asarray(y, dtype=float).reshape(-1, 1)
+        if X_arr.ndim == 1:
+            X_arr = X_arr.reshape(-1, 1)
+        self._y_train = y_arr.ravel()
+
+        start_method = "fork" if "fork" in mp.get_all_start_methods() else "spawn"
+        ctx = mp.get_context(start_method)
+        self._request_queue = ctx.Queue()
+        self._response_queue = ctx.Queue()
+        self._worker_process = ctx.Process(target=_drf_worker_loop, args=(self._request_queue, self._response_queue))
+        self._worker_process.start()
+
+        params = self.get_params(deep=False)
+        params["backend"] = "inprocess"
+        try:
+            self._worker_call("fit", params, X_arr, y_arr)
+            self._fit_obj = "subprocess"
+        except Exception:
+            self.close()
+            raise
+        return self
+
+    def _worker_call(self, command: str, *args):
+        if self._worker_process is None or self._request_queue is None or self._response_queue is None:
+            raise RuntimeError("DRFWrapper: call fit() before predict.")
+        if not self._worker_process.is_alive():
+            raise RuntimeError(f"DRF R worker is not running (exitcode={self._worker_process.exitcode}).")
+
+        self._request_queue.put((command, args))
+        while True:
+            try:
+                response = self._response_queue.get(timeout=1)
+                break
+            except queue.Empty:
+                if not self._worker_process.is_alive():
+                    raise RuntimeError(f"DRF R worker exited with code {self._worker_process.exitcode}.")
+
+        status = response[0]
+        if status == "ok":
+            return response[1]
+        if status == "error":
+            message, tb = response[1], response[2]
+            raise RuntimeError(f"DRF R worker failed: {message}\n{tb}")
+        raise RuntimeError(f"DRF R worker returned unknown status: {status}")
+
+    def close(self):
+        if self._worker_process is None:
+            return
+
+        process = self._worker_process
+        request_queue = self._request_queue
+        response_queue = self._response_queue
+        try:
+            if process.is_alive() and request_queue is not None:
+                request_queue.put(("close", ()))
+                process.join(timeout=5)
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=5)
+        finally:
+            if request_queue is not None:
+                request_queue.close()
+                request_queue.join_thread()
+            if response_queue is not None:
+                response_queue.close()
+                response_queue.join_thread()
+            process.close()
+            self._worker_process = None
+            self._request_queue = None
+            self._response_queue = None
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+    def _predict_weights_batch(self, X_arr: np.ndarray) -> np.ndarray:
+        """Return a dense weight matrix for one batch of test points."""
         from rpy2.robjects import default_converter, numpy2ri, pandas2ri
         from rpy2.robjects.conversion import localconverter
         from rpy2.robjects.packages import importr
@@ -927,16 +1090,43 @@ class DRFWrapper(BaseEstimator, RegressorMixin):
 
         drf_pkg = self._load_drf()
         base_r = importr("base")
+
+        try:
+            with localconverter(default_converter + numpy2ri.converter + pandas2ri.converter):
+                r_out = drf_pkg.predict_drf(self._fit_obj, newdata=X_arr)
+                # predict.drf returns a NamedList with $weights as a dgCMatrix (sparse). Densify in R,
+                # then copy to Python before requesting R garbage collection.
+                weights_dense = base_r.as_matrix(r_out.getbyname("weights"))
+                weights = np.array(weights_dense, dtype=float, copy=True)
+            del r_out, weights_dense
+        finally:
+            self._r_gc()
+
+        if weights.ndim == 1:
+            weights = weights.reshape(1, -1)
+        return weights
+
+    def _predict_weights(self, X) -> np.ndarray:
+        """Return the n_test x n_train weight matrix for the given test points."""
+        if self._fit_obj is None:
+            raise RuntimeError("DRFWrapper: call fit() before predict.")
+
         X_arr = np.asarray(X, dtype=float)
         if X_arr.ndim == 1:
             X_arr = X_arr.reshape(-1, 1)
+        if len(X_arr) == 0:
+            return np.empty((0, len(self._y_train)), dtype=float)
 
-        with localconverter(default_converter + numpy2ri.converter + pandas2ri.converter):
-            r_out = drf_pkg.predict_drf(self._fit_obj, newdata=X_arr)
-            # predict.drf returns a NamedList with $weights as a dgCMatrix (sparse). Densify in R,
-            # then numpy2ri picks up the resulting double matrix on the Python side.
-            weights_dense = base_r.as_matrix(r_out.getbyname("weights"))
-            weights = np.asarray(weights_dense)
+        batch_size = int(self.predict_batch_size) if self.predict_batch_size else len(X_arr)
+        batch_size = max(1, batch_size)
+        if len(X_arr) <= batch_size:
+            weights = self._predict_weights_batch(X_arr)
+        else:
+            batches = [
+                self._predict_weights_batch(X_arr[start : start + batch_size])
+                for start in range(0, len(X_arr), batch_size)
+            ]
+            weights = np.vstack(batches)
 
         # weights rows should already sum to 1; renormalize defensively against numerical drift.
         row_sums = weights.sum(axis=1, keepdims=True)
@@ -944,11 +1134,21 @@ class DRFWrapper(BaseEstimator, RegressorMixin):
         return weights / row_sums
 
     def predict(self, X):
+        if self.backend == "subprocess":
+            X_arr = np.asarray(X, dtype=float)
+            if X_arr.ndim == 1:
+                X_arr = X_arr.reshape(-1, 1)
+            return self._worker_call("predict", X_arr)
         weights = self._predict_weights(X)
         return weights @ self._y_train  # weighted mean per row
 
     def predict_quantiles(self, X) -> np.ndarray:
         """Return shape (n_obs, n_quantiles) weighted empirical quantiles from leaf weights."""
+        if self.backend == "subprocess":
+            X_arr = np.asarray(X, dtype=float)
+            if X_arr.ndim == 1:
+                X_arr = X_arr.reshape(-1, 1)
+            return self._worker_call("predict_quantiles", X_arr)
         weights = self._predict_weights(X)
         y_train = np.asarray(self._y_train, dtype=float)
         order = np.argsort(y_train)
@@ -964,6 +1164,11 @@ class DRFWrapper(BaseEstimator, RegressorMixin):
         return out
 
     def predict_samples(self, X, n_samples: int = 100) -> np.ndarray:
+        if self.backend == "subprocess":
+            X_arr = np.asarray(X, dtype=float)
+            if X_arr.ndim == 1:
+                X_arr = X_arr.reshape(-1, 1)
+            return self._worker_call("predict_samples", X_arr, n_samples)
         weights = self._predict_weights(X)
         y_train = np.asarray(self._y_train, dtype=float)
         rng = np.random.default_rng(self.random_state)
@@ -986,6 +1191,8 @@ class DRFWrapper(BaseEstimator, RegressorMixin):
             "honesty": self.honesty,
             "honesty_fraction": self.honesty_fraction,
             "ci_group_size": self.ci_group_size,
+            "predict_batch_size": self.predict_batch_size,
+            "backend": self.backend,
             "quantiles": self.quantiles,
             "random_state": self.random_state,
         }
@@ -1003,6 +1210,8 @@ class DRFWrapper(BaseEstimator, RegressorMixin):
             "honesty",
             "honesty_fraction",
             "ci_group_size",
+            "predict_batch_size",
+            "backend",
             "quantiles",
             "random_state",
         }

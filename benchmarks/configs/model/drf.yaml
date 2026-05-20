@@ -17,9 +17,10 @@ fixed_init_kwargs:
 
 tunable_init_kwargs:
   num_trees:
+    # same as BDF
     type: int
-    low: 50
-    high: 500
+    low: 5
+    high: 200
   min_node_size:
     type: int
     low: 5
