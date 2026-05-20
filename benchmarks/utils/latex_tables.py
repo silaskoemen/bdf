@@ -324,13 +324,17 @@ def generate_bdf_selection_table(
     selection_map: dict[str, str],
     caption: str = "BDF distribution selection per dataset",
     label: str = "tab:bdf-selection",
+    selected_column: str = "Selected Distribution",
+    strip_prefixes: tuple[str, ...] = ("bdf_",),
 ) -> str:
-    """Generate table showing which BDF distribution was selected per dataset.
+    """Generate table showing which model-family variant was selected per dataset.
 
     Args:
-        selection_map: Dict mapping dataset -> selected BDF model name.
+        selection_map: Dict mapping dataset -> selected model name.
         caption: Table caption.
         label: LaTeX label.
+        selected_column: Header for the selected-model column.
+        strip_prefixes: Prefixes to strip from selected model names.
 
     Returns:
         LaTeX table string.
@@ -342,13 +346,18 @@ def generate_bdf_selection_table(
         r"\label{" + label + r"}",
         r"\begin{tabular}{ll}",
         r"\toprule",
-        r"Dataset & Selected Distribution \\",
+        r"Dataset & " + selected_column + r" \\",
         r"\midrule",
     ]
 
     for dataset, model in sorted(selection_map.items()):
         dataset_display = dataset.replace("_", r"\_")
-        model_display = model.replace("bdf_", "").replace("_", r"\_")
+        model_display = model
+        for prefix in strip_prefixes:
+            if model_display.startswith(prefix):
+                model_display = model_display[len(prefix) :]
+                break
+        model_display = model_display.replace("_", r"\_")
         lines.append(f"{dataset_display} & {model_display} \\\\")
 
     lines.extend(

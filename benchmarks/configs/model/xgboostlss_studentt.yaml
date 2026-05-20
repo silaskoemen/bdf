@@ -1,6 +1,6 @@
-# XGBoostLSS Gaussian distributional boosting baseline
+# XGBoostLSS Student-t distributional boosting baseline
 
-name: xgboostlss_gaussian
+name: xgboostlss_studentt
 target_type: regression
 class_name: XGBoostLSSRegressor
 probabilistic: true
@@ -8,7 +8,7 @@ probabilistic: true
 compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
 
 fixed_init_kwargs:
-  dist_name: Gaussian
+  dist_name: StudentT
   stabilization: None
   response_fn: exp
   loss_fn: nll

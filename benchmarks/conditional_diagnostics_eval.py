@@ -15,7 +15,7 @@ Examples:
 
     # Benchmark/all-model environment
     pixi run -e benchmark python -m benchmarks.conditional_diagnostics_eval \
-        --models qrf conflgbm ngboost_reg catbunc_reg --env-tag benchmark
+        --models qrf drf conflgbm ngboost_reg catbunc_reg --env-tag benchmark
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ DEFAULT_BDF_MODELS = [
     "bdf_normalmeanstudentt",
 ]
 
-DEFAULT_MODELS = ["BDF", "qrf", "conflgbm", "ngboost_reg", "catbunc_reg"]
+DEFAULT_MODELS = ["BDF", "qrf", "drf", "conflgbm", "ngboost_reg", "catbunc_reg"]
 
 
 def _jsonable(value: Any) -> Any:

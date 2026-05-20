@@ -40,6 +40,15 @@ BDF_MODELS = [
     "bdf_normalmeanstudentt",
 ]
 
+# XGBoostLSS distribution variants to aggregate by the same fold-0 tuning
+# protocol used for BDF distribution selection.
+XGBOOSTLSS_MODELS = [
+    "xgboostlss_gaussian",
+    "xgboostlss_studentt",
+    "xgboostlss_laplace",
+    "xgboostlss_gaussian_mixture",
+]
+
 # Baseline models to compare against
 BASELINE_MODELS = [
     "bayesridge_reg",
@@ -49,9 +58,8 @@ BASELINE_MODELS = [
     # "gp_reg",  # excluded from main aggregate: scaling/provenance limitations
     # "pymc_bart",  # prohibitively expensive for adequate chains/draws; supplement only
     "ngboost_reg",
-    "xgboostlss_gaussian",
     "qrf",
-    # "drf",  # distributional random forest (Cevid et al.) via R drf + rpy2; include after running result file
+    "drf",  # distributional random forest (Cevid et al.) via R drf + rpy2; include after running result file
     "catbunc_reg",
     "knnkde",
 ]
@@ -178,6 +186,7 @@ def main():
     )
     from .utils.yaml_loader import (
         aggregate_bdf_models,
+        aggregate_model_variants,
         build_comparison_dataframe,
         compute_speedup_table,
         extract_coverage_curves,
@@ -223,6 +232,35 @@ def main():
 
     baseline_results = load_model_results(RESULTS_DIR, BASELINE_MODELS)
     print(f"    Loaded {len(baseline_results)} baseline models: {list(baseline_results.keys())}")
+
+    xgboostlss_aggregated = None
+    xgboostlss_selection_map = {}
+    try:
+        xgboostlss_aggregated, xgboostlss_selection_map = aggregate_model_variants(
+            results_dir=RESULTS_DIR,
+            model_variants=XGBOOSTLSS_MODELS,
+            selection_metric="crps",
+            use_tuning_value=True,
+            datasets=DATASETS,
+            family_name="XGBoostLSS",
+            expected_eval_folds=9,
+        )
+    except ValueError as e:
+        print(f"    Warning: {e}. Fused XGBoostLSS baseline will be skipped.")
+
+    if xgboostlss_aggregated is not None:
+        baseline_results["XGBoostLSS"] = xgboostlss_aggregated
+        print("    XGBoostLSS distribution selection per dataset:")
+        for ds, model in sorted(xgboostlss_selection_map.items()):
+            print(f"      {ds}: {model}")
+        xgboostlss_selection_tex = generate_bdf_selection_table(
+            xgboostlss_selection_map,
+            caption="XGBoostLSS distribution selection per dataset",
+            label="tab:xgboostlss-selection",
+            selected_column="Selected Distribution",
+            strip_prefixes=("xgboostlss_",),
+        )
+        save_latex_table(xgboostlss_selection_tex, TABLES_DIR / "xgboostlss_distribution_selection.tex")
 
     # Load climatological baseline for CRPSS normalization
     climatological_results = load_model_results(RESULTS_DIR, [CLIMATOLOGICAL_MODEL])

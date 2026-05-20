@@ -66,56 +66,59 @@ def load_model_results(
     return results
 
 
-def aggregate_bdf_models(
+def aggregate_model_variants(
     results_dir: Path = RESULTS_DIR,
-    bdf_models: list[str] | None = None,
+    model_variants: list[str] | None = None,
     selection_metric: str = "crps",
     use_tuning_value: bool = True,
     datasets: list[str] | None = None,
+    family_name: str = "model",
+    expected_eval_folds: int | None = None,
 ) -> tuple[dict[str, Any], dict[str, str]]:
-    """Aggregate multiple BDF models by selecting best variant per dataset.
+    """Aggregate model variants by selecting the best variant per dataset.
 
-    For each dataset, selects the BDF model with the best tuning value
-    (from fold 0 Optuna tuning) and uses ALL metrics from that model.
+    For each dataset, selects the variant with the best tuning value
+    (from fold 0 Optuna tuning) and uses all metrics from that variant.
 
     Args:
         results_dir: Directory containing result YAML files.
-        bdf_models: List of BDF model names to consider.
-            Defaults to ["bdf_normalmunormal", "bdf_kde"].
+        model_variants: List of model variant names to consider.
         selection_metric: Metric used for selection (must match tuning.metric).
         use_tuning_value: If True, use tuning.best_value (fold 0).
             If False, use mean of evaluation folds (less rigorous).
         datasets: List of datasets to include. If None, includes all available.
+        family_name: Human-readable model-family name for warnings/metadata.
+        expected_eval_folds: If set, variants are eligible for a dataset only when
+            the selection metric has exactly this many evaluation-fold values.
 
     Returns:
         Tuple of:
             - Aggregated result dict with same structure as individual models
             - Dict mapping dataset -> selected model name
     """
-    if bdf_models is None:
-        bdf_models = ["bdf_normalmunormal", "bdf_kde"]
+    if model_variants is None:
+        raise ValueError("model_variants must be provided")
 
-    # Load all BDF model results
-    bdf_results = load_model_results(results_dir, bdf_models)
+    variant_results = load_model_results(results_dir, model_variants)
 
-    if not bdf_results:
-        raise ValueError(f"No BDF results found for models: {bdf_models}")
+    if not variant_results:
+        raise ValueError(f"No {family_name} results found for models: {model_variants}")
 
-    found_models = list(bdf_results.keys())
-    missing_models = set(bdf_models) - set(found_models)
+    found_models = list(variant_results.keys())
+    missing_models = set(model_variants) - set(found_models)
     if missing_models:
-        warnings.warn(f"BDF models not found: {missing_models}")
+        warnings.warn(f"{family_name} models not found: {missing_models}")
 
-    # Get all datasets across all BDF models
+    # Get all datasets across all variants
     all_datasets = set()
-    for model_data in bdf_results.values():
+    for model_data in variant_results.values():
         all_datasets.update(model_data.get("datasets", {}).keys())
 
     # Filter to requested datasets if specified
     if datasets is not None:
         all_datasets = all_datasets.intersection(set(datasets))
 
-    # For each dataset, select best BDF model
+    # For each dataset, select best variant
     aggregated_datasets = {}
     selection_map = {}
 
@@ -124,9 +127,18 @@ def aggregate_bdf_models(
         best_value = float("inf")
         best_data = None
 
-        for model_name, model_data in bdf_results.items():
+        for model_name, model_data in variant_results.items():
             ds_data = model_data.get("datasets", {}).get(dataset)
             if ds_data is None:
+                continue
+
+            metrics = ds_data.get("metrics", {})
+            metric_values = metrics.get(selection_metric, [])
+            if expected_eval_folds is not None and len(metric_values) != expected_eval_folds:
+                warnings.warn(
+                    f"Skipping {family_name} variant {model_name} on {dataset}: "
+                    f"{selection_metric} has {len(metric_values)} folds, expected {expected_eval_folds}"
+                )
                 continue
 
             if use_tuning_value:
@@ -134,8 +146,6 @@ def aggregate_bdf_models(
                 tuning = ds_data.get("tuning", {})
                 if tuning.get("metric") != selection_metric:
                     # Tuning was done with different metric, use mean of eval folds
-                    metrics = ds_data.get("metrics", {})
-                    metric_values = metrics.get(selection_metric, [])
                     if metric_values:
                         value = float(np.mean(metric_values))
                     else:
@@ -144,8 +154,6 @@ def aggregate_bdf_models(
                     value = tuning.get("best_value", float("inf"))
             else:
                 # Use mean of evaluation folds
-                metrics = ds_data.get("metrics", {})
-                metric_values = metrics.get(selection_metric, [])
                 if metric_values:
                     value = float(np.mean(metric_values))
                 else:
@@ -168,10 +176,33 @@ def aggregate_bdf_models(
             "aggregated_from": found_models,
             "selection_metric": selection_metric,
             "use_tuning_value": use_tuning_value,
+            "family_name": family_name,
+            "expected_eval_folds": expected_eval_folds,
         },
     }
 
     return aggregated, selection_map
+
+
+def aggregate_bdf_models(
+    results_dir: Path = RESULTS_DIR,
+    bdf_models: list[str] | None = None,
+    selection_metric: str = "crps",
+    use_tuning_value: bool = True,
+    datasets: list[str] | None = None,
+) -> tuple[dict[str, Any], dict[str, str]]:
+    """Aggregate multiple BDF models by selecting best variant per dataset."""
+    if bdf_models is None:
+        bdf_models = ["bdf_normalmunormal", "bdf_kde"]
+
+    return aggregate_model_variants(
+        results_dir=results_dir,
+        model_variants=bdf_models,
+        selection_metric=selection_metric,
+        use_tuning_value=use_tuning_value,
+        datasets=datasets,
+        family_name="BDF",
+    )
 
 
 def build_comparison_dataframe(

@@ -1,6 +1,6 @@
-# XGBoostLSS Gaussian distributional boosting baseline
+# XGBoostLSS Gaussian-mixture distributional boosting baseline
 
-name: xgboostlss_gaussian
+name: xgboostlss_gaussian_mixture
 target_type: regression
 class_name: XGBoostLSSRegressor
 probabilistic: true
@@ -8,14 +8,19 @@ probabilistic: true
 compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
 
 fixed_init_kwargs:
-  dist_name: Gaussian
+  dist_name: GaussianMixture
   stabilization: None
-  response_fn: exp
+  response_fn: softplus
   loss_fn: nll
+  mixture_tau: 1.0
+  mixture_hessian_mode: individual
   random_state: 1234
   verbosity: 0
 
 tunable_init_kwargs:
+  mixture_components:
+    type: categorical
+    categories: [2, 3, 4]
   n_estimators:
     type: int
     low: 50

@@ -18,7 +18,7 @@ The exact dependency versions are pinned in `pixi.lock`, which is checked into t
 | Environment | Used for | Notable contents |
 |---|---|---|
 | `default` | BDF, sklearn baselines, paper build, tests, lint | `bdf`, sklearn, matplotlib, hydra, optuna, scoringrules |
-| `benchmark` | External baselines (NGBoost, LightGBM, XGBoostLSS, CatBoost, QRF, ConformalRF, BART, Treeffuser) | adds `lightgbm`, `xgboost`, `xgboostlss`, `ngboost`, `catboost`, `quantile-forest`, `pymc-bart`, `treeffuser`, `torch` |
+| `benchmark` | External baselines (NGBoost, LightGBM, XGBoostLSS, CatBoost, QRF, DRF, ConformalRF, BART, Treeffuser) | adds `lightgbm`, `xgboost`, `xgboostlss`, `ngboost`, `catboost`, `quantile-forest`, `rpy2`, `pymc-bart`, `treeffuser`, `torch` |
 
 The deprecated `bartpy` dependency is intentionally not part of the benchmark environment; the maintained PyMC-BART wrapper is retained for supplementary BART runs.
 
@@ -49,7 +49,7 @@ The benchmark inventory and source per dataset is listed in `paper/appendix/expe
 
 ```bash
 pixi run reg-suite                                  # BDF + sklearn baselines (default env)
-pixi run -e benchmark reg-suite-models              # NGBoost / LightGBM / XGBoost / CatBoost / QRF / ConformalRF / BART
+pixi run -e benchmark reg-suite-models              # NGBoost / LightGBM / XGBoostLSS / CatBoost / QRF / DRF / ConformalRF / BART
 pixi run reg                                        # aggregate, run Friedman/Nemenyi, render plots and LaTeX tables
 ```
 
@@ -70,6 +70,7 @@ Results: `benchmarks/results/classification/res_*.yaml`. Both suites use Hydra; 
 ```bash
 pixi run bench-bdf model=bdf_normalmunormal                 # default env
 pixi run -e benchmark bench-models model=qrf                # benchmark env
+pixi run -e benchmark bench-models model=drf                # benchmark env, requires R package `drf`
 ```
 
 ## 3. Conditional Diagnostics
@@ -83,7 +84,7 @@ pixi run python -m benchmarks.conditional_diagnostics_eval \
 
 # Pass 2 — external baselines in benchmark env
 pixi run -e benchmark python -m benchmarks.conditional_diagnostics_eval \
-    --models qrf conflgbm ngboost_reg catbunc_reg --env-tag benchmark
+    --models qrf drf conflgbm ngboost_reg catbunc_reg --env-tag benchmark
 
 # Merge + plot + tables
 pixi run python -m benchmarks.plot_conditional_diagnostics
@@ -95,7 +96,7 @@ The two passes drop JSON into `benchmarks/results/conditional_diagnostics/`; the
 
 | Study | Command | Output dir |
 |---|---|---|
-| Synthetic DGP benchmark | `pixi run synth-study` then `pixi run synth-output` | `benchmarks/results/synthetic_dgp/` |
+| Synthetic DGP benchmark | `pixi run synth-study`, `pixi run -e benchmark synth-study-models --models QRF DRF --result-suffix forests`, then `pixi run synth-output` | `benchmarks/results/synthetic_dgp/` |
 | Convergence rate study | `pixi run convergence` | `benchmarks/results/convergence_rate/` |
 | Complexity analysis | `pixi run complexity` | `benchmarks/results/complexity_analysis/` |
 | BDF parameter ablation | `pixi run effect-params` | `benchmarks/results/effect_bdf_params/` |
@@ -144,5 +145,5 @@ Relative orderings should transfer across hardware; absolute fit/predict times w
 ## 8. Known Caveats
 
 - BART (`bartpy`) and GP baselines do not finish on every fold of every dataset within the time budget and are therefore excluded from the main regression aggregate (see Appendix~\ref{app:experimental-setup-reg-models}). The partial result files are kept for transparency but are not consumed by `pixi run reg`.
-- DRF (distributional random forests) is omitted from the comparison because its only available implementation depends on `rpy2`, which does not install in any platform of `pixi.lock`. This is documented as a limitation rather than as evidence against the method.
+- DRF (distributional random forests) uses the R `drf` package through `rpy2`. The Python dependencies are locked, but the R package must be installed once into the system R that `rpy2` binds to. Failed or partial DRF shards are not merged into synthetic summary plots unless they contain aggregate metrics.
 - BDF currently does not handle native categorical features, native missing values, sample weights, or multiclass classification. Categorical inputs must be one-hot encoded in `process-data`, which is what every model in the suite receives.

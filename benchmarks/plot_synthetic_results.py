@@ -35,13 +35,20 @@ def load_results(results_file: Path) -> dict:
         return json.load(f)
 
 
+def has_aggregated_metrics(model_data: dict) -> bool:
+    """Return True when a model result has usable aggregate metrics."""
+    metrics = model_data.get("aggregated_metrics", {})
+    return isinstance(metrics, dict) and bool(metrics)
+
+
 def load_dgp_results(dgp_name: str) -> dict | None:
-    """Load and merge results for a DGP from both full and core files.
+    """Load and merge results for a DGP from full/core/incremental result files.
 
     This allows incremental benchmarking where you can:
     1. Run core models (BDF, RF) → creates _core.json
     2. Run bench-models separately (NGBoost, etc.) → creates _results.json
-    3. Plotting merges all models from both files
+    3. Run extra model shards, e.g. QRF/DRF → creates _results_forests.json
+    4. Plotting merges all models from all files
 
     Args:
         dgp_name: Name of the DGP
@@ -49,48 +56,40 @@ def load_dgp_results(dgp_name: str) -> dict | None:
     Returns:
         Merged results dictionary or None if no results found
     """
-    full_path = RESULTS_DIR / f"{dgp_name}_results.json"
-    core_path = RESULTS_DIR / f"{dgp_name}_results_core.json"
+    preferred = [
+        RESULTS_DIR / f"{dgp_name}_results.json",
+        RESULTS_DIR / f"{dgp_name}_results_core.json",
+    ]
+    shard_paths = sorted(
+        p for p in RESULTS_DIR.glob(f"{dgp_name}_results_*.json") if p.name != f"{dgp_name}_results_core.json"
+    )
+    paths = [p for p in preferred if p.exists()] + shard_paths
 
-    full_results = None
-    core_results = None
-
-    # Load both if they exist
-    if full_path.exists():
-        full_results = load_results(full_path)
-        logger.info(f"  Found full results for {dgp_name}")
-
-    if core_path.exists():
-        core_results = load_results(core_path)
-        logger.info(f"  Found core results for {dgp_name}")
-
-    # No results at all
-    if full_results is None and core_results is None:
+    if not paths:
         logger.warning(f"  No results found for {dgp_name}")
         return None
 
-    # Only one type exists - return it
-    if full_results is None:
-        logger.info("  Using core-only results")
-        return core_results
-    if core_results is None:
-        logger.info("  Using full results only")
-        return full_results
+    logger.info(f"  Merging {len(paths)} result file(s) for {dgp_name}")
+    merged = load_results(paths[0])
+    merged.setdefault("models", {})
+    merged["models"] = {
+        model_name: model_data
+        for model_name, model_data in merged["models"].items()
+        if has_aggregated_metrics(model_data)
+    }
 
-    # Both exist - merge them
-    logger.info("  Merging full and core results")
-    merged = dict(full_results)  # Start with full results
-
-    # Merge models from core into full
-    if "models" not in merged:
-        merged["models"] = {}
-
-    for model_name, model_data in core_results.get("models", {}).items():
-        if model_name in merged["models"]:
-            logger.warning(f"    Model {model_name} exists in both files - using full results version")
-        else:
+    for path in paths[1:]:
+        data = load_results(path)
+        logger.info(f"    Reading {path.name}")
+        for model_name, model_data in data.get("models", {}).items():
+            if not has_aggregated_metrics(model_data):
+                logger.warning(f"    Skipping {model_name} from {path.name}: no aggregated metrics")
+                continue
+            if model_name in merged["models"]:
+                logger.warning(f"    Model {model_name} exists in multiple files - keeping first occurrence")
+                continue
             merged["models"][model_name] = model_data
-            logger.info(f"    Added {model_name} from core results")
+            logger.info(f"    Added {model_name} from {path.name}")
 
     return merged
 

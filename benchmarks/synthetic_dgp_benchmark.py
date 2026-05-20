@@ -15,6 +15,7 @@ Experimental design follows JMLR standards:
 - Publication-quality visualizations with ground truth overlays
 """
 
+import argparse
 import json
 import os
 from pathlib import Path
@@ -241,6 +242,33 @@ def get_available_models() -> dict[str, dict[str, Any]]:
         logger.info("✓ QRF available")
     except ImportError:
         logger.info("✗ QRF not available (install quantile-forest or run in benchmark environment)")
+
+    # Distributional Random Forest
+    try:
+        from .models.wrappers import DRFWrapper
+
+        available["DRF"] = {
+            "class": DRFWrapper,
+            "fixed_init_kwargs": {
+                "random_state": SEED,
+                "backend": "subprocess",
+                "predict_batch_size": 256,
+            },
+            "tunable_init_kwargs": {
+                "num_trees": {"type": "int", "low": 100, "high": 500},
+                "num_features": {"type": "int", "low": 5, "high": 30},
+                "min_node_size": {"type": "int", "low": 5, "high": 50},
+                "sample_fraction": {"type": "float", "low": 0.2, "high": 0.9},
+                "honesty": {"type": "categorical", "categories": [True, False]},
+            },
+            "tunable_params": {},
+            "fixed_params": {},
+            "has_params_dict": False,
+            "probabilistic": True,
+        }
+        logger.info("✓ DRF available")
+    except ImportError:
+        logger.info("✗ DRF not available (install R drf/rpy2 or run in benchmark environment)")
 
     # Conformal RF
     try:
@@ -801,7 +829,12 @@ def evaluate_fold(
 # =============================================================================
 
 
-def run_benchmark(dgps: list[dict], models: list[str], output_dir: str = "benchmarks/results/synthetic_dgp"):
+def run_benchmark(
+    dgps: list[dict],
+    models: list[str],
+    output_dir: str = "benchmarks/results/synthetic_dgp",
+    result_suffix: str | None = None,
+):
     """Run synthetic DGP benchmark.
 
     Args:
@@ -811,14 +844,20 @@ def run_benchmark(dgps: list[dict], models: list[str], output_dir: str = "benchm
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    # Detect environment: core models only vs full comparison
-    core_models = {"BDFNormal", "BDFKDE"}
-    has_extended_models = any(m not in core_models for m in models)
-    env_suffix = "" if has_extended_models else "_core"
+    # Detect environment: core models only vs full comparison, unless the caller provides
+    # a suffix for incremental result shards such as "_forests".
+    if result_suffix is None:
+        core_models = {"BDFNormal", "BDFKDE"}
+        has_extended_models = any(m not in core_models for m in models)
+        env_suffix = "" if has_extended_models else "_core"
+    else:
+        env_suffix = result_suffix if result_suffix.startswith("_") else f"_{result_suffix}"
 
-    env_type = "full comparison" if has_extended_models else "core models only"
+    env_type = (
+        "incremental" if result_suffix is not None else ("full comparison" if env_suffix == "" else "core models only")
+    )
     logger.info(f"Running benchmark with {env_type}: {', '.join(models)}")
-    if not has_extended_models:
+    if env_suffix == "_core":
         logger.info("Tip: Run in bench-models environment for comparison with NGBoost, LightGBM, etc.")
 
     all_results = {}
@@ -971,20 +1010,46 @@ def run_benchmark(dgps: list[dict], models: list[str], output_dir: str = "benchm
     return all_results
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run synthetic DGP benchmarks.")
+    parser.add_argument("--models", nargs="+", default=None, help="Optional model subset to evaluate.")
+    parser.add_argument("--dgps", nargs="+", default=None, help="Optional DGP subset to evaluate.")
+    parser.add_argument("--result-suffix", default=None, help="Suffix for incremental result shards, e.g. forests.")
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
+    args = parse_args()
+
     # Detect available models from environment
-    available_models = list(MODEL_CONFIGS.keys())
+    if args.models is None:
+        available_models = list(MODEL_CONFIGS.keys())
+    else:
+        unknown = sorted(set(args.models) - set(MODEL_CONFIGS))
+        if unknown:
+            raise ValueError(f"Requested models are not available in this environment: {unknown}")
+        available_models = args.models
+
+    if args.dgps is None:
+        dgps_to_run = DGPS_TO_RUN
+    else:
+        requested_dgps = set(args.dgps)
+        dgps_to_run = [d for d in DGPS_TO_RUN if d["name"] in requested_dgps]
+        missing_dgps = requested_dgps - {d["name"] for d in dgps_to_run}
+        if missing_dgps:
+            raise ValueError(f"Unknown DGPs requested: {sorted(missing_dgps)}")
 
     logger.info("\n" + "=" * 80)
     logger.info("Synthetic DGP Benchmark")
     logger.info("=" * 80)
     logger.info(f"Available models: {', '.join(available_models)}")
-    logger.info(f"DGPs to evaluate: {len(DGPS_TO_RUN)}")
+    logger.info(f"DGPs to evaluate: {len(dgps_to_run)}")
 
     results = run_benchmark(
-        dgps=DGPS_TO_RUN,
+        dgps=dgps_to_run,
         models=available_models,
         output_dir="benchmarks/results/synthetic_dgp",
+        result_suffix=args.result_suffix,
     )
 
     logger.info("\n" + "=" * 80)

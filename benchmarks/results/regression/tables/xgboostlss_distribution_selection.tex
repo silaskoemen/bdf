@@ -1,0 +1,27 @@
+\begin{table}[htbp]
+\centering
+\caption{XGBoostLSS distribution selection per dataset}
+\label{tab:xgboostlss-selection}
+\begin{tabular}{ll}
+\toprule
+Dataset & Selected Distribution \\
+\midrule
+abalone\_age & studentt \\
+bike\_sharing & gaussian \\
+boston\_housing & gaussian \\
+california\_housing & gaussian \\
+combined\_cycle\_power\_plant & gaussian \\
+concrete\_strength & gaussian \\
+energy\_efficiency & gaussian \\
+forest\_fires & gaussian \\
+kin8nm & studentt \\
+naval\_propulsion & gaussian \\
+parkinsons\_updrs & gaussian \\
+protein\_tertiary\_structure & gaussian \\
+superconductor & gaussian \\
+wine\_quality & gaussian \\
+yacht\_hydrodynamics & laplace \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize{Selection based on CRPS from hyperparameter tuning (fold 0).}
+\end{table}

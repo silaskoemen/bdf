@@ -31,6 +31,8 @@ COLORS = SEMANTIC_COLORS
 MODEL_ORDER = [
     "BDFNormal",
     "BDFKDE",
+    "QRF",
+    "DRF",
     "ConfBDFNormal",
     "ConfBDFKDE",
     "ConformalRF",

@@ -408,6 +408,9 @@ class XGBoostLSSRegressorWrapper(BaseEstimator, RegressorMixin):
         stabilization="None",
         response_fn="exp",
         loss_fn="nll",
+        mixture_components=2,
+        mixture_tau=1.0,
+        mixture_hessian_mode="individual",
         n_estimators=100,
         eta=0.05,
         max_depth=3,
@@ -424,6 +427,9 @@ class XGBoostLSSRegressorWrapper(BaseEstimator, RegressorMixin):
         self.stabilization = stabilization
         self.response_fn = response_fn
         self.loss_fn = loss_fn
+        self.mixture_components = mixture_components
+        self.mixture_tau = mixture_tau
+        self.mixture_hessian_mode = mixture_hessian_mode
         self.n_estimators = n_estimators
         self.eta = eta
         self.max_depth = max_depth
@@ -461,6 +467,20 @@ class XGBoostLSSRegressorWrapper(BaseEstimator, RegressorMixin):
                 stabilization=self.stabilization,
                 response_fn=self.response_fn,
                 loss_fn=self.loss_fn,
+            )
+        if self.dist_name in {"GaussianMixture", "MixtureGaussian"}:
+            from xgboostlss.distributions.Gaussian import Gaussian
+            from xgboostlss.distributions.Mixture import Mixture
+
+            return Mixture(
+                Gaussian(
+                    stabilization=self.stabilization,
+                    response_fn=self.response_fn,
+                    loss_fn=self.loss_fn,
+                ),
+                M=int(self.mixture_components),
+                tau=float(self.mixture_tau),
+                hessian_mode=self.mixture_hessian_mode,
             )
         raise ValueError(f"Unsupported XGBoostLSS distribution: {self.dist_name}")
 
@@ -504,6 +524,20 @@ class XGBoostLSSRegressorWrapper(BaseEstimator, RegressorMixin):
         if self.model_ is None:
             raise ValueError("Model has not been fitted.")
         params = self.model_.predict(self._dmatrix(X), pred_type="parameters")
+        loc_cols = sorted(
+            [c for c in params.columns if str(c).startswith("loc_")],
+            key=lambda c: int(str(c).split("_", 1)[1]),
+        )
+        mix_cols = sorted(
+            [c for c in params.columns if str(c).startswith("mix_prob_")],
+            key=lambda c: int(str(c).split("_", 2)[2]),
+        )
+        if loc_cols and mix_cols and len(loc_cols) == len(mix_cols):
+            loc = params[loc_cols].to_numpy(dtype=float)
+            weights = params[mix_cols].to_numpy(dtype=float)
+            weight_sums = np.sum(weights, axis=1, keepdims=True)
+            weights = np.divide(weights, weight_sums, out=np.zeros_like(weights), where=weight_sums > 0)
+            return np.sum(weights * loc, axis=1)
         if "loc" in params:
             return np.asarray(params["loc"], dtype=float)
         if "location" in params:
