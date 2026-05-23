@@ -70,6 +70,39 @@ from benchmarks.utils.style import MODEL_COLORS, MODEL_DISPLAY_NAMES
 # BDF default distribution for timing comparison (loaded separately alongside BDF selected)
 BDF_DEFAULT_DIST = "bdf_normalmunormal"
 
+# Display metadata for the BDF distribution-selection table. Each entry maps the
+# canonical variant key to (leaf family, conjugate flag). Score method and score
+# correction are read from best_params per dataset and re-rendered as a single
+# "Split score" column.
+BDF_VARIANT_META = {
+    "bdf_normalmunormal": {"family": "Normal--Normal", "conjugate": True},
+    "bdf_normalmeanstudentt": {"family": "Normal-mean Student-$t$", "conjugate": False},
+    "bdf_freqstudentt": {"family": "Student-$t$", "conjugate": False},
+    "bdf_gammamvlambdapoisson": {"family": "Gamma--Poisson", "conjugate": True},
+    "bdf_kde": {"family": "KDE", "conjugate": False},
+}
+
+
+def _render_split_score(variant_key: str, best_params: dict) -> str:
+    """Render a compact 'Split score' label from a variant's best_params."""
+    method = best_params.get("score_method")
+    correction = best_params.get("score_correction")
+
+    if method == "nle":
+        return "NLE"
+
+    if method == "nll":
+        if correction in (None, "None", "null"):
+            return "NLL"
+        return f"NLL+{str(correction).upper()}"
+
+    # Variants where score_method is fixed (Student-t, KDE, Gamma--Poisson).
+    # Reflect the implementation default: plug-in NLL with optional correction.
+    if correction in (None, "None", "null"):
+        return "NLL"
+    return f"NLL+{str(correction).upper()}"
+
+
 # Climatological baseline model for CRPSS normalization
 CLIMATOLOGICAL_MODEL = "climatological"
 
@@ -221,9 +254,182 @@ def main():
     for ds, model in sorted(bdf_selection_map.items()):
         print(f"      {ds}: {model}")
 
-    # Save BDF selection table
-    bdf_selection_tex = generate_bdf_selection_table(bdf_selection_map)
+    # Save BDF selection table with leaf-family / conjugacy / split-score columns.
+    family_col: dict[str, str] = {}
+    conjugate_col: dict[str, str] = {}
+    split_score_col: dict[str, str] = {}
+    for ds, variant_key in bdf_selection_map.items():
+        meta = BDF_VARIANT_META.get(variant_key, {})
+        family_col[ds] = meta.get("family", variant_key.replace("bdf_", ""))
+        conjugate_col[ds] = "Yes" if meta.get("conjugate") else "No"
+        best_params = bdf_aggregated.get("datasets", {}).get(ds, {}).get("best_params", {}) or {}
+        split_score_col[ds] = _render_split_score(variant_key, best_params)
+
+    n_conjugate = sum(1 for v in conjugate_col.values() if v == "Yes")
+    n_nle = sum(1 for v in split_score_col.values() if v == "NLE")
+    n_bic = sum(1 for v in split_score_col.values() if v.endswith("+BIC"))
+    n_total = len(bdf_selection_map)
+    selection_footnote = (
+        "Selection based on CRPS from hyperparameter tuning (fold 0). "
+        f"Conjugate leaves selected on {n_conjugate}/{n_total} datasets; "
+        f"NLE selected on {n_nle}/{n_total}; "
+        f"NLL+BIC selected on {n_bic}/{n_total}; "
+        f"the remaining {n_total - n_nle - n_bic}/{n_total} use plug-in NLL "
+        "with the architecture-level regularizers in Eq.~\\eqref{eq:net_gain} only."
+    )
+
+    bdf_selection_tex = generate_bdf_selection_table(
+        bdf_selection_map,
+        selected_column="Variant",
+        extra_columns=[
+            ("Leaf family", family_col),
+            ("Conjugate?", conjugate_col),
+            ("Split score", split_score_col),
+        ],
+        footnote=selection_footnote,
+    )
     save_latex_table(bdf_selection_tex, TABLES_DIR / "bdf_distribution_selection.tex")
+
+    # -------------------------------------------------------------------------
+    # 1b. Conjugate-vs-selected CRPS gap table.
+    # For each dataset, compare the evaluation-fold CRPS of the conjugate
+    # Normal--Normal variant (whose split score includes exact NLE as an option)
+    # against the actually-selected BDF variant. Small gaps support the working
+    # theory that the architecture's other regularizers (min leaf size, MDL split
+    # penalty, ensembling, distribution selection) absorb most of the difference
+    # between the exact Bayesian split score and a plug-in surrogate.
+    # -------------------------------------------------------------------------
+    print("\n[1b] Building conjugate-vs-selected CRPS gap table...")
+
+    nmn_results = load_model_results(RESULTS_DIR, [BDF_DEFAULT_DIST]).get(BDF_DEFAULT_DIST, {})
+    nmn_datasets = nmn_results.get("datasets", {}) if nmn_results else {}
+
+    gap_rows: list[tuple[str, str, str, str, str, str, str]] = []
+    student_t_rows: list[tuple[str, str, str, str, str]] = []
+    student_t_deltas: list[float] = []
+    student_t_bic = 0
+    deltas: list[float] = []
+    n_nmn_better = 0
+    n_compared = 0
+    for ds in sorted(bdf_selection_map):
+        nmn_ds = nmn_datasets.get(ds)
+        if nmn_ds is None:
+            continue
+        nmn_crps = nmn_ds.get("metrics", {}).get("crps", [])
+        sel_crps = bdf_aggregated.get("datasets", {}).get(ds, {}).get("metrics", {}).get("crps", [])
+        if not nmn_crps or not sel_crps:
+            continue
+
+        nmn_mean = float(np.mean(nmn_crps))
+        sel_mean = float(np.mean(sel_crps))
+        # Use the selected variant as denominator: positive % means N--N is worse.
+        rel = 100.0 * (nmn_mean - sel_mean) / max(abs(sel_mean), 1e-12)
+        deltas.append(rel)
+        n_compared += 1
+        if nmn_mean <= sel_mean:
+            n_nmn_better += 1
+
+        nmn_score = _render_split_score(BDF_DEFAULT_DIST, nmn_ds.get("best_params", {}) or {})
+        sel_score = split_score_col.get(ds, "--")
+        sel_family = family_col.get(ds, "--")
+
+        gap_rows.append(
+            (
+                ds.replace("_", r"\_"),
+                f"{nmn_mean:.4f}",
+                nmn_score,
+                sel_family,
+                f"{sel_mean:.4f}",
+                sel_score,
+                f"{rel:+.2f}\\%",
+            )
+        )
+        if "Student" in sel_family:
+            student_t_deltas.append(rel)
+            if sel_score.endswith("+BIC"):
+                student_t_bic += 1
+            student_t_rows.append(
+                (
+                    ds.replace("_", r"\_"),
+                    sel_family,
+                    sel_score,
+                    f"{sel_mean:.4f}",
+                    f"{rel:+.2f}\\%",
+                )
+            )
+
+    gap_lines = [
+        r"\begin{table}[htbp]",
+        r"\centering",
+        r"\caption{CRPS gap between the conjugate Normal--Normal BDF variant and the variant actually selected by fold-0 tuning. Relative gap is $(\mathrm{CRPS}_{\text{N--N}} - \mathrm{CRPS}_{\text{selected}})/|\mathrm{CRPS}_{\text{selected}}|$; positive values indicate the conjugate variant is worse than the selected variant. Small gaps support the working theory that the architecture's tempered MDL-style split penalty, minimum-leaf-size constraint, ensembling, and distribution selection absorb most of the difference between the exact Bayesian split score and a plug-in surrogate.}",
+        r"\label{tab:bdf-conjugate-vs-selected-gap}",
+        r"\begin{tabular}{lrlllrl}",
+        r"\toprule",
+        r"Dataset & N--N CRPS & N--N score & Selected family & Sel.\ CRPS & Sel.\ score & Rel.\ gap \\",
+        r"\midrule",
+    ]
+    for row in gap_rows:
+        gap_lines.append(" & ".join(row) + r" \\")
+
+    if deltas:
+        median_gap = float(np.median(deltas))
+        mean_gap = float(np.mean(deltas))
+        max_gap = float(np.max(deltas))
+        gap_summary = (
+            f"Across {n_compared} datasets the median relative gap is {median_gap:+.2f}\\%, "
+            f"the mean is {mean_gap:+.2f}\\%, and the worst case is {max_gap:+.2f}\\%; "
+            f"the conjugate Normal--Normal variant matches or beats the selected variant on "
+            f"{n_nmn_better}/{n_compared} datasets."
+        )
+    else:
+        gap_summary = ""
+
+    gap_lines.extend(
+        [
+            r"\bottomrule",
+            r"\end{tabular}",
+            r"\par\smallskip\footnotesize{" + gap_summary + r"}",
+            r"\end{table}",
+        ]
+    )
+
+    save_latex_table("\n".join(gap_lines), TABLES_DIR / "bdf_conjugate_vs_selected_gap.tex")
+
+    if student_t_rows:
+        n_student = len(student_t_rows)
+        student_t_summary = (
+            f"Among the {n_student} datasets whose selected BDF variant uses Student-$t$ leaves, "
+            f"NLL+BIC is selected on {student_t_bic}/{n_student} and pure NLL on "
+            f"{n_student - student_t_bic}/{n_student}. The median Normal--Normal-to-selected "
+            f"CRPS gap is {float(np.median(student_t_deltas)):+.2f}\\% "
+            f"(mean {float(np.mean(student_t_deltas)):+.2f}\\%). This is stability evidence for "
+            "the non-conjugate approximation story rather than an exact-reference validation: "
+            "closed-form Student-$t$ evidence is unavailable in this implementation."
+        )
+        student_t_lines = [
+            r"\begin{table}[htbp]",
+            r"\centering",
+            r"\caption{Focused stability summary for the non-conjugate Student-$t$ BDF selections. The selected split-score column records whether fold-0 tuning preferred the Laplace/BIC evidence surrogate or pure plug-in NLL; the final column compares the selected Student-$t$ variant with the conjugate Normal--Normal reference on held-out CRPS.}",
+            r"\label{tab:bdf-student-t-stability}",
+            r"\begin{tabular}{lllrl}",
+            r"\toprule",
+            r"Dataset & Leaf family & Split score & Sel.\ CRPS & N--N gap \\",
+            r"\midrule",
+        ]
+        for row in student_t_rows:
+            student_t_lines.append(" & ".join(row) + r" \\")
+        student_t_lines.extend(
+            [
+                r"\bottomrule",
+                r"\end{tabular}",
+                r"\par\smallskip\footnotesize{" + student_t_summary + r"}",
+                r"\end{table}",
+            ]
+        )
+        save_latex_table(
+            "\n".join(student_t_lines),
+            TABLES_DIR / "bdf_student_t_stability.tex",
+        )
 
     # -------------------------------------------------------------------------
     # 2. Load baseline model results

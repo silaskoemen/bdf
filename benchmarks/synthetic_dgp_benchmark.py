@@ -359,6 +359,16 @@ MODEL_CONFIGS = get_available_models()
 # =============================================================================
 
 
+def close_model_if_needed(model: Any) -> None:
+    """Release external resources held by model wrappers such as DRF's R worker."""
+    close = getattr(model, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception as exc:
+            logger.warning(f"Model cleanup failed: {exc}")
+
+
 def suggest_hyperparameters(trial: optuna.Trial, model_name: str) -> tuple[dict[str, Any], dict[str, Any]]:
     """Suggest hyperparameters from optuna trial for a specific model."""
     config = MODEL_CONFIGS[model_name]
@@ -430,6 +440,7 @@ def tune_model(
     def objective(trial: optuna.Trial) -> float:
         np.random.seed(SEED + trial.number)
         init_kwargs, params = suggest_hyperparameters(trial, model_name)
+        model = None
 
         try:
             if has_params_dict and params:
@@ -442,6 +453,9 @@ def tune_model(
         except Exception as e:
             logger.warning(f"Trial failed: {e}")
             return float("inf")
+        finally:
+            if model is not None:
+                close_model_if_needed(model)
 
     # Create optuna storage
     os.makedirs("benchmarks/results/optuna/", exist_ok=True)
@@ -927,7 +941,8 @@ def run_benchmark(
                 y_train, y_test = y[train_idx], y[test_idx]
 
                 try:
-                    metrics, fit_time, _, _ = evaluate_fold(
+                    fitted_model = None
+                    metrics, fit_time, fitted_model, _ = evaluate_fold(
                         X_train,
                         y_train,
                         X_test,
@@ -944,6 +959,9 @@ def run_benchmark(
                 except Exception as e:
                     logger.error(f"Evaluation failed for {model_name} on fold {fold_idx}: {e}")
                     continue
+                finally:
+                    if fitted_model is not None:
+                        close_model_if_needed(fitted_model)
 
             # Aggregate results across evaluation folds
             if model_results["fold_metrics"]:

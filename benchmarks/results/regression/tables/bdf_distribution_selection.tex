@@ -2,26 +2,26 @@
 \centering
 \caption{BDF distribution selection per dataset}
 \label{tab:bdf-selection}
-\begin{tabular}{ll}
+\begin{tabular}{lllll}
 \toprule
-Dataset & Selected Distribution \\
+Dataset & Variant & Leaf family & Conjugate? & Split score \\
 \midrule
-abalone\_age & normalmunormal \\
-bike\_sharing & freqstudentt \\
-boston\_housing & normalmeanstudentt \\
-california\_housing & normalmunormal \\
-combined\_cycle\_power\_plant & freqstudentt \\
-concrete\_strength & freqstudentt \\
-energy\_efficiency & freqstudentt \\
-forest\_fires & freqstudentt \\
-kin8nm & normalmunormal \\
-naval\_propulsion & freqstudentt \\
-parkinsons\_updrs & freqstudentt \\
-protein\_tertiary\_structure & freqstudentt \\
-superconductor & freqstudentt \\
-wine\_quality & freqstudentt \\
-yacht\_hydrodynamics & freqstudentt \\
+abalone\_age & normalmunormal & Normal--Normal & Yes & NLE \\
+bike\_sharing & freqstudentt & Student-$t$ & No & NLL+BIC \\
+boston\_housing & normalmeanstudentt & Normal-mean Student-$t$ & No & NLL \\
+california\_housing & normalmunormal & Normal--Normal & Yes & NLL \\
+combined\_cycle\_power\_plant & freqstudentt & Student-$t$ & No & NLL \\
+concrete\_strength & freqstudentt & Student-$t$ & No & NLL \\
+energy\_efficiency & freqstudentt & Student-$t$ & No & NLL+BIC \\
+forest\_fires & freqstudentt & Student-$t$ & No & NLL \\
+kin8nm & normalmunormal & Normal--Normal & Yes & NLE \\
+naval\_propulsion & freqstudentt & Student-$t$ & No & NLL+BIC \\
+parkinsons\_updrs & freqstudentt & Student-$t$ & No & NLL \\
+protein\_tertiary\_structure & freqstudentt & Student-$t$ & No & NLL \\
+superconductor & freqstudentt & Student-$t$ & No & NLL \\
+wine\_quality & freqstudentt & Student-$t$ & No & NLL \\
+yacht\_hydrodynamics & freqstudentt & Student-$t$ & No & NLL \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Selection based on CRPS from hyperparameter tuning (fold 0).}
+\par\smallskip\footnotesize{Selection based on CRPS from hyperparameter tuning (fold 0). Conjugate leaves selected on 3/15 datasets; NLE selected on 2/15; NLL+BIC selected on 3/15; the remaining 10/15 use plug-in NLL with the architecture-level regularizers in Eq.~\eqref{eq:net_gain} only.}
 \end{table}

@@ -1,0 +1,27 @@
+\begin{table}[htbp]
+\centering
+\caption{CRPS gap between the conjugate Normal--Normal BDF variant and the variant actually selected by fold-0 tuning. Relative gap is $(\mathrm{CRPS}_{\text{N--N}} - \mathrm{CRPS}_{\text{selected}})/|\mathrm{CRPS}_{\text{selected}}|$; positive values indicate the conjugate variant is worse than the selected variant. Small gaps support the working theory that the architecture's tempered MDL-style split penalty, minimum-leaf-size constraint, ensembling, and distribution selection absorb most of the difference between the exact Bayesian split score and a plug-in surrogate.}
+\label{tab:bdf-conjugate-vs-selected-gap}
+\begin{tabular}{lrlllrl}
+\toprule
+Dataset & N--N CRPS & N--N score & Selected family & Sel.\ CRPS & Sel.\ score & Rel.\ gap \\
+\midrule
+abalone\_age & 1.0692 & NLE & Normal--Normal & 1.0692 & NLE & +0.00\% \\
+bike\_sharing & 21.8948 & NLL & Student-$t$ & 18.2010 & NLL+BIC & +20.29\% \\
+boston\_housing & 1.7795 & NLL & Normal-mean Student-$t$ & 1.9850 & NLL & -10.35\% \\
+california\_housing & 0.2227 & NLL & Normal--Normal & 0.2227 & NLL & +0.00\% \\
+combined\_cycle\_power\_plant & 1.6662 & NLL & Student-$t$ & 1.6441 & NLL & +1.34\% \\
+concrete\_strength & 2.8554 & NLL & Student-$t$ & 2.7929 & NLL & +2.24\% \\
+energy\_efficiency & 0.2737 & NLL & Student-$t$ & 0.2668 & NLL+BIC & +2.58\% \\
+forest\_fires & 0.7556 & NLL & Student-$t$ & 0.7514 & NLL & +0.55\% \\
+kin8nm & 0.0761 & NLE & Normal--Normal & 0.0761 & NLE & +0.00\% \\
+naval\_propulsion & 0.0006 & NLL & Student-$t$ & 0.0005 & NLL+BIC & +7.01\% \\
+parkinsons\_updrs & 0.4606 & NLL & Student-$t$ & 0.3136 & NLL & +46.87\% \\
+protein\_tertiary\_structure & 1.5040 & NLL & Student-$t$ & 1.4825 & NLL & +1.44\% \\
+superconductor & 3.6483 & NLL & Student-$t$ & 3.5831 & NLL & +1.82\% \\
+wine\_quality & 0.2903 & NLL & Student-$t$ & 0.2640 & NLL & +9.98\% \\
+yacht\_hydrodynamics & 0.4811 & NLL & Student-$t$ & 0.4435 & NLL & +8.48\% \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize{Across 15 datasets the median relative gap is +1.82\%, the mean is +6.15\%, and the worst case is +46.87\%; the conjugate Normal--Normal variant matches or beats the selected variant on 4/15 datasets.}
+\end{table}

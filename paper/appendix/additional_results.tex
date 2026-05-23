@@ -17,6 +17,10 @@ This appendix collects supporting evidence for the experiments in Section~\ref{s
 
 \input{../benchmarks/results/regression/tables/bdf_distribution_selection.tex}
 
+\input{../benchmarks/results/regression/tables/bdf_conjugate_vs_selected_gap.tex}
+
+\input{../benchmarks/results/regression/tables/bdf_student_t_stability.tex}
+
 \input{../benchmarks/results/regression/tables/xgboostlss_distribution_selection.tex}
 
 \begin{figure}[!ht]
@@ -158,7 +162,7 @@ This subsection expands the synthetic-DGP analysis of Section~\ref{subsec:exp_sy
 \begin{figure}[!ht]
     \centering
     \includegraphics[width=\textwidth]{plots/synthetic/summary/pit_histograms.pdf}
-    \caption{PIT histograms per method, averaged across synthetic DGPs.}
+    \caption{PIT histograms per method, averaged across synthetic DGPs, with QRF and DRF included as nonparametric forest baselines.}
     \label{fig:synthetic-pit}
 \end{figure}
 
@@ -172,43 +176,43 @@ This subsection expands the synthetic-DGP analysis of Section~\ref{subsec:exp_sy
 \begin{figure}[!ht]
     \centering
     \includegraphics[width=0.9\textwidth]{plots/synthetic/summary/calibration_curves.pdf}
-    \caption{Average calibration across synthetic DGPs. BDF tracks the diagonal closely; CatBoost-UQ and NGBoost are systematically overconfident.}
+    \caption{Average calibration across synthetic DGPs. BDF, QRF, and DRF stay close to the diagonal on average, while some sharper plug-in baselines under-cover in selected regimes.}
     \label{fig:synthetic-calibration}
 \end{figure}
 
 \begin{figure}[!ht]
     \centering
     \includegraphics[width=0.95\textwidth]{plots/synthetic/summary/main_metric_table.pdf}
-    \caption{Summary of CRPS, 90\% coverage, and interval score across synthetic DGPs.}
+    \caption{Summary of CRPS, 90\% coverage, and interval score across synthetic DGPs, including QRF and DRF. Lower CRPS is not dominated by BDF: DRF, QRF, BDF-KDE, and CatBoost-UQ each lead in different regimes.}
     \label{fig:synthetic-summary-table}
 \end{figure}
 
 \paragraph{Per-DGP predictive densities.}
-Figure~\ref{fig:bimodal-predictions} shows model-level conditional-calibration diagnostics on the bimodal mixture DGP as a representative example. The remaining per-DGP panels summarize conditional calibration and spread--skill diagnostics for the other synthetic DGPs.
+Figure~\ref{fig:bimodal-predictions} shows model-level conditional-calibration diagnostics on the bimodal mixture DGP as a representative example. The remaining per-DGP panels summarize conditional calibration and spread--skill diagnostics for the other synthetic DGPs. These panels are intended as diagnostics rather than evidence that BDF dominates the nonparametric forest baselines: QRF and DRF are included throughout and are comparable or better on several predictive-score summaries.
 
 \begin{figure}[!ht]
     \centering
-    \includegraphics[width=\textwidth]{plots/conformalization/bimodal_mixture/cond_calibration_all_models.pdf}
+    \includegraphics[width=\textwidth]{plots/synthetic/summary/bimodal_mixture/cond_calibration_all_models.pdf}
     \caption{Bimodal mixture: conditional calibration across methods.}
     \label{fig:bimodal-predictions}
 \end{figure}
 
 \begin{figure}[!ht]
     \centering
-    \includegraphics[width=0.49\textwidth]{plots/conformalization/heavy_tailed/cond_calibration_all_models.pdf}\hfill
-    \includegraphics[width=0.49\textwidth]{plots/conformalization/heteroscedastic_sinusoidal/cond_calibration_all_models.pdf}\\
-    \includegraphics[width=0.49\textwidth]{plots/conformalization/sparse_sampling/cond_calibration_all_models.pdf}\hfill
-    \includegraphics[width=0.49\textwidth]{plots/conformalization/step_function/cond_calibration_all_models.pdf}
+    \includegraphics[width=0.49\textwidth]{plots/synthetic/summary/heavy_tailed/cond_calibration_all_models.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/synthetic/summary/heteroscedastic_sinusoidal/cond_calibration_all_models.pdf}\\
+    \includegraphics[width=0.49\textwidth]{plots/synthetic/summary/sparse_sampling/cond_calibration_all_models.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/synthetic/summary/step_function/cond_calibration_all_models.pdf}
     \caption{Conditional calibration by method for the remaining synthetic DGPs: heavy-tailed (top-left), heteroscedastic sinusoidal (top-right), sparse sampling (bottom-left), step function (bottom-right).}
     \label{fig:synthetic-cond-calibration-per-dgp}
 \end{figure}
 
 \begin{figure}[!ht]
     \centering
-    \includegraphics[width=0.49\textwidth]{plots/conformalization/heavy_tailed/spread_skill_all_models.pdf}\hfill
-    \includegraphics[width=0.49\textwidth]{plots/conformalization/heteroscedastic_sinusoidal/spread_skill_all_models.pdf}\\
-    \includegraphics[width=0.49\textwidth]{plots/conformalization/sparse_sampling/spread_skill_all_models.pdf}\hfill
-    \includegraphics[width=0.49\textwidth]{plots/conformalization/step_function/spread_skill_all_models.pdf}
+    \includegraphics[width=0.49\textwidth]{plots/synthetic/summary/heavy_tailed/spread_skill_all_models.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/synthetic/summary/heteroscedastic_sinusoidal/spread_skill_all_models.pdf}\\
+    \includegraphics[width=0.49\textwidth]{plots/synthetic/summary/sparse_sampling/spread_skill_all_models.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/synthetic/summary/step_function/spread_skill_all_models.pdf}
     \caption{Spread--skill diagnostics on the remaining synthetic DGPs. Layout matches Figure~\ref{fig:synthetic-cond-calibration-per-dgp}.}
     \label{fig:synthetic-spread-skill-per-dgp}
 \end{figure}

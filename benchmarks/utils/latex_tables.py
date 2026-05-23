@@ -326,6 +326,8 @@ def generate_bdf_selection_table(
     label: str = "tab:bdf-selection",
     selected_column: str = "Selected Distribution",
     strip_prefixes: tuple[str, ...] = ("bdf_",),
+    extra_columns: list[tuple[str, dict[str, str]]] | None = None,
+    footnote: str = "Selection based on CRPS from hyperparameter tuning (fold 0).",
 ) -> str:
     """Generate table showing which model-family variant was selected per dataset.
 
@@ -335,18 +337,28 @@ def generate_bdf_selection_table(
         label: LaTeX label.
         selected_column: Header for the selected-model column.
         strip_prefixes: Prefixes to strip from selected model names.
+        extra_columns: Optional list of ``(header, {dataset: cell})`` pairs appended
+            after the selected-distribution column (in order). Datasets missing from a
+            mapping render as ``--``.
+        footnote: Footnote text under the table.
 
     Returns:
         LaTeX table string.
     """
+    extra_columns = extra_columns or []
+    n_cols = 2 + len(extra_columns)
+    col_spec = "l" * n_cols
+
+    header_cells = ["Dataset", selected_column] + [h for h, _ in extra_columns]
+
     lines = [
         r"\begin{table}[htbp]",
         r"\centering",
         r"\caption{" + caption + r"}",
         r"\label{" + label + r"}",
-        r"\begin{tabular}{ll}",
+        r"\begin{tabular}{" + col_spec + r"}",
         r"\toprule",
-        r"Dataset & " + selected_column + r" \\",
+        " & ".join(header_cells) + r" \\",
         r"\midrule",
     ]
 
@@ -358,13 +370,18 @@ def generate_bdf_selection_table(
                 model_display = model_display[len(prefix) :]
                 break
         model_display = model_display.replace("_", r"\_")
-        lines.append(f"{dataset_display} & {model_display} \\\\")
+        cells = [dataset_display, model_display]
+        for _, mapping in extra_columns:
+            cell = mapping.get(dataset, "--")
+            cell = str(cell).replace("_", r"\_")
+            cells.append(cell)
+        lines.append(" & ".join(cells) + r" \\")
 
     lines.extend(
         [
             r"\bottomrule",
             r"\end{tabular}",
-            r"\par\smallskip\footnotesize{Selection based on CRPS from hyperparameter tuning (fold 0).}",
+            r"\par\smallskip\footnotesize{" + footnote + r"}",
             r"\end{table}",
         ]
     )
