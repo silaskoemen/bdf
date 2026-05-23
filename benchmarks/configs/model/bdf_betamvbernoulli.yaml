@@ -61,10 +61,9 @@ tunable_params:
     type: float
     low: 0.0
     high: .23
-  score_method:
+  score_regime:
     type: categorical
-    categories: [nll, nle]
+    categories: [nle, nll_bic, nll]
 
 fixed_params:
-  score_correction: bic
   mean_p: auto  # Set prior mean based on data

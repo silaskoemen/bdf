@@ -1,6 +1,6 @@
-# BDF-Core classification: conjugate Beta--Bernoulli leaves with exact NLE scoring.
+# BDF-Full classification: Beta--Bernoulli leaves with tuned effective score regime.
 
-name: bdf_core_clas
+name: bdf_full_clas
 target_type: classification
 class_name: BDFClassifier
 probabilistic: true
@@ -57,8 +57,9 @@ tunable_params:
     type: float
     low: 0.0
     high: .23
+  score_regime:
+    type: categorical
+    categories: [nle, nll_bic, nll]
 
 fixed_params:
   mean_p: auto
-  score_method: nle
-  score_correction: null

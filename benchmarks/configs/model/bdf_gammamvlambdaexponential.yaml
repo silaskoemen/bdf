@@ -49,6 +49,9 @@ tunable_params:
     low: 0.1
     high: 20
     log: true
+  score_regime:
+    type: categorical
+    categories: [nle, nll_bic, nll]
 
 fixed_params:
   mean_lambda: auto  # Set prior mean based on data

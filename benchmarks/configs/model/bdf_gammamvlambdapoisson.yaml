@@ -63,6 +63,9 @@ tunable_params:
     low: 0.1
     high: 10.0
     log: true
+  score_regime:
+    type: categorical
+    categories: [nle, nll_bic, nll]
 
 fixed_params:
   mean_lambda: auto  # Prior mean = sample mean

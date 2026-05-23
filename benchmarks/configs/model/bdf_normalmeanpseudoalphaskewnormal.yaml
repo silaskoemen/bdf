@@ -72,5 +72,4 @@ fixed_params:
   mu_mu: auto  # Set prior mean based on data
   sigma_mu: auto
   prior_alpha: 0.0  # Prior mean for alpha parameter
-  score_method: nll  # Scoring method for parameter tuning
-  score_correction: bic  # Score correction method
+  score_regime: nll_bic  # Effective split-score regime

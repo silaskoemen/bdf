@@ -54,6 +54,5 @@ tunable_params: {}
 
 fixed_params:
   df: null
-  score_method: nll
-  score_correction: bic
+  score_regime: nll_bic
   tree_prior_mode: 'linear'

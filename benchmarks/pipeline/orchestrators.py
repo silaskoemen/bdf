@@ -27,6 +27,7 @@ from ..metrics.regression import (
 )
 from ..pipeline.data import DatasetMetadata, available_classification_datasets, available_regression_datasets
 from ..utils.benchmark_utils import LogTransformTransformer
+from ..utils.score_regime import expand_score_regime
 
 
 def _aggregate_calibration_curves(curves: list[dict]) -> dict:
@@ -608,6 +609,8 @@ class CustomOrchestrator(BaseOrchestrator):
                     else:
                         raise ValueError(f"Parameter type '{args['type']}' unknown!")
 
+            iter_params = expand_score_regime(iter_params)
+
             # 3. Only pass params dict if it has content
             if iter_params:
                 iter_init_kwargs["params"] = iter_params
@@ -684,6 +687,7 @@ class CustomOrchestrator(BaseOrchestrator):
         results["datasets"][metadata.name]["tuning_time_seconds"] = end_time - start_time
 
         optuna_best_params = study.best_params
+        reported_best_params = expand_score_regime(optuna_best_params)
         tuned_init_kwargs = {}
         tuned_params = {}
 
@@ -707,12 +711,14 @@ class CustomOrchestrator(BaseOrchestrator):
             if tuned_params:
                 combined_params.update(tuned_params)
 
+            combined_params = expand_score_regime(combined_params)
+
             # Only pass params if non-empty
             if combined_params:
                 tuned_init_kwargs["params"] = combined_params
 
         logger.info(f"🏆 Best params for {metadata.name}: tuned_init_kwargs={tuned_init_kwargs}")
-        results["datasets"][metadata.name]["best_params"] = study.best_params
+        results["datasets"][metadata.name]["best_params"] = reported_best_params
         results["datasets"][metadata.name]["tuning"] = {
             "best_value": float(study.best_value),
             "metric": getattr(self.cfg, "tuning_metric")[self.target_type],

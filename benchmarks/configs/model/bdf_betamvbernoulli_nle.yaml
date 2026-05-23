@@ -1,16 +1,15 @@
-# Frequentist Student-t leaves with MoM df estimation and plug-in NLL split scoring.
+# Beta--Bernoulli leaves with exact NLE split scoring.
 
-name: bdf_freqstudentt_nll
-target_type: regression
-class_name: BDFRegressor
+name: bdf_betamvbernoulli_nle
+target_type: classification
+class_name: BDFClassifier
 probabilistic: true
 
-compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+compatible_target_domains: [binary]
 
 fixed_init_kwargs:
-  dist: FrequentistStudentT
+  dist: BetaMVBernoulli
   random_state: 1234
-  verbose: 0
 
 tunable_init_kwargs:
   n_trees:
@@ -20,22 +19,25 @@ tunable_init_kwargs:
   alpha:
     type: float
     low: 0.00001
-    high: 1.0
-    log: true
+    high: 10.0
   gamma:
     type: float
-    low: 0.0001
+    low: 0.001
     high: 1.0
     log: true
   delta:
     type: float
-    low: 0.0001
+    low: 0.001
     high: 1.0
     log: true
   min_samples_leaf:
     type: int
     low: 5
     high: 50
+  min_samples_split:
+    type: int
+    low: 10
+    high: 100
   subsample:
     type: float
     low: 0.5
@@ -50,9 +52,12 @@ tunable_init_kwargs:
     high: 0.1
     log: true
 
-tunable_params: {}
+tunable_params:
+  var_p:
+    type: float
+    low: 0.0
+    high: .23
 
 fixed_params:
-  df: null
-  score_regime: nll
-  tree_prior_mode: 'linear'
+  mean_p: auto
+  score_regime: nle

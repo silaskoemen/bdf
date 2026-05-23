@@ -65,17 +65,12 @@ tunable_params: #{}
   #   low: 0.01
   #   high: 10.0
   #   log: true
-  # score_method:
-  #   type: categorical
-  #   categories: [nll, nle]
-  score_correction:
+  score_regime:
     type: categorical
-    categories: [bic, null]
+    categories: [nll, nll_bic]
 
 fixed_params:
   df: null # estimate from data via MoM
   # mu_mu: 'auto'  # Set prior mean based on data
   # sigma_mu: 'auto'  # Set prior std based on data
   tree_prior_mode: 'linear' # bernoulli, linear, defer
-  # Should also include loo_cv for normal as 'fast path' is available - missing in Rust
-  # score_correction: bic  # Bayesian information criterion for score correction if 'nll' is used

@@ -11,8 +11,6 @@ fixed_init_kwargs:
   dist: NormalMuNormal
   random_state: 1234
   verbose: 0
-  oob_weights: true
-  bootstrap: false
   # max_depth: 50
 
 tunable_init_kwargs:
@@ -54,7 +52,7 @@ tunable_init_kwargs:
   subsample:
     type: float
     low: 0.5
-    high: 0.9
+    high: 1.0
   colsample:
     type: float
     low: 0.5
@@ -64,28 +62,17 @@ tunable_init_kwargs:
     low: 0.001
     high: 0.1
     log: true
-  oob_temperature:
-    type: float
-    low: 0.1
-    high: 100.0
-    log: true
-
 tunable_params:
   sigma_mu_auto_scale:
     type: float
     low: 0.01
     high: 10.0
     log: true
-  score_method:
+  score_regime:
     type: categorical
-    categories: [nll, nle]
-  # score_correction:
-  #   type: categorical
-  #   categories: [bic, null]
+    categories: [nle, nll_bic, nll]
 
 fixed_params:
   mu_mu: 'auto'  # Set prior mean based on data
   sigma_mu: 'auto'  # Set prior std based on data
   tree_prior_mode: 'linear' # bernoulli, linear, defer
-  # Should also include loo_cv for normal as 'fast path' is available - missing in Rust
-  score_correction: bic  # Bayesian information criterion for score correction if 'nll' is used
