@@ -1,0 +1,72 @@
+# Normal--Normal leaves with plug-in NLL split scoring and no score correction.
+
+name: bdf_normalmunormal_nll
+target_type: regression
+class_name: BDFRegressor
+probabilistic: true
+
+compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+
+fixed_init_kwargs:
+  dist: NormalMuNormal
+  random_state: 1234
+  verbose: 0
+  oob_weights: true
+  bootstrap: false
+
+tunable_init_kwargs:
+  n_trees:
+    type: int
+    low: 5
+    high: 200
+  alpha:
+    type: float
+    low: 0.00001
+    high: 1.0
+    log: true
+  gamma:
+    type: float
+    low: 0.0001
+    high: 1.0
+    log: true
+  delta:
+    type: float
+    low: 0.0001
+    high: 1.0
+    log: true
+  min_samples_leaf:
+    type: int
+    low: 5
+    high: 50
+  subsample:
+    type: float
+    low: 0.5
+    high: 0.9
+  colsample:
+    type: float
+    low: 0.5
+    high: 1.0
+  eta:
+    type: float
+    low: 0.001
+    high: 0.1
+    log: true
+  oob_temperature:
+    type: float
+    low: 0.1
+    high: 100.0
+    log: true
+
+tunable_params:
+  sigma_mu_auto_scale:
+    type: float
+    low: 0.01
+    high: 10.0
+    log: true
+
+fixed_params:
+  mu_mu: 'auto'
+  sigma_mu: 'auto'
+  score_method: nll
+  score_correction: null
+  tree_prior_mode: 'linear'
