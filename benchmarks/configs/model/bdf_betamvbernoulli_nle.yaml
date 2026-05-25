@@ -53,11 +53,12 @@ tunable_init_kwargs:
     log: true
 
 tunable_params:
-  var_p:
+  var_p_auto_scale:
     type: float
-    low: 0.0
-    high: .23
+    low: 0.01
+    high: 0.99
 
 fixed_params:
   mean_p: auto
+  var_p: auto
   score_regime: nle

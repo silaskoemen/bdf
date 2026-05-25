@@ -79,6 +79,16 @@ class BetaMVBernoulliParams(BDFDistributionParams):
     # Prior hyperparameters (mean-variance parameterization)
     mean_p: float = Field(default=0.5, gt=0, lt=1, description="Prior mean E[p] (expected success probability)")
     var_p: float = Field(default=0.1, gt=0, description="Prior variance Var[p] (uncertainty about p)")
+    var_p_auto_scale: float = Field(
+        default=0.5,
+        ge=0.01,
+        le=0.99,
+        description=(
+            "Scale factor for automatic var_p if 'auto' is used. "
+            "Resolved as var_p = mean_p * (1 - mean_p) * var_p_auto_scale."
+        ),
+        exclude=True,
+    )
     raise_on_invalid_var: bool = Field(
         default=False,
         description="Raise error if var_p is invalid for given mean_p; else auto-adjust to max valid variance.",
@@ -367,7 +377,12 @@ class BetaMVBernoulli(BDFDistribution[BetaMVBernoulliParams]):
         set to the empirical proportion of 1s at fit time.
     var_p : float, default=0.1
         Prior variance :math:`\text{Var}[p]`. Must satisfy
-        ``var_p < mean_p * (1 - mean_p)``.
+        ``var_p < mean_p * (1 - mean_p)``. If ``"auto"``, set to
+        ``mean_p * (1 - mean_p) * var_p_auto_scale`` at fit time.
+    var_p_auto_scale : float, default=0.5
+        Scale factor for automatic ``var_p``. Must be between 0.01 and
+        0.99, inclusive, so the resolved variance is strictly valid for the
+        empirical prior mean.
     raise_on_invalid_var : bool, default=False
         If True, raises an error when ``var_p`` exceeds the maximum valid
         variance. If False, silently adjusts to the maximum valid value.
@@ -522,5 +537,20 @@ class BetaMVBernoulli(BDFDistribution[BetaMVBernoulliParams]):
         if key == "mean_p":
             # Set prior mean to empirical mean of data
             return float(np.mean(data))
+        if key == "var_p":
+            if params is None:
+                raise ValueError("'params' must be provided to resolve 'var_p' automatically.")
+            if "var_p_auto_scale" not in params:
+                raise ValueError("'var_p_auto_scale' must be defined in params to resolve 'var_p' automatically.")
+
+            mean_p = params.get("mean_p", "auto")
+            if mean_p == "auto":
+                mean_p = float(np.mean(data))
+            else:
+                mean_p = float(mean_p)
+
+            scale = float(params["var_p_auto_scale"])
+            max_var = mean_p * (1 - mean_p)
+            return float(max_var * scale)
         else:
             raise ValueError(f"Cannot resolve 'auto' for unknown parameter '{key}'")

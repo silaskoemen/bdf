@@ -81,3 +81,15 @@ class TestDistributionManager:
         assert len(samples) == 1000
         assert -4.0 < np.mean(samples) < 4.0  # Should be near 0 with high probability
         assert 0.5 < np.std(samples) < 1.5  # Should be near 1 with high probability
+
+    def test_betamvbernoulli_auto_var_p_uses_scale(self):
+        """Auto var_p scales the maximum valid variance at the empirical mean."""
+        y = np.array([1.0] * 10 + [0.0] * 90)
+        dist = DistributionManager.create_distribution(
+            "BetaMVBernoulli",
+            {"mean_p": "auto", "var_p": "auto", "var_p_auto_scale": 0.25},
+            y=y,
+        )
+
+        assert dist.params.mean_p == 0.1
+        assert dist.params.var_p == pytest.approx(0.1 * 0.9 * 0.25)
