@@ -54,5 +54,6 @@ tunable_params: {}
 
 fixed_params:
   df: null
+  estimation_method: mom
   score_regime: nll
   tree_prior_mode: 'linear'

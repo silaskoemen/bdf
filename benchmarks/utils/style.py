@@ -134,6 +134,7 @@ MODEL_COLORS: dict[str, str] = {
     "LightGBM": _LGBM,
     "lgbm_reg": _LGBM,
     "lgbm_clas": _LGBM,
+    "callgbm_clas": _CONF_LGBM,
     "lgbm_qreg": _LGBM_QREG,
     "NGBoost": _NGBOOST,
     "ngboost_reg": _NGBOOST,
@@ -203,6 +204,7 @@ MODEL_DISPLAY_NAMES: dict[str, str] = {
     # Boosted
     "lgbm_reg": "LightGBM",
     "lgbm_clas": "LightGBM",
+    "callgbm_clas": "CalLGBM",
     "lgbm_qreg": "LGBM-QR",
     "ngboost_reg": "NGBoost",
     "ngboost_clas": "NGBoost",
@@ -241,6 +243,7 @@ MODEL_MARKERS: dict[str, str] = {
     "ConformalRF": "<",
     "CalRF": ">",
     "LightGBM": "P",
+    "CalLGBM": "d",
     "NGBoost": "X",
     "CatBoostUnc": "h",
     "CatBoostUncertainty": "h",

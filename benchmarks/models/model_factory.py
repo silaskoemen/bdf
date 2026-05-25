@@ -11,6 +11,7 @@ from .wrappers import (  # BARTRegressor,
     KNNKDE,
     BARTPyRegressorWrapper,
     BayesianRidgeWrapper,
+    CalibratedLGBMWrapper,
     CalibratedRFWrapper,
     CatBoostUncertaintyWrapper,
     ClimatologicalRegressor,
@@ -72,6 +73,8 @@ class ModelFactory:
                 return DecisionTreeRegressor
             case "CalibratedRandomForestClassifier":
                 return CalibratedRFWrapper
+            case "CalibratedLGBMClassifier":
+                return CalibratedLGBMWrapper
             case "RandomForestQuantileRegressor":
                 return QuantileForestWrapper
             case "BARTPyRegressor":

@@ -1,0 +1,37 @@
+name: callgbm_clas
+target_type: classification
+class_name: CalibratedLGBMClassifier
+probabilistic: false
+
+compatible_target_domains: [binary]
+
+fixed_init_kwargs:
+  random_state: 1234
+  bagging_seed: 1234
+  boosting_type: gbdt
+  cv: 3
+  data_random_seed: 1234
+  deterministic: true
+  feature_fraction_seed: 1234
+  method: sigmoid
+  metric: log_loss
+  verbose: -1
+
+tunable_init_kwargs:
+  learning_rate:
+    type: float
+    low: 0.0001
+    high: 0.2
+    log: true
+  max_depth:
+    type: int
+    low: 3
+    high: 15
+  n_estimators:
+    type: int
+    low: 10
+    high: 250
+  num_leaves:
+    type: int
+    low: 5
+    high: 250

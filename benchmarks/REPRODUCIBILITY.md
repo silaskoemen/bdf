@@ -2,7 +2,7 @@
 
 This document gives the exact pixi commands to reproduce every artifact that appears in the paper: the regression and classification benchmarks, the conditional-diagnostics analysis, the appendix studies, and the final PDF build. Reviewers are not expected to rerun the full benchmark suite; the result files that back the paper's tables and plots are tracked in the repository under `benchmarks/results/`. The commands below exist so that the pipeline can be re-executed end-to-end if desired.
 
-A full rerun on a single workstation takes hours for the headline regression/classification suites and days for the appendix studies (convergence rates, distribution misspecification, sample-size sweeps, noise-features). All commands are deterministic: the global seed is `1234`, the fold count is `10` (tune on fold 0, evaluate on folds 1–9), and the tuning metric is CRPS for regression / log-loss for classification.
+A full rerun on a single workstation takes hours for the headline regression/classification suites and days for the appendix studies (convergence rates, distribution misspecification, sample-size sweeps, noise-features). All real-data commands are deterministic: the global seed is `1234`, the fold count is `10` (tune on fold 0, evaluate on folds 1–9), and the tuning metric is CRPS for regression / log-loss for classification. The main synthetic DGP benchmark uses seed `42` with the same fold convention and 50 Optuna trials per model/DGP.
 
 ## Prerequisites
 
@@ -55,11 +55,38 @@ pixi run reg                                        # aggregate, run Friedman/Ne
 
 Results are written to `benchmarks/results/regression/res_*.yaml` (one file per model). Aggregated tables and critical-difference diagrams land in `benchmarks/plots/regression/` and `benchmarks/tables/regression/`. The `pixi run reg` step copies the figures and `.tex` snippets used in the paper into `paper/plots/` and `paper/tables/`.
 
+The TMLR revision uses the `score_regime` protocol for canonical BDF configs. Effective regimes expand before model construction as `nle -> (score_method=nle, score_correction=None)`, `nll_bic -> (score_method=nll, score_correction=bic)`, and `nll -> (score_method=nll, score_correction=None)`; result YAMLs store the expanded fields for compatibility with existing table scripts. Canonical BDF-Full runs use one tuning budget per family, while fixed-regime configs are ablations and are not extra BDF-Full candidates.
+
+Targeted revision reruns:
+
+```bash
+# Canonical BDF-Full candidates affected by score_regime / OOB-off protocol
+pixi run reg-suite model=bdf_normalmunormal
+pixi run reg-suite model=bdf_freqstudentt
+pixi run reg-suite model=bdf_normalmeanstudentt
+pixi run reg-suite model=bdf_gammamvlambdapoisson
+
+# Fixed-regime BDF-Core / leaf x score ablations
+pixi run reg-suite model=bdf_normalmunormal_nle
+pixi run reg-suite model=bdf_normalmunormal_nll
+pixi run reg-suite model=bdf_normalmunormal_nll_bic
+pixi run reg-suite model=bdf_freqstudentt_nll
+pixi run reg-suite model=bdf_freqstudentt_nll_bic
+
+# Classification Core-vs-Full check
+pixi run clas-suite model=bdf_betamvbernoulli
+pixi run clas-suite model=bdf_betamvbernoulli_nle
+pixi run -e benchmark clas-suite-models model=callgbm_clas
+```
+
+If Gamma--Exponential is added to any positive-outcome appendix aggregate, run `pixi run reg-suite model=bdf_gammamvlambdaexponential` under the same protocol before reporting it.
+
 ### Classification suite
 
 ```bash
 pixi run clas-suite                                 # BDF + sklearn baselines
-pixi run -e benchmark clas-suite-models             # NGBoost / LightGBM / CalRF / KNN
+pixi run -e benchmark clas-suite-models             # NGBoost / LightGBM / CalRF / CalLGBM / KNN
+pixi run -e benchmark clas-suite-models model=callgbm_clas
 pixi run clas                                       # aggregate + plot + table
 ```
 
@@ -72,6 +99,15 @@ pixi run bench-bdf model=bdf_normalmunormal                 # default env
 pixi run -e benchmark bench-models model=qrf                # benchmark env
 pixi run -e benchmark bench-models model=drf                # benchmark env, requires R package `drf`
 ```
+
+XGBoostLSS is evaluated as four separate distributional variants and fused during aggregation by fold-0 tuning CRPS among complete variants:
+
+```bash
+pixi run -e benchmark reg-suite-models -m \
+    model=xgboostlss_gaussian,xgboostlss_studentt,xgboostlss_laplace,xgboostlss_gaussian_mixture
+```
+
+The aggregation step `pixi run reg` writes the selected XGBoostLSS distribution table and excludes incomplete variant-dataset pairs rather than imputing missing folds.
 
 ## 3. Conditional Diagnostics
 
@@ -111,17 +147,29 @@ The two passes drop JSON into `benchmarks/results/conditional_diagnostics/`; the
 | Beta prior effect (clas.) | `pixi run prior-clas` | `benchmarks/results/prior_effects/` |
 | Conformalization | `pixi run conform` then `pixi run conform-output` | `benchmarks/results/conformalization/` |
 
-Each study script also writes an auto-generated Markdown report alongside its results.
+Each study script also writes an auto-generated Markdown report alongside its results. The main synthetic DGP definitions are in `benchmarks/pipeline/synthetic_dgps.py` and are summarized in the paper appendix. To run a subset, pass `--dgps heteroscedastic_sinusoidal heavy_tailed` or `--models BDFNormal QRF`; external models such as QRF and DRF require the `benchmark` environment.
 
-## 5. Paper Build
+## 5. Revision Tables
+
+After the targeted BDF reruns finish, regenerate the TMLR revision tables:
+
+```bash
+pixi run python -m benchmarks.make_revision_bdf_tables
+pixi run reg
+pixi run clas
+```
+
+`benchmarks.make_revision_bdf_tables` reads only existing YAML result artifacts and writes `benchmarks/results/regression/tables/bdf_normal_nle_vs_full.tex` plus `bdf_leaf_score_ablation.tex`. It warns about missing result files and does not run models.
+
+## 6. Paper Build
 
 ```bash
 pixi run paper          # latexmk -pdf paper/main.tex
 ```
 
-Produces `paper/main.pdf`. The build is clean: no undefined refs, citations, or overfull/underfull warnings on the locked artifact set.
+Produces `paper/main.pdf`. The locked build should have no undefined references or citations; known layout warnings from dense appendix tables and float-only pages should be inspected before final submission but do not indicate missing artifacts.
 
-## 6. Result Provenance
+## 7. Result Provenance
 
 Every result YAML written by the orchestrator (`benchmarks/pipeline/orchestrators.py:181-196`) carries:
 
@@ -132,7 +180,9 @@ Every result YAML written by the orchestrator (`benchmarks/pipeline/orchestrator
 
 We do **not** rerun finished suites just to refresh git hashes after unrelated commits — older `git_commit` fields record the commit at which each result was produced, which is the relevant provenance information.
 
-## 7. Hardware and Timing Notes
+Final TMLR tables and plots should be generated only from result YAMLs produced under the post-`score_regime`, OOB-off BDF protocol. Older BDF result files can remain in the repository for transparency, but any table script used for the final paper must either exclude them or regenerate them. The paper build records which `.tex` tables and plot PDFs are consumed through `paper/main.fls`, and the result YAMLs record the command and resolved config where the orchestrator provides that metadata.
+
+## 8. Hardware and Timing Notes
 
 Reported runtimes were measured on an Apple M-series workstation (single host, multi-core). All wall-clock numbers in the paper come from `pixi run perf` and `pixi run complexity` and assume:
 
@@ -142,7 +192,7 @@ Reported runtimes were measured on an Apple M-series workstation (single host, m
 
 Relative orderings should transfer across hardware; absolute fit/predict times will not.
 
-## 8. Known Caveats
+## 9. Known Caveats
 
 - BART (`bartpy`) and GP baselines do not finish on every fold of every dataset within the time budget and are therefore excluded from the main regression aggregate (see Appendix~\ref{app:experimental-setup-reg-models}). The partial result files are kept for transparency but are not consumed by `pixi run reg`.
 - DRF (distributional random forests) uses the R `drf` package through `rpy2`. The Python dependencies are locked, but the R package must be installed once into the system R that `rpy2` binds to. The Python wrapper runs DRF inside an isolated worker process and the synthetic runner closes that worker after each tuning trial and evaluation fold. Failed or partial DRF shards are not merged into synthetic summary plots unless they contain aggregate metrics.

@@ -1628,6 +1628,51 @@ class CalibratedRFWrapper(BaseEstimator, ClassifierMixin):
         return self
 
 
+class CalibratedLGBMWrapper(BaseEstimator, ClassifierMixin):
+    """
+    Wrapper that exposes LightGBM init args at top-level, fits an LGBMClassifier
+    inside CalibratedClassifierCV(cv=3), and exposes predict / predict_proba.
+    """
+
+    def __init__(
+        self, cv: int = 3, method: Literal["sigmoid", "isotonic"] = "sigmoid", random_state=None, **lgbm_init_kwargs
+    ):
+        self.cv = cv
+        self.method: Literal["sigmoid", "isotonic"] = method
+        self.random_state = random_state
+        self.lgbm_init_kwargs = dict(lgbm_init_kwargs)
+
+    def fit(self, X, y):
+        lgbm_kwargs = dict(self.lgbm_init_kwargs)
+        if self.random_state is not None:
+            lgbm_kwargs.setdefault("random_state", self.random_state)
+            lgbm_kwargs.setdefault("bagging_seed", self.random_state)
+            lgbm_kwargs.setdefault("data_random_seed", self.random_state)
+            lgbm_kwargs.setdefault("feature_fraction_seed", self.random_state)
+        base = lgb.LGBMClassifier(**lgbm_kwargs)
+        self.calibrator_ = CalibratedClassifierCV(estimator=base, method=self.method, cv=self.cv)
+        self.calibrator_.fit(X, y)
+        return self
+
+    def predict(self, X):
+        return self.calibrator_.predict(X)
+
+    def predict_proba(self, X):
+        return self.calibrator_.predict_proba(X)
+
+    def get_params(self, deep=True):
+        params = {"cv": self.cv, "method": self.method, "random_state": self.random_state}
+        params.update(self.lgbm_init_kwargs)
+        return params
+
+    def set_params(self, **params):
+        for k in ("cv", "method", "random_state"):
+            if k in params:
+                setattr(self, k, params.pop(k))
+        self.lgbm_init_kwargs.update(params)
+        return self
+
+
 class BARTPyRegressorWrapper(BaseEstimator, RegressorMixin):
     """
     Thin sklearn-compatible wrapper for the external BARTPyRegressor class.

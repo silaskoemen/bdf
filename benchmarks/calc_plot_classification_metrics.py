@@ -39,6 +39,7 @@ BDF_MODELS = [
 BASELINE_MODELS = [
     "rf_clas",
     "lgbm_clas",
+    "callgbm_clas",
     "ngboost_clas",
     "calrf_clas",
     "knn_clas",

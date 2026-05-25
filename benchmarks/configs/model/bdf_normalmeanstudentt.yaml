@@ -10,7 +10,7 @@ compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonn
 fixed_init_kwargs:
   dist: NormalMeanStudentT
   random_state: 1234
-  verbose: 1
+  verbose: 0
   # max_depth: 50
 
 tunable_init_kwargs:
@@ -71,6 +71,7 @@ tunable_params:
 
 fixed_params:
   df: null # estimate from data via MoM
+  estimation_method: mom
   mu_mean: 'auto'  # Set prior mean based on data
   sigma_mean: 'auto'  # Set prior std based on data
   tree_prior_mode: 'linear' # bernoulli, linear, defer

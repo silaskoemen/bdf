@@ -195,6 +195,7 @@ fixed_params:
 #### Baseline Models
 - **`rf_clas`**: Random Forest Classifier
 - **`lgbm_clas`**: LightGBM Classifier
+- **`callgbm_clas`**: Calibrated LightGBM Classifier
 - **`ngboost_clas`**: NGBoost Classifier
 - **`gp_clas`**: Gaussian Process Classifier
 - **`knn_clas`**: K-Nearest Neighbors

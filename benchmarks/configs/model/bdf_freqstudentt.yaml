@@ -71,6 +71,7 @@ tunable_params: #{}
 
 fixed_params:
   df: null # estimate from data via MoM
+  estimation_method: mom
   # mu_mu: 'auto'  # Set prior mean based on data
   # sigma_mu: 'auto'  # Set prior std based on data
   tree_prior_mode: 'linear' # bernoulli, linear, defer

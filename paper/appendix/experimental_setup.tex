@@ -8,19 +8,69 @@ The regression benchmark compares BDF leaf families against probabilistic and ca
 Distributional random forests and likelihood-based distributional regression forests are closely related approaches for estimating conditional distributions using trees. We include DRF through the R \texttt{drf} package via an isolated \texttt{rpy2} worker process, because the available Python package is deprecated. XGBoostLSS is evaluated as a fused distributional-boosting baseline: Gaussian, Student-$t$, Laplace, and Gaussian-mixture variants are run under the same fold protocol and the variant selected on fold-0 tuning CRPS is used for each dataset. Variants with incomplete evaluation folds are excluded from this fused selection for that dataset. The incomplete XGBoostLSS metric vectors are: Gaussian on \texttt{yacht\_hydrodynamics} (8/9 CRPS folds), Student-$t$ on \texttt{energy\_efficiency} (8/9), Student-$t$ on \texttt{parkinsons\_updrs} (8/9), and Student-$t$ on \texttt{yacht\_hydrodynamics} (6/9). Laplace and Gaussian-mixture XGBoostLSS completed all 15 datasets with 9/9 evaluation folds.
 
 \subsubsection{Classification Models}\label{app:experimental-setup-clas-models}
-The classification benchmark is binary. The submitted comparison includes BDF with Beta--Bernoulli leaves, random forests, LightGBM, NGBoost, calibrated random forests, and $k$-nearest-neighbor classification. All reported classification metrics are computed from predicted probabilities for the positive class. Multiclass BDF variants based on Dirichlet--multinomial leaves are implemented in the distribution library but are outside the scope of the submitted classification experiments.
+The classification benchmark is binary. The submitted comparison includes BDF with Beta--Bernoulli leaves, random forests, LightGBM, NGBoost, calibrated random forests, calibrated LightGBM, and $k$-nearest-neighbor classification. All reported classification metrics are computed from predicted probabilities for the positive class. Multiclass BDF variants based on Dirichlet--multinomial leaves are implemented in the distribution library but are outside the scope of the submitted classification experiments.
 
 \subsection{Benchmark Protocol}\label{app:benchmark-protocol}
 All real-data benchmarks use seed $1234$ and ten deterministic train/test folds. Hyperparameters are selected on fold 0 using Optuna with 50 trials and the task-appropriate proper score: CRPS for regression and log-loss for classification. The selected hyperparameters are then held fixed and evaluated on folds 1--9; tables report means and standard errors over these nine evaluation folds. For BDF, the Optuna search space includes the empirical-Bayes prior-scale hyperparameters jointly with $(\alpha,\delta,\gamma)$, $n_{\text{trees}}$, $\text{max\_depth}$, and $\text{min\_samples\_leaf}$; EB prior locations are fixed to training-fold moments (e.g.~$\mu_0 = \bar y_{\text{train}}$ for Normal--Normal). No information from folds 1--9 enters either the EB step or the Optuna objective: each trial fits BDF on a sub-split of fold 0 and scores on its complement, and the resolved configuration is then refit on fold 0 in full and frozen before fold-1--9 evaluation, ruling out leakage from held-out folds into priors or penalty parameters.
 
 The benchmark does not cap the number of training or test observations at 100 or 1000. Those constants refer to the number of predictive draws used by sample-based probabilistic metrics: during Optuna tuning, \texttt{tuning\_sample\_size}=100 predictive samples are drawn for CRPS to keep model selection affordable; during final evaluation, \texttt{sample\_size}=1000 predictive samples are drawn for CRPS, interval scores, coverage, and PIT diagnostics when a model exposes samples rather than analytic CDFs or quantiles. Methods with native quantile outputs, such as QRF, are evaluated on their quantile grid rather than by subsampling observations. All available observations in each train/test fold are used unless a model-specific feasibility guard is explicitly triggered (e.g.~the documented GP/BART exclusions). Search spaces are defined in \texttt{benchmarks/configs/model/*.yaml}, and each result YAML records the resolved model configuration, dataset metadata, seed, fold count, tuning metric, tuning time, predictive-sample count, and fold-level metrics.
 
-Failed folds or mathematically undefined predictions are not silently imputed. A result file is treated as locked only when every in-scope dataset has all nine evaluation folds for the metrics used in the paper; partial GP and BART runs are therefore excluded from the main aggregate and treated as out-of-scope supplementary evidence. The final regression aggregate includes BDF, QRF, DRF, fused XGBoostLSS, conformalized LightGBM/RF, NGBoost, CatBoost-UQ, Gaussian deep ensembles, Bayesian ridge, and $k$NN-KDE, plus a climatological reference for CRPSS normalization. The final classification aggregate includes BDF, RF, LightGBM, NGBoost, calibrated RF, and $k$NN.
+Failed folds or mathematically undefined predictions are not silently imputed. A result file is treated as locked only when every in-scope dataset has all nine evaluation folds for the metrics used in the paper; partial GP and BART runs are therefore excluded from the main aggregate and treated as out-of-scope supplementary evidence. The final regression aggregate includes BDF, QRF, DRF, fused XGBoostLSS, conformalized LightGBM/RF, NGBoost, CatBoost-UQ, Gaussian deep ensembles, Bayesian ridge, and $k$NN-KDE, plus a climatological reference for CRPSS normalization. The final classification aggregate includes BDF, RF, LightGBM, NGBoost, calibrated RF, calibrated LightGBM, and $k$NN.
+
+Table~\ref{tab:compute-budget-selection} summarizes the model-selection budget used by the real-data and synthetic experiments. ``Per variant'' means one Optuna study per dataset and YAML model configuration. Aggregated families such as BDF-Full and XGBoostLSS are formed only after those studies finish, by choosing the variant with the best fold-0 tuning score for that dataset; fixed-regime BDF configs are used only for ablation tables and are not additional candidates in the BDF-Full aggregate.
+
+\begin{table}[!ht]
+\centering
+\scriptsize
+\caption{Compute budget and selection protocol. Real-data regression tunes on fold 0 by CRPS and evaluates on folds 1--9; classification tunes by log-loss.}
+\label{tab:compute-budget-selection}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+Family / analysis & Variants included & Optuna budget & Final aggregation rule & Exclusions / notes \\
+\midrule
+BDF-Full regression & Normal--Normal, KDE, Gamma--Poisson, Student-$t$, Normal-mean Student-$t$ & 50 trials per variant/dataset & Select best complete variant by fold-0 CRPS & Canonical configs use one \texttt{score\_regime} categorical; OOB weighting is off. \\
+BDF fixed-regime ablation & Normal--Normal NLE/NLL/NLL+BIC; Student-$t$ NLL/NLL+BIC & 50 trials per config/dataset & Report fixed configs directly & Not part of the BDF-Full candidate set. \\
+BDF classification & Beta--Bernoulli & 50 trials per dataset & Single BDF classification variant & Canonical config tunes \texttt{score\_regime}; fixed-NLE run is a Core check. \\
+XGBoostLSS regression & Gaussian, Student-$t$, Laplace, Gaussian mixture & 50 trials per variant/dataset & Select best complete variant by fold-0 CRPS & Incomplete variants listed in text are excluded for that dataset. \\
+Other real-data baselines & One YAML config per baseline & 50 trials per model/dataset when tunable & No fused selection unless stated & Partial GP/BART runs are excluded from main aggregate. \\
+Synthetic DGP benchmark & BDF variants and external baselines available in each environment & 50 trials per model/DGP & Merge complete result shards & QRF/DRF shards are run in the benchmark environment. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+For BDF configs that expose split-score selection, the benchmark uses a single effective categorical \texttt{score\_regime}. The regimes expand as \texttt{nle} $\mapsto$ \texttt{score\_method=nle, score\_correction=None}, \texttt{nll\_bic} $\mapsto$ \texttt{score\_method=nll, score\_correction=bic}, and \texttt{nll} $\mapsto$ \texttt{score\_method=nll, score\_correction=None}. This expansion is applied before model construction and result YAMLs store the expanded fields for compatibility with the table and plotting scripts. TPE tunes the score regime jointly with the other hyperparameters, so the fixed-regime ablation tables provide the unconfounded split-score comparison; Normal--Normal has access to \texttt{nle} because it is conjugate, whereas Student-$t$ has only \texttt{nll} and \texttt{nll\_bic}.
 
 The synthetic DGP study uses the same ten-fold convention: fold 0 selects hyperparameters and folds 1--9 report evaluation metrics. BDF core variants are run in the default environment; QRF and DRF are run in the benchmark environment and merged as incremental result shards. DRF is evaluated through the same isolated R worker used in the real-data benchmark, and the final synthetic plots include only shards with aggregate metrics for all evaluation folds.
 
+\subsection{Synthetic DGP Definitions}\label{app:synthetic-dgp-definitions}
+The main synthetic DGP benchmark uses five one- or two-dimensional conditional distributions with known mean, variance, quantile, density, and sampler functions implemented in \texttt{benchmarks/pipeline/synthetic\_dgps.py}. All use seed $42$, ten folds with fold-0 tuning and fold-1--9 evaluation, 50 Optuna trials per model/DGP, 100 tuning predictive samples for CRPS, and 1000 final predictive samples for CRPS, central intervals, PIT diagnostics, and conditional calibration. The reported metrics include MSE against the true conditional mean, variance error when the conditional variance is finite and known, CRPS, 90\% coverage and interval score, PIT summaries, and conditional calibration/spread-skill diagnostics.
+
+\begin{table}[!ht]
+\centering
+\scriptsize
+\caption{Synthetic DGP definitions used in the main synthetic benchmark. Here $x$ denotes the observed covariate vector and $\epsilon$ denotes independent noise.}
+\label{tab:synthetic-dgp-definitions}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llll}
+\toprule
+DGP & Covariates and sample size & Conditional law & Purpose \\
+\midrule
+Heteroscedastic sinusoidal & $x\sim U(0,2\pi)$, $n=5000$ & $Y\mid x\sim\mathcal{N}(\sin x,\sigma^2(x))$, $\sigma^2(x)=0.1^2|x|$ if $x<\pi$ and $0.1^2\,4|x|$ otherwise & Smooth mean with variance change point. \\
+Step function & $x\sim U(0,2\pi)$, $n=5000$ & $Y=m_j+\epsilon$, $\epsilon\sim\mathcal{N}(0,0.15^2)$, $j=\lfloor 5x/(2\pi)\rfloor$, $m=(0,1,-0.5,1.5,0.5)$ & Discontinuous mean with constant noise. \\
+Bimodal mixture & $x\sim U(0,1)$, $n=5000$ & $Y\mid x\sim \pi(x)\mathcal{N}(x,0.1^2)+(1-\pi(x))\mathcal{N}(x+2,0.1^2)$, $\pi(x)=0.1+0.8x$ & Input-dependent multimodality. \\
+Heavy-tailed & $x_1,x_2\sim U(-2,2)$, $n=5000$ & $Y=x_1^2+x_2+0.5\,T_3$ & Robustness to heavy-tailed errors and outliers. \\
+Sparse sampling & $x\in[0,2\pi]$, $n=1000$ & $Y\mid x\sim\mathcal{N}(\sin x,0.1^2)$ with $x$ drawn by rejection sampling from density proportional to $1-x/(2\pi)$ & Calibration in low-density regions. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
 \subsection{Preprocessing and Dataset Inventory}\label{app:dataset-inventory}
 Datasets are processed by the repository scripts into numeric design matrices. Numeric columns are used directly, categorical columns are one-hot encoded, and rows with unresolved missing values are dropped during processing; the processed metadata records the number of samples before and after this step. Native categorical handling is not used, even for models that could support it, so all methods receive the same feature matrix. Regression targets are standardized inside each training fold for methods that require standardized targets and predictions are inverse-transformed before scoring; classification labels are encoded as binary targets with probabilities reported for the positive class.
+
+Target-domain labels are used to filter incompatible leaf families before fitting, but the real-valued Normal and Student-$t$ leaves remain real-valued predictive distributions even when a processed regression target is positive or count-valued. Their samples, densities, CRPS, central intervals, coverage, PIT values, and interval scores are therefore evaluated on the original target scale without truncating or renormalizing mass outside the natural support. Domain-constrained leaves such as Gamma--Poisson and Gamma--Exponential are included only for compatible target domains; if tuning selects a real-valued leaf on a positive/count dataset, the reported score reflects that explicit modeling choice rather than a support-corrected density.
 
 \begin{table}[!ht]
 \centering

@@ -7,6 +7,23 @@ from scipy.stats import t as student_t
 
 from bdf.distributions.bdf_distribution import BDFDistribution, BDFDistributionParams
 
+MIN_STUDENT_T_DF = 2.05
+MAX_STUDENT_T_DF = 100.0
+
+
+def estimate_student_t_df_mom(excess_kurtosis: float) -> float:
+    """Estimate Student-t df from excess kurtosis using the MoM identity.
+
+    For a Student-t distribution with finite fourth moment, excess kurtosis is
+    6 / (nu - 4), so the MoM estimator is nu = 4 + 6 / excess_kurtosis. If the
+    empirical excess kurtosis is non-positive, the bounded approximation is the
+    near-Gaussian upper limit.
+    """
+    if excess_kurtosis <= 0:
+        return MAX_STUDENT_T_DF
+    return float(np.clip(4.0 + 6.0 / excess_kurtosis, MIN_STUDENT_T_DF, MAX_STUDENT_T_DF))
+
+
 # ============================================================================
 # PARAMS
 # ============================================================================
@@ -271,7 +288,7 @@ class FrequentistStudentT(BDFDistribution[FrequentistStudentTParams]):
         return float(mu_hat), sigma_hat, df_hat
 
     def _fit_mom(self, data: np.ndarray) -> tuple[float, float, float]:
-        """Fit using method of moments: μ = mean, σ = s * ((v-2)/ν), ν from 4th moment."""
+        """Fit using MoM: μ = mean, σ = s * sqrt((ν-2)/ν), ν from 4th moment."""
         y = data.astype(float)
         n = y.size
 
@@ -283,10 +300,7 @@ class FrequentistStudentT(BDFDistribution[FrequentistStudentTParams]):
             # Method of moments for df using excess kurtosis
             m4 = np.mean((y - mu) ** 4)
             excess_kurtosis = m4 / (sigma2**2) - 3
-            if excess_kurtosis <= 0:
-                df = 100.0
-            else:
-                df = max(2.05, min(100.0, 6 / excess_kurtosis + 4))
+            df = estimate_student_t_df_mom(float(excess_kurtosis))
         else:
             df = self.df
 
@@ -422,10 +436,7 @@ class NormalMeanStudentT(BDFDistribution[NormalMeanStudentTParams]):
         else:
             m4 = float(np.mean((data - sample_mean) ** 4))
             excess_kurtosis = m4 / (sample_var**2) - 3
-            if excess_kurtosis <= 0:
-                df = 100.0
-            else:
-                df = max(2.05, min(100.0, 6.0 / excess_kurtosis + 4.0))
+            df = estimate_student_t_df_mom(float(excess_kurtosis))
 
         # 3. Recover sigma from variance identity: Var(Y) = σ²ν/(ν-2)
         sigma = float(np.sqrt(sample_var * (df - 2) / df))
