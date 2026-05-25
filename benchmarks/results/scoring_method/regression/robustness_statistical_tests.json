@@ -1,24 +1,18 @@
 {
   "(500,)_friedman": {
-    "statistic": 6.345575959933258,
-    "p_value": 0.09595564912538114,
+    "statistic": 3.2333333333333485,
+    "p_value": 0.19855946207372457,
     "n_samples": 60
   },
   "(500,)_avg_ranks": {
-    "nle": 2.316666666666667,
-    "nll": 2.525,
-    "nll_aic": 2.325,
-    "nll_bic": 2.8333333333333335
+    "nle": 1.8666666666666667,
+    "nll": 1.95,
+    "nll_bic": 2.183333333333333
   },
   "(500,)_nle_vs_nll": {
     "wilcoxon_stat": 791.0,
     "p_value": 0.18066367163784314,
     "cliffs_delta": 0.0011111111111111111
-  },
-  "(500,)_nle_vs_nll_aic": {
-    "wilcoxon_stat": 825.0,
-    "p_value": 0.2538112363973478,
-    "cliffs_delta": 0.0
   },
   "(500,)_nle_vs_nll_bic": {
     "wilcoxon_stat": 789.0,

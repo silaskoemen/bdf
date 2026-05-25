@@ -1,0 +1,19 @@
+\begin{table}[htbp]
+\centering
+\caption{Exact Normal--Normal NLE BDF versus BDF-Full and selected regression baselines.}
+\label{tab:bdf-normal-nle-vs-full}
+\begin{tabular}{lccccc}
+\toprule
+Model & Avg. rel. CRPS & Median gap vs Full & IS90 rank & Cov@90 & $n$ \\
+\midrule
+BDF-Normal NLE & 1.328 & 3.03\% & 3.47 & 0.945 & 15 \\
+BDF-Full & 1.229 & 0.00\% & \textbf{2.20} & 0.940 & 15 \\
+QRF & \textbf{1.112} & -14.86\% & 2.93 & 0.946 & 15 \\
+DRF & 1.164 & -8.16\% & 4.53 & 0.956 & 15 \\
+NGBoost & 1.743 & 29.58\% & 5.27 & 0.779 & 15 \\
+XGBLSS-t & 133.033 & 64.05\% & 6.27 & 0.724 & 15 \\
+CatBoostUnc & 1.247 & 0.28\% & 3.33 & 0.701 & 15 \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize{Geometric mean relative CRPS is computed relative to the best model per dataset within this table (lower is better). IS90 rank is the average rank of the 90\% interval score (lower is better). BDF-Full selects among canonical per-family BDF configs with one tuning budget per family; fixed-score ablation configs are not included as separate Full candidates. No datasets were dropped by the common-metric filter.}
+\end{table}

@@ -29,7 +29,7 @@ Table~\ref{tab:compute-budget-selection} summarizes the model-selection budget u
 \toprule
 Family / analysis & Variants included & Optuna budget & Final aggregation rule & Exclusions / notes \\
 \midrule
-BDF-Full regression & Normal--Normal, KDE, Gamma--Poisson, Student-$t$, Normal-mean Student-$t$ & 50 trials per variant/dataset & Select best complete variant by fold-0 CRPS & Canonical configs use one \texttt{score\_regime} categorical; OOB weighting is off. \\
+BDF-Full regression & Normal--Normal, KDE, Gamma--Poisson, Student-$t$ & 50 trials per variant/dataset & Select best complete variant by fold-0 CRPS & Canonical configs use one \texttt{score\_regime} categorical; OOB weighting is off; Normal-mean Student-$t$ is kept exploratory and excluded from the locked Full candidate set. \\
 BDF fixed-regime ablation & Normal--Normal NLE/NLL/NLL+BIC; Student-$t$ NLL/NLL+BIC & 50 trials per config/dataset & Report fixed configs directly & Not part of the BDF-Full candidate set. \\
 BDF classification & Beta--Bernoulli & 50 trials per dataset & Single BDF classification variant & Canonical config tunes \texttt{score\_regime}; fixed-NLE run is a Core check. \\
 XGBoostLSS regression & Gaussian, Student-$t$, Laplace, Gaussian mixture & 50 trials per variant/dataset & Select best complete variant by fold-0 CRPS & Incomplete variants listed in text are excluded for that dataset. \\

@@ -6,22 +6,22 @@
 \toprule
 Dataset & Variant & Leaf family & Conjugate? & Split score \\
 \midrule
-abalone\_age & normalmunormal & Normal--Normal & Yes & NLE \\
-bike\_sharing & freqstudentt & Student-$t$ & No & NLL+BIC \\
-boston\_housing & normalmeanstudentt & Normal-mean Student-$t$ & No & NLL \\
-california\_housing & normalmunormal & Normal--Normal & Yes & NLL \\
+abalone\_age & normalmunormal & Normal--Normal & Yes & NLL+BIC \\
+bike\_sharing & normalmunormal & Normal--Normal & Yes & NLL \\
+boston\_housing & normalmunormal & Normal--Normal & Yes & NLL \\
+california\_housing & normalmunormal & Normal--Normal & Yes & NLL+BIC \\
 combined\_cycle\_power\_plant & freqstudentt & Student-$t$ & No & NLL \\
-concrete\_strength & freqstudentt & Student-$t$ & No & NLL \\
+concrete\_strength & freqstudentt & Student-$t$ & No & NLL+BIC \\
 energy\_efficiency & freqstudentt & Student-$t$ & No & NLL+BIC \\
-forest\_fires & freqstudentt & Student-$t$ & No & NLL \\
+forest\_fires & normalmunormal & Normal--Normal & Yes & NLL \\
 kin8nm & normalmunormal & Normal--Normal & Yes & NLE \\
-naval\_propulsion & freqstudentt & Student-$t$ & No & NLL+BIC \\
-parkinsons\_updrs & freqstudentt & Student-$t$ & No & NLL \\
+naval\_propulsion & freqstudentt & Student-$t$ & No & NLL \\
+parkinsons\_updrs & freqstudentt & Student-$t$ & No & NLL+BIC \\
 protein\_tertiary\_structure & freqstudentt & Student-$t$ & No & NLL \\
-superconductor & freqstudentt & Student-$t$ & No & NLL \\
+superconductor & freqstudentt & Student-$t$ & No & NLL+BIC \\
 wine\_quality & freqstudentt & Student-$t$ & No & NLL \\
-yacht\_hydrodynamics & freqstudentt & Student-$t$ & No & NLL \\
+yacht\_hydrodynamics & freqstudentt & Student-$t$ & No & NLL+BIC \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Selection based on CRPS from hyperparameter tuning (fold 0). Conjugate leaves selected on 3/15 datasets; NLE selected on 2/15; NLL+BIC selected on 3/15; the remaining 10/15 use plug-in NLL with the architecture-level regularizers in Eq.~\eqref{eq:net_gain} only.}
+\par\smallskip\footnotesize{Selection based on CRPS from hyperparameter tuning (fold 0). Conjugate leaves selected on 6/15 datasets; NLE selected on 1/15; NLL+BIC selected on 7/15; the remaining 7/15 use plug-in NLL with the architecture-level regularizers in Eq.~\eqref{eq:net_gain} only.}
 \end{table}

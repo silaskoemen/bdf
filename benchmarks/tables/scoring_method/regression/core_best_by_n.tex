@@ -1,12 +1,15 @@
 \begin{table}
+\centering
 \caption{Regression core results: best_by_n}
 \label{tab:regression_core_best_by_n}
-\begin{tabular}{rlll}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{rllll}
 \toprule
-n_samples & best_method & best_value & improvement_% \\
+n_samples & best_method & best_value & improvement_\% & fit_time_s \\
 \midrule
-100 & nll_bic & 45.3722 & 0.45% \\
-500 & nll_bic & 38.1678 & 0.02% \\
+100 & nll_bic & 45.3722 & 0.55\% & 0.04 \\
+500 & nll_bic & 38.1678 & 0.08\% & 0.13 \\
 \bottomrule
 \end{tabular}
+}
 \end{table}

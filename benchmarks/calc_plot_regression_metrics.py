@@ -37,7 +37,6 @@ BDF_MODELS = [
     "bdf_gammamvlambdapoisson",
     # "bdf_skewnormal",  # uncomment when available
     "bdf_freqstudentt",
-    "bdf_normalmeanstudentt",
 ]
 
 # XGBoostLSS distribution variants to aggregate by the same fold-0 tuning
@@ -76,7 +75,6 @@ BDF_DEFAULT_DIST = "bdf_normalmunormal"
 # "Split score" column.
 BDF_VARIANT_META = {
     "bdf_normalmunormal": {"family": "Normal--Normal", "conjugate": True},
-    "bdf_normalmeanstudentt": {"family": "Normal-mean Student-$t$", "conjugate": False},
     "bdf_freqstudentt": {"family": "Student-$t$", "conjugate": False},
     "bdf_gammamvlambdapoisson": {"family": "Gamma--Poisson", "conjugate": True},
     "bdf_kde": {"family": "KDE", "conjugate": False},

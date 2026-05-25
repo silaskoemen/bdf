@@ -4,7 +4,7 @@ Dedicated study investigating when NLE (Bayesian marginal likelihood) outperform
 NLL-based scoring for tree split selection in BDF.
 
 We characterize the regime in which NLE-based split scoring is preferable to
-NLL-based scoring with standard model-selection corrections (AIC, BIC), varying
+NLL-based scoring with a standard model-selection correction (BIC), varying
 sample size, noise/imbalance, and evaluating on real UCI data.
 
 Usage:
@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import time
 import warnings
 from dataclasses import dataclass, field
@@ -84,9 +85,9 @@ QUICK_SAMPLE_SIZES = [100, 500]
 SCORING_CONFIGS = {
     "nle": {"score_method": "nle", "score_correction": None},
     "nll": {"score_method": "nll", "score_correction": None},
-    "nll_aic": {"score_method": "nll", "score_correction": "aic"},
     "nll_bic": {"score_method": "nll", "score_correction": "bic"},
 }
+SCORING_ORDER = list(SCORING_CONFIGS.keys())
 
 # Model hyperparameters (fixed, not ablated)
 MODEL_CONFIG = {
@@ -802,6 +803,7 @@ def compute_statistical_tests(
     df: pd.DataFrame,
     metric: str,
     groupby: list[str] | None = None,
+    higher_is_better: bool = True,
 ) -> dict[str, Any]:
     """Compute Friedman test and pairwise Wilcoxon tests."""
     results = {}
@@ -835,8 +837,8 @@ def compute_statistical_tests(
         except Exception as e:
             logger.warning(f"Friedman test failed for {group_key}: {e}")
 
-        # Average ranks for CD diagram — higher skill score is better, so rank descending
-        ranks = pivot_df.rank(axis=1, ascending=False)
+        # Average ranks; lower rank is better.
+        ranks = pivot_df.rank(axis=1, ascending=not higher_is_better)
         avg_ranks = ranks.mean().to_dict()
         results[f"{group_key}_avg_ranks"] = avg_ranks
 
@@ -846,11 +848,10 @@ def compute_statistical_tests(
                 if other == "nle":
                     continue
                 try:
-                    # Skill scores are higher-is-better: test whether NLE > others
                     stat, pval = stats.wilcoxon(
                         pivot_df["nle"].values,
                         pivot_df[other].values,
-                        alternative="greater",
+                        alternative="greater" if higher_is_better else "less",
                     )
                     cliffs_d = _cliffs_delta(pivot_df["nle"].values, pivot_df[other].values)
                     results[f"{group_key}_nle_vs_{other}"] = {
@@ -862,6 +863,11 @@ def compute_statistical_tests(
                     logger.warning(f"Wilcoxon test failed for {group_key} nle vs {other}: {e}")
 
     return results
+
+
+def _filter_display_scoring_methods(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop legacy scoring-method rows that are no longer part of the comparison."""
+    return df[df["scoring"].isin(SCORING_ORDER)].copy()
 
 
 def _cliffs_delta(x: np.ndarray, y: np.ndarray) -> float:
@@ -902,10 +908,10 @@ def plot_interaction(
     """Plot metric vs sample size for each scoring method (THE key figure)."""
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    colors = {"nle": "#2ecc71", "nll": "#e74c3c", "nll_aic": "#9b59b6", "nll_bic": "#3498db"}
-    markers = {"nle": "o", "nll": "s", "nll_aic": "^", "nll_bic": "D"}
+    colors = {"nle": "#2ecc71", "nll": "#e74c3c", "nll_bic": "#3498db"}
+    markers = {"nle": "o", "nll": "s", "nll_bic": "D"}
 
-    scoring_methods = df["scoring"].unique()
+    scoring_methods = [scoring for scoring in SCORING_ORDER if scoring in set(df["scoring"])]
     sample_sizes = sorted(df["n_samples"].unique())
 
     for scoring in scoring_methods:
@@ -932,7 +938,11 @@ def plot_interaction(
             capsize=4,
         )
 
-    metric_label = {"crpss": "CRPSS (higher is better)", "bss": "BSS (higher is better)"}.get(metric, metric.upper())
+    metric_label = {
+        "crps": "CRPS (lower is better)",
+        "crpss": "CRPSS (higher is better)",
+        "bss": "BSS (higher is better)",
+    }.get(metric, metric.upper())
     ax.set_xlabel("Sample Size (n)", fontsize=12)
     ax.set_ylabel(metric_label, fontsize=12)
     ax.set_title(title, fontsize=14)
@@ -1017,12 +1027,12 @@ def plot_robustness(
     fig, ax = plt.subplots(figsize=(10, 6))
 
     conditions = sorted(df[condition_col].unique())
-    scoring_methods = sorted(df["scoring"].unique())
+    scoring_methods = [scoring for scoring in SCORING_ORDER if scoring in set(df["scoring"])]
 
     x = np.arange(len(conditions))
     width = 0.18
 
-    colors = {"nle": "#2ecc71", "nll": "#e74c3c", "nll_aic": "#9b59b6", "nll_bic": "#3498db"}
+    colors = {"nle": "#2ecc71", "nll": "#e74c3c", "nll_bic": "#3498db"}
 
     for i, scoring in enumerate(scoring_methods):
         means = []
@@ -1044,7 +1054,11 @@ def plot_robustness(
             capsize=3,
         )
 
-    metric_label = {"crpss": "CRPSS (higher is better)", "bss": "BSS (higher is better)"}.get(metric, metric.upper())
+    metric_label = {
+        "crps": "CRPS (lower is better)",
+        "crpss": "CRPSS (higher is better)",
+        "bss": "BSS (higher is better)",
+    }.get(metric, metric.upper())
     ax.set_xlabel(condition_col.replace("_", " ").title(), fontsize=12)
     ax.set_ylabel(metric_label, fontsize=12)
     ax.set_title(title, fontsize=14)
@@ -1081,7 +1095,9 @@ def generate_summary_tables(
     summary_rows = []
     for n_samples in sorted(df["n_samples"].unique()):
         row = {"n_samples": n_samples}
-        for scoring in sorted(df["scoring"].unique()):
+        for scoring in SCORING_ORDER:
+            if scoring not in set(df["scoring"]):
+                continue
             subset = df[(df["n_samples"] == n_samples) & (df["scoring"] == scoring)]
             if primary_metric in subset.columns and not subset[primary_metric].isna().all():
                 mean = subset[primary_metric].mean()
@@ -1102,7 +1118,7 @@ def generate_summary_tables(
         subset = df[df["n_samples"] == n_samples]
         if primary_metric not in subset.columns or subset[primary_metric].isna().all():
             continue
-        means = subset.groupby("scoring")[primary_metric].mean()
+        means = subset[subset["scoring"].isin(SCORING_ORDER)].groupby("scoring")[primary_metric].mean()
         if higher_is_better:
             best_method = means.idxmax()
             best_value = means.max()
@@ -1114,7 +1130,7 @@ def generate_summary_tables(
             second_best = means.drop(best_method).min()
             improvement = (second_best - best_value) / second_best * 100 if second_best > 0 else 0
 
-        fit_means = subset.groupby("scoring")["fit_time"].mean()
+        fit_means = subset[subset["scoring"].isin(SCORING_ORDER)].groupby("scoring")["fit_time"].mean()
         best_rows.append(
             {
                 "n_samples": n_samples,
@@ -1154,6 +1170,14 @@ def generate_summary_tables(
 def save_latex_table(df: pd.DataFrame, path: Path, caption: str, label: str):
     """Save DataFrame as LaTeX table."""
     latex = df.to_latex(index=False, caption=caption, label=label, escape=False)
+    latex = latex.replace("%", r"\%")
+    latex = latex.replace("\\begin{table}\n", "\\begin{table}\n\\centering\n", 1)
+    latex = re.sub(
+        r"(\\begin\{tabular\}.*?\\end\{tabular\})",
+        r"\\resizebox{\\textwidth}{!}{%\n\1\n}",
+        latex,
+        flags=re.S,
+    )
     with open(path, "w") as f:
         f.write(latex)
     logger.info(f"Saved LaTeX table to {path}")
@@ -1176,10 +1200,13 @@ def generate_merged_real_data_table(
         if results is None:
             continue
         df = results.to_dataframe()
+        df = _filter_display_scoring_methods(df)
         if skill_col not in df.columns:
             continue
         for dataset in df["dgp"].unique():
-            for scoring in df["scoring"].unique():
+            for scoring in SCORING_ORDER:
+                if scoring not in set(df["scoring"]):
+                    continue
                 subset = df[(df["dgp"] == dataset) & (df["scoring"] == scoring)]
                 n = int(subset["n_samples"].iloc[0]) if len(subset) > 0 else -1
                 skill_mean = subset[skill_col].mean()
@@ -1208,14 +1235,23 @@ def generate_merged_real_data_table(
 def analyze_results(results: StudyResults, task: str, study_type: str):
     """Run full analysis on results."""
     df = results.to_dataframe()
+    df = _filter_display_scoring_methods(df)
     # Skill scores are primary; raw metrics kept as supplementary
-    primary_metric = "crpss" if task == "regression" else "bss"
+    primary_metric = "crpss" if task == "regression" and "crpss" in df.columns else "crps"
+    if task == "classification":
+        primary_metric = "bss"
+    higher_is_better = primary_metric in ("crpss", "bss")
     task_dir = task if study_type != "real_data" else "real_data"
 
     logger.info(f"Analyzing {study_type} {task} results...")
 
     # Statistical tests
-    stat_tests = compute_statistical_tests(df, primary_metric, groupby=["n_samples"])
+    stat_tests = compute_statistical_tests(
+        df,
+        primary_metric,
+        groupby=["n_samples"],
+        higher_is_better=higher_is_better,
+    )
     with open(RESULTS_DIR / task_dir / f"{study_type}_statistical_tests.json", "w") as f:
         json.dump(stat_tests, f, indent=2)
 
@@ -1237,8 +1273,7 @@ def analyze_results(results: StudyResults, task: str, study_type: str):
     ).dropna()
 
     if len(pivot_df) > 0:
-        # Higher skill score is better → rank descending
-        ranks = pivot_df.rank(axis=1, ascending=False)
+        ranks = pivot_df.rank(axis=1, ascending=not higher_is_better)
         avg_ranks = ranks.mean().to_dict()
         n_methods = len(avg_ranks)
         n_datasets = len(pivot_df)

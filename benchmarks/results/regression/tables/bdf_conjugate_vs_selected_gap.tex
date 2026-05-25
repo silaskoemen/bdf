@@ -6,22 +6,22 @@
 \toprule
 Dataset & N--N CRPS & N--N score & Selected family & Sel.\ CRPS & Sel.\ score & Rel.\ gap \\
 \midrule
-abalone\_age & 1.0692 & NLE & Normal--Normal & 1.0692 & NLE & +0.00\% \\
-bike\_sharing & 21.8948 & NLL & Student-$t$ & 18.2010 & NLL+BIC & +20.29\% \\
-boston\_housing & 1.7795 & NLL & Normal-mean Student-$t$ & 1.9850 & NLL & -10.35\% \\
-california\_housing & 0.2227 & NLL & Normal--Normal & 0.2227 & NLL & +0.00\% \\
-combined\_cycle\_power\_plant & 1.6662 & NLL & Student-$t$ & 1.6441 & NLL & +1.34\% \\
-concrete\_strength & 2.8554 & NLL & Student-$t$ & 2.7929 & NLL & +2.24\% \\
-energy\_efficiency & 0.2737 & NLL & Student-$t$ & 0.2668 & NLL+BIC & +2.58\% \\
-forest\_fires & 0.7556 & NLL & Student-$t$ & 0.7514 & NLL & +0.55\% \\
-kin8nm & 0.0761 & NLE & Normal--Normal & 0.0761 & NLE & +0.00\% \\
-naval\_propulsion & 0.0006 & NLL & Student-$t$ & 0.0005 & NLL+BIC & +7.01\% \\
-parkinsons\_updrs & 0.4606 & NLL & Student-$t$ & 0.3136 & NLL & +46.87\% \\
-protein\_tertiary\_structure & 1.5040 & NLL & Student-$t$ & 1.4825 & NLL & +1.44\% \\
-superconductor & 3.6483 & NLL & Student-$t$ & 3.5831 & NLL & +1.82\% \\
-wine\_quality & 0.2903 & NLL & Student-$t$ & 0.2640 & NLL & +9.98\% \\
-yacht\_hydrodynamics & 0.4811 & NLL & Student-$t$ & 0.4435 & NLL & +8.48\% \\
+abalone\_age & 1.0602 & NLL+BIC & Normal--Normal & 1.0602 & NLL+BIC & +0.00\% \\
+bike\_sharing & 18.0978 & NLL & Normal--Normal & 18.0978 & NLL & +0.00\% \\
+boston\_housing & 1.8510 & NLL & Normal--Normal & 1.8510 & NLL & +0.00\% \\
+california\_housing & 0.2241 & NLL+BIC & Normal--Normal & 0.2241 & NLL+BIC & +0.00\% \\
+combined\_cycle\_power\_plant & 1.6550 & NLL+BIC & Student-$t$ & 1.6418 & NLL & +0.81\% \\
+concrete\_strength & 2.8237 & NLL+BIC & Student-$t$ & 2.8019 & NLL+BIC & +0.78\% \\
+energy\_efficiency & 0.2913 & NLL+BIC & Student-$t$ & 0.2646 & NLL+BIC & +10.07\% \\
+forest\_fires & 0.7462 & NLL & Normal--Normal & 0.7462 & NLL & +0.00\% \\
+kin8nm & 0.0771 & NLE & Normal--Normal & 0.0771 & NLE & +0.00\% \\
+naval\_propulsion & 0.0005 & NLL+BIC & Student-$t$ & 0.0005 & NLL & +3.29\% \\
+parkinsons\_updrs & 0.3410 & NLL & Student-$t$ & 0.3129 & NLL+BIC & +9.00\% \\
+protein\_tertiary\_structure & 1.5211 & NLE & Student-$t$ & 1.4803 & NLL & +2.76\% \\
+superconductor & 3.6502 & NLL+BIC & Student-$t$ & 3.5738 & NLL+BIC & +2.14\% \\
+wine\_quality & 0.2756 & NLL+BIC & Student-$t$ & 0.2650 & NLL & +4.00\% \\
+yacht\_hydrodynamics & 0.4647 & NLL+BIC & Student-$t$ & 0.4514 & NLL+BIC & +2.94\% \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Across 15 datasets the median relative gap is +1.82\%, the mean is +6.15\%, and the worst case is +46.87\%; the conjugate Normal--Normal variant matches or beats the selected variant on 4/15 datasets.}
+\par\smallskip\footnotesize{Across 15 datasets the median relative gap is +0.81\%, the mean is +2.39\%, and the worst case is +10.07\%; the conjugate Normal--Normal variant matches or beats the selected variant on 6/15 datasets.}
 \end{table}

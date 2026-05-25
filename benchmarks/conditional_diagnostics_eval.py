@@ -49,7 +49,6 @@ DEFAULT_BDF_MODELS = [
     "bdf_kde",
     "bdf_gammamvlambdapoisson",
     "bdf_freqstudentt",
-    "bdf_normalmeanstudentt",
 ]
 
 DEFAULT_MODELS = ["BDF", "qrf", "drf", "conflgbm", "ngboost_reg", "catbunc_reg"]

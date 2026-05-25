@@ -1,0 +1,14 @@
+\begin{table}[htbp]
+\centering
+\caption{Fixed-NLE Beta--Bernoulli BDF-Core versus tuned classification BDF-Full.}
+\label{tab:bdf-core-vs-full-classification}
+\begin{tabular}{lccccc}
+\toprule
+Model & Rel. log loss $\downarrow$ & Rel. Brier $\downarrow$ & ECE $\downarrow$ & AUROC $\uparrow$ & Gap vs Full $\downarrow$ \\
+\midrule
+BDF-Core (NLE) & 1.094 & 1.127 & 0.068 & 0.903 & +0.47\% \\
+BDF-Full (tuned) & 1.083 & 1.116 & 0.070 & 0.904 & 0.00\% \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize{Relative scores are averaged over 12 datasets against the best model per dataset in the classification comparison set (lower is better). The gap column is the median log-loss difference relative to BDF-Full. BDF-Core fixes the conjugate NLE score, while BDF-Full tunes the canonical Beta--Bernoulli score regime.}
+\end{table}

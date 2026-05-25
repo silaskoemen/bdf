@@ -63,7 +63,6 @@ Targeted revision reruns:
 # Canonical BDF-Full candidates affected by score_regime / OOB-off protocol
 pixi run reg-suite model=bdf_normalmunormal
 pixi run reg-suite model=bdf_freqstudentt
-pixi run reg-suite model=bdf_normalmeanstudentt
 pixi run reg-suite model=bdf_gammamvlambdapoisson
 
 # Fixed-regime BDF-Core / leaf x score ablations

@@ -6,19 +6,16 @@
 \toprule
 Dataset & Leaf family & Split score & Sel.\ CRPS & N--N gap \\
 \midrule
-bike\_sharing & Student-$t$ & NLL+BIC & 18.2010 & +20.29\% \\
-boston\_housing & Normal-mean Student-$t$ & NLL & 1.9850 & -10.35\% \\
-combined\_cycle\_power\_plant & Student-$t$ & NLL & 1.6441 & +1.34\% \\
-concrete\_strength & Student-$t$ & NLL & 2.7929 & +2.24\% \\
-energy\_efficiency & Student-$t$ & NLL+BIC & 0.2668 & +2.58\% \\
-forest\_fires & Student-$t$ & NLL & 0.7514 & +0.55\% \\
-naval\_propulsion & Student-$t$ & NLL+BIC & 0.0005 & +7.01\% \\
-parkinsons\_updrs & Student-$t$ & NLL & 0.3136 & +46.87\% \\
-protein\_tertiary\_structure & Student-$t$ & NLL & 1.4825 & +1.44\% \\
-superconductor & Student-$t$ & NLL & 3.5831 & +1.82\% \\
-wine\_quality & Student-$t$ & NLL & 0.2640 & +9.98\% \\
-yacht\_hydrodynamics & Student-$t$ & NLL & 0.4435 & +8.48\% \\
+combined\_cycle\_power\_plant & Student-$t$ & NLL & 1.6418 & +0.81\% \\
+concrete\_strength & Student-$t$ & NLL+BIC & 2.8019 & +0.78\% \\
+energy\_efficiency & Student-$t$ & NLL+BIC & 0.2646 & +10.07\% \\
+naval\_propulsion & Student-$t$ & NLL & 0.0005 & +3.29\% \\
+parkinsons\_updrs & Student-$t$ & NLL+BIC & 0.3129 & +9.00\% \\
+protein\_tertiary\_structure & Student-$t$ & NLL & 1.4803 & +2.76\% \\
+superconductor & Student-$t$ & NLL+BIC & 3.5738 & +2.14\% \\
+wine\_quality & Student-$t$ & NLL & 0.2650 & +4.00\% \\
+yacht\_hydrodynamics & Student-$t$ & NLL+BIC & 0.4514 & +2.94\% \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Among the 12 datasets whose selected BDF variant uses Student-$t$ leaves, NLL+BIC is selected on 3/12 and pure NLL on 9/12. The median Normal--Normal-to-selected CRPS gap is +2.41\% (mean +7.69\%). This is stability evidence for the non-conjugate approximation story rather than an exact-reference validation: closed-form Student-$t$ evidence is unavailable in this implementation.}
+\par\smallskip\footnotesize{Among the 9 datasets whose selected BDF variant uses Student-$t$ leaves, NLL+BIC is selected on 5/9 and pure NLL on 4/9. The median Normal--Normal-to-selected CRPS gap is +2.94\% (mean +3.98\%). This is stability evidence for the non-conjugate approximation story rather than an exact-reference validation: closed-form Student-$t$ evidence is unavailable in this implementation.}
 \end{table}

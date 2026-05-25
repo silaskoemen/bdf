@@ -34,7 +34,6 @@ BDF_FULL_SELECTION_MODELS = [
     "bdf_kde",
     "bdf_gammamvlambdapoisson",
     "bdf_freqstudentt",
-    "bdf_normalmeanstudentt",
 ]
 
 BDF_EXACT_NORMAL_COMPARISON_MODELS = [

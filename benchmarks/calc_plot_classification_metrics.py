@@ -35,6 +35,8 @@ BDF_MODELS = [
     "bdf_betamvbernoulli",
 ]
 
+BDF_CORE_MODEL = "bdf_betamvbernoulli_nle"
+
 # Baseline models
 BASELINE_MODELS = [
     "rf_clas",
@@ -778,6 +780,97 @@ def main():
             label="tab:rel-to-best-log-loss",
         )
         save_latex_table(rel_to_best_table, TABLES_DIR / "rel_to_best_log_loss.tex")
+
+    # BDF-Core versus BDF-Full table.  The main benchmark keeps only the
+    # canonical tuned BDF; this table reports the fixed-NLE ablation separately.
+    core_results = load_model_results(RESULTS_DIR, [BDF_CORE_MODEL])
+    if BDF_CORE_MODEL in core_results:
+        bdf_core_label = "BDF-Core"
+        bdf_full_label = "BDF-Full"
+        core_comparison_results = {
+            bdf_core_label: core_results[BDF_CORE_MODEL],
+            bdf_full_label: bdf_data,
+            **baseline_results,
+        }
+        core_datasets = sorted(
+            set(datasets) & set(core_results[BDF_CORE_MODEL].get("datasets", {})) & set(bdf_data.get("datasets", {}))
+        )
+        core_df = build_comparison_dataframe(
+            core_comparison_results,
+            metrics=main_metrics,
+            datasets=core_datasets,
+        )
+
+        def _metric_mean(model: str, metric: str) -> float:
+            rows = core_df.filter((core_df["model"] == model) & (core_df["metric"] == metric))
+            return float(rows.select("mean").to_series().mean())
+
+        def _relative_to_best(metric: str, model: str) -> float:
+            ratios = []
+            for ds in core_datasets:
+                rows = core_df.filter((core_df["dataset"] == ds) & (core_df["metric"] == metric))
+                values = rows.select(["model", "mean"]).to_dicts()
+                model_value = next(row["mean"] for row in values if row["model"] == model)
+                best_value = min(row["mean"] for row in values)
+                if best_value > 0:
+                    ratios.append(model_value / best_value)
+            return float(np.mean(ratios))
+
+        core_log_loss = [
+            core_df.filter(
+                (core_df["dataset"] == ds) & (core_df["model"] == bdf_core_label) & (core_df["metric"] == "log_loss")
+            )
+            .select("mean")
+            .to_series()[0]
+            for ds in core_datasets
+        ]
+        full_log_loss = [
+            core_df.filter(
+                (core_df["dataset"] == ds) & (core_df["model"] == bdf_full_label) & (core_df["metric"] == "log_loss")
+            )
+            .select("mean")
+            .to_series()[0]
+            for ds in core_datasets
+        ]
+        core_gap = 100.0 * np.median((np.array(core_log_loss) - np.array(full_log_loss)) / np.array(full_log_loss))
+
+        core_full_table = "\n".join(
+            [
+                r"\begin{table}[htbp]",
+                r"\centering",
+                r"\caption{Fixed-NLE Beta--Bernoulli BDF-Core versus tuned classification BDF-Full.}",
+                r"\label{tab:bdf-core-vs-full-classification}",
+                r"\begin{tabular}{lccccc}",
+                r"\toprule",
+                r"Model & Rel. log loss $\downarrow$ & Rel. Brier $\downarrow$ & ECE $\downarrow$ & AUROC $\uparrow$ & Gap vs Full $\downarrow$ \\",
+                r"\midrule",
+                (
+                    rf"BDF-Core (NLE) & {_relative_to_best('log_loss', bdf_core_label):.3f} "
+                    rf"& {_relative_to_best('brier', bdf_core_label):.3f} "
+                    rf"& {_metric_mean(bdf_core_label, 'ece'):.3f} "
+                    rf"& {_metric_mean(bdf_core_label, 'auroc'):.3f} "
+                    rf"& {core_gap:+.2f}\% \\"
+                ),
+                (
+                    rf"BDF-Full (tuned) & {_relative_to_best('log_loss', bdf_full_label):.3f} "
+                    rf"& {_relative_to_best('brier', bdf_full_label):.3f} "
+                    rf"& {_metric_mean(bdf_full_label, 'ece'):.3f} "
+                    rf"& {_metric_mean(bdf_full_label, 'auroc'):.3f} "
+                    r"& 0.00\% \\"
+                ),
+                r"\bottomrule",
+                r"\end{tabular}",
+                (
+                    rf"\par\smallskip\footnotesize{{Relative scores are averaged over {len(core_datasets)} "
+                    r"datasets against the best model per dataset in the classification comparison set "
+                    r"(lower is better). The gap column is the median log-loss difference relative to "
+                    r"BDF-Full. BDF-Core fixes the conjugate NLE score, while BDF-Full tunes the canonical "
+                    r"Beta--Bernoulli score regime.}"
+                ),
+                r"\end{table}",
+            ]
+        )
+        save_latex_table(core_full_table, TABLES_DIR / "bdf_core_vs_full_classification.tex")
 
     # Per-dataset and ranking tables for BSS
     bss_matrix_full, bss_ds_list, bss_model_list = get_metric_matrix(df, "bss", models=models, datasets=datasets)

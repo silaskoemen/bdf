@@ -6,11 +6,12 @@
 \toprule
 Model & Fit Speedup & $N$ & Tune Speedup & $N$ \\
 \midrule
-LightGBM & 1.16$\times$ & 12 & 1.47$\times$ & 12 \\
-CalRF & 0.99$\times$ & 12 & 1.55$\times$ & 12 \\
-NGBoost & 0.77$\times$ & 12 & 0.89$\times$ & 12 \\
-RF & 0.52$\times$ & 12 & 0.77$\times$ & 12 \\
-KNN & 7.8e-03$\times$ & 12 & 0.19$\times$ & 12 \\
+LightGBM & 0.93$\times$ & 12 & 1.58$\times$ & 12 \\
+CalRF & 0.79$\times$ & 12 & 1.66$\times$ & 12 \\
+CalLGBM & 0.77$\times$ & 12 & 2.09$\times$ & 12 \\
+NGBoost & 0.62$\times$ & 12 & 0.96$\times$ & 12 \\
+RF & 0.41$\times$ & 12 & 0.82$\times$ & 12 \\
+KNN & 6.2e-03$\times$ & 12 & 0.20$\times$ & 12 \\
 \bottomrule
 \end{tabular}
 \par\smallskip\footnotesize{Geometric mean of per-dataset time ratios (model / BDF). Values $>1$: \mbox{BDF} is faster. $N$ = number of shared datasets.}}

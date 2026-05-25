@@ -1,50 +1,43 @@
 \begin{table}
+\centering
 \caption{Real-data results (5-fold CV, 3 seeds). Skill score column is CRPSS for regression and BSS for classification. Hyperparameters are held fixed across scoring methods to isolate split-selection effects.}
 \label{tab:a2_real_data}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{llrllll}
 \toprule
 task & dataset & n & scoring & skill_score & fit_time_s & predict_time_s \\
 \midrule
 regression & yacht_hydrodynamics & 308 & nle & 0.9188 ± 0.0148 & 0.12 & 0.10 \\
 regression & yacht_hydrodynamics & 308 & nll & 0.9193 ± 0.0146 & 0.03 & 0.11 \\
-regression & yacht_hydrodynamics & 308 & nll_aic & 0.9191 ± 0.0148 & 0.03 & 0.10 \\
 regression & yacht_hydrodynamics & 308 & nll_bic & 0.9192 ± 0.0148 & 0.03 & 0.11 \\
 regression & boston_housing & 506 & nle & 0.6321 ± 0.0328 & 0.06 & 0.18 \\
 regression & boston_housing & 506 & nll & 0.6338 ± 0.0324 & 0.06 & 0.19 \\
-regression & boston_housing & 506 & nll_aic & 0.6337 ± 0.0322 & 0.06 & 0.19 \\
 regression & boston_housing & 506 & nll_bic & 0.6338 ± 0.0323 & 0.06 & 0.19 \\
 regression & energy_efficiency & 768 & nle & 0.9226 ± 0.0093 & 0.05 & 0.24 \\
 regression & energy_efficiency & 768 & nll & 0.9227 ± 0.0094 & 0.05 & 0.26 \\
-regression & energy_efficiency & 768 & nll_aic & 0.9227 ± 0.0093 & 0.05 & 0.25 \\
 regression & energy_efficiency & 768 & nll_bic & 0.9227 ± 0.0092 & 0.05 & 0.25 \\
 regression & concrete_strength & 1030 & nle & 0.6418 ± 0.0163 & 0.07 & 0.37 \\
 regression & concrete_strength & 1030 & nll & 0.6430 ± 0.0161 & 0.07 & 0.37 \\
-regression & concrete_strength & 1030 & nll_aic & 0.6428 ± 0.0162 & 0.08 & 0.37 \\
 regression & concrete_strength & 1030 & nll_bic & 0.6428 ± 0.0162 & 0.07 & 0.37 \\
 regression & wine_quality & 1599 & nle & 0.3022 ± 0.0287 & 0.13 & 0.51 \\
 regression & wine_quality & 1599 & nll & 0.3319 ± 0.0307 & 0.15 & 0.57 \\
-regression & wine_quality & 1599 & nll_aic & 0.3314 ± 0.0306 & 0.15 & 0.56 \\
 regression & wine_quality & 1599 & nll_bic & 0.3323 ± 0.0292 & 0.15 & 0.56 \\
 classification & heart_disease & 297 & nle & 0.4716 ± 0.1060 & 0.03 & 0.00 \\
 classification & heart_disease & 297 & nll & 0.4742 ± 0.1025 & 0.03 & 0.00 \\
-classification & heart_disease & 297 & nll_aic & 0.4739 ± 0.1043 & 0.02 & 0.00 \\
 classification & heart_disease & 297 & nll_bic & 0.4734 ± 0.1055 & 0.03 & 0.00 \\
 classification & ionosphere & 351 & nle & 0.6839 ± 0.0908 & 0.04 & 0.00 \\
 classification & ionosphere & 351 & nll & 0.6844 ± 0.0878 & 0.03 & 0.00 \\
-classification & ionosphere & 351 & nll_aic & 0.6846 ± 0.0889 & 0.03 & 0.00 \\
 classification & ionosphere & 351 & nll_bic & 0.6848 ± 0.0901 & 0.03 & 0.00 \\
 classification & breast_cancer_wisconsin & 569 & nle & 0.8403 ± 0.0387 & 0.04 & 0.00 \\
 classification & breast_cancer_wisconsin & 569 & nll & 0.8415 ± 0.0380 & 0.04 & 0.00 \\
-classification & breast_cancer_wisconsin & 569 & nll_aic & 0.8413 ± 0.0383 & 0.03 & 0.00 \\
 classification & breast_cancer_wisconsin & 569 & nll_bic & 0.8411 ± 0.0386 & 0.04 & 0.00 \\
 classification & credit_approval & 653 & nle & 0.6109 ± 0.0408 & 0.04 & 0.00 \\
 classification & credit_approval & 653 & nll & 0.6085 ± 0.0368 & 0.06 & 0.00 \\
-classification & credit_approval & 653 & nll_aic & 0.6109 ± 0.0401 & 0.05 & 0.00 \\
 classification & credit_approval & 653 & nll_bic & 0.6107 ± 0.0400 & 0.05 & 0.00 \\
 classification & pima_diabetes & 768 & nle & 0.3116 ± 0.0457 & 0.04 & 0.00 \\
 classification & pima_diabetes & 768 & nll & 0.3102 ± 0.0469 & 0.04 & 0.01 \\
-classification & pima_diabetes & 768 & nll_aic & 0.3108 ± 0.0469 & 0.04 & 0.00 \\
 classification & pima_diabetes & 768 & nll_bic & 0.3113 ± 0.0464 & 0.04 & 0.00 \\
 \bottomrule
 \end{tabular}
+}
 \end{table}
