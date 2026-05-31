@@ -24,7 +24,7 @@
 \newcommand{\dataset}{{\cal{D}}}
 \newcommand{\fracpartial}[2]{\frac{\partial #1}{\partial  #2}}
 
-\title{Bayesian Leaf Distributional Forests: Evidence-Regularized Probabilistic Tree Ensembles}
+\title{Evidence-Regularized Distributional Forests with Bayesian Leaves}
 
 \author{\name Anonymous Authors}
 
@@ -41,14 +41,16 @@
 \makeatletter\let\AND\@undefined\makeatother
 
 \begin{abstract}%   <- trailing '%' for backward compatibility of .sty file
-We introduce \emph{Bayesian Distributional Forests} (BDF), a probabilistic tree-ensemble framework that replaces point-valued leaves with explicit predictive distributions.
+We introduce \emph{Bayesian-leaf Distributional Forests} (BDF), an evidence-regularized probabilistic tree-ensemble framework that replaces point-valued leaves with explicit predictive distributions.
 BDF performs exact Bayesian updating inside conjugate leaves, such as Normal--Normal and Beta--Bernoulli leaves, and uses evidence-surrogate or regularized plug-in log scores for non-conjugate leaves such as Student-$t$ and KDE leaves.
 Tree growth is driven by an additive leaf log-score objective together with a depth- and split-identity penalty, yielding scalable greedy forests whose predictions are mixtures of leaf-level predictive distributions.
 
 The method is designed for the practical regime where full Bayesian posterior sampling over tree structures is too costly, but calibrated predictive distributions are still needed.
 The resulting procedure is exact Bayes only at conjugate leaves and evidence-regularized elsewhere; we make this distinction explicit in the training objective, theory, and experiments.
-Across real regression benchmarks, QRF and DRF achieve the best aggregate CRPS/CRPSS, while BDF is the strongest parametric probabilistic model by relative CRPS and attains the best average 90\% interval-score rank with nominal-to-slightly-conservative coverage.
-In binary classification, BDF is competitive with random forests, LightGBM, NGBoost, and calibrated variants, with the best average log-loss rank and no significant disadvantage against the strongest tree and boosting baselines under Holm-corrected paired tests.
+Across real regression benchmarks, validation selects Student-$t$ leaves on 9/15 datasets; exact NLE is selected on 1/15, NLL+BIC on 7/15, and pure plug-in NLL on 7/15.
+The fixed Normal--Normal NLE reference is close but not dominant (median $+3.03\%$ CRPS gap to BDF-Full, mean $+9.54\%$, better on 1/15 datasets).
+QRF and DRF achieve the best aggregate CRPS/CRPSS, while BDF-Full is the strongest parametric probabilistic model by relative CRPS and attains the best average 90\% interval-score rank with nominal-to-slightly-conservative coverage.
+In binary classification, BDF-Full is competitive with random forests, LightGBM, NGBoost, and calibrated variants, with the best average log-loss rank and no significant disadvantage against the strongest tree and boosting baselines under Holm-corrected paired tests; the fixed-NLE Beta--Bernoulli Core variant is within a median $+0.47\%$ log-loss of BDF-Full.
 Overall, BDF provides a scalable route to likelihood-aware tree ensembles: it preserves the computational style of random forests while exposing probabilistic leaf models, Bayesian leaf uncertainty when available, and explicit regularization when exact evidence is unavailable.
 \end{abstract}
 
@@ -70,7 +72,7 @@ While conceptually appealing, such methods often rely on MCMC over tree structur
 Recent work revisits Bayesian tree induction from a MAP perspective (e.g., MAPTree) \citep{sullivan2024maptree}, but a core tension remains: \emph{Bayesian structure inference} is expensive, whereas \emph{fast split optimization} is central to how trees are used in practice.
 
 This paper targets the regime in which tree ensembles are most effective: scalable split search, many candidate partitions, and the need for uncertainty-aware prediction without full posterior sampling over tree structures.
-We introduce \emph{Bayesian Distributional Forests} (BDF), which upgrade classical forests to probabilistic predictors by combining \emph{Bayesian inference within leaves when available} with evidence-regularized fitted leaves otherwise, and by selecting splits via \emph{log predictive scores}.
+We introduce \emph{Bayesian-leaf Distributional Forests} (BDF), which upgrade classical forests to probabilistic predictors by combining \emph{Bayesian inference within leaves when available} with evidence-regularized fitted leaves otherwise, and by selecting splits via \emph{log predictive scores}.
 
 \paragraph{Key idea: Bayesian leaf principles + log-score-based split selection.}
 BDF treats each leaf as a local probabilistic model. For conjugate leaves this is a Bayesian model with prior $\pi(\theta_\ell\mid\eta)$, posterior $\pi(\theta_\ell\mid\mathcal{D}_\ell,\eta)$, and posterior predictive $p_\ell(y\mid \mathcal{D}_\ell,\eta)$; for non-conjugate leaves it is an explicit fitted density scored by an evidence surrogate or by a regularized plug-in log score.
@@ -84,13 +86,41 @@ BDF is not a posterior sampler over tree structures.
 Instead, it combines Bayesian or evidence-regularized probabilistic leaves with standard randomized ensemble training (bagging and feature subsampling), producing predictions by mixing leaf-level predictive distributions across trees.
 This retains the computational profile of classical forests while yielding coherent predictive distributions.
 
+\paragraph{Two empirical variants.}
+We report two reviewer-facing variants.
+\emph{BDF-Core} denotes a small canonical evidence-comparison set of fixed-NLE conjugate leaves: Normal--Normal NLE for regression and Beta--Bernoulli NLE for classification.
+These are not the only conjugate pairs supported by the framework; they are the default real-valued and binary references used to isolate exact evidence scoring.
+\emph{BDF-Full} denotes the practical validation-selected aggregate over the canonical leaf families and score regimes under one tuning budget per family.
+For conjugate Normal--Normal/Beta--Bernoulli leaves, the selectable score regimes are NLE, NLL+BIC, and pure NLL; for non-conjugate Student-$t$ leaves, exact evidence is unavailable, so the selectable regimes are NLL+BIC and pure NLL.
+Unless otherwise stated, headline benchmark numbers refer to BDF-Full.
+
 \paragraph{Contributions.}
 \begin{enumerate}
-\item We introduce Bayesian Distributional Forests, a scalable probabilistic tree ensemble with Bayesian leaves when conjugacy permits and evidence-regularized fitted leaves otherwise.
-\item We formalize split selection through an additive leaf-wise log-score objective covering exact evidence, Laplace/BIC surrogates, and regularized plug-in likelihood scores.
-\item We connect evidence-based splitting to prequential log scoring, marginal-likelihood Occam penalties, and local Bayes-factor split tests.
-\item We show empirically that BDF is a competitive calibrated distributional predictor: QRF/DRF lead aggregate CRPS/CRPSS, while BDF is the strongest parametric probabilistic model by relative CRPS and has the best average 90\% interval-score rank.
+\item We introduce BDF, a scalable probabilistic tree ensemble whose leaves expose explicit predictive distributions: exact posterior predictives for conjugate leaves and regularized fitted densities otherwise.
+\item We formalize greedy split selection through an additive leaf-wise log-score objective covering exact evidence, Laplace/BIC surrogates, and pure plug-in likelihood scores, combined with validation-tuned MDL-style structural penalties.
+\item We connect conjugate evidence splitting to prequential log scoring, marginal-likelihood Occam penalties, and local Bayes-factor split tests, while making the fixed-partition scope of this theory explicit.
+\item We empirically decompose BDF-Core and BDF-Full across leaf families and score regimes, showing where exact NLE is sufficient and where robust Student-$t$ or plug-in regimes are selected.
+\item We show that BDF-Full is a competitive calibrated distributional predictor: QRF/DRF lead aggregate CRPS/CRPSS, while BDF-Full is the strongest parametric probabilistic model by relative CRPS and has the best average 90\% interval-score rank.
 \end{enumerate}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption{Main claims, evidence, and scope.}
+\label{tab:claims-evidence}
+\begin{tabular}{p{0.28\textwidth}p{0.37\textwidth}p{0.25\textwidth}}
+\toprule
+Claim & Evidence & Scope \\
+\midrule
+Conjugate leaves support exact Bayesian updates and NLE split scores & Section~\ref{subsec:leaf_models}; Appendix~\ref{app:conjugate_updates} & Exact conditional on fixed hyperparameters and leaf assignments \\
+NLE has a prequential/Bayes-factor interpretation & Section~\ref{subsec:split_scoring}; Section~\ref{sec:theory} & Local and fixed-partition; not a posterior over forest structures \\
+BDF-Full is the submitted practical aggregate & Table~\ref{tab:compute-budget-selection}; Table~\ref{tab:bdf-selection} & Fold-0 validation-selected leaf family and score regime \\
+Regression is often non-conjugate/evidence-regularized & Table~\ref{tab:bdf-selection}; Table~\ref{tab:bdf-leaf-score-ablation} & Student-$t$ uses MoM plug-in leaves, not exact evidence \\
+Exact-NLE Core remains a useful reference & Table~\ref{tab:bdf-normal-nle-vs-full}; Table~\ref{tab:bdf-core-vs-full-classification} & Normal--Normal and Beta--Bernoulli canonical references only \\
+BDF-Full is calibrated but not aggregate-CRPS SOTA & Figure~\ref{fig:coverage-vs-interval-score-rank}; Figure~\ref{fig:crps-rel-to-best}; Table~\ref{tab:rel-to-best-crps} & QRF/DRF lead aggregate CRPS/CRPSS \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Related Work}\label{sec:related-work}
 
@@ -114,7 +144,7 @@ Bayesian CART and BART \citep{denison1998bayesian,chipman2010bart} place priors 
 % ==========================================
 \section{Methodology}\label{sec:methodology}
 
-Bayesian Distributional Forests (BDF) extend classical tree ensembles by replacing point-valued leaf predictions with \emph{probabilistic leaf distributions} and selecting partitions using \emph{log predictive scores}. For conjugate leaf families (e.g., Normal--Normal, Beta--Bernoulli, Gamma--Poisson), BDF uses closed-form posteriors, posterior predictives, and negative log evidence (NLE) split scores. For non-conjugate leaves, including the Student-$t$ leaves selected on most regression datasets (Table~\ref{tab:bdf-selection}), BDF uses fitted predictive distributions scored by a BIC-style evidence surrogate or a regularized plug-in log score. Thus BDF is exact Bayes only at conjugate leaves; elsewhere it is evidence-regularized rather than a posterior sampler over tree structures.
+Bayesian-leaf Distributional Forests (BDF) extend classical tree ensembles by replacing point-valued leaf predictions with \emph{probabilistic leaf distributions} and selecting partitions using \emph{log predictive scores}. For conjugate leaf families (e.g., Normal--Normal, Beta--Bernoulli, Gamma--Poisson), BDF uses closed-form posteriors, posterior predictives, and negative log evidence (NLE) split scores. For non-conjugate leaves, including the Student-$t$ leaves selected on most regression datasets (Table~\ref{tab:bdf-selection}), BDF uses fitted predictive distributions scored by a BIC-style evidence surrogate or a regularized plug-in log score. Thus BDF is exact Bayes only at conjugate leaves; elsewhere it is evidence-regularized rather than a posterior sampler over tree structures.
 
 \subsection{Problem Setup and Partitions}
 
@@ -289,7 +319,7 @@ We implement the criterion~\eqref{eq:net_gain} within a best-first greedy strate
 
 \subsection{Ensembles and Probabilistic Prediction}\label{subsec:ensemble}
 
-A Bayesian Distributional Forest is an ensemble of $M$ randomized trees $\{T^{(m)}\}_{m=1}^M$ trained independently (and thus fully parallelizable) using standard diversity mechanisms: bootstrap or row subsampling of training data, and random feature subsampling at each split.
+A Bayesian-leaf Distributional Forest is an ensemble of $M$ randomized trees $\{T^{(m)}\}_{m=1}^M$ trained independently (and thus fully parallelizable) using standard diversity mechanisms: bootstrap or row subsampling of training data, and random feature subsampling at each split.
 
 For a test input $\mathbf{x}^\star$, each tree contributes the predictive distribution from its assigned leaf,
 \[
@@ -419,7 +449,7 @@ by Jensen's inequality. Thus mixture aggregation cannot be worse, in pointwise l
 % ==========================================
 \section{Discussion and Conclusion}\label{sec:discussion}
 
-We introduced Bayesian Distributional Forests (BDF), an evidence-centered probabilistic tree ensemble that performs exact Bayesian inference within conjugate leaves and uses evidence surrogates or regularized plug-in scores elsewhere. This design keeps the training loop close to scalable tree induction while producing full predictive distributions. Empirically, BDF occupies a useful accuracy--calibration tradeoff: QRF and DRF lead aggregate CRPS/CRPSS, but BDF is the strongest parametric probabilistic regression model by relative CRPS, has the best 90\% interval-score rank, and retains relative RMSE closer to boosted-tree methods than to the nonparametric CRPS leaders.
+We introduced Bayesian-leaf Distributional Forests (BDF), an evidence-centered probabilistic tree ensemble that performs exact Bayesian inference within conjugate leaves and uses evidence surrogates or regularized plug-in scores elsewhere. This design keeps the training loop close to scalable tree induction while producing full predictive distributions. Empirically, BDF-Full occupies a useful accuracy--calibration tradeoff: QRF and DRF lead aggregate CRPS/CRPSS, but BDF-Full is the strongest parametric probabilistic regression model by relative CRPS, has the best 90\% interval-score rank, and retains relative RMSE closer to boosted-tree methods than to the nonparametric CRPS leaders.
 
 The main limitations follow from this design. BDF depends on the chosen leaf family and prior strength, so misspecification can affect sharpness and calibration in low-data regions. Its theory justifies leaf predictors and split scores under fixed partitions, but does not prove consistency of the full adaptive forest. In practice, regression often selects non-conjugate Student-$t$ leaves and sometimes pure plug-in NLL, so those runs should be interpreted as evidence-regularized rather than strictly Bayesian. BDF is therefore a modular likelihood-aware forest, not a universal SOTA replacement for QRF/DRF across all distributional metrics.
 

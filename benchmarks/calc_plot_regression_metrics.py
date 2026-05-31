@@ -268,7 +268,8 @@ def main():
     n_bic = sum(1 for v in split_score_col.values() if v.endswith("+BIC"))
     n_total = len(bdf_selection_map)
     selection_footnote = (
-        "Selection based on CRPS from hyperparameter tuning (fold 0). "
+        "Selection based on CRPS from the pre-specified fold-0 tuning split; counts are descriptive "
+        "rather than repeated-split selection-probability estimates. "
         f"Conjugate leaves selected on {n_conjugate}/{n_total} datasets; "
         f"NLE selected on {n_nle}/{n_total}; "
         f"NLL+BIC selected on {n_bic}/{n_total}; "

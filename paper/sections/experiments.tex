@@ -11,7 +11,7 @@ This section evaluates BDF on real-data regression and classification benchmarks
 \subsection{Real-data benchmarks}\label{subsec:exp_real}
 
 \paragraph{Protocol.}
-We evaluate on UCI and OpenML tabular datasets; Appendix~\ref{app:experimental-setup} documents preprocessing, model grids, tuning, and fold protocol. All methods use the same tuning budget, incomplete variant/dataset pairs are excluded rather than imputed, and reported summaries aggregate folds 1--9 after fold-0 selection. The regression comparison includes QRF and DRF as strong nonparametric forest baselines and fused XGBoostLSS variants selected by fold-0 CRPS; the classification comparison focuses on probabilistic classifiers with predicted class probabilities.
+We evaluate on UCI and OpenML tabular datasets; Appendix~\ref{app:experimental-setup} documents preprocessing, model grids, tuning, and fold protocol. All methods use the same tuning budget and processed numeric matrices, incomplete variant/dataset pairs are excluded rather than imputed, and reported summaries aggregate folds 1--9 after fold-0 selection. The regression comparison includes QRF and DRF as strong nonparametric forest baselines and fused XGBoostLSS variants selected by fold-0 CRPS; the classification comparison focuses on probabilistic classifiers with predicted class probabilities.
 
 \subsubsection{Regression}\label{subsubsec:exp_regression}
 
@@ -23,23 +23,25 @@ We evaluate on UCI and OpenML tabular datasets; Appendix~\ref{app:experimental-s
     \label{fig:crps-rel-to-best}
 \end{figure}
 
-Figure~\ref{fig:crps-rel-to-best} and Table~\ref{tab:rel-to-best-crps} summarize CRPS relative to the per-dataset best model. QRF is the strongest aggregate CRPS/CRPSS method, with average relative CRPS $1.270$ and average CRPSS rank $2.13$ (Table~\ref{tab:rankings-crpss}); DRF is second by both summaries. BDF is the strongest parametric probabilistic model by relative CRPS ($1.385$), ahead of conformalized LightGBM ($1.432$), CatBoost-with-Uncertainty ($1.444$), XGBoostLSS ($3.085$), and the remaining baselines. The sign test and critical-difference diagram (Table~\ref{tab:win-tie-loss}, Figure~\ref{fig:cd-crps}) show statistically supported CRPS advantages for QRF/DRF over BDF, so BDF's value is not universal CRPS dominance but an explicit likelihood interface near the probabilistic-score frontier.
+Figure~\ref{fig:crps-rel-to-best} and Table~\ref{tab:rel-to-best-crps} summarize CRPS relative to the per-dataset best model. QRF is the strongest aggregate CRPS/CRPSS method, with average relative CRPS $1.270$ and average CRPSS rank $2.13$ (Table~\ref{tab:rankings-crpss}); DRF is second by both summaries. BDF-Full is the strongest parametric probabilistic model by relative CRPS ($1.385$), ahead of conformalized LightGBM ($1.432$), CatBoost-with-Uncertainty ($1.444$), XGBoostLSS ($3.085$), and the remaining baselines. The sign test and critical-difference diagram (Table~\ref{tab:win-tie-loss}, Figure~\ref{fig:cd-crps}) show statistically supported CRPS advantages for QRF/DRF over BDF-Full, so BDF's value is not universal CRPS dominance but an explicit likelihood interface near the probabilistic-score frontier.
 
 \paragraph{Which leaf family and split score are actually selected?}
-Table~\ref{tab:bdf-selection} reports the BDF leaf family and split-score variant chosen by fold-0 CRPS. Regression selects Student-$t$ leaves on 9 of 15 datasets and Normal--Normal leaves on 6. Exact NLE is selected on 1 dataset, NLL+BIC on 7, and pure plug-in NLL on 7, supporting the framing of BDF as evidence-centered rather than strictly conjugate-Bayesian. The conjugate Normal--Normal variant is close to the selected variant on most datasets (median CRPS gap $+0.81\%$; Table~\ref{tab:bdf-conjugate-vs-selected-gap}), while Table~\ref{tab:bdf-student-t-stability} separates the two Student-$t$ score choices.
+Table~\ref{tab:bdf-selection} reports the BDF leaf family and split-score variant chosen by fold-0 CRPS. These counts are descriptive outcomes of the pre-specified tuning split rather than estimates of selection probabilities under repeated tuning splits. Regression selects Student-$t$ leaves on 9 of 15 datasets and Normal--Normal leaves on 6. Exact NLE is selected on 1 dataset, NLL+BIC on 7, and pure plug-in NLL on 7, supporting the framing of BDF as evidence-centered rather than strictly conjugate-Bayesian. The tuned Normal--Normal variant is close to the selected variant on most datasets (median CRPS gap $+0.81\%$; Table~\ref{tab:bdf-conjugate-vs-selected-gap}), whereas the fixed-NLE Normal--Normal Core reference in Table~\ref{tab:bdf-normal-nle-vs-full} gives the stricter exact-evidence comparison. Table~\ref{tab:bdf-student-t-stability} separates the two Student-$t$ score choices.
+
+\input{../benchmarks/results/regression/tables/bdf_normal_nle_vs_full.tex}
 
 % HEADLINE PLOT: Coverage vs. interval-score rank.
 \begin{figure}[!ht]
     \centering
     \includegraphics[width=\textwidth]{plots/regression/regression_coverage_vs_iscore_rank.pdf}
-    \caption{Empirical coverage at the 50/90/95\% levels versus average interval-score rank. BDF achieves nominal-to-slightly-conservative coverage at the lowest interval-score rank.}
+    \caption{Empirical coverage at the 50/90/95\% levels versus average interval-score rank. BDF-Full achieves nominal-to-slightly-conservative coverage at the lowest interval-score rank.}
     \label{fig:coverage-vs-interval-score-rank}
 \end{figure}
 
-Figure~\ref{fig:coverage-vs-interval-score-rank} positions empirical coverage against average interval-score rank. BDF has the best average 90\% interval-score rank with close-to-nominal, slightly conservative coverage; QRF is similarly calibrated and stronger on CRPS. Point-accurate competitors such as CatBoost-with-Uncertainty and NGBoost under-cover, while conformalized forests recover coverage at the cost of CRPS and interval score.
+Figure~\ref{fig:coverage-vs-interval-score-rank} positions empirical coverage against average interval-score rank. BDF-Full has the best average 90\% interval-score rank with close-to-nominal, slightly conservative coverage; QRF is similarly calibrated and stronger on CRPS. Point-accurate competitors such as CatBoost-with-Uncertainty and NGBoost under-cover, while conformalized forests recover coverage at the cost of CRPS and interval score.
 
 \paragraph{Point accuracy.}
-BDF is not optimized for point prediction, but average relative RMSE is informative: CatBoost-with-Uncertainty and conformalized LightGBM lead, while BDF follows at $1.349$ and remains ahead of QRF ($1.420$) and DRF ($1.513$) (Figure~\ref{fig:rmse-rel-to-best}). Thus BDF sits between nonparametric distributional forests on CRPS and boosted-tree methods on point accuracy.
+BDF is not optimized for point prediction, but average relative RMSE is informative: CatBoost-with-Uncertainty and conformalized LightGBM lead, while BDF-Full follows at $1.349$ and remains ahead of QRF ($1.420$) and DRF ($1.513$) (Figure~\ref{fig:rmse-rel-to-best}). Thus BDF-Full sits between nonparametric distributional forests on CRPS and boosted-tree methods on point accuracy.
 
 \subsubsection{Classification}\label{subsubsec:exp_classification}
 
@@ -55,11 +57,13 @@ BDF is not optimized for point prediction, but average relative RMSE is informat
 \begin{figure}[!ht]
     \centering
     \includegraphics[width=0.68\textwidth]{plots/classification/classification_reliability_diagram.pdf}
-    \caption{Reliability diagrams averaged across classification datasets. BDF predictions are well aligned with the identity line across probability bins.}
+    \caption{Reliability diagrams averaged across classification datasets. BDF-Full predictions are well aligned with the identity line across probability bins.}
     \label{fig:classification-reliability}
 \end{figure}
 
-Figure~\ref{fig:classification-rel-to-best-log-loss} and Table~\ref{tab:rel-to-best-log-loss} report log-loss relative to the per-dataset best classifier. LightGBM has the lowest average relative log-loss ($1.065$), followed by NGBoost ($1.081$) and BDF ($1.083$); by average log-loss rank, BDF is first ($2.25$), followed by LightGBM ($2.50$) and RF ($3.00$) (Table~\ref{tab:rankings-log-loss}). Holm-corrected paired tests show a significant BDF advantage over KNN, but not over RF, LightGBM, NGBoost, or calibrated RF. The reliability diagram (Figure~\ref{fig:classification-reliability}) shows BDF predictions closely aligned with the identity line, consistent with the calibrated behavior seen in regression.
+Figure~\ref{fig:classification-rel-to-best-log-loss} and Table~\ref{tab:rel-to-best-log-loss} report log-loss relative to the per-dataset best classifier. LightGBM has the lowest average relative log-loss ($1.065$), followed by NGBoost ($1.081$) and BDF-Full ($1.083$); by average log-loss rank, BDF-Full is first ($2.25$), followed by LightGBM ($2.50$) and RF ($3.00$) (Table~\ref{tab:rankings-log-loss}). Holm-corrected paired tests show a significant BDF-Full advantage over KNN, but not over RF, LightGBM, NGBoost, or calibrated RF. Table~\ref{tab:bdf-core-vs-full-classification} shows that the fixed-NLE Beta--Bernoulli Core variant and tuned classification BDF-Full are nearly identical: the median log-loss gap is $+0.47\%$, and Core has similar ECE. The reliability diagram (Figure~\ref{fig:classification-reliability}) shows BDF-Full predictions closely aligned with the identity line, consistent with the calibrated behavior seen in regression.
+
+\input{../benchmarks/results/classification/tables/bdf_core_vs_full_classification.tex}
 
 % ==========================================
 % 5.2 SYNTHETIC DGPS
@@ -83,7 +87,9 @@ Figure~\ref{fig:synthetic-predictions-grid} compares predicted conditional distr
 % ==========================================
 \subsection{Split-scoring criterion: NLE vs.\ BIC}\label{subsec:exp_scoring}
 
-The scoring ablation asks whether NLE, NLL+BIC, and pure NLL materially change the fitted predictor. At matched hyperparameters, Table~\ref{tab:a2_real_data} shows close agreement among the retained scores on conjugate leaves. On the full regression benchmark, however, fold-0 tuning often selects evidence surrogates or plug-in scores (Table~\ref{tab:bdf-selection}), especially with Student-$t$ leaves (Table~\ref{tab:bdf-student-t-stability}). We therefore treat pure NLL selections as useful regularized heuristics inside the full BDF architecture, not as evidence of exact Bayesian Student-$t$ inference.
+The scoring ablation asks whether NLE, NLL+BIC, and pure NLL materially change the fitted predictor. At matched hyperparameters, Table~\ref{tab:a2_real_data} shows close agreement among the retained scores on conjugate leaves. On the full regression benchmark, however, fold-0 tuning often selects evidence surrogates or plug-in scores (Table~\ref{tab:bdf-selection}), especially with Student-$t$ leaves (Table~\ref{tab:bdf-student-t-stability}). Table~\ref{tab:bdf-leaf-score-ablation} isolates this effect under fixed BDF configurations: the Normal--Normal scores are close in aggregate CRPS, with plug-in NLL and NLL+BIC slightly ahead of fixed NLE, while Student-$t$ leaves are competitive under both pure NLL and NLL+BIC, with pure NLL giving the best average interval-score rank. We therefore treat pure NLL selections as useful regularized heuristics inside the full BDF architecture, not as evidence of exact Bayesian Student-$t$ inference.
+
+\input{../benchmarks/results/regression/tables/bdf_leaf_score_ablation.tex}
 
 % ==========================================
 % 5.4 COMPLEXITY

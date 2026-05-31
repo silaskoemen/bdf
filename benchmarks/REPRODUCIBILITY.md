@@ -106,7 +106,7 @@ pixi run -e benchmark reg-suite-models -m \
     model=xgboostlss_gaussian,xgboostlss_studentt,xgboostlss_laplace,xgboostlss_gaussian_mixture
 ```
 
-The aggregation step `pixi run reg` writes the selected XGBoostLSS distribution table and excludes incomplete variant-dataset pairs rather than imputing missing folds.
+The aggregation step `pixi run reg` writes the selected XGBoostLSS distribution table and excludes incomplete variant-dataset pairs rather than imputing missing folds. In the locked real-data artifacts, the incomplete XGBoostLSS candidates are Gaussian on `yacht_hydrodynamics` (8/9 CRPS folds), Student-t on `energy_efficiency` (8/9), Student-t on `parkinsons_updrs` (8/9), and Student-t on `yacht_hydrodynamics` (6/9). All BDF, QRF, DRF, conformalized forest/boosting, NGBoost, CatBoost-UQ, Gaussian deep-ensemble, Bayesian-ridge, kNN-KDE, and classification files consumed by the main paper have complete reported folds for the metrics used there.
 
 ## 3. Conditional Diagnostics
 
@@ -160,7 +160,17 @@ pixi run clas
 
 `benchmarks.make_revision_bdf_tables` reads only existing YAML result artifacts and writes `benchmarks/results/regression/tables/bdf_normal_nle_vs_full.tex` plus `bdf_leaf_score_ablation.tex`. It warns about missing result files and does not run models.
 
-## 6. Paper Build
+## 6. TMLR Artifact Manifest
+
+After regenerating tables/plots and rebuilding the paper, write the locked submission manifest:
+
+```bash
+pixi run tmlr-manifest
+```
+
+This writes `benchmarks/results/TMLR_ARTIFACT_MANIFEST.md`. The manifest records the current `paper/main.pdf` hash, the locked real-data result YAML hashes, generated table/plot hashes consumed by the LaTeX build, the repository-local files listed in `paper/main.fls`, the real-data dataset lists, the deterministic split policy, and the regeneration commands. Split indices are not serialized separately; they are exactly reconstructed from the processed data order with `KFold(n_splits=10, shuffle=True, random_state=1234)` for regression and `StratifiedKFold(n_splits=10, shuffle=True, random_state=1234)` for classification. Fold 0 is tuning only, and folds 1--9 are evaluation folds.
+
+## 7. Paper Build
 
 ```bash
 pixi run paper          # latexmk -pdf paper/main.tex
@@ -168,7 +178,7 @@ pixi run paper          # latexmk -pdf paper/main.tex
 
 Produces `paper/main.pdf`. The locked build should have no undefined references or citations; known layout warnings from dense appendix tables and float-only pages should be inspected before final submission but do not indicate missing artifacts.
 
-## 7. Result Provenance
+## 8. Result Provenance
 
 Every result YAML written by the orchestrator (`benchmarks/pipeline/orchestrators.py:181-196`) carries:
 
@@ -179,9 +189,9 @@ Every result YAML written by the orchestrator (`benchmarks/pipeline/orchestrator
 
 We do **not** rerun finished suites just to refresh git hashes after unrelated commits — older `git_commit` fields record the commit at which each result was produced, which is the relevant provenance information.
 
-Final TMLR tables and plots should be generated only from result YAMLs produced under the post-`score_regime`, OOB-off BDF protocol. Older BDF result files can remain in the repository for transparency, but any table script used for the final paper must either exclude them or regenerate them. The paper build records which `.tex` tables and plot PDFs are consumed through `paper/main.fls`, and the result YAMLs record the command and resolved config where the orchestrator provides that metadata.
+Final TMLR tables and plots should be generated only from result YAMLs produced under the post-`score_regime`, OOB-off BDF protocol. Older BDF result files can remain in the repository for transparency, but any table script used for the final paper must either exclude them or regenerate them. Selection-frequency statements are descriptive summaries of the pre-specified fold-0 tuning split unless an explicit repeated-tuning sensitivity study is cited. The paper build records which `.tex` tables and plot PDFs are consumed through `paper/main.fls`, and the result YAMLs record the command and resolved config where the orchestrator provides that metadata.
 
-## 8. Hardware and Timing Notes
+## 9. Hardware and Timing Notes
 
 Reported runtimes were measured on an Apple M-series workstation (single host, multi-core). All wall-clock numbers in the paper come from `pixi run perf` and `pixi run complexity` and assume:
 
@@ -191,8 +201,9 @@ Reported runtimes were measured on an Apple M-series workstation (single host, m
 
 Relative orderings should transfer across hardware; absolute fit/predict times will not.
 
-## 9. Known Caveats
+## 10. Known Caveats
 
 - BART (`bartpy`) and GP baselines do not finish on every fold of every dataset within the time budget and are therefore excluded from the main regression aggregate (see Appendix~\ref{app:experimental-setup-reg-models}). The partial result files are kept for transparency but are not consumed by `pixi run reg`.
 - DRF (distributional random forests) uses the R `drf` package through `rpy2`. The Python dependencies are locked, but the R package must be installed once into the system R that `rpy2` binds to. The Python wrapper runs DRF inside an isolated worker process and the synthetic runner closes that worker after each tuning trial and evaluation fold. Failed or partial DRF shards are not merged into synthetic summary plots unless they contain aggregate metrics.
-- BDF currently does not handle native categorical features, native missing values, sample weights, or multiclass classification. Categorical inputs must be one-hot encoded in `process-data`, which is what every model in the suite receives.
+- BDF currently does not handle native categorical features, native missing values, sample weights, or multiclass classification. Categorical inputs are one-hot encoded in `process-data`, which is what every model in the suite receives. This keeps the input matrix identical across methods; production CatBoost/LightGBM deployments may additionally use native categorical splits.
+- A Treeffuser config is available for exploratory runs, but no locked complete Treeffuser result artifact is consumed by the TMLR paper.

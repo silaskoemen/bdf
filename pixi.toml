@@ -47,6 +47,7 @@ conform-output = "pixi run python -m benchmarks.compare_conformalization_results
 
 paper = { cmd = "latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex", cwd = "paper" }
 paper-jmlr = { cmd = "latexmk -pdf -interaction=nonstopmode sample.tex", cwd = "paper" }
+tmlr-manifest = "PYTHONPATH=src python -m benchmarks.make_tmlr_artifact_manifest"
 
 # Documentation
 docs-build = "sphinx-build -b html docs/source docs/build/html"
