@@ -1,0 +1,139 @@
+\section{Synthetic, Diagnostic, and Robustness Studies}\label{app:diagnostics-robustness}
+
+This appendix groups the supporting experiments that probe calibration, model-selection behavior, computational overhead, and robustness. Each subsection keeps the compact summary needed to interpret the main claims and avoids the earlier plot-atlas style duplication.
+
+\subsection{Synthetic DGP diagnostics}\label{app:synthetic-diagnostics}
+
+This subsection gives the compact synthetic-DGP diagnostics referenced from Section~\ref{subsec:exp_synthetic}. The DGP definitions themselves are in Appendix~\ref{app:synthetic-dgp-definitions}.
+
+\begin{landscape}
+\input{../benchmarks/results/synthetic_dgp/tables/synthetic_dgp_summary.tex}
+\end{landscape}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/synthetic/summary/pit_histograms.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/synthetic/summary/calibration_curves.pdf}
+    \caption{Synthetic-DGP PIT histograms (left) and average calibration curves (right).}
+    \label{fig:synthetic-calibration}
+\end{figure}
+
+\subsection{Conditional calibration by predicted uncertainty}\label{app:conditional-diagnostics}
+
+Marginal coverage can hide failures that occur only in low- or high-uncertainty regions. To check whether the regression intervals remain calibrated locally, we recompute evaluation predictions using the stored best hyperparameters and bin test points by each method's predicted interquartile range (IQR). Within each decile we report empirical 90\% coverage, 90\% interval score, and CRPS.
+
+\input{tables/conditional_diagnostics/conditional_diagnostics_summary.tex}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.85\textwidth]{plots/conditional_diagnostics/conditional_coverage_heatmap_90.pdf}
+    \caption{Conditional 90\% coverage error by predicted-IQR decile. Values near zero indicate nominal conditional coverage within each method's own uncertainty bins.}
+    \label{fig:conditional-coverage-heatmap}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.8\textwidth]{plots/conditional_diagnostics/conditional_interval_score_90.pdf}
+    \caption{Mean 90\% interval score by predicted-IQR decile. Lower is better.}
+    \label{fig:conditional-interval-score}
+\end{figure}
+
+\subsection{Scoring method: real-data check}\label{app:scoring-method-full}
+
+The retained scoring-method supplement reports the real-data matched-hyperparameter comparison used in Section~\ref{subsec:exp_scoring}. The submitted benchmark focuses on the three effective regimes used by the current BDF configs: exact NLE, NLL+BIC, and pure NLL.
+
+\begin{landscape}
+\input{tables/scoring_method/real_data/merged_real_data.tex}
+\end{landscape}
+
+\subsection{Parameter sensitivity}\label{app:additional-param-sensitivity}
+
+We study sensitivity to the four tree-construction hyperparameters $(\alpha, \delta, \gamma, \texttt{min\_samples\_leaf})$, holding the EB prior-strength defaults fixed in this one-at-a-time sweep. The tables summarize the best values within the sweep and should be read as diagnostic guidance, not universal recommendations.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/parameters/regression/combined_sensitivity.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/parameters/classification/clas_combined_sensitivity.pdf}
+    \caption{Combined parameter sensitivity on regression (left) and classification (right).}
+    \label{fig:param-combined}
+\end{figure}
+
+\input{plots/parameters/regression/param_recommendation_table.tex}
+\input{plots/parameters/classification/clas_param_recommendation_table.tex}
+
+\subsection{Complexity: additional results}\label{app:complexity-additional}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/complexity/memory_comparison.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/complexity/overhead_ratio.pdf}
+    \caption{Peak memory (left) and overhead ratio versus a non-probabilistic GBDT baseline (right).}
+    \label{fig:complexity-extras}
+\end{figure}
+
+\subsection{Likelihood misspecification}\label{app:misspecification}
+
+We evaluate robustness of BDF when the assumed leaf likelihood does not match the data-generating distribution.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{plots/misspecification/degradation_summary.pdf}
+    \caption{CRPS degradation of each BDF leaf family as the DGP deviates from the assumed likelihood.}
+    \label{fig:misspecification-degradation}
+\end{figure}
+
+\begin{landscape}
+\begin{table}[!p]
+    \centering
+    \caption{CRPS under likelihood misspecification. Bold entries mark the best mean CRPS in each DGP row; stars mark the correctly specified or closest available leaf family.}
+    \label{tab:misspecification-crps}
+    \input{tables/misspecification/misspecification_crps.tex}
+\end{table}
+\end{landscape}
+
+\subsection{Noise features and multiplicity correction}\label{app:noise}
+
+We study robustness to pure-noise features, which directly probe the tempered selection penalty $\gamma \log(K \cdot m_j)$ in Eq.~\eqref{eq:net_gain}.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/noise/crps_relative_degradation.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/noise/feature_selection_rates.pdf}
+    \caption{Relative CRPS degradation as noise features are added (left), and frequency with which signal versus noise features are selected as split variables (right).}
+    \label{fig:noise-summary}
+\end{figure}
+
+\input{plots/noise/crps_summary_table.tex}
+
+\subsection{Convergence and learning curves}\label{app:convergence}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.85\textwidth]{plots/convergence/rate_comparison.pdf}
+    \caption{Empirical convergence rates of BDF versus random forests on a suite of DGPs.}
+    \label{fig:convergence-rate}
+\end{figure}
+
+\input{plots/convergence/convergence_rates_table.tex}
+
+\subsection{Ensemble size}\label{app:ensemble-size}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.85\textwidth]{plots/ensemble_size/combined_summary.pdf}
+    \caption{CRPS, coverage, and fit time as a function of the number of trees $M$.}
+    \label{fig:ensemble-combined}
+\end{figure}
+
+\input{plots/ensemble_size/crps_summary_table.tex}
+
+\subsection{Post-hoc conformalization}\label{app:conformalization}
+
+We evaluate whether wrapping BDF in a split-conformal layer changes rankings, and compare against conformalized RF and CatBoost.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{plots/conformalization/global_coverage_summary.pdf}
+    \caption{Global coverage before and after conformalization across methods.}
+    \label{fig:conformalization-global}
+\end{figure}

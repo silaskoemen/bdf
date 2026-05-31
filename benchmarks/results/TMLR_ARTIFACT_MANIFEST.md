@@ -1,16 +1,18 @@
 # TMLR Artifact Manifest
 
-Generated: `2026-05-31T20:16:46.658933+00:00`
-Git commit: `1d7026f86a20de41c80f32c53406b283a9380a6c`
-Git status: `M benchmarks/make_revision_bdf_tables.py
+Generated: `2026-05-31T21:08:30.148078+00:00`
+Git commit: `6f02a06d2d2a30b620d2a86aeba8319fbf96853b`
+Git status: `M benchmarks/make_tmlr_artifact_manifest.py
  M benchmarks/results/TMLR_ARTIFACT_MANIFEST.md
- M benchmarks/results/regression/tables/bdf_leaf_score_ablation.tex
- M benchmarks/results/regression/tables/bdf_normal_nle_vs_full.tex
+ M paper/appendix/additional_results.tex
  M paper/appendix/experimental_setup.tex
- M paper/main.bib
+ M paper/appendix/proofs.tex
  M paper/main.tex
- M paper/sample.bib
- M paper/sections/experiments.tex`
+ M paper/sections/experiments.tex
+?? benchmarks/make_synthetic_summary_table.py
+?? benchmarks/results/synthetic_dgp/tables/
+?? paper/appendix/diagnostic_robustness.tex
+?? paper/appendix/real_data_results.tex`
 
 ## Protocol Lock
 
@@ -43,6 +45,7 @@ pixi run synth-study
 pixi run -e benchmark synth-study-models --models QRF --result-suffix forests
 pixi run -e benchmark synth-study-models --models DRF --result-suffix drf
 pixi run synth-output
+pixi run python -m benchmarks.make_synthetic_summary_table
 pixi run paper
 pixi run tmlr-manifest
 ```
@@ -51,7 +54,7 @@ pixi run tmlr-manifest
 
 | Path | SHA-256 |
 |---|---|
-| `paper/main.pdf` | `db0a31dd904ba468c792e89fec0347ea43034b5249aa881d3f34d431ac30b696` |
+| `paper/main.pdf` | `6e4160c389bccd9604bf6076e39a42e649ad7ea3b0b7c7f1a90ebe759e67f5b1` |
 
 ## Locked Real-Data Result YAMLs
 
@@ -115,6 +118,7 @@ pixi run tmlr-manifest
 | `benchmarks/results/regression/tables/rankings_crpss.tex` | `2b66cee435c917eed1b8ee272a784f1c9a1ded0a18aed697555a5448c1f9863f` |
 | `benchmarks/results/regression/tables/rel_to_best_crps.tex` | `59e8c8f065f6fdade0971bb340b7956db5c7c4a9d9781c43513e34e71ee69557` |
 | `benchmarks/results/regression/tables/win_tie_loss.tex` | `f1235175f3bdca9dff5754f06de2e7fa080cb30b616f57036b1aff52b1fe6a8e` |
+| `benchmarks/results/synthetic_dgp/tables/synthetic_dgp_summary.tex` | `f6e0ebf37dd1dda434a6edb394739fd0f2431b08ea1647e151890d349383931f` |
 
 ## Generated Plot PDFs Consumed By The Paper
 
@@ -124,9 +128,6 @@ pixi run tmlr-manifest
 | `paper/plots/classification/classification_cd_log_loss.pdf` | `4d812345930c5b93980e24e20bde2428e07f62a49abd3759b041f157c8759dd7` |
 | `paper/plots/classification/classification_rel_to_best_log_loss.pdf` | `22c0216673bcb1063eecaad295f63bb839b089c28b70f51098de2a8dd6da3890` |
 | `paper/plots/classification/classification_reliability_diagram.pdf` | `271e943e1b235ad129c92f21c85a178dd618baadd4c189a0cf4658a16bb403e0` |
-| `paper/plots/classification/classification_scatter_brier.pdf` | `cddb989454a1ef9990e703f2c4b201eef27be29655a264f8831aba0425751953` |
-| `paper/plots/classification/classification_scatter_ece.pdf` | `18bf57198dafb6ac2dc2751d71eb3b629808a205bc286c13cd5ff37856bc8346` |
-| `paper/plots/classification/classification_scatter_log_loss.pdf` | `7341ff69a5e04a3752ca244051e9824ef3825672aa7c4cab2cfcf923e6e777c9` |
 | `paper/plots/complexity/memory_comparison.pdf` | `7dc670864d49c75c6865a0cbd553a29f53dc5070d471ed02bf0e01a4b4889c5d` |
 | `paper/plots/complexity/overhead_ratio.pdf` | `1d013e3c869b1f5e44785ee266892ab42ed506f60260f4192b419e78cd317101` |
 | `paper/plots/complexity/scaling_comparison.pdf` | `de17e836fc6c7f8e74149c0b933e6d26d41e5d24814ed6d84431a559cfa3a191` |
@@ -145,11 +146,7 @@ pixi run tmlr-manifest
 | `paper/plots/regression/regression_pit_histograms.pdf` | `af299603dc0e1f5651eb199ea28c9d800df27667609a31781c4512ecc6a8550e` |
 | `paper/plots/regression/regression_rel_to_best_crps.pdf` | `d9b066b9ea0e00c51c5b4d9dd19459a55648eb8ba68b70b4ff526b766cd241ff` |
 | `paper/plots/regression/regression_rel_to_best_rmse.pdf` | `b100f554473d9f24c164cfc2e8abf7498d13d77a297ef7855c1fc5e73ef5959f` |
-| `paper/plots/regression/regression_scatter_crps.pdf` | `69f3b72a1e3fece0719251b58f35ac6c7cff6aab47fda747281eecb6e1322bea` |
-| `paper/plots/regression/regression_scatter_rmse.pdf` | `0e9b5702da3995ce0cfe070731f520a379e11fa3949d14e16b4b5f00f2ab8e79` |
 | `paper/plots/synthetic/summary/calibration_curves.pdf` | `41178f7aaeb577e456bd9bd542e9e2a9ad649d7784c871af2788e2ae9b5dfc14` |
-| `paper/plots/synthetic/summary/dgp_overview.pdf` | `a4ddf62c72c17236d328eae7c4bb8556d170a018f09b386e2089867ad7d8815c` |
-| `paper/plots/synthetic/summary/main_metric_table.pdf` | `01f9cd447e6ab37b2fdaea483e6ebc0bbab56c08bff811d86dfcafca4c8e8985` |
 | `paper/plots/synthetic/summary/pit_histograms.pdf` | `7f54d9a8672eedebef82e8ba1c4092e98c8dcbbf9e9d12823b7220ba1f421f54` |
 | `paper/plots/synthetic/summary/predictions_grid.pdf` | `6eb070369ee1c224a6172283c9d654de54b105e9b2135206bd8c64b360b0ad60` |
 
@@ -173,21 +170,21 @@ These are repository-local files listed as `INPUT` entries in `paper/main.fls`. 
 | `benchmarks/results/regression/tables/rankings_crpss.tex` | `2b66cee435c917eed1b8ee272a784f1c9a1ded0a18aed697555a5448c1f9863f` |
 | `benchmarks/results/regression/tables/rel_to_best_crps.tex` | `59e8c8f065f6fdade0971bb340b7956db5c7c4a9d9781c43513e34e71ee69557` |
 | `benchmarks/results/regression/tables/win_tie_loss.tex` | `f1235175f3bdca9dff5754f06de2e7fa080cb30b616f57036b1aff52b1fe6a8e` |
-| `paper/appendix/additional_results.tex` | `9ecf88762fe067bc0060d6bc42ed5bf3c79dda792c18666279923d7e0eae3191` |
-| `paper/appendix/experimental_setup.tex` | `01d988fa24c4e94c12ad1fb629fc6b8b1f2698ee0155350e0a048eada5f280ac` |
-| `paper/appendix/proofs.tex` | `9cb10196cf398c53a0edbd0e0f13bc6f3056e2276b8763ebee4d323609e11055` |
+| `benchmarks/results/synthetic_dgp/tables/synthetic_dgp_summary.tex` | `f6e0ebf37dd1dda434a6edb394739fd0f2431b08ea1647e151890d349383931f` |
+| `paper/appendix/additional_results.tex` | `03f01cb00e48858b52afe7c7182141af53c74117f617852219c6b9e80787d4c6` |
+| `paper/appendix/diagnostic_robustness.tex` | `10d39c4da3b88a74d4ebcfde2414deed23d1142e2303a3e7d723029a4a47c658` |
+| `paper/appendix/experimental_setup.tex` | `60455e834ed8e15aff8028f9c496a528ad6adf7bd138e859e7d3e52a0e3c3da3` |
+| `paper/appendix/proofs.tex` | `3cad50630b1ce85f383d9ba1f06cb7e866f36af3810c11850973b390f2181ef3` |
+| `paper/appendix/real_data_results.tex` | `6591b7f59a2dcfe90f71bc227bb233125c64da431c3a11d6e645f9d9332e8c1b` |
 | `paper/fancyhdr.sty` | `2bcdf00b7ff35411e1fc3dece5e1489b467e9e455a71e437bf07c41f359ab584` |
-| `paper/main.aux` | `4de55d969bedb28d5a8efa9de7542427ffc9a2da1d894b37d7de7740e3ce7f3f` |
+| `paper/main.aux` | `4b4cacfc158513b18ce50c7d11957e7412eac1955e0d5a1ef47cc7ee2b3af34b` |
 | `paper/main.bbl` | `34e71f2b5d426c67bd54b1f0ce531789eba47a9fc4a8c42353738323e7da2e02` |
-| `paper/main.out` | `c812f2873348f17bafcb91c14f3ca2d54fc20e1f4e80a00495d5d3fbb295b7d5` |
-| `paper/main.tex` | `2a5e2640ca22ee14e236b67d2f2ab4640587795ba1f44ab8893b0e71d66cfc83` |
+| `paper/main.out` | `7b99a84ace7233b0ec89a33f0c30321166f5e88ed9d40e07623a6c1deb9ba6a6` |
+| `paper/main.tex` | `24c208ce120181c16052b7e81d72c9c22327058953aa2f580ddf6a923c55e3f7` |
 | `paper/plots/classification/classification_cd_brier.pdf` | `847ffb666a27f32af9b21676df7b6b489adcc3284040baf32b088dc2c61bf6ca` |
 | `paper/plots/classification/classification_cd_log_loss.pdf` | `4d812345930c5b93980e24e20bde2428e07f62a49abd3759b041f157c8759dd7` |
 | `paper/plots/classification/classification_rel_to_best_log_loss.pdf` | `22c0216673bcb1063eecaad295f63bb839b089c28b70f51098de2a8dd6da3890` |
 | `paper/plots/classification/classification_reliability_diagram.pdf` | `271e943e1b235ad129c92f21c85a178dd618baadd4c189a0cf4658a16bb403e0` |
-| `paper/plots/classification/classification_scatter_brier.pdf` | `cddb989454a1ef9990e703f2c4b201eef27be29655a264f8831aba0425751953` |
-| `paper/plots/classification/classification_scatter_ece.pdf` | `18bf57198dafb6ac2dc2751d71eb3b629808a205bc286c13cd5ff37856bc8346` |
-| `paper/plots/classification/classification_scatter_log_loss.pdf` | `7341ff69a5e04a3752ca244051e9824ef3825672aa7c4cab2cfcf923e6e777c9` |
 | `paper/plots/complexity/memory_comparison.pdf` | `7dc670864d49c75c6865a0cbd553a29f53dc5070d471ed02bf0e01a4b4889c5d` |
 | `paper/plots/complexity/overhead_ratio.pdf` | `1d013e3c869b1f5e44785ee266892ab42ed506f60260f4192b419e78cd317101` |
 | `paper/plots/complexity/scaling_comparison.pdf` | `de17e836fc6c7f8e74149c0b933e6d26d41e5d24814ed6d84431a559cfa3a191` |
@@ -211,14 +208,10 @@ These are repository-local files listed as `INPUT` entries in `paper/main.fls`. 
 | `paper/plots/regression/regression_pit_histograms.pdf` | `af299603dc0e1f5651eb199ea28c9d800df27667609a31781c4512ecc6a8550e` |
 | `paper/plots/regression/regression_rel_to_best_crps.pdf` | `d9b066b9ea0e00c51c5b4d9dd19459a55648eb8ba68b70b4ff526b766cd241ff` |
 | `paper/plots/regression/regression_rel_to_best_rmse.pdf` | `b100f554473d9f24c164cfc2e8abf7498d13d77a297ef7855c1fc5e73ef5959f` |
-| `paper/plots/regression/regression_scatter_crps.pdf` | `69f3b72a1e3fece0719251b58f35ac6c7cff6aab47fda747281eecb6e1322bea` |
-| `paper/plots/regression/regression_scatter_rmse.pdf` | `0e9b5702da3995ce0cfe070731f520a379e11fa3949d14e16b4b5f00f2ab8e79` |
 | `paper/plots/synthetic/summary/calibration_curves.pdf` | `41178f7aaeb577e456bd9bd542e9e2a9ad649d7784c871af2788e2ae9b5dfc14` |
-| `paper/plots/synthetic/summary/dgp_overview.pdf` | `a4ddf62c72c17236d328eae7c4bb8556d170a018f09b386e2089867ad7d8815c` |
-| `paper/plots/synthetic/summary/main_metric_table.pdf` | `01f9cd447e6ab37b2fdaea483e6ebc0bbab56c08bff811d86dfcafca4c8e8985` |
 | `paper/plots/synthetic/summary/pit_histograms.pdf` | `7f54d9a8672eedebef82e8ba1c4092e98c8dcbbf9e9d12823b7220ba1f421f54` |
 | `paper/plots/synthetic/summary/predictions_grid.pdf` | `6eb070369ee1c224a6172283c9d654de54b105e9b2135206bd8c64b360b0ad60` |
-| `paper/sections/experiments.tex` | `b70afcfaee3d59b389e0fc08315549d4a109336f6249f93307462135d654e3b8` |
+| `paper/sections/experiments.tex` | `12401c830189a6a7a3bf45b23f77ea61bad3e92847b10b33652d887dac93a4c6` |
 | `paper/tables/complexity/complexity_table.tex` | `9c843a2c0d6cbb57d11c33d6fc3b7a7c51b7ce15520edcc6199c2ebb2bdef5dc` |
 | `paper/tables/conditional_diagnostics/conditional_diagnostics_summary.tex` | `3f2e51a8b1b110757438eab449076003a70f55f792208e5768dc016b977accfa` |
 | `paper/tables/misspecification/misspecification_crps.tex` | `3daa085722a8e6d7a0741fd67a864b89d454eefe4f9e0ad8324fd343ef158316` |

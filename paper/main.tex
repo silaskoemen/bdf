@@ -465,11 +465,9 @@ Because BDF is a general-purpose uncertainty estimator for tabular prediction, i
 
 \appendix
 
-\section{Conjugate Leaf Models}\label{app:conjugate_updates}
+\section{Leaf Models and Evidence Scores}\label{app:leaf-models}\label{app:conjugate_updates}
 
-For each conjugate family used in experiments we record the posterior,
-posterior predictive, log marginal likelihood, and sufficient statistics.
-All updates are $O(1)$ per observation.
+This appendix collects the leaf models and score approximations used in the submitted experiments. For conjugate families we record the posterior, posterior predictive, log marginal likelihood, and sufficient statistics; for non-conjugate families we state the plug-in predictive distribution and the evidence surrogate or regularized log-score used during split search.
 
 \subsection{Normal--Normal Mean Model with Leaf-Local Plug-in Variance}\label{app:conjugate_normal}
 
@@ -585,11 +583,11 @@ where the second argument is the success probability in the SciPy convention. Th
 -\sum_i \log(y_i!).
 \end{equation}
 
-\section{Non-Conjugate Leaf Models}\label{app:nonconjugate_updates}
+\subsection{Non-Conjugate Leaf Models}\label{app:nonconjugate_updates}
 
 Tuning selects a non-conjugate leaf family on 9 of 15 regression datasets, all using the Student-$t$ leaf (Table~\ref{tab:bdf-selection}). These leaves do not admit a closed-form Bayesian evidence; BDF supports BIC-style complexity correction for plug-in likelihood scores, a leave-one-out predictive score for KDE, and a pure plug-in NLL variant whose missing complexity term is absorbed by the architecture's tempered MDL-style structural penalty (Eq.~\eqref{eq:net_gain}), the minimum-leaf-size constraint, and ensembling. The BIC correction is a Laplace evidence surrogate for regular MLE/MAP non-conjugate fits; for the default method-of-moments Student-$t$ benchmark configuration, it is a BIC-sized complexity penalty rather than a formal marginal-likelihood approximation. The score regime is exposed as a tunable categorical \{\texttt{nll\_bic}, \texttt{nll}\} for Student-$t$ leaves and analogous LOO/pure-NLL choices for KDE leaves, and is selected per dataset by fold-0 CRPS along with the other hyperparameters; for Student-$t$ leaves the locked artifacts select pure NLL on 4 of 9 datasets and NLL+BIC on 5 of 9. Predictions from non-conjugate leaves use the fitted leaf distribution rather than a posterior predictive.
 
-\subsection{Student-\texorpdfstring{$t$}{t} Leaves}\label{app:student_t_leaves}
+\subsubsection{Student-\texorpdfstring{$t$}{t} Leaves}\label{app:student_t_leaves}
 
 Student-$t$ leaves are used for robust real-valued regression and are the most frequently selected leaf family in the regression benchmarks.
 
@@ -634,7 +632,7 @@ t_{\hat\nu_\ell}(y^\star;\hat\mu_\ell,\hat\sigma_\ell),
 \]
 which is not a posterior predictive in the conjugate sense. With MLE/MAP parameters, the $c=1$ score has the Laplace interpretation of Appendix~\ref{app:approximate-bayesian-calculations-non-conjugate}; with the benchmark MoM parameters it is a BIC-sized regularization term. The $c=0$ score is the evidence-regularized log-score variant of Section~\ref{subsec:split_scoring}. In the locked artifacts, $c=0$ is selected on 4 of the 9 datasets where the Student-$t$ leaf is the chosen family.
 
-\subsection{KDE Leaves}\label{app:kde_leaves}
+\subsubsection{KDE Leaves}\label{app:kde_leaves}
 
 KDE leaves are non-parametric predictive leaves used when a unimodal parametric likelihood is too restrictive. They do not have a closed-form Bayesian evidence in the current implementation.
 For a leaf with centers $\{y_i\}_{i=1}^{n_\ell}$ and bandwidth $h_\ell>0$, the predictive density is
@@ -668,7 +666,7 @@ which is the LOO/$K$-fold-corrected log-score variant of Section~\ref{subsec:spl
 \paragraph{Mixture evaluation.}
 For all sample-based leaves, including KDE and Student-$t$, the forest predictive in Eq.~\eqref{eq:forest_mixture} is evaluated by drawing from the assigned leaf distribution in each tree and pooling samples across trees. CRPS, PIT, central intervals, and interval scores are then computed from the pooled samples; quantile-native baselines such as QRF use their reported quantile grid directly.
 
-\section{Laplace Approximation for Non-Conjugate Leaves}
+\subsection{Laplace Approximation for Non-Conjugate Leaves}
 \label{app:approximate-bayesian-calculations-non-conjugate}
 
 When the likelihood--prior pair is not conjugate, a Laplace expansion around the MAP estimate gives the evidence surrogate used by the BIC split score. This section records that calculation; the locked Student-$t$ benchmark variants use method-of-moments fitted predictive densities at prediction time, as described in Appendix~\ref{app:student_t_leaves}, so their BIC term should be read as a BIC-sized complexity correction.

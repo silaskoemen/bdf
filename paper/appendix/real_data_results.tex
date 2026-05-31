@@ -1,0 +1,64 @@
+\section{Full Real-Data Benchmark Results}\label{app:real-data-results}
+
+This appendix contains the full real-data benchmark tables supporting Section~\ref{subsec:exp_real}. The main text reports the headline plots and selected summaries; here we keep the aggregate tables, per-dataset tables, BDF selection diagnostics, and compact rank diagrams needed for auditability.
+
+\subsection{Regression benchmark details}\label{app:regression-additional}
+
+\input{../benchmarks/results/regression/tables/rel_to_best_crps.tex}
+
+\input{../benchmarks/results/regression/tables/rankings_crpss.tex}
+
+\input{../benchmarks/results/regression/tables/win_tie_loss.tex}
+
+\begin{landscape}
+\input{../benchmarks/results/regression/tables/crps_per_dataset.tex}
+\end{landscape}
+
+\input{../benchmarks/results/regression/tables/bdf_distribution_selection.tex}
+
+\begin{landscape}
+\input{../benchmarks/results/regression/tables/bdf_conjugate_vs_selected_gap.tex}
+\end{landscape}
+
+\input{../benchmarks/results/regression/tables/bdf_student_t_stability.tex}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{plots/regression/regression_cd_crps.pdf}
+    \caption{Critical-difference diagram of CRPS ranks across regression datasets.}
+    \label{fig:cd-crps}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.85\textwidth]{plots/regression/regression_pit_histograms.pdf}
+    \caption{PIT histograms per method. BDF is near-uniform with mild central mass; CatBoost-UQ and NGBoost show excess mass at the tails, indicating intervals that are too narrow.}
+    \label{fig:pit-histograms}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.82\textwidth]{plots/regression/regression_rel_to_best_rmse.pdf}
+    \caption{Average RMSE relative to the per-dataset best model.}
+    \label{fig:rmse-rel-to-best}
+\end{figure}
+
+\subsection{Classification benchmark details}\label{app:classification-additional}
+
+\input{../benchmarks/results/classification/tables/rel_to_best_log_loss.tex}
+
+\input{../benchmarks/results/classification/tables/rankings_log_loss.tex}
+
+\input{../benchmarks/results/classification/tables/rankings_brier.tex}
+
+\input{../benchmarks/results/classification/tables/classification_win_tie_loss.tex}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.49\textwidth]{plots/classification/classification_cd_log_loss.pdf}\hfill
+    \includegraphics[width=0.49\textwidth]{plots/classification/classification_cd_brier.pdf}
+    \caption{Critical-difference diagrams on log-loss (left) and Brier score (right).}
+    \label{fig:classification-cd}
+\end{figure}
+
+\FloatBarrier

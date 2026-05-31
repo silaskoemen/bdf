@@ -1,0 +1,33 @@
+\begin{table}[!p]
+\centering
+\scriptsize
+\caption{Synthetic DGP summary by dataset and metric. CRPS and IS90 are lower-is-better; 90\% coverage is bolded by smallest absolute deviation from nominal. Values are means over evaluation folds.}
+\label{tab:synthetic-dgp-summary}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llrrrrrrrrr}
+\toprule
+DGP & Metric & BDF-N & BDF-KDE & QRF & DRF & NGBoost & CatBoost-UQ & ConfRF & BART & Clim. \\
+\midrule
+Heteroscedastic & CRPS & 0.160 & 0.159 & 0.161 & 0.160 & 0.162 & \textbf{0.158} & 0.172 & 0.176 & 0.448 \\
+ & Cov. 90\% & 91.4\% & 92.7\% & 90.8\% & 92.4\% & 94.1\% & 89.6\% & \textbf{89.8\%} & 90.3\% & 90.6\% \\
+ & IS90 & 1.191 & 1.193 & 1.203 & 1.201 & 1.248 & \textbf{1.175} & 1.582 & 1.572 & 2.706 \\
+\midrule
+Bimodal & CRPS & 0.509 & 0.435 & 0.434 & \textbf{0.428} & 0.512 & 0.511 & 0.515 & 0.519 & 0.512 \\
+ & Cov. 90\% & 91.2\% & 96.2\% & 93.4\% & 89.7\% & 90.7\% & 90.9\% & 89.5\% & 90.8\% & \textbf{90.1\%} \\
+ & IS90 & 3.392 & 2.501 & 2.394 & \textbf{2.350} & 3.406 & 3.432 & 3.241 & 3.246 & 2.787 \\
+\midrule
+Heavy-tailed & CRPS & 0.428 & 0.423 & 0.425 & 0.424 & 0.426 & \textbf{0.421} & 0.429 & 0.425 & 1.040 \\
+ & Cov. 90\% & \textbf{90.0\%} & 90.2\% & 89.1\% & 89.0\% & 88.4\% & 89.2\% & 89.3\% & 92.9\% & 89.3\% \\
+ & IS90 & 4.078 & 4.026 & 3.988 & 4.019 & 3.967 & 3.953 & 3.948 & \textbf{3.916} & 7.354 \\
+\midrule
+Step & CRPS & 0.086 & 0.087 & \textbf{0.086} & 0.088 & 0.087 & 0.091 & 0.087 & 0.129 & 0.415 \\
+ & Cov. 90\% & 90.1\% & 91.2\% & \textbf{90.0\%} & 89.1\% & 92.1\% & 87.9\% & 89.5\% & 92.6\% & 89.9\% \\
+ & IS90 & 0.646 & 0.652 & \textbf{0.642} & 0.675 & 0.652 & 0.686 & 0.644 & 1.116 & 2.380 \\
+\midrule
+Sparse & CRPS & 0.061 & 0.061 & 0.062 & 0.062 & 0.063 & \textbf{0.060} & 0.062 & 0.062 & 0.364 \\
+ & Cov. 90\% & 89.2\% & 91.7\% & 87.0\% & 87.6\% & 74.6\% & 85.4\% & 90.3\% & 88.3\% & \textbf{90.0\%} \\
+ & IS90 & 0.457 & 0.461 & 0.473 & 0.476 & 0.533 & \textbf{0.453} & 0.468 & 0.458 & 2.172 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

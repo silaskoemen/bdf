@@ -3,7 +3,7 @@
 % ==========================================
 \section{Experiments}\label{sec:experiments}
 
-This section evaluates BDF on real-data regression and classification benchmarks, controlled synthetic DGPs, split-scoring ablations, and computational complexity. Additional diagnostics are in Appendix~\ref{app:additional-results}.
+This section evaluates BDF on real-data regression and classification benchmarks, controlled synthetic DGPs, split-scoring ablations, and computational complexity. Full real-data tables are in Appendix~\ref{app:real-data-results}; synthetic and robustness diagnostics are in Appendix~\ref{app:diagnostics-robustness}.
 
 % ==========================================
 % 5.1 REAL-DATA BENCHMARKS
@@ -108,5 +108,5 @@ The scoring ablation asks whether NLE, NLL+BIC, and pure NLL materially change t
 
 Figure~\ref{fig:complexity-scaling} reports wall-clock fit and prediction time as functions of sample size, feature count, and ensemble size for BDF and a random-forest reference implementation; Table~\ref{tab:complexity} reports the corresponding empirical scaling exponents and overhead ratios. Three design choices explain this profile: (i) sufficient-statistic leaf updates are $O(1)$ per observation for conjugate leaves (Appendix~\ref{app:conjugate_updates}); (ii) the fixed-resolution candidate cutpoint grid bounds the split search at each node by $K \cdot \lfloor 1/\eta\rfloor$, independent of $n$ (Section~\ref{subsec:complexity_growth}); and (iii) trees are trained independently and admit trivial parallelization over the ensemble. Memory usage and the overhead ratio relative to the same random-forest reference are reported in Appendix~\ref{app:complexity-additional} (Figure~\ref{fig:complexity-extras}).
 
-\paragraph{Ablation overview.}
-Beyond the four axes covered in this section, we run seven additional diagnostic experiments: conditional calibration by predicted uncertainty (Appendix~\ref{app:conditional-diagnostics}), parameter sensitivity (Appendix~\ref{app:additional-param-sensitivity}), likelihood misspecification (Appendix~\ref{app:misspecification}), robustness to noise features (Appendix~\ref{app:noise}), convergence and learning curves (Appendix~\ref{app:convergence}), ensemble size (Appendix~\ref{app:ensemble-size}), and post-hoc conformalization (Appendix~\ref{app:conformalization}). These experiments confirm the qualitative findings above and characterize the regions of parameter and data space where BDF's advantages are largest.
+\paragraph{Appendix diagnostics.}
+Appendix~\ref{app:diagnostics-robustness} collects the secondary diagnostics used to stress-test the main claims: conditional calibration by predicted uncertainty, parameter sensitivity, likelihood misspecification, noise-feature robustness, convergence, ensemble size, and post-hoc conformalization. These experiments are supporting analyses rather than additional headline benchmarks.

@@ -1,7 +1,9 @@
-% ------------------------------------------
-% APPENDIX C: Proofs and Derivations
-% ------------------------------------------
 \section{Proofs and Derivations}\label{app:proofs}
+
+The results in this appendix justify BDF's leaf prediction and split scoring under fixed candidate partitions and regularity conditions. They do not prove posterior inference over tree structures or global consistency of the adaptive greedy forest; those limitations are stated in Section~\ref{sec:theory}.
+
+\paragraph{Proof map.}
+Appendix~\ref{app:evidence_decomposition} gives the evidence and prequential identities used to interpret leaf scores. Appendix~\ref{app:split_bayes_factor} shows that the split gain is a local log Bayes factor under a fixed parent partition. Appendix~\ref{app:bic_uniform} derives the BIC/Laplace surrogate. Appendix~\ref{app:proof_leaf_concentration} proves Proposition~\ref{prop:leaf_concentration}. Appendices~\ref{app:split_consistency}--\ref{app:ensemble_bound} collect auxiliary fixed-node split, depth-growth, empirical-Bayes perturbation, and ensemble log-loss arguments.
 
 \subsection{Evidence Decomposition and Prequential Factorization}
 \label{app:evidence_decomposition}

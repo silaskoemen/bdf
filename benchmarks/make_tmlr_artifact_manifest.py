@@ -101,6 +101,7 @@ REGENERATION_COMMANDS = [
     "pixi run -e benchmark synth-study-models --models QRF --result-suffix forests",
     "pixi run -e benchmark synth-study-models --models DRF --result-suffix drf",
     "pixi run synth-output",
+    "pixi run python -m benchmarks.make_synthetic_summary_table",
     "pixi run paper",
     "pixi run tmlr-manifest",
 ]

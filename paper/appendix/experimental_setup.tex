@@ -142,54 +142,17 @@ titanic & Clas. & binary & 1043 & 8 & OpenML \\
 \end{table}
 \end{landscape}
 
-\subsection{Regression Metrics}\label{app:computational-setup-regression-metrics}
+\subsection{Metric Implementation Details}\label{app:computational-setup-regression-metrics}\label{app:computational-setup-classification-metrics}
 
-\subsubsection{Point Metrics}
+The real-data regression ranking uses CRPS as the primary probabilistic score,
+\[
+    \mathrm{CRPS}(F,y)=\int_{-\infty}^{\infty}\left(F(z)-\mathbf{1}\{y\le z\}\right)^2 dz.
+\]
+When a model exposes analytic quantiles or CDFs we use those outputs directly; when it exposes only predictive samples, the evaluation draws \texttt{sample\_size}=1000 samples and computes CRPS, PIT values, central intervals, empirical coverage, and interval scores from the pooled predictive samples. The central $(1-\alpha)$ interval score is
+\[
+    (u-l) + \frac{2}{\alpha}(l-y)\mathbf{1}\{y<l\}
+    + \frac{2}{\alpha}(y-u)\mathbf{1}\{y>u\}.
+\]
+CRPSS uses the climatological reference model as the denominator, while relative-score tables normalize each method by the best complete method within the table's stated comparison set.
 
-\paragraph{Mean Squared Error (MSE)}: Standard measure of average prediction error.
-\begin{align}
-    \text{MSE} = \frac{1}{N} \sum_{i=1}^N (y_i - \hat{y}_i)^2
-\end{align}
-
-\paragraph{Root Mean Squared Error (RMSE)}: Square root of MSE, in the target's original units and more sensitive to large errors than MAE.
-\begin{align}
-    \text{RMSE} = \sqrt{\frac{1}{N} \sum_{i=1}^N (y_i - \hat{y}_i)^2}
-\end{align}
-
-\paragraph{Mean Absolute Error (MAE)}: Provides a robust measure of average prediction error, also less sensitive to outliers.
-\begin{align}
-    \text{MAE} = \frac{1}{N} \sum_{i=1}^N |y_i - \hat{y}_i|
-\end{align}
-
-\subsubsection{Probabilistic Metrics}
-
-\paragraph{Negative Log-Likelihood (NLL)}: Evaluates the likelihood of observed targets under the predicted distribution.
-\begin{align}
-    \text{NLL} = -\frac{1}{N} \sum_{i=1}^N \log p(y_i \mid \mathbf{x}_i)
-\end{align}
-
-\paragraph{Continuous Ranked Probability Score (CRPS)}: Measures how closely the predicted cumulative distribution function aligns with the observed value.
-\begin{align}
-    \text{CRPS}(F, y) = \int_{-\infty}^{\infty} \big(F(z) - \mathbf{1}\{y \le z\}\big)^2 dz
-\end{align}
-
-\paragraph{Prediction Interval Coverage Accuracy (PICA):} Absolute deviation between desired and empirical coverage of predictive intervals.
-\begin{align}
-    \text{PICA}_\alpha = |\hat{c}_\alpha - \alpha|
-\end{align}
-
-\paragraph{Sharpness}: Average width of predictive intervals; narrower intervals indicate sharper predictive distributions.
-
-\paragraph{Interval/Weighted Interval Score (IS/WIS)}: Proper scoring rules for predictive intervals; penalizes both interval width and miscoverage.
-\begin{align}
-    \text{IS}_\alpha = (u-l) + \frac{2}{\alpha}(l - y) \mathbf{1}\{y < l\} + \frac{2}{\alpha}(y - u) \mathbf{1}\{y > u\}
-\end{align}
-
-\subsection{Classification Metrics}\label{app:computational-setup-classification-metrics}
-\paragraph{Accuracy}: Fraction of correctly classified samples.
-\paragraph{F1-Score}: Harmonic mean of precision and recall, useful for imbalanced classes.
-
-
-\paragraph{Log-Loss}: Measures how well predicted probabilities align with observed class labels.
-\paragraph{Brier Score}: Mean squared error between predicted probabilities and one-hot encoded labels, sensitive to calibration.
-\paragraph{Expected Calibration Error (ECE)}: Measures miscalibration across probability bins.
+For binary classification, log-loss, Brier score, ECE, AUROC, and AUPRC are computed from predicted probabilities for the positive class. ECE uses ten uniform probability bins on $[0,1]$ and weights each occupied bin by its empirical sample fraction. Reliability diagrams aggregate fold-level calibration curves with the stored bin counts.
