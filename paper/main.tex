@@ -42,7 +42,7 @@
 
 \begin{abstract}%   <- trailing '%' for backward compatibility of .sty file
 We introduce \emph{Bayesian-leaf Distributional Forests} (BDF), an evidence-regularized probabilistic tree-ensemble framework that replaces point-valued leaves with explicit predictive distributions.
-BDF performs exact Bayesian updating inside conjugate leaves, such as Normal--Normal and Beta--Bernoulli leaves, and uses evidence-surrogate or regularized plug-in log scores for non-conjugate leaves such as Student-$t$ and KDE leaves.
+BDF performs exact conjugate updates conditional on the stated empirical-Bayes quantities (e.g., Beta--Bernoulli, and the Normal--Normal mean update conditional on plug-in variance), and uses evidence-surrogate or regularized plug-in log scores for non-conjugate leaves such as Student-$t$ and KDE leaves.
 Tree growth is driven by an additive leaf log-score objective together with a depth- and split-identity penalty, yielding scalable greedy forests whose predictions are mixtures of leaf-level predictive distributions.
 
 The method is designed for the practical regime where full Bayesian posterior sampling over tree structures is too costly, but calibrated predictive distributions are still needed.
@@ -75,7 +75,7 @@ This paper targets the regime in which tree ensembles are most effective: scalab
 We introduce \emph{Bayesian-leaf Distributional Forests} (BDF), which upgrade classical forests to probabilistic predictors by combining \emph{Bayesian inference within leaves when available} with evidence-regularized fitted leaves otherwise, and by selecting splits via \emph{log predictive scores}.
 
 \paragraph{Key idea: Bayesian leaf principles + log-score-based split selection.}
-BDF treats each leaf as a local probabilistic model. For conjugate leaves this is a Bayesian model with prior $\pi(\theta_\ell\mid\eta)$, posterior $\pi(\theta_\ell\mid\mathcal{D}_\ell,\eta)$, and posterior predictive $p_\ell(y\mid \mathcal{D}_\ell,\eta)$; for non-conjugate leaves it is an explicit fitted density scored by an evidence surrogate or by a regularized plug-in log score.
+BDF treats each leaf as a local probabilistic model. For conjugate leaves this is a Bayesian model with prior $\pi(\theta_\ell\mid\eta)$, posterior $\pi(\theta_\ell\mid\mathcal{D}_\ell,\eta)$, and posterior predictive $p_\ell(y\mid \mathcal{D}_\ell,\eta)$, conditional on the empirical-Bayes quantities stated in Section~\ref{subsec:leaf_models}; for non-conjugate leaves it is an explicit fitted density scored by an evidence surrogate or by a regularized plug-in log score.
 Tree induction is expressed through a summed leaf score $\sum_{\ell} S(\mathcal{D}_\ell)$, where $S$ is a negative log-score associated with the leaf predictor.
 For conjugate likelihood--prior pairs, $S$ is the \emph{negative log evidence}, which admits a prequential interpretation as Bayesian cumulative log-loss.
 When closed-form evidence is unavailable, the same objective is instantiated with a Laplace/BIC surrogate or a regularized plug-in log score, and the selected regime is reported empirically (Section~\ref{subsec:exp_real}, Table~\ref{tab:bdf-selection}).
@@ -92,7 +92,7 @@ We report two reviewer-facing variants.
 These are not the only conjugate pairs supported by the framework; they are the default real-valued and binary references used to isolate exact evidence scoring.
 \emph{BDF-Full} denotes the practical validation-selected aggregate over the canonical leaf families and score regimes under one tuning budget per family.
 For conjugate Normal--Normal/Beta--Bernoulli leaves, the selectable score regimes are NLE, NLL+BIC, and pure NLL; for non-conjugate Student-$t$ leaves, exact evidence is unavailable, so the selectable regimes are NLL+BIC and pure NLL.
-Unless otherwise stated, headline benchmark numbers refer to BDF-Full.
+Unless otherwise stated, headline benchmark numbers refer to BDF-Full; Appendix~\ref{app:bdf-leaf-regimes} enumerates the submitted leaf families, score regimes, and fitting status.
 
 \paragraph{Contributions.}
 \begin{enumerate}
@@ -106,7 +106,7 @@ Unless otherwise stated, headline benchmark numbers refer to BDF-Full.
 \begin{table}[!ht]
 \centering
 \small
-\caption{Main claims, evidence, and scope.}
+\caption{Claims and scope of the submission.}
 \label{tab:claims-evidence}
 \begin{tabular}{p{0.28\textwidth}p{0.37\textwidth}p{0.25\textwidth}}
 \toprule
@@ -114,7 +114,7 @@ Claim & Evidence & Scope \\
 \midrule
 Conjugate leaves support exact Bayesian updates and NLE split scores & Section~\ref{subsec:leaf_models}; Appendix~\ref{app:conjugate_updates} & Exact conditional on fixed hyperparameters and leaf assignments \\
 NLE has a prequential/Bayes-factor interpretation & Section~\ref{subsec:split_scoring}; Section~\ref{sec:theory} & Local and fixed-partition; not a posterior over forest structures \\
-BDF-Full is the submitted practical aggregate & Table~\ref{tab:compute-budget-selection}; Table~\ref{tab:bdf-selection} & Fold-0 validation-selected leaf family and score regime \\
+BDF-Full is the submitted practical aggregate & Appendix~\ref{app:bdf-leaf-regimes}; Appendix~\ref{app:benchmark-protocol}; Table~\ref{tab:bdf-selection} & Fold-0 validation-selected leaf family and score regime \\
 Regression is often non-conjugate/evidence-regularized & Table~\ref{tab:bdf-selection}; Table~\ref{tab:bdf-leaf-score-ablation} & Student-$t$ uses MoM plug-in leaves, not exact evidence \\
 Exact-NLE Core remains a useful reference & Table~\ref{tab:bdf-normal-nle-vs-full}; Table~\ref{tab:bdf-core-vs-full-classification} & Normal--Normal and Beta--Bernoulli canonical references only \\
 BDF-Full is calibrated but not aggregate-CRPS SOTA & Figure~\ref{fig:coverage-vs-interval-score-rank}; Figure~\ref{fig:crps-rel-to-best}; Table~\ref{tab:rel-to-best-crps} & QRF/DRF lead aggregate CRPS/CRPSS \\
@@ -341,7 +341,7 @@ Equation~\eqref{eq:forest_mixture} is a randomized ensemble of probabilistic lea
 % =====================================================
 % THEORETICAL RESULTS SECTION
 % =====================================================
-\section{Theoretical Perspective}\label{sec:theory}
+\section{Interpretation and Local Guarantees}\label{sec:theory}
 
 This section records the main guarantees needed to interpret BDF. The results are deliberately local: they condition on a fixed tree partition and fixed hyperparameters $\eta$, and therefore justify the leaf predictors and split scores rather than proving consistency of the full adaptive forest. Detailed proofs and auxiliary asymptotics are in Appendix~\ref{app:proofs}.
 

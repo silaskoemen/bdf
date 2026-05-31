@@ -323,7 +323,7 @@ def make_core_vs_full_table(model_results: dict[str, dict[str, Any]], output_dir
 
     _write_table(
         output_dir / "bdf_normal_nle_vs_full.tex",
-        ["Model", "Avg. rel. CRPS", "Median gap vs Full", "IS90 rank", "Cov@90", "$n$"],
+        ["Model", "Table-set rel. CRPS", "Median gap vs Full", "IS90 rank", "Cov@90", "$n$"],
         rows,
         "Exact Normal--Normal NLE BDF versus BDF-Full and selected regression baselines.",
         "tab:bdf-normal-nle-vs-full",
@@ -376,7 +376,7 @@ def make_score_ablation_table(model_results: dict[str, dict[str, Any]], output_d
 
     _write_table(
         output_dir / "bdf_leaf_score_ablation.tex",
-        ["Leaf family", "Split score", "Exact Bayes?", "Avg. rel. CRPS", "IS90 rank", "Cov@90", "$n$"],
+        ["Leaf family", "Split score", "Exact Bayes?", "Ablation-set rel. CRPS", "IS90 rank", "Cov@90", "$n$"],
         rows,
         "Leaf-family and split-score ablation for fixed BDF configurations.",
         "tab:bdf-leaf-score-ablation",
