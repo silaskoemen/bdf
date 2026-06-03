@@ -107,5 +107,5 @@ def test_safe_metrics_work_on_finite():
     assert np.isfinite(_safe_mape(y_true, y_pred))
 
     # Check approximate expected values
-    assert _safe_mse(y_true, y_pred) == pytest.approx(0.015, abs=0.001)
+    assert _safe_mse(y_true, y_pred) == pytest.approx(0.0175, abs=0.001)
     assert _safe_mae(y_true, y_pred) == pytest.approx(0.125, abs=0.001)

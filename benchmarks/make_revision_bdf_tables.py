@@ -21,7 +21,7 @@ import numpy as np
 
 from benchmarks.calc_plot_regression_metrics import DATASETS
 from benchmarks.utils.style import MODEL_DISPLAY_NAMES
-from benchmarks.utils.yaml_loader import aggregate_bdf_models, load_model_results
+from benchmarks.utils.yaml_loader import aggregate_bdf_models, aggregate_model_variants, load_model_results
 
 RESULTS_DIR = Path("benchmarks/results/regression")
 TABLES_DIR = Path("benchmarks/results/regression/tables")
@@ -62,8 +62,57 @@ BDF_SCORE_ABLATION_META = {
     "bdf_freqstudentt_nll_bic": ("Student-$t$", "NLL+BIC", "No"),
 }
 
+XGBOOSTLSS_SELECTION_MODELS = [
+    "xgboostlss_gaussian",
+    "xgboostlss_studentt",
+    "xgboostlss_laplace",
+    "xgboostlss_gaussian_mixture",
+]
+
+UNIFIED_ABLATION_MODELS = [
+    "bdf_normalmunormal_nle",
+    "bdf_normalmunormal_nll_bic",
+    "bdf_freqstudentt_nll",
+    "bdf_freqstudentt_nll_bic",
+    BDF_FULL_MODEL,
+    "qrf",
+    "drf",
+    "ngboost_reg",
+    "XGBoostLSS",
+]
+
+UNIFIED_ABLATION_DISPLAY = {
+    "bdf_normalmunormal_nle": "BDF N--N NLE",
+    "bdf_normalmunormal_nll_bic": "BDF N--N NLL+BIC",
+    "bdf_freqstudentt_nll": "BDF Student-$t$ NLL",
+    "bdf_freqstudentt_nll_bic": "BDF Student-$t$ NLL+BIC",
+    BDF_FULL_MODEL: "BDF-Full",
+    "XGBoostLSS": "XGBoostLSS",
+}
+
+TIMING_MODELS = [
+    BDF_FULL_MODEL,
+    "bdf_normalmunormal",
+    "qrf",
+    "drf",
+    "ngboost_reg",
+    "xgboostlss_studentt",
+    "catbunc_reg",
+    "conflgbm",
+]
+
+TIMING_DISPLAY = {
+    BDF_FULL_MODEL: "BDF-Full",
+    "bdf_normalmunormal": "BDF-Normal",
+    "xgboostlss_studentt": "XGBLSS-t",
+}
+
 
 def _display_name(model: str) -> str:
+    if model in UNIFIED_ABLATION_DISPLAY:
+        return UNIFIED_ABLATION_DISPLAY[model]
+    if model in TIMING_DISPLAY:
+        return TIMING_DISPLAY[model]
     return MODEL_DISPLAY_NAMES.get(model, model.replace("_", r"\_"))
 
 
@@ -273,12 +322,30 @@ def _load_revision_results(results_dir: Path) -> dict[str, dict[str, Any]]:
         use_tuning_value=True,
         datasets=DATASETS,
     )
+    xgboostlss_full, _ = aggregate_model_variants(
+        results_dir=results_dir,
+        model_variants=XGBOOSTLSS_SELECTION_MODELS,
+        selection_metric="crps",
+        use_tuning_value=True,
+        datasets=DATASETS,
+        family_name="XGBoostLSS",
+        expected_eval_folds=9,
+    )
     model_names = sorted(
-        set(BDF_EXACT_NORMAL_COMPARISON_MODELS + BDF_SCORE_ABLATION_MODELS + BDF_FULL_SELECTION_MODELS)
+        set(
+            BDF_EXACT_NORMAL_COMPARISON_MODELS
+            + BDF_SCORE_ABLATION_MODELS
+            + BDF_FULL_SELECTION_MODELS
+            + XGBOOSTLSS_SELECTION_MODELS
+            + TIMING_MODELS
+        )
     )
     model_names.remove(BDF_FULL_MODEL)
+    if "XGBoostLSS" in model_names:
+        model_names.remove("XGBoostLSS")
     model_results = load_model_results(results_dir, model_names)
     model_results[BDF_FULL_MODEL] = bdf_full
+    model_results["XGBoostLSS"] = xgboostlss_full
     print(f"Loaded BDF-Full selections for {len(selection_map)} datasets")
     return model_results
 
@@ -385,6 +452,136 @@ def make_score_ablation_table(model_results: dict[str, dict[str, Any]], output_d
     )
 
 
+def make_unified_ablation_table(model_results: dict[str, dict[str, Any]], output_dir: Path) -> None:
+    models = [model for model in UNIFIED_ABLATION_MODELS if model in model_results]
+    missing = sorted(set(UNIFIED_ABLATION_MODELS) - set(models))
+    if missing:
+        print(f"Skipping missing unified-ablation models: {', '.join(missing)}")
+    if len(models) < 2:
+        print("Not enough models to write unified ablation table")
+        return
+
+    datasets, dropped = _datasets_with_metrics(model_results, models, ["crps", "interval_score_90", "coverage_90"])
+    if not datasets:
+        print("No common datasets for unified ablation table")
+        return
+
+    rel_crps = _geomean_relative_to_best(model_results, models, datasets, "crps")
+    is_rank = _average_metric_ranks(model_results, models, datasets, "interval_score_90")
+    best_rel = min(rel_crps.values()) if rel_crps else None
+    best_rank = min(is_rank.values()) if is_rank else None
+
+    rows = []
+    for model in models:
+        coverage_values = [_mean_metric(model_results[model], dataset, "coverage_90") for dataset in datasets]
+        coverage = _mean_optional(coverage_values)
+        rel_value = rel_crps.get(model)
+        rank_value = is_rank.get(model)
+        rows.append(
+            [
+                _display_name(model),
+                _bold_if_best(_format_float(rel_value, 3), rel_value == best_rel),
+                _format_float(_median_gap_vs_full(model_results, model, datasets), 2, r"\%"),
+                _bold_if_best(_format_float(rank_value, 2), rank_value == best_rank),
+                _format_float(coverage, 3),
+                str(len(datasets)),
+            ]
+        )
+
+    _write_table(
+        output_dir / "bdf_unified_ablation.tex",
+        ["Model", "Unified rel. CRPS", "Median gap vs Full", "IS90 rank", "Cov@90", "$n$"],
+        rows,
+        "Unified regression ablation and baseline comparison under one normalization.",
+        "tab:bdf-unified-ablation",
+        "Geometric mean relative CRPS is computed relative to the best model per dataset within this table "
+        "(lower is better). Fixed BDF rows use locked per-family score regimes; BDF-Full and XGBoostLSS "
+        "are fold-0 validation-selected aggregates over their submitted variant sets. "
+        rf"{_format_dropped(dropped)}",
+    )
+
+
+def _mean_timing(model_data: dict[str, Any], dataset: str, key: str) -> float | None:
+    ds_data = model_data.get("datasets", {}).get(dataset)
+    if not ds_data:
+        return None
+    if key == "fit":
+        values = ds_data.get("fitting_times")
+        if isinstance(values, list) and values:
+            return float(np.mean(values))
+    if key == "tune":
+        value = ds_data.get("tuning_time_seconds")
+        if isinstance(value, (int, float)):
+            return float(value)
+    if key == "predict":
+        values = ds_data.get("prediction_times")
+        if isinstance(values, list) and values:
+            totals = []
+            for fold in values:
+                if isinstance(fold, dict):
+                    totals.append(float(fold.get("point_seconds", 0.0)) + float(fold.get("probabilistic_seconds", 0.0)))
+            if totals:
+                return float(np.mean(totals))
+    return None
+
+
+def _format_seconds(value: float | None) -> str:
+    if value is None or not math.isfinite(value):
+        return "---"
+    if value < 1:
+        return f"{value:.3f}"
+    if value < 100:
+        return f"{value:.2f}"
+    return f"{value:.1f}"
+
+
+def make_timing_table(model_results: dict[str, dict[str, Any]], output_dir: Path) -> None:
+    models = [model for model in TIMING_MODELS if model in model_results]
+    datasets, dropped = _datasets_with_metrics(model_results, models, ["crps"])
+    if not datasets:
+        print("No common datasets for timing table")
+        return
+
+    rows = []
+    any_prediction_times = False
+    for model in models:
+        fit_values = [_mean_timing(model_results[model], dataset, "fit") for dataset in datasets]
+        tune_values = [_mean_timing(model_results[model], dataset, "tune") for dataset in datasets]
+        predict_values = [_mean_timing(model_results[model], dataset, "predict") for dataset in datasets]
+        fit_finite = [value for value in fit_values if value is not None and math.isfinite(value)]
+        tune_finite = [value for value in tune_values if value is not None and math.isfinite(value)]
+        predict_finite = [value for value in predict_values if value is not None and math.isfinite(value)]
+        any_prediction_times = any_prediction_times or bool(predict_finite)
+        rows.append(
+            [
+                _display_name(model),
+                _format_seconds(float(np.mean(fit_finite)) if fit_finite else None),
+                _format_seconds(float(np.median(fit_finite)) if fit_finite else None),
+                _format_seconds(float(np.mean(tune_finite)) if tune_finite else None),
+                _format_seconds(float(np.median(tune_finite)) if tune_finite else None),
+                _format_seconds(float(np.mean(predict_finite)) if predict_finite else None),
+                str(len(fit_finite)),
+            ]
+        )
+
+    prediction_note = (
+        "Mean prediction seconds are included for result files produced after prediction-time instrumentation."
+        if any_prediction_times
+        else "Locked real-data YAMLs predate prediction-time instrumentation, so prediction seconds are unavailable here; "
+        "controlled prediction overhead is reported in Table~\\ref{tab:complexity}."
+    )
+
+    _write_table(
+        output_dir / "real_benchmark_timing.tex",
+        ["Model", "Mean fit s", "Median fit s", "Mean tune s", "Median tune s", "Mean pred. s", "$n$"],
+        rows,
+        "Absolute real-benchmark wall-clock times from locked YAML artifacts.",
+        "tab:real-benchmark-timing",
+        "Fit time is the mean over fold-1--9 refits per dataset; tuning time is the fold-0 Optuna study duration. "
+        f"{prediction_note} {_format_dropped(dropped)}",
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results-dir", type=Path, default=RESULTS_DIR)
@@ -394,6 +591,8 @@ def main() -> None:
     model_results = _load_revision_results(args.results_dir)
     make_core_vs_full_table(model_results, args.output_dir)
     make_score_ablation_table(model_results, args.output_dir)
+    make_unified_ablation_table(model_results, args.output_dir)
+    make_timing_table(model_results, args.output_dir)
 
 
 if __name__ == "__main__":

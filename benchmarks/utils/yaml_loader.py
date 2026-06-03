@@ -474,14 +474,15 @@ def extract_timing_data(
     model_results: dict[str, dict[str, Any]],
     datasets: list[str] | None = None,
 ) -> dict[str, dict[str, dict[str, float]]]:
-    """Extract fitting and tuning times from model results.
+    """Extract fitting, tuning, and prediction times from model results.
 
     Args:
         model_results: Dict mapping model_name -> result dict.
         datasets: List of datasets to include. If None, includes all.
 
     Returns:
-        Nested dict: model -> dataset -> {"mean_fit_time": ..., "tuning_time": ...}
+        Nested dict: model -> dataset -> {"mean_fit_time": ..., "tuning_time": ...,
+        "mean_prediction_time": ...}
 
     Raises:
         TypeError: If fitting_times is not a list or tuning_time_seconds is not numeric.
@@ -514,6 +515,26 @@ def extract_timing_data(
                         f"got {type(tuning_time).__name__}"
                     )
                 entry["tuning_time"] = float(tuning_time)
+
+            prediction_times = ds_data.get("prediction_times")
+            if prediction_times is not None:
+                if not isinstance(prediction_times, list):
+                    raise TypeError(
+                        f"prediction_times for {model_name}/{ds_name} must be a list, "
+                        f"got {type(prediction_times).__name__}"
+                    )
+                fold_totals = []
+                for fold in prediction_times:
+                    if not isinstance(fold, dict):
+                        raise TypeError(
+                            f"prediction_times entries for {model_name}/{ds_name} must be dicts, "
+                            f"got {type(fold).__name__}"
+                        )
+                    fold_totals.append(
+                        float(fold.get("point_seconds", 0.0)) + float(fold.get("probabilistic_seconds", 0.0))
+                    )
+                if fold_totals:
+                    entry["mean_prediction_time"] = float(np.mean(fold_totals))
 
             if entry:
                 timing_data[model_name][ds_name] = entry
@@ -572,11 +593,23 @@ def compute_speedup_table(
                     tune_ratios.append(chal["tuning_time"] / ctrl["tuning_time"])
 
         entry = {"n_datasets_fit": len(fit_ratios), "n_datasets_tune": len(tune_ratios)}
+        prediction_ratios = []
 
         if fit_ratios:
             entry["fit_speedup"] = float(gmean(fit_ratios))
         if tune_ratios:
             entry["tune_speedup"] = float(gmean(tune_ratios))
+        for ds_name in control_timing:
+            if ds_name not in model_timing:
+                continue
+            ctrl = control_timing[ds_name]
+            chal = model_timing[ds_name]
+            if "mean_prediction_time" in ctrl and "mean_prediction_time" in chal:
+                if ctrl["mean_prediction_time"] > 0:
+                    prediction_ratios.append(chal["mean_prediction_time"] / ctrl["mean_prediction_time"])
+        entry["n_datasets_prediction"] = len(prediction_ratios)
+        if prediction_ratios:
+            entry["prediction_speedup"] = float(gmean(prediction_ratios))
 
         results[model_name] = entry
 

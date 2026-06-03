@@ -1,0 +1,20 @@
+\begin{table}[htbp]
+\centering
+\caption{Absolute real-benchmark wall-clock times from locked YAML artifacts.}
+\label{tab:real-benchmark-timing}
+\begin{tabular}{lcccccc}
+\toprule
+Model & Mean fit s & Median fit s & Mean tune s & Median tune s & Mean pred. s & $n$ \\
+\midrule
+BDF-Full & 51.31 & 6.97 & 1644.1 & 370.9 & --- & 15 \\
+BDF-Normal & 7.72 & 5.79 & 515.2 & 293.0 & --- & 15 \\
+QRF & 3.61 & 1.40 & 240.4 & 89.71 & --- & 15 \\
+DRF & 6.79 & 4.86 & 2058.4 & 605.9 & --- & 15 \\
+NGBoost & 5.01 & 2.04 & 163.5 & 66.91 & --- & 15 \\
+XGBLSS-t & 1.44 & 0.833 & 56.52 & 37.85 & --- & 15 \\
+CatBoostUnc & 24.26 & 2.25 & 1071.7 & 511.0 & --- & 15 \\
+ConfLGBM & 1.47 & 1.19 & 51.24 & 44.32 & --- & 15 \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize{Fit time is the mean over fold-1--9 refits per dataset; tuning time is the fold-0 Optuna study duration. Locked real-data YAMLs predate prediction-time instrumentation, so prediction seconds are unavailable here; controlled prediction overhead is reported in Table~\ref{tab:complexity}. No datasets were dropped by the common-metric filter.}
+\end{table}

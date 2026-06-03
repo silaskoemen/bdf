@@ -308,13 +308,18 @@ class BaseOrchestrator:
         proba_metrics = REG_PROB_METRICS if do_reg else CLAS_PROB_METRICS
 
         metric_dict = {}
+        self._last_prediction_times = {}
         if status_callback:
             status_callback("Predicting")
         try:
+            start_time = time()
             y_pred = model.predict(X) if do_reg else model.predict_proba(X)[:, 1]
+            self._last_prediction_times["point_seconds"] = time() - start_time
         except Exception as e:
             logger.error(f"❌ Prediction failed: {e}")
+            start_time = time()
             y_pred = model.predict(X)
+            self._last_prediction_times["point_seconds"] = time() - start_time
 
         # Inverse transform if we standardized test targets
         if pipeline is not None and self.standardize_target in ["only", "both"]:
@@ -351,10 +356,14 @@ class BaseOrchestrator:
 
                 # Get predictions in native format
                 if prediction_type == "quantiles":
+                    start_time = time()
                     y_pred_native = model.predict_quantiles(X)  # type: ignore[attr-defined]
+                    self._last_prediction_times["probabilistic_seconds"] = time() - start_time
                     precomputed_percentiles = None
                 else:
+                    start_time = time()
                     y_pred_native = model.predict_samples(X, n_samples=self.cfg.sample_size)  # type: ignore[attr-defined]
+                    self._last_prediction_times["probabilistic_seconds"] = time() - start_time
                     # Inverse transform if needed
                     if pipeline is not None and self.standardize_target in ["only", "both"]:
                         y_pred_native = pipeline.inverse_transform(y_pred_native)
@@ -482,6 +491,7 @@ class CustomOrchestrator(BaseOrchestrator):
             # Use fold 0 for tuning, folds 1-9 for evaluation
             self.tuned_init_kwargs = None
             fit_times = []
+            prediction_times = []
             fold_metrics = []
             all_splits = list(cv_splitter.split(X, y))
 
@@ -526,6 +536,7 @@ class CustomOrchestrator(BaseOrchestrator):
                         metrics_dict = self.calc_metrics(
                             X.iloc[test_idx], y.iloc[test_idx], best_model, None, status_callback=update_status
                         )
+                        prediction_times.append(dict(getattr(self, "_last_prediction_times", {})))
                         fold_metrics.append(metrics_dict)
                     except Exception as e:
                         logger.error(f"❌ Fold {fold_idx} failed: {e}")
@@ -556,6 +567,8 @@ class CustomOrchestrator(BaseOrchestrator):
                 logger.warning(f"No fold metrics computed for task {metadata.name}")
             if fit_times:
                 results["datasets"][metadata.name]["fitting_times"] = [float(t) for t in fit_times]
+            if prediction_times:
+                results["datasets"][metadata.name]["prediction_times"] = prediction_times
             # Save intermediate results
             self._save_results(results)
 
