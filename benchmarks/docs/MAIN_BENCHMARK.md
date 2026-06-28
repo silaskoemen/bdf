@@ -174,7 +174,12 @@ fixed_params:
 #### Baseline Models
 - **`rf_reg`**: Random Forest (sklearn)
 - **`rf_qreg`**: Quantile Random Forest
-- **`ngboost_reg`**: NGBoost with Normal/Exponential distributions
+- **`ngboost_normal`**: NGBoost with a Normal predictive distribution
+- **`ngboost_laplace`**: NGBoost with a Laplace predictive distribution
+- **`ngboost_lognormal`**: NGBoost for strictly positive targets
+- **`ngboost_exponential`**: NGBoost for nonnegative targets
+- **`ngboost_poisson`**: NGBoost for nonnegative integer targets
+- **`ngboost_reg`**: Legacy Normal-only NGBoost configuration retained for locked-result compatibility
 - **`lgbm_reg`**: LightGBM (point predictions)
 - **`lgbm_qreg`**: LightGBM Quantile Regression
 - **`conflgbm`**: Conformalized LightGBM (uncertainty via conformal prediction)

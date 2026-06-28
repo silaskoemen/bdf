@@ -1,7 +1,6 @@
+# NGBoost Normal distributional boosting variant
 
-# Legacy Normal-only config retained so locked result artifacts remain reproducible.
-# New family sweeps should use the explicit ngboost_<distribution> configs.
-name: ngboost_reg
+name: ngboost_normal
 target_type: regression
 class_name: NGBRegressor
 probabilistic: true

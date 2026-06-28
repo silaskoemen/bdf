@@ -74,6 +74,7 @@ def aggregate_model_variants(
     datasets: list[str] | None = None,
     family_name: str = "model",
     expected_eval_folds: int | None = None,
+    require_all_variants: bool = False,
 ) -> tuple[dict[str, Any], dict[str, str]]:
     """Aggregate model variants by selecting the best variant per dataset.
 
@@ -90,6 +91,9 @@ def aggregate_model_variants(
         family_name: Human-readable model-family name for warnings/metadata.
         expected_eval_folds: If set, variants are eligible for a dataset only when
             the selection metric has exactly this many evaluation-fold values.
+        require_all_variants: If True, fail unless every requested variant result
+            file is present. This prevents silently constructing a fused baseline
+            from only a partially completed family sweep.
 
     Returns:
         Tuple of:
@@ -107,6 +111,8 @@ def aggregate_model_variants(
     found_models = list(variant_results.keys())
     missing_models = set(model_variants) - set(found_models)
     if missing_models:
+        if require_all_variants:
+            raise ValueError(f"Missing required {family_name} models: {sorted(missing_models)}")
         warnings.warn(f"{family_name} models not found: {missing_models}")
 
     # Get all datasets across all variants
@@ -178,6 +184,7 @@ def aggregate_model_variants(
             "use_tuning_value": use_tuning_value,
             "family_name": family_name,
             "expected_eval_folds": expected_eval_folds,
+            "require_all_variants": require_all_variants,
         },
     }
 

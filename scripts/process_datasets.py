@@ -117,7 +117,7 @@ def process_forest_fires():
         y,
         name="forest_fires",
         task="regression",
-        domain="real",
+        domain="nonnegative_real",
         original_target="area (log1p)",
         n_before=n,
         encoding="one-hot month/day; log1p(area)",

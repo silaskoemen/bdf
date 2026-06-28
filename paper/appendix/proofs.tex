@@ -674,41 +674,7 @@ p_{\theta^\star}(y)
 \subsection{Per-Node Split Consistency}
 \label{app:split_consistency}
 
-\begin{theorem}[Per-node split consistency]
-\label{thm:split_consistency}
-Let $R_\ell$ be a fixed node region at depth $d$ with $n_\ell\to\infty$.
-Assume the regularity conditions of Proposition~\ref{prop:leaf_concentration}, and assume the candidate set has bounded cardinality
-\[
-C \le K\lfloor 1/\eta_{\mathrm{cut}}\rfloor .
-\]
-
-\emph{Beneficial split.}
-If a candidate split $s^\star$ produces child regions with
-\[
-n_{\ell_L}/n_\ell \to \rho\in(0,1)
-\]
-and strictly positive population gain
-\[
-\Delta_{\mathrm{pop}}(s^\star)>0,
-\]
-then
-\[
-\Delta_{\mathrm{net}}(s^\star;\ell)
-\to +\infty
-\]
-in probability.
-
-\emph{Spurious split.}
-If the unsplit model is correctly specified at node $\ell$, so that
-$f_0^\ell=p_{\theta_0}$ for some $\theta_0\in\mathrm{int}(\Theta)$, and all candidate splits are population-equivalent, then
-\[
-\max_s \Delta_{\mathrm{net}}(s;\ell)
-\to -\infty
-\]
-in probability.
-\end{theorem}
-
-\begin{proof}
+\begin{proof}[Proof of Theorem~\ref{thm:split_consistency}]
 We prove the two claims separately.
 
 \paragraph{Beneficial split.}

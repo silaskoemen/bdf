@@ -48,6 +48,16 @@ XGBOOSTLSS_MODELS = [
     "xgboostlss_gaussian_mixture",
 ]
 
+# NGBoost variants are run as separate configurations so every eligible family
+# receives the same 50-trial fold-0 budget before per-dataset selection.
+NGBOOST_MODELS = [
+    "ngboost_normal",
+    "ngboost_laplace",
+    "ngboost_lognormal",
+    "ngboost_exponential",
+    "ngboost_poisson",
+]
+
 # Baseline models to compare against
 BASELINE_MODELS = [
     "bayesridge_reg",
@@ -56,7 +66,6 @@ BASELINE_MODELS = [
     "gaussian_de",
     # "gp_reg",  # excluded from main aggregate: scaling/provenance limitations
     # "pymc_bart",  # prohibitively expensive for adequate chains/draws; supplement only
-    "ngboost_reg",
     "qrf",
     "drf",  # distributional random forest (Cevid et al.) via R drf + rpy2; include after running result file
     "catbunc_reg",
@@ -438,6 +447,39 @@ def main():
     baseline_results = load_model_results(RESULTS_DIR, BASELINE_MODELS)
     print(f"    Loaded {len(baseline_results)} baseline models: {list(baseline_results.keys())}")
 
+    ngboost_aggregated = None
+    ngboost_selection_map = {}
+    try:
+        ngboost_aggregated, ngboost_selection_map = aggregate_model_variants(
+            results_dir=RESULTS_DIR,
+            model_variants=NGBOOST_MODELS,
+            selection_metric="crps",
+            use_tuning_value=True,
+            datasets=DATASETS,
+            family_name="NGBoost",
+            expected_eval_folds=9,
+            require_all_variants=True,
+        )
+    except ValueError as e:
+        print(f"    Warning: {e}. Falling back to the legacy Normal-only NGBoost result if available.")
+        legacy_ngboost = load_model_results(RESULTS_DIR, ["ngboost_reg"]).get("ngboost_reg")
+        if legacy_ngboost is not None:
+            baseline_results["NGBoost"] = legacy_ngboost
+
+    if ngboost_aggregated is not None:
+        baseline_results["NGBoost"] = ngboost_aggregated
+        print("    NGBoost distribution selection per dataset:")
+        for ds, model in sorted(ngboost_selection_map.items()):
+            print(f"      {ds}: {model}")
+        ngboost_selection_tex = generate_bdf_selection_table(
+            ngboost_selection_map,
+            caption="NGBoost distribution selection per dataset",
+            label="tab:ngboost-selection",
+            selected_column="Selected Distribution",
+            strip_prefixes=("ngboost_",),
+        )
+        save_latex_table(ngboost_selection_tex, TABLES_DIR / "ngboost_distribution_selection.tex")
+
     xgboostlss_aggregated = None
     xgboostlss_selection_map = {}
     try:
@@ -449,6 +491,7 @@ def main():
             datasets=DATASETS,
             family_name="XGBoostLSS",
             expected_eval_folds=9,
+            require_all_variants=True,
         )
     except ValueError as e:
         print(f"    Warning: {e}. Fused XGBoostLSS baseline will be skipped.")

@@ -41,8 +41,8 @@ BDF_EXACT_NORMAL_COMPARISON_MODELS = [
     BDF_FULL_MODEL,
     "qrf",
     "drf",
-    "ngboost_reg",
-    "xgboostlss_studentt",
+    "NGBoost",
+    "XGBoostLSS",
     "catbunc_reg",
 ]
 
@@ -69,6 +69,14 @@ XGBOOSTLSS_SELECTION_MODELS = [
     "xgboostlss_gaussian_mixture",
 ]
 
+NGBOOST_SELECTION_MODELS = [
+    "ngboost_normal",
+    "ngboost_laplace",
+    "ngboost_lognormal",
+    "ngboost_exponential",
+    "ngboost_poisson",
+]
+
 UNIFIED_ABLATION_MODELS = [
     "bdf_normalmunormal_nle",
     "bdf_normalmunormal_nll_bic",
@@ -77,7 +85,7 @@ UNIFIED_ABLATION_MODELS = [
     BDF_FULL_MODEL,
     "qrf",
     "drf",
-    "ngboost_reg",
+    "NGBoost",
     "XGBoostLSS",
 ]
 
@@ -88,6 +96,7 @@ UNIFIED_ABLATION_DISPLAY = {
     "bdf_freqstudentt_nll_bic": "BDF Student-$t$ NLL+BIC",
     BDF_FULL_MODEL: "BDF-Full",
     "XGBoostLSS": "XGBoostLSS",
+    "NGBoost": "NGBoost",
 }
 
 TIMING_MODELS = [
@@ -95,8 +104,8 @@ TIMING_MODELS = [
     "bdf_normalmunormal",
     "qrf",
     "drf",
-    "ngboost_reg",
-    "xgboostlss_studentt",
+    "NGBoost",
+    "XGBoostLSS",
     "catbunc_reg",
     "conflgbm",
 ]
@@ -104,7 +113,8 @@ TIMING_MODELS = [
 TIMING_DISPLAY = {
     BDF_FULL_MODEL: "BDF-Full",
     "bdf_normalmunormal": "BDF-Normal",
-    "xgboostlss_studentt": "XGBLSS-t",
+    "XGBoostLSS": "XGBoostLSS",
+    "NGBoost": "NGBoost",
 }
 
 
@@ -330,22 +340,45 @@ def _load_revision_results(results_dir: Path) -> dict[str, dict[str, Any]]:
         datasets=DATASETS,
         family_name="XGBoostLSS",
         expected_eval_folds=9,
+        require_all_variants=True,
     )
+    try:
+        ngboost_full, _ = aggregate_model_variants(
+            results_dir=results_dir,
+            model_variants=NGBOOST_SELECTION_MODELS,
+            selection_metric="crps",
+            use_tuning_value=True,
+            datasets=DATASETS,
+            family_name="NGBoost",
+            expected_eval_folds=9,
+            require_all_variants=True,
+        )
+    except ValueError as exc:
+        print(f"Fused NGBoost unavailable ({exc}); using legacy Normal-only result if present")
+        ngboost_full = None
     model_names = sorted(
         set(
             BDF_EXACT_NORMAL_COMPARISON_MODELS
             + BDF_SCORE_ABLATION_MODELS
             + BDF_FULL_SELECTION_MODELS
             + XGBOOSTLSS_SELECTION_MODELS
+            + NGBOOST_SELECTION_MODELS
+            + ["ngboost_reg"]
             + TIMING_MODELS
         )
     )
     model_names.remove(BDF_FULL_MODEL)
     if "XGBoostLSS" in model_names:
         model_names.remove("XGBoostLSS")
+    if "NGBoost" in model_names:
+        model_names.remove("NGBoost")
     model_results = load_model_results(results_dir, model_names)
     model_results[BDF_FULL_MODEL] = bdf_full
     model_results["XGBoostLSS"] = xgboostlss_full
+    if ngboost_full is not None:
+        model_results["NGBoost"] = ngboost_full
+    elif "ngboost_reg" in model_results:
+        model_results["NGBoost"] = model_results["ngboost_reg"]
     print(f"Loaded BDF-Full selections for {len(selection_map)} datasets")
     return model_results
 
@@ -495,7 +528,7 @@ def make_unified_ablation_table(model_results: dict[str, dict[str, Any]], output
         "Unified regression ablation and baseline comparison under one normalization.",
         "tab:bdf-unified-ablation",
         "Geometric mean relative CRPS is computed relative to the best model per dataset within this table "
-        "(lower is better). Fixed BDF rows use locked per-family score regimes; BDF-Full and XGBoostLSS "
+        "(lower is better). Fixed BDF rows use locked per-family score regimes; BDF-Full, NGBoost, and XGBoostLSS "
         "are fold-0 validation-selected aggregates over their submitted variant sets. "
         rf"{_format_dropped(dropped)}",
     )

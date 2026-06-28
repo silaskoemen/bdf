@@ -1,15 +1,14 @@
+# NGBoost Exponential variant for nonnegative targets.
 
-# Legacy Normal-only config retained so locked result artifacts remain reproducible.
-# New family sweeps should use the explicit ngboost_<distribution> configs.
-name: ngboost_reg
+name: ngboost_exponential
 target_type: regression
 class_name: NGBRegressor
 probabilistic: true
 
-compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonnegative_integer, positive_integer]
+compatible_target_domains: [positive_real, nonnegative_real, positive_integer, nonnegative_integer]
 
 fixed_init_kwargs:
-  dist_name: Normal
+  dist_name: Exponential
   random_state: 1234
   verbose: false
 

@@ -1,16 +1,17 @@
 # pyright: reportMissingImports=false
 import gc
+import importlib
 import multiprocessing as mp
 import queue
 import warnings
 from typing import Literal
 
 import lightgbm as lgb
+import ngboost.distns as ngboost_distns
 import numpy as np
 import pandas as pd
 from catboost import CatBoostRegressor
 from ngboost import NGBClassifier, NGBRegressor
-from ngboost.distns import Bernoulli, Exponential, LogNormal, Normal, Poisson
 from ngboost.scores import LogScore
 from scipy import stats
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
@@ -22,6 +23,7 @@ from sklearn.gaussian_process.kernels import Kernel as Ker
 from sklearn.linear_model import BayesianRidge
 from sklearn.model_selection import train_test_split as TTS
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.utils import check_array
 
 # Type alias for prediction type
 PredictionType = Literal["samples", "quantiles"]
@@ -140,6 +142,50 @@ class GPClassifierWrapper(GaussianProcessClassifier):
 _original_grad = LogScore.grad
 
 
+def _y_from_censored_compat(T, E=None):
+    """NumPy-2-compatible replacement for NGBoost 0.3.6 censoring helper.
+
+    NGBoost's bundled helper still uses the removed ``np.bool`` alias. LogNormal
+    and Exponential pass ordinary regression targets through this helper because
+    their score implementations also support censoring.
+    """
+    if T is None:
+        return None
+
+    T = check_array(T, ensure_2d=False).reshape(-1)
+    if T.dtype.names == ("Event", "Time"):
+        return T
+
+    if E is None:
+        E = np.ones_like(T, dtype=np.bool_)
+    else:
+        E = check_array(E, ensure_2d=False).reshape(-1)
+
+    Y = np.empty(T.shape[0], dtype=[("Event", np.bool_), ("Time", np.float64)])
+    Y["Event"] = E.astype(np.bool_)
+    Y["Time"] = T.astype(np.float64)
+    return Y
+
+
+def _patch_ngboost_censoring_helper() -> None:
+    """Patch NGBoost modules that are present in the installed version.
+
+    These are private implementation modules and are deliberately imported
+    lazily: wrappers unrelated to NGBoost must remain importable when tests or
+    lightweight environments provide only the public NGBoost API.
+    """
+    for module_name in ("ngboost.helpers", "ngboost.distns.distn", "ngboost.api"):
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            continue
+        if hasattr(module, "Y_from_censored"):
+            module.Y_from_censored = _y_from_censored_compat
+
+
+_patch_ngboost_censoring_helper()
+
+
 def _patched_grad(self, Y, natural=True):
     # Ensure Y is 1D to avoid (N, 1) vs (N,) broadcasting -> (N, N)
     if hasattr(Y, "ndim") and Y.ndim > 1:
@@ -210,6 +256,9 @@ NGBOOST_TO_SCIPY = {
     "LogNormal": lambda params, n_samples: stats.lognorm.rvs(
         s=params["s"], scale=params["scale"], size=(n_samples, len(params["s"]))
     ).T,  # pyright: ignore[reportAttributeAccessIssue]
+    "Laplace": lambda params, n_samples: stats.laplace.rvs(
+        loc=params["loc"], scale=params["scale"], size=(n_samples, len(params["loc"]))
+    ).T,  # pyright: ignore[reportAttributeAccessIssue]
     "Exponential": lambda params, n_samples: stats.expon.rvs(
         scale=params["scale"], size=(n_samples, len(params["scale"]))
     ).T,  # pyright: ignore[reportAttributeAccessIssue]
@@ -223,16 +272,26 @@ NGBOOST_TO_SCIPY = {
 
 
 def return_dist_by_name(dist_name: str):
-    dist_map = {
-        "Normal": Normal,
-        "LogNormal": LogNormal,
-        "Exponential": Exponential,
-        "Poisson": Poisson,
-        "Bernoulli": Bernoulli,
-    }
-    if dist_name not in dist_map:
+    supported_dist_names = {"Normal", "Laplace", "LogNormal", "Exponential", "Poisson", "Bernoulli"}
+    if dist_name not in supported_dist_names:
         raise ValueError(f"Distribution '{dist_name}' not recognized.")
-    return dist_map[dist_name]
+    try:
+        return getattr(ngboost_distns, dist_name)
+    except AttributeError as exc:
+        raise ValueError(f"Distribution '{dist_name}' is not available in the installed NGBoost version.") from exc
+
+
+def _validate_ngboost_targets(dist_name: str, y: np.ndarray) -> None:
+    """Fail early when a target violates the selected distribution's support."""
+    if not np.isfinite(y).all():
+        raise ValueError(f"{dist_name} targets must be finite")
+    if dist_name == "LogNormal" and np.any(y <= 0):
+        raise ValueError("LogNormal targets must be strictly positive")
+    if dist_name == "Exponential" and np.any(y < 0):
+        raise ValueError("Exponential targets must be nonnegative")
+    if dist_name == "Poisson":
+        if np.any(y < 0) or not np.equal(np.mod(y, 1), 0).all():
+            raise ValueError("Poisson targets must be nonnegative integers")
 
 
 class NGBRegressorWrapper(NGBRegressor):
@@ -293,6 +352,7 @@ class NGBRegressorWrapper(NGBRegressor):
 
         if y_np.ndim > 1:
             y_np = y_np.ravel()
+        _validate_ngboost_targets(self.dist_name, y_np)
         super().fit(X_np, y_np, **kwargs)
         return self
 
@@ -315,10 +375,12 @@ class NGBRegressorWrapper(NGBRegressor):
 
         # Use the scipy sampling function for this distribution
         sampler = NGBOOST_TO_SCIPY[self.dist_name]
-        samples = sampler(params, n_samples)
+        samples = np.asarray(sampler(params, n_samples))
         # Set infinite samples to large finite values
-        samples[np.isinf(samples)] = np.finfo(np.float64).max
-        samples[np.isneginf(samples)] = np.finfo(np.float64).min
+        if np.issubdtype(samples.dtype, np.floating) and np.isinf(samples).any():
+            samples = samples.copy()
+            samples[np.isposinf(samples)] = np.finfo(np.float64).max
+            samples[np.isneginf(samples)] = np.finfo(np.float64).min
         return samples
 
 

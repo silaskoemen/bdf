@@ -56,6 +56,7 @@ docs-clean = "rm -rf docs/build"
 [feature.bench-models.tasks]
 bench-models = "PYTHONPATH=src python -m benchmarks.run"
 reg-suite-models = "PYTHONPATH=src python -m benchmarks.run_regression_suite"
+ngboost-reg-suite = "PYTHONPATH=src python -m benchmarks.run_regression_suite -m model=ngboost_normal,ngboost_laplace,ngboost_lognormal,ngboost_exponential,ngboost_poisson"
 clas-suite-models = "PYTHONPATH=src python -m benchmarks.run_classification_suite"
 load-data = "PYTHONPATH=src python -m scripts.fetch_datasets && PYTHONPATH=src python -m scripts.process_datasets"
 noise-study-models = "PYTHONPATH=src python -m benchmarks.effect_noise_features --tag models"

@@ -106,7 +106,13 @@ pixi run -e benchmark reg-suite-models -m \
     model=xgboostlss_gaussian,xgboostlss_studentt,xgboostlss_laplace,xgboostlss_gaussian_mixture
 ```
 
-The aggregation step `pixi run reg` writes the selected XGBoostLSS distribution table and excludes incomplete variant-dataset pairs rather than imputing missing folds. In the locked real-data artifacts, the incomplete XGBoostLSS candidates are Gaussian on `yacht_hydrodynamics` (8/9 CRPS folds), Student-t on `energy_efficiency` (8/9), Student-t on `parkinsons_updrs` (8/9), and Student-t on `yacht_hydrodynamics` (6/9). All BDF, QRF, DRF, conformalized forest/boosting, NGBoost, CatBoost-UQ, Gaussian deep-ensemble, Bayesian-ridge, kNN-KDE, and classification files consumed by the main paper have complete reported folds for the metrics used there.
+NGBoost uses the same per-configuration protocol. NGBoost 0.3.6 provides Normal, Laplace, LogNormal, Exponential, and Poisson regression distributions; Student-t and Gaussian mixtures are not available. Domain filtering runs LogNormal only on strictly positive targets, Exponential only on nonnegative targets, and Poisson only on nonnegative integer targets:
+
+```bash
+pixi run -e benchmark ngboost-reg-suite
+```
+
+The aggregation step `pixi run reg` writes the selected XGBoostLSS and NGBoost distribution tables and excludes incomplete variant-dataset pairs rather than imputing missing folds. It refuses to create either fused baseline until every configured family result file exists. In the locked real-data artifacts, the incomplete XGBoostLSS candidates are Gaussian on `yacht_hydrodynamics` (8/9 CRPS folds), Student-t on `energy_efficiency` (8/9), Student-t on `parkinsons_updrs` (8/9), and Student-t on `yacht_hydrodynamics` (6/9). The currently locked NGBoost artifact is the legacy Normal-only run; replace it in paper tables only after all five family sweeps above complete with nine evaluation folds on every eligible dataset.
 
 ## 3. Conditional Diagnostics
 
