@@ -1,6 +1,6 @@
 """Main regression benchmark analysis and visualization.
 
-This script produces publication-ready outputs for JMLR:
+This script produces publication-ready outputs for TMLR:
 - Statistical significance tests (Friedman, Nemenyi, Wilcoxon)
 - Critical difference diagrams
 - LaTeX tables with significance markers
@@ -11,6 +11,7 @@ Usage:
     python -m benchmarks.calc_plot_regression_metrics
 """
 
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +25,7 @@ RESULTS_DIR = Path("benchmarks/results/regression")
 
 # Output directories
 PLOTS_DIR = Path("benchmarks/plots/regression")
+PAPER_PLOTS_DIR = Path("paper/plots/regression")
 TABLES_DIR = Path("benchmarks/results/regression/tables")
 
 # Plot format: "pdf" for vector (best for LaTeX), "png" for raster, or "both"
@@ -458,6 +460,7 @@ def main():
             datasets=DATASETS,
             family_name="NGBoost",
             expected_eval_folds=9,
+            required_eval_metrics=["crps", "rmse"],
             require_all_variants=True,
         )
     except ValueError as e:
@@ -477,6 +480,11 @@ def main():
             label="tab:ngboost-selection",
             selected_column="Selected Distribution",
             strip_prefixes=("ngboost_",),
+            footnote=(
+                "Selection uses CRPS from the pre-specified fold-0 tuning split. "
+                "Candidates without nine finite CRPS and RMSE evaluation folds are treated as "
+                "numerical failures and excluded."
+            ),
         )
         save_latex_table(ngboost_selection_tex, TABLES_DIR / "ngboost_distribution_selection.tex")
 
@@ -491,6 +499,7 @@ def main():
             datasets=DATASETS,
             family_name="XGBoostLSS",
             expected_eval_folds=9,
+            required_eval_metrics=["crps", "rmse"],
             require_all_variants=True,
         )
     except ValueError as e:
@@ -507,6 +516,11 @@ def main():
             label="tab:xgboostlss-selection",
             selected_column="Selected Distribution",
             strip_prefixes=("xgboostlss_",),
+            footnote=(
+                "Selection uses CRPS from the pre-specified fold-0 tuning split. "
+                "Candidates without nine finite CRPS and RMSE evaluation folds are treated as "
+                "numerical failures and excluded."
+            ),
         )
         save_latex_table(xgboostlss_selection_tex, TABLES_DIR / "xgboostlss_distribution_selection.tex")
 
@@ -1135,6 +1149,13 @@ def main():
         )
         save_latex_table(speedup_norm_tex, TABLES_DIR / "speedup_normal.tex")
 
+    # Keep manuscript plot inputs synchronized with the regenerated benchmark
+    # figures. LaTeX tables are consumed directly from TABLES_DIR.
+    PAPER_PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+    for plot_path in PLOTS_DIR.glob("regression_*.*"):
+        if plot_path.suffix in (".pdf", ".png"):
+            shutil.copy2(plot_path, PAPER_PLOTS_DIR / plot_path.name)
+
     # -------------------------------------------------------------------------
     # Summary
     # -------------------------------------------------------------------------
@@ -1142,6 +1163,7 @@ def main():
     print("ANALYSIS COMPLETE")
     print("=" * 70)
     print(f"\nPlots saved to: {PLOTS_DIR}")
+    print(f"Paper plots synchronized to: {PAPER_PLOTS_DIR}")
     print(f"Tables saved to: {TABLES_DIR}")
     print("\nGenerated files:")
     for f in sorted(PLOTS_DIR.glob("regression_*.*")):

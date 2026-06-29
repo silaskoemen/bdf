@@ -74,6 +74,7 @@ def aggregate_model_variants(
     datasets: list[str] | None = None,
     family_name: str = "model",
     expected_eval_folds: int | None = None,
+    required_eval_metrics: list[str] | None = None,
     require_all_variants: bool = False,
 ) -> tuple[dict[str, Any], dict[str, str]]:
     """Aggregate model variants by selecting the best variant per dataset.
@@ -90,7 +91,9 @@ def aggregate_model_variants(
         datasets: List of datasets to include. If None, includes all available.
         family_name: Human-readable model-family name for warnings/metadata.
         expected_eval_folds: If set, variants are eligible for a dataset only when
-            the selection metric has exactly this many evaluation-fold values.
+            every required evaluation metric has exactly this many fold values.
+        required_eval_metrics: Metrics that must be complete and finite for a
+            variant to be eligible. Defaults to the selection metric only.
         require_all_variants: If True, fail unless every requested variant result
             file is present. This prevents silently constructing a fused baseline
             from only a partially completed family sweep.
@@ -127,6 +130,8 @@ def aggregate_model_variants(
     # For each dataset, select best variant
     aggregated_datasets = {}
     selection_map = {}
+    exclusions: dict[str, dict[str, list[str]]] = {}
+    eligibility_metrics = list(dict.fromkeys(required_eval_metrics or [selection_metric]))
 
     for dataset in sorted(all_datasets):
         best_model = None
@@ -139,13 +144,26 @@ def aggregate_model_variants(
                 continue
 
             metrics = ds_data.get("metrics", {})
-            metric_values = metrics.get(selection_metric, [])
-            if expected_eval_folds is not None and len(metric_values) != expected_eval_folds:
+            ineligibility_reasons = []
+            for metric_name in eligibility_metrics:
+                values = metrics.get(metric_name, [])
+                if expected_eval_folds is not None and len(values) != expected_eval_folds:
+                    ineligibility_reasons.append(
+                        f"{metric_name} has {len(values)} folds, expected {expected_eval_folds}"
+                    )
+                elif not values:
+                    ineligibility_reasons.append(f"{metric_name} has no fold values")
+                elif not np.isfinite(np.asarray(values, dtype=float)).all():
+                    ineligibility_reasons.append(f"{metric_name} contains non-finite values")
+
+            if ineligibility_reasons:
+                exclusions.setdefault(dataset, {})[model_name] = ineligibility_reasons
                 warnings.warn(
-                    f"Skipping {family_name} variant {model_name} on {dataset}: "
-                    f"{selection_metric} has {len(metric_values)} folds, expected {expected_eval_folds}"
+                    f"Skipping {family_name} variant {model_name} on {dataset}: " + "; ".join(ineligibility_reasons)
                 )
                 continue
+
+            metric_values = metrics.get(selection_metric, [])
 
             if use_tuning_value:
                 # Use tuning.best_value from fold 0 (methodologically sound)
@@ -184,7 +202,9 @@ def aggregate_model_variants(
             "use_tuning_value": use_tuning_value,
             "family_name": family_name,
             "expected_eval_folds": expected_eval_folds,
+            "required_eval_metrics": eligibility_metrics,
             "require_all_variants": require_all_variants,
+            "excluded_variants": exclusions,
         },
     }
 

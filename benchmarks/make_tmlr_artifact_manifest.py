@@ -68,7 +68,6 @@ REGRESSION_RESULT_MODELS = [
     "gaussian_de",
     "knnkde",
     "lgbm_reg",
-    "ngboost_reg",
     "ngboost_normal",
     "ngboost_laplace",
     "ngboost_lognormal",
@@ -255,7 +254,7 @@ def main() -> None:
     lines.extend(_markdown_file_table(paper_inputs))
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUT_PATH.write_text("\n".join(lines) + "\n")
+    OUT_PATH.write_text("\n".join(lines).rstrip() + "\n")
     print(f"Wrote {_rel(OUT_PATH)}")
 
 

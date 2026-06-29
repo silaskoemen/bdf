@@ -340,6 +340,7 @@ def _load_revision_results(results_dir: Path) -> dict[str, dict[str, Any]]:
         datasets=DATASETS,
         family_name="XGBoostLSS",
         expected_eval_folds=9,
+        required_eval_metrics=["crps", "rmse"],
         require_all_variants=True,
     )
     try:
@@ -351,6 +352,7 @@ def _load_revision_results(results_dir: Path) -> dict[str, dict[str, Any]]:
             datasets=DATASETS,
             family_name="NGBoost",
             expected_eval_folds=9,
+            required_eval_metrics=["crps", "rmse"],
             require_all_variants=True,
         )
     except ValueError as exc:

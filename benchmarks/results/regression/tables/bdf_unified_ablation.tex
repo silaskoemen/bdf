@@ -6,16 +6,16 @@
 \toprule
 Model & Unified rel. CRPS & Median gap vs Full & IS90 rank & Cov@90 & $n$ \\
 \midrule
-BDF N--N NLE & 1.301 & 3.03\% & 4.87 & 0.945 & 15 \\
-BDF N--N NLL+BIC & 1.236 & 1.99\% & 4.80 & 0.949 & 15 \\
-BDF Student-$t$ NLL & 1.242 & 1.03\% & 3.20 & 0.941 & 15 \\
-BDF Student-$t$ NLL+BIC & 1.239 & 0.81\% & 4.13 & 0.943 & 15 \\
-BDF-Full & 1.204 & 0.00\% & \textbf{2.47} & 0.940 & 15 \\
-QRF & \textbf{1.090} & -14.86\% & 4.13 & 0.946 & 15 \\
-DRF & 1.140 & -8.16\% & 6.60 & 0.956 & 15 \\
-NGBoost & 1.708 & 29.58\% & 7.40 & 0.779 & 15 \\
-XGBoostLSS & 1.650 & 3.87\% & 7.40 & 0.657 & 15 \\
+BDF N--N NLE & 1.338 & 3.03\% & 4.93 & 0.945 & 15 \\
+BDF N--N NLL+BIC & 1.271 & 1.99\% & 4.87 & 0.949 & 15 \\
+BDF Student-$t$ NLL & 1.278 & 1.03\% & 3.27 & 0.941 & 15 \\
+BDF Student-$t$ NLL+BIC & 1.274 & 0.81\% & 4.20 & 0.943 & 15 \\
+BDF-Full & 1.238 & 0.00\% & \textbf{2.47} & 0.940 & 15 \\
+QRF & \textbf{1.121} & -14.86\% & 4.13 & 0.946 & 15 \\
+DRF & 1.173 & -8.16\% & 6.67 & 0.956 & 15 \\
+NGBoost & 5.372 & 18.01\% & 6.93 & 0.730 & 15 \\
+XGBoostLSS & 1.697 & 3.87\% & 7.53 & 0.657 & 15 \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Geometric mean relative CRPS is computed relative to the best model per dataset within this table (lower is better). Fixed BDF rows use locked per-family score regimes; BDF-Full and XGBoostLSS are fold-0 validation-selected aggregates over their submitted variant sets. No datasets were dropped by the common-metric filter.}
+\par\smallskip\footnotesize{Geometric mean relative CRPS is computed relative to the best model per dataset within this table (lower is better). Fixed BDF rows use locked per-family score regimes; BDF-Full, NGBoost, and XGBoostLSS are fold-0 validation-selected aggregates over their submitted variant sets. No datasets were dropped by the common-metric filter.}
 \end{table}

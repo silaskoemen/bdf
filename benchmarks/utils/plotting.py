@@ -77,6 +77,7 @@ def plot_rel_to_best(
     model_display_names: dict[str, str] | None = None,
     save_path: str | Path | None = None,
     figsize: tuple[float, float] = (10, 6),
+    outlier_cap_ratio: float = 5.0,
 ) -> None:
     """Plot relative-to-best metric for regression models.
 
@@ -87,6 +88,10 @@ def plot_rel_to_best(
         model_display_names: Optional dict mapping model -> display name.
         save_path: Optional path to save the plot (str or Path).
         figsize: Figure size.
+        outlier_cap_ratio: If the largest value exceeds this multiple of the
+            second-largest value, truncate its displayed bar and label the
+            retained value. This prevents one catastrophic result from making
+            every other bar unreadable without altering the reported metric.
     """
     # Sort by value (best = 1.0 should be first)
     sorted_items = sorted(rel_to_best_data.items(), key=lambda x: x[1])
@@ -103,7 +108,13 @@ def plot_rel_to_best(
     else:
         colors = plt.cm.RdYlGn_r(np.linspace(0, 0.8, len(values)))  # pyright: ignore[reportAttributeAccessIssue]
 
-    bars = ax.bar(range(len(names)), values, color=colors, edgecolor="black", linewidth=0.5)
+    display_values = list(values)
+    display_cap = None
+    if len(values) > 1 and values[-1] > outlier_cap_ratio * values[-2]:
+        display_cap = 1.15 * values[-2]
+        display_values = [min(value, display_cap) for value in values]
+
+    bars = ax.bar(range(len(names)), display_values, color=colors, edgecolor="black", linewidth=0.5)
 
     # Add horizontal line at 1.0 (best)
     ax.axhline(y=1.0, color="green", linestyle="--", linewidth=1.5, alpha=0.7, label="Best")
@@ -117,8 +128,11 @@ def plot_rel_to_best(
     # Add value labels on bars
     for bar, val in zip(bars, values):
         height = bar.get_height()
+        label = f"{val:.2f}"
+        if display_cap is not None and val > display_cap:
+            label = f"↑ {val:.2e}"
         ax.annotate(
-            f"{val:.2f}",
+            label,
             xy=(bar.get_x() + bar.get_width() / 2, height),
             xytext=(0, 3),
             textcoords="offset points",
@@ -126,6 +140,9 @@ def plot_rel_to_best(
             va="bottom",
             fontsize=9,
         )
+
+    if display_cap is not None:
+        ax.set_ylim(top=display_cap * 1.12)
 
     plt.tight_layout()
 

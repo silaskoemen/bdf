@@ -1,0 +1,27 @@
+\begin{table}[htbp]
+\centering
+\caption{NGBoost distribution selection per dataset}
+\label{tab:ngboost-selection}
+\begin{tabular}{ll}
+\toprule
+Dataset & Selected Distribution \\
+\midrule
+abalone\_age & lognormal \\
+bike\_sharing & poisson \\
+boston\_housing & lognormal \\
+california\_housing & lognormal \\
+combined\_cycle\_power\_plant & laplace \\
+concrete\_strength & normal \\
+energy\_efficiency & normal \\
+forest\_fires & exponential \\
+kin8nm & normal \\
+naval\_propulsion & normal \\
+parkinsons\_updrs & normal \\
+protein\_tertiary\_structure & normal \\
+superconductor & normal \\
+wine\_quality & normal \\
+yacht\_hydrodynamics & lognormal \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize{Selection uses CRPS from the pre-specified fold-0 tuning split. Candidates without nine finite CRPS and RMSE evaluation folds are treated as numerical failures and excluded.}
+\end{table}
