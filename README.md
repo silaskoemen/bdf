@@ -26,10 +26,13 @@ Unsupported in the current release:
 pip install bayesian-distributional-forest
 ```
 
-The benchmark suite optionally compares BDF against [bartpy](https://github.com/JakeColtman/bartpy), which depends on a deprecated `sklearn` package. To install it set:
+To install it in development mode, run
 
 ```bash
-export SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
+git clone https://github.com/silaskoemen/bdf
+cd bdf
+pixi run setup
+pixi run test
 ```
 
 ## Quick Start
