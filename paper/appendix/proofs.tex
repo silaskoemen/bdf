@@ -478,8 +478,9 @@ Because the log-likelihood is locally quadratic with curvature $O_p(n_\ell)$, th
 \label{prop:bic_split_validity}
 At a fixed node $\ell$, suppose the candidate split set has bounded cardinality
 \[
-C \le K\lfloor 1/\eta_{\mathrm{cut}}\rfloor .
+C \le K\,m_{\max},
 \]
+with $K$ active features and at most $m_{\max}$ candidate cutpoints per feature (Section~\ref{subsec:complexity_growth}).
 Under the assumptions of Lemma~\ref{lem:laplace_leaf}, uniformly over candidate splits $s$,
 \[
 \Delta S_{\mathrm{BIC}}(s;\ell)

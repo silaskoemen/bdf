@@ -8,6 +8,12 @@ from loguru import logger
 from .statistical_tests import WilcoxonResult, WinTieLossResult
 
 
+def format_sci_notation(value: float, sig: int = 2) -> str:
+    """Format a value in LaTeX scientific notation, e.g. $2.1\\times10^{7}$."""
+    mantissa, exponent = f"{value:.{sig}e}".split("e")
+    return rf"${mantissa}\times10^{{{int(exponent)}}}$"
+
+
 def format_metric_value(
     mean: float,
     std: float | None = None,
@@ -16,6 +22,10 @@ def format_metric_value(
     precision: int = 3,
 ) -> str:
     """Format a metric value for LaTeX.
+
+    Values whose magnitude would be unreadable at the given precision
+    (catastrophically large, or rounding to zero) fall back to scientific
+    notation so table rows stay interpretable.
 
     Args:
         mean: Mean value.
@@ -30,12 +40,14 @@ def format_metric_value(
     if np.isnan(mean):
         return "---"
 
+    use_sci = mean != 0 and (abs(mean) >= 1e4 or abs(mean) < 10 ** (-precision))
+
     # Format number
     fmt = f"{{:.{precision}f}}"
-    val_str = fmt.format(mean)
+    val_str = format_sci_notation(mean) if use_sci else fmt.format(mean)
 
     if std is not None and not np.isnan(std):
-        std_str = fmt.format(std)
+        std_str = format_sci_notation(std) if use_sci else fmt.format(std)
         val_str = f"{val_str} ± {std_str}"
 
     if is_best:
@@ -55,6 +67,7 @@ def generate_main_results_table(
     wilcoxon_results: dict[str, dict[str, WilcoxonResult]] | None = None,  # metric -> model -> result
     metrics_display: dict[str, str] | None = None,  # metric -> display name
     lower_is_better: dict[str, bool] | None = None,  # metric -> direction
+    model_display_names: dict[str, str] | None = None,
     caption: str = "Main benchmark results",
     label: str = "tab:main-results",
 ) -> str:
@@ -78,6 +91,7 @@ def generate_main_results_table(
         metrics_display = {}
     if lower_is_better is None:
         lower_is_better = {}
+    model_display = model_display_names or {}
 
     metrics = list(metric_data.keys())
     n_metrics = len(metrics)
@@ -108,7 +122,7 @@ def generate_main_results_table(
 
     # Model rows
     for model in models:
-        row_parts = [model.replace("_", r"\_")]
+        row_parts = [model_display.get(model, model).replace("_", r"\_")]
 
         for metric in metrics:
             data = metric_data.get(metric, {}).get(model, (np.nan, np.nan))
@@ -145,7 +159,7 @@ def generate_main_results_table(
             r"\bottomrule",
             r"\end{tabular}",
             rf"\par\smallskip\footnotesize{{Results averaged over {n_datasets} datasets. "
-            r"Bold = best. Significance: * $p<0.05$, ** $p<0.01$, *** $p<0.001$ (Wilcoxon vs control).}}",
+            r"Bold = best. Significance: * $p<0.05$, ** $p<0.01$, *** $p<0.001$ (Holm-corrected Wilcoxon vs control).}",
             r"\end{table}",
         ]
     )
@@ -162,6 +176,7 @@ def generate_per_dataset_table(
     caption: str = "Per-dataset results",
     label: str = "tab:per-dataset",
     lower_is_better: bool = True,
+    model_display_names: dict[str, str] | None = None,
 ) -> str:
     """Generate per-dataset comparison table.
 
@@ -174,17 +189,19 @@ def generate_per_dataset_table(
         caption: Table caption.
         label: LaTeX label.
         lower_is_better: If True, highlight minimum per row.
+        model_display_names: Optional display name overrides for column headers.
 
     Returns:
         LaTeX table string.
     """
     n_datasets, n_models = metric_matrix.shape
+    display = model_display_names or {}
 
     # Column specification
     col_spec = "l" + "c" * n_models
 
     # Header
-    header_parts = ["Dataset"] + [m.replace("_", r"\_") for m in models]
+    header_parts = ["Dataset"] + [display.get(m, m).replace("_", r"\_") for m in models]
     header = " & ".join(header_parts) + r" \\"
 
     lines = [
@@ -261,8 +278,12 @@ def generate_win_tie_loss_table(
     wtl_results: dict[str, WinTieLossResult],
     caption: str = "Win/Tie/Loss comparison",
     label: str = "tab:win-tie-loss",
+    model_display_names: dict[str, str] | None = None,
 ) -> str:
     """Generate Win/Tie/Loss table.
+
+    Sign-test p-values are Holm-corrected across the comparisons in the table;
+    bold marks significance at the 5% level after correction.
 
     Args:
         control_name: Name of control algorithm.
@@ -270,10 +291,13 @@ def generate_win_tie_loss_table(
         wtl_results: Dict mapping challenger -> WinTieLossResult.
         caption: Table caption.
         label: LaTeX label.
+        model_display_names: Optional display name overrides.
 
     Returns:
         LaTeX table string.
     """
+    display = model_display_names or {}
+
     lines = [
         r"\begin{table}[htbp]",
         r"\centering",
@@ -285,20 +309,30 @@ def generate_win_tie_loss_table(
         r"\midrule",
     ]
 
-    control_display = control_name.replace("_", r"\_")
+    control_display = display.get(control_name, control_name).replace("_", r"\_")
+
+    # Holm correction across the comparisons shown in this table.
+    available = [ch for ch in challengers if ch in wtl_results]
+    ordered = sorted(available, key=lambda ch: wtl_results[ch].sign_test_p_value)
+    n_tests = len(ordered)
+    holm_significant: set[str] = set()
+    for i, ch in enumerate(ordered):
+        if wtl_results[ch].sign_test_p_value < 0.05 / (n_tests - i):
+            holm_significant.add(ch)
+        else:
+            break
 
     for challenger in challengers:
         result = wtl_results.get(challenger)
         if result is None:
             continue
 
-        challenger_display = challenger.replace("_", r"\_")
+        challenger_display = display.get(challenger, challenger).replace("_", r"\_")
 
-        # Significance marker
-        if result.sign_test_p_value < 0.01:
-            p_str = rf"\textbf{{{result.sign_test_p_value:.3f}}}"
-        else:
-            p_str = f"{result.sign_test_p_value:.3f}"
+        p_val = result.sign_test_p_value
+        p_str = r"$<$0.001" if p_val < 0.001 else f"{p_val:.3f}"
+        if challenger in holm_significant:
+            p_str = rf"\textbf{{{p_str}}}"
 
         row = (
             f"{control_display} vs {challenger_display} & "
@@ -311,8 +345,9 @@ def generate_win_tie_loss_table(
         [
             r"\bottomrule",
             r"\end{tabular}",
-            r"\par\smallskip\footnotesize{Wins = control better, Losses = challenger better. "
-            r"Ties = $<$1\% relative difference. Bold $p$ = significant.}",
+            rf"\par\smallskip\footnotesize{{Wins = {control_display} better, Losses = baseline better. "
+            r"Ties = $<$1\% relative difference. Bold $p$: significant at the 5\% level "
+            r"after Holm correction across the comparisons in this table.}",
             r"\end{table}",
         ]
     )
@@ -395,6 +430,7 @@ def generate_ranking_table(
     friedman_p: float | None = None,
     caption: str = "Algorithm rankings",
     label: str = "tab:rankings",
+    model_display_names: dict[str, str] | None = None,
 ) -> str:
     """Generate average ranking table.
 
@@ -404,12 +440,14 @@ def generate_ranking_table(
         friedman_p: P-value from Friedman test.
         caption: Table caption.
         label: LaTeX label.
+        model_display_names: Optional display name overrides.
 
     Returns:
         LaTeX table string.
     """
     # Sort by rank
     sorted_ranks = sorted(avg_ranks.items(), key=lambda x: x[1])
+    display = model_display_names or {}
 
     lines = [
         r"\begin{table}[htbp]",
@@ -423,7 +461,7 @@ def generate_ranking_table(
     ]
 
     for i, (model, rank) in enumerate(sorted_ranks, 1):
-        model_display = model.replace("_", r"\_")
+        model_display = display.get(model, model).replace("_", r"\_")
         lines.append(f"{i} & {model_display} & {rank:.2f} \\\\")
 
     lines.extend(
@@ -435,7 +473,8 @@ def generate_ranking_table(
 
     if friedman_p is not None:
         sig = "significant" if friedman_p < 0.05 else "not significant"
-        lines.append(rf"\par\smallskip\footnotesize{{Friedman test: $p = {friedman_p:.4f}$ ({sig}).}}")
+        p_str = r"$p < 10^{-4}$" if friedman_p < 1e-4 else rf"$p = {friedman_p:.4f}$"
+        lines.append(rf"\par\smallskip\footnotesize{{Friedman test: {p_str} ({sig}).}}")
 
     lines.append(r"\end{table}")
 
@@ -480,8 +519,8 @@ def generate_rel_to_best_table(
 
     for i, (model, ratio) in enumerate(sorted_items, 1):
         name = display.get(model, model).replace("_", r"\_")
-        marker = r" \textbf{$\star$}" if i == 1 else ""
-        lines.append(f"{i} & {name}{marker} & {ratio:.3f} \\\\")
+        ratio_str = format_sci_notation(ratio) if ratio >= 1e4 else f"{ratio:.3f}"
+        lines.append(f"{i} & {name} & {ratio_str} \\\\")
 
     lines.extend([r"\bottomrule", r"\end{tabular}", r"\end{table}"])
     return "\n".join(lines)

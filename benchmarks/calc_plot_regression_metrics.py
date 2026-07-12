@@ -77,6 +77,10 @@ BASELINE_MODELS = [
 # Model display names and colors from shared style
 from benchmarks.utils.style import MODEL_COLORS, MODEL_DISPLAY_NAMES
 
+# LaTeX tables call the fused aggregate "BDF-Full" to match the manuscript prose;
+# plots keep the shorter "BDF" legend label.
+TABLE_DISPLAY_NAMES = {**MODEL_DISPLAY_NAMES, "BDF": "BDF-Full"}
+
 # BDF default distribution for timing comparison (loaded separately alongside BDF selected)
 BDF_DEFAULT_DIST = "bdf_normalmunormal"
 
@@ -1018,6 +1022,7 @@ def main():
         wilcoxon_results=wilcoxon_results,
         metrics_display=METRIC_DISPLAY,
         lower_is_better=LOWER_IS_BETTER,
+        model_display_names=TABLE_DISPLAY_NAMES,
         caption="Regression benchmark results across datasets",
         label="tab:regression-main",
     )
@@ -1046,6 +1051,7 @@ def main():
         caption="CRPS per dataset",
         label="tab:crps-per-dataset",
         lower_is_better=True,
+        model_display_names=TABLE_DISPLAY_NAMES,
     )
     save_latex_table(per_dataset_table, TABLES_DIR / "crps_per_dataset.tex")
 
@@ -1069,6 +1075,7 @@ def main():
             caption="CRPS Skill Score per dataset (higher is better; baseline = climatological model)",
             label="tab:crpss-per-dataset",
             lower_is_better=False,
+            model_display_names=TABLE_DISPLAY_NAMES,
         )
         save_latex_table(crpss_per_dataset_table, TABLES_DIR / "crpss_per_dataset.tex")
 
@@ -1090,7 +1097,7 @@ def main():
         rel_to_best_table = generate_rel_to_best_table(
             rel_to_best=rel_to_best_crps,
             metric_name="CRPS",
-            model_display_names=MODEL_DISPLAY_NAMES,
+            model_display_names=TABLE_DISPLAY_NAMES,
             caption="Average CRPS relative to best model per dataset (lower is better; 1.0 = always best)",
             label="tab:rel-to-best-crps",
         )
@@ -1102,8 +1109,9 @@ def main():
             control_name="BDF",
             challengers=[m for m in models if m != "BDF"],
             wtl_results=wtl_results["crps"],
-            caption="Win/Tie/Loss for CRPS (BDF vs baselines)",
+            caption="Win/Tie/Loss for CRPS (BDF-Full vs baselines)",
             label="tab:win-tie-loss",
+            model_display_names=TABLE_DISPLAY_NAMES,
         )
         save_latex_table(wtl_table, TABLES_DIR / "win_tie_loss.tex")
 
@@ -1115,6 +1123,7 @@ def main():
             friedman_p=friedman_results["crps"].iman_davenport_p_value,
             caption="Algorithm rankings by CRPS",
             label="tab:rankings-crps",
+            model_display_names=TABLE_DISPLAY_NAMES,
         )
         save_latex_table(ranking_table, TABLES_DIR / "rankings_crps.tex")
 
@@ -1125,6 +1134,7 @@ def main():
             friedman_p=friedman_results["crpss"].iman_davenport_p_value,
             caption="Algorithm rankings by CRPS Skill Score (higher is better)",
             label="tab:rankings-crpss",
+            model_display_names=TABLE_DISPLAY_NAMES,
         )
         save_latex_table(crpss_ranking_table, TABLES_DIR / "rankings_crpss.tex")
 

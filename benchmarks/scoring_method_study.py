@@ -1213,15 +1213,16 @@ def generate_merged_real_data_table(
                 skill_std = subset[skill_col].std()
                 fit_mean = subset["fit_time"].mean()
                 predict_mean = subset["predict_time"].mean()
+                scoring_display = {"nle": "NLE", "nll": "NLL", "nll_bic": "NLL+BIC"}.get(scoring, scoring)
                 rows.append(
                     {
-                        "task": task,
-                        "dataset": dataset,
-                        "n": n,
-                        "scoring": scoring,
-                        "skill_score": f"{skill_mean:.4f} ± {skill_std:.4f}",
-                        "fit_time_s": f"{fit_mean:.2f}",
-                        "predict_time_s": f"{predict_mean:.2f}",
+                        "Task": "Reg." if task == "regression" else "Clas.",
+                        "Dataset": str(dataset).replace("_", r"\_"),
+                        "$n$": n,
+                        "Score": scoring_display,
+                        "Skill score": f"{skill_mean:.4f} ± {skill_std:.4f}",
+                        "Fit (s)": f"{fit_mean:.2f}",
+                        "Predict (s)": f"{predict_mean:.2f}",
                     }
                 )
     return pd.DataFrame(rows)

@@ -198,7 +198,7 @@ def write_latex_summary(global_summary: pd.DataFrame, bin_summary: pd.DataFrame,
     lines = [
         r"\begin{table}[htbp]",
         r"\centering",
-        r"\caption{Conditional calibration diagnostics by predicted-IQR decile.}",
+        r"\caption{Conditional calibration diagnostics by predicted-IQR decile. Mean $|\Delta|$ and Min $\Delta$ summarize the per-decile deviation of empirical 90\% coverage from nominal (mean absolute deviation and worst under-coverage across deciles); IS@90 and CRPS are averaged over all test points.}",
         r"\label{tab:conditional-diagnostics}",
         r"\begin{tabular}{lccccc}",
         r"\toprule",

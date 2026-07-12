@@ -4,7 +4,7 @@ This appendix groups the supporting experiments that probe calibration, model-se
 
 \subsection{Synthetic DGP diagnostics}\label{app:synthetic-diagnostics}
 
-This subsection gives the compact synthetic-DGP diagnostics referenced from Section~\ref{subsec:exp_synthetic}. The DGP definitions themselves are in Appendix~\ref{app:synthetic-dgp-definitions}.
+This subsection gives the compact synthetic-DGP diagnostics referenced from Section~\ref{subsec:exp_synthetic}. The DGP definitions themselves are in Appendix~\ref{app:synthetic-dgp-definitions}. Table~\ref{tab:synthetic-dgp-summary} reports CRPS, 90\% coverage, and 90\% interval score per DGP; Figure~\ref{fig:synthetic-calibration} shows the corresponding PIT histograms and calibration curves. The pattern matches the real-data benchmark: differences among the well-calibrated methods are small on unimodal DGPs, the bimodal mixture separates methods with explicit or sample-based multimodal predictive shapes (BDF-KDE, QRF, DRF) from parametric-leaf and boosted baselines, and BDF variants stay within one coverage point of nominal on every DGP.
 
 \begin{landscape}
 \input{../benchmarks/results/synthetic_dgp/tables/synthetic_dgp_summary.tex}
@@ -20,7 +20,7 @@ This subsection gives the compact synthetic-DGP diagnostics referenced from Sect
 
 \subsection{Conditional calibration by predicted uncertainty}\label{app:conditional-diagnostics}
 
-Marginal coverage can hide failures that occur only in low- or high-uncertainty regions. To check whether the regression intervals remain calibrated locally, we recompute evaluation predictions using the stored best hyperparameters and bin test points by each method's predicted interquartile range (IQR). Within each decile we report empirical 90\% coverage, 90\% interval score, and CRPS.
+Marginal coverage can hide failures that occur only in low- or high-uncertainty regions. To check whether the regression intervals remain calibrated locally, we recompute evaluation predictions using the stored best hyperparameters and bin test points by each method's predicted interquartile range (IQR). Within each decile we report empirical 90\% coverage, 90\% interval score, and CRPS. Table~\ref{tab:conditional-diagnostics} summarizes the per-decile deviations; Figure~\ref{fig:conditional-coverage-heatmap} shows the decile-level coverage errors and Figure~\ref{fig:conditional-interval-score} the corresponding interval scores. BDF and QRF combine near-nominal global coverage with small per-decile deviations (mean absolute deviation $\le 0.045$), ConfLGBM attains the smallest per-decile deviations at a higher interval score, and CatBoost-UQ's marginal under-coverage persists at the decile level (mean absolute deviation $0.179$, worst decile $-0.203$).
 
 \input{tables/conditional_diagnostics/conditional_diagnostics_summary.tex}
 
@@ -40,7 +40,7 @@ Marginal coverage can hide failures that occur only in low- or high-uncertainty 
 
 \subsection{Scoring method: real-data check}\label{app:scoring-method-full}
 
-The retained scoring-method supplement reports the real-data matched-hyperparameter comparison used in Section~\ref{subsec:exp_scoring}. The submitted benchmark focuses on the three effective regimes used by the current BDF configs: exact NLE, NLL+BIC, and pure NLL.
+The retained scoring-method supplement reports the real-data matched-hyperparameter comparison used in Section~\ref{subsec:exp_scoring}. The submitted benchmark focuses on the three effective regimes used by the current BDF configs: exact NLE, NLL+BIC, and pure NLL. Because this study holds hyperparameters fixed across score regimes to isolate the split-selection effect, it uses its own lighter protocol (5-fold cross-validation over 3 seeds, Table~\ref{tab:a2_real_data}) rather than the fold-0/fold-1--9 protocol of the main benchmark.
 
 \begin{landscape}
 \input{tables/scoring_method/real_data/merged_real_data.tex}
@@ -48,7 +48,7 @@ The retained scoring-method supplement reports the real-data matched-hyperparame
 
 \subsection{Parameter sensitivity}\label{app:additional-param-sensitivity}
 
-We study sensitivity to the four tree-construction hyperparameters $(\alpha, \delta, \gamma, \texttt{min\_samples\_leaf})$, holding the EB prior-strength defaults fixed in this one-at-a-time sweep. The tables summarize the best values within the sweep and should be read as diagnostic guidance, not universal recommendations.
+We study sensitivity to the four tree-construction hyperparameters $(\alpha, \delta, \gamma, \texttt{min\_samples\_leaf})$, holding the EB prior-strength defaults fixed in this one-at-a-time sweep. Figure~\ref{fig:param-combined} shows the sweep curves; Tables~\ref{tab:param-sensitivity} and~\ref{tab:param-sensitivity-clas} summarize the best values within the sweep for regression and classification. These are best values relative to the sweep's own baseline configuration and should be read as diagnostic guidance, not universal recommendations; the benchmark tunes all four parameters jointly per dataset (Appendix~\ref{app:benchmark-protocol}).
 
 \begin{figure}[!ht]
     \centering
@@ -63,6 +63,8 @@ We study sensitivity to the four tree-construction hyperparameters $(\alpha, \de
 
 \subsection{Complexity: additional results}\label{app:complexity-additional}
 
+Figure~\ref{fig:complexity-extras} supplements the scaling study in Section~\ref{subsec:exp_complexity} with peak-memory measurements and the fit-time overhead ratio against a non-probabilistic GBDT baseline under the same controlled sweeps.
+
 \begin{figure}[!ht]
     \centering
     \includegraphics[width=0.49\textwidth]{plots/complexity/memory_comparison.pdf}\hfill
@@ -73,7 +75,7 @@ We study sensitivity to the four tree-construction hyperparameters $(\alpha, \de
 
 \subsection{Likelihood misspecification}\label{app:misspecification}
 
-We evaluate robustness of BDF when the assumed leaf likelihood does not match the data-generating distribution.
+We evaluate robustness of BDF when the assumed leaf likelihood does not match the data-generating distribution. Figure~\ref{fig:misspecification-degradation} summarizes CRPS degradation per leaf family as the DGP departs from the assumed likelihood, and Table~\ref{tab:misspecification-crps} gives the full comparison. Two observations bear directly on the leaf-selection results of Section~\ref{subsubsec:exp_regression}. First, misspecification costs are modest for the real-valued families: no real-valued leaf loses more than a few percent CRPS to the correctly specified family on any real-valued DGP. Second, the Student-$t$ leaf is within one standard error of the correctly specified (or best) family on every unimodal DGP, including the Gaussian and skewed cases where it is nominally misspecified, because its estimated degrees of freedom saturate toward the near-Gaussian regime when the leaf data show no excess kurtosis (Appendix~\ref{app:student_t_leaves}); only the multimodal DGP, where the KDE leaf is the appropriate choice, separates the families clearly. Its frequent selection in the real-data benchmark is therefore consistent with a robustness advantage at essentially no cost under correct specification, rather than an artifact of the tuning split.
 
 \begin{figure}[!ht]
     \centering
@@ -93,7 +95,7 @@ We evaluate robustness of BDF when the assumed leaf likelihood does not match th
 
 \subsection{Noise features and multiplicity correction}\label{app:noise}
 
-We study robustness to pure-noise features, which directly probe the tempered selection penalty $\gamma \log(K \cdot m_j)$ in Eq.~\eqref{eq:net_gain}.
+We study robustness to pure-noise features, which directly probe the tempered selection penalty $\gamma \log(K \cdot m_j)$ in Eq.~\eqref{eq:net_gain}. Figure~\ref{fig:noise-summary} reports relative CRPS degradation and split-variable selection rates as up to 200 noise features are added; Table~\ref{tab:noise-features-crps} gives the absolute values. The relevant comparison is within-method degradation rather than absolute CRPS across methods (the boosted baselines are stronger on some of these synthetic DGPs outright): BDF's relative degradation remains comparable to conformal RF and NGBoost, and its split-selection rates continue to prefer signal features as the noise dimension grows, which is the behavior the multiplicity penalty is designed to protect.
 
 \begin{figure}[!ht]
     \centering
@@ -107,6 +109,8 @@ We study robustness to pure-noise features, which directly probe the tempered se
 
 \subsection{Convergence and learning curves}\label{app:convergence}
 
+Figure~\ref{fig:convergence-rate} and Table~\ref{tab:convergence-rates} compare empirical convergence rates (slope of $\log$ MSE against $\log n$) for BDF and a random-forest reference across smooth, non-smooth, and mixed DGPs. In moderate dimensions ($p \in \{5,10\}$) BDF converges at least as fast as the reference on every DGP, with the largest advantages on non-smooth targets. The one-dimensional non-smooth DGPs reverse this ordering: with a single feature there is no multiplicity to penalize and axis-aligned splits are trivially aligned with the discontinuities, so the reference forest's aggressive splitting pays off while BDF's structural penalty slows refinement. Since $p=1$ is atypical for tabular applications, we read the table as favorable in the regime that matters and honest about the univariate edge case.
+
 \begin{figure}[!ht]
     \centering
     \includegraphics[width=0.85\textwidth]{plots/convergence/rate_comparison.pdf}
@@ -117,6 +121,8 @@ We study robustness to pure-noise features, which directly probe the tempered se
 \input{plots/convergence/convergence_rates_table.tex}
 
 \subsection{Ensemble size}\label{app:ensemble-size}
+
+Figure~\ref{fig:ensemble-combined} and Table~\ref{tab:n-trees-crps} track CRPS, coverage, and fit time as the number of trees $M$ grows. CRPS improvements drop below $1\%$ by $M=50$ on three of the four DGPs and by $M=100$ on the fourth, and fit time scales approximately linearly in $M$, so the benchmark default of tuning $M$ up to a few hundred trees is comfortably past the accuracy plateau; smaller ensembles trade little accuracy for proportional speedups at prediction time (Section~\ref{subsec:exp_complexity}).
 
 \begin{figure}[!ht]
     \centering
@@ -129,7 +135,7 @@ We study robustness to pure-noise features, which directly probe the tempered se
 
 \subsection{Post-hoc conformalization}\label{app:conformalization}
 
-We evaluate whether wrapping BDF in a split-conformal layer changes rankings, and compare against conformalized RF and CatBoost.
+We evaluate whether wrapping BDF in a split-conformal layer changes rankings, and compare against conformalized RF and CatBoost. Figure~\ref{fig:conformalization-global} shows global coverage before and after conformalization: BDF's native intervals are already at or slightly above nominal, so conformalization leaves them essentially unchanged, whereas the under-covering point predictors gain coverage at the interval-score cost documented in Section~\ref{subsubsec:exp_regression}.
 
 \begin{figure}[!ht]
     \centering

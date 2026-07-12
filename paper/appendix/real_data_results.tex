@@ -4,6 +4,8 @@ This appendix contains the full real-data benchmark tables supporting Section~\r
 
 \subsection{Regression benchmark details}\label{app:regression-additional}
 
+Tables~\ref{tab:rel-to-best-crps} and~\ref{tab:rankings-crpss} give the aggregate relative-CRPS and CRPSS-rank summaries quoted in Section~\ref{subsubsec:exp_regression}, Table~\ref{tab:win-tie-loss} the per-dataset sign-test counts, and Table~\ref{tab:crps-per-dataset} the underlying per-dataset CRPS values with fold standard errors. The NGBoost entries reflect the retained catastrophic Exponential fit on \texttt{forest\_fires} discussed in Appendix~\ref{app:experimental-setup-reg-models}. Figure~\ref{fig:pit-histograms} reports the per-method PIT histograms behind the calibration claims, and Figure~\ref{fig:rmse-rel-to-best} the relative-RMSE summary used in the point-accuracy comparison.
+
 \input{../benchmarks/results/regression/tables/rel_to_best_crps.tex}
 
 \input{../benchmarks/results/regression/tables/rankings_crpss.tex}
@@ -44,6 +46,8 @@ This appendix contains the full real-data benchmark tables supporting Section~\r
 \end{figure}
 
 \subsection{Classification benchmark details}\label{app:classification-additional}
+
+Tables~\ref{tab:rel-to-best-log-loss} and~\ref{tab:rankings-log-loss} back the log-loss summaries in Section~\ref{subsubsec:exp_classification}; Table~\ref{tab:rankings-brier} shows that the Brier-score ranking gives the same ordering at the top (LightGBM and BDF-Full within 0.25 average rank). Table~\ref{tab:classification-win-tie-loss} reports the Holm-corrected sign tests, and Figure~\ref{fig:classification-cd} the corresponding critical-difference diagrams on both scores.
 
 \input{../benchmarks/results/classification/tables/rel_to_best_log_loss.tex}
 

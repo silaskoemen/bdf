@@ -684,10 +684,13 @@ def generate_convergence_latex_table(all_results: dict[str, Any], save_path: str
 
             if np.isfinite(bdf_slope) and np.isfinite(rf_slope):
                 delta = bdf_slope - rf_slope
-                # Bold if BDF converges faster (more negative slope)
+                # Mark either direction: bold when BDF converges faster,
+                # italic when RF converges faster (|delta| > 0.05 in both cases).
                 delta_str = f"{delta:.3f}"
                 if delta < -0.05:
                     delta_str = f"\\textbf{{{delta_str}}}"
+                elif delta > 0.05:
+                    delta_str = f"\\textit{{{delta_str}}}"
             else:
                 delta_str = "---"
 
@@ -705,7 +708,8 @@ def generate_convergence_latex_table(all_results: dict[str, Any], save_path: str
         [
             "\\end{tabular}",
             "\\par\\smallskip\\footnotesize{Rate = slope in $\\log(\\text{MSE})$ vs $\\log(n)$; "
-            "more negative = faster convergence. Bold $\\Delta$ where BDF converges faster by $>$0.05. "
+            "more negative = faster convergence. Bold $\\Delta$: BDF converges faster by $>$0.05; "
+            "italic $\\Delta$: RF converges faster by $>$0.05. "
             f"Averaged over {len(all_results['metadata']['seeds'])} seeds.}}",
             "\\end{table}",
         ]

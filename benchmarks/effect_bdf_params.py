@@ -88,6 +88,9 @@ DEFAULT_PARAMS = {
     "eta": 0.01,
 }
 
+# Display names for score-regime slugs in LaTeX tables.
+_SCORING_DISPLAY = {"nle": "NLE", "nll": "NLL", "nll_bic": "NLL+BIC"}
+
 # Distribution params defaults (regression - backward compatible)
 DEFAULT_DIST_PARAMS = {
     "mu_mu": "auto",
@@ -1124,10 +1127,13 @@ def generate_latex_recommendation_table(
     params = [p for p in all_results.keys() if p != "scoring"]
 
     col_spec = "l" + "c" * len(dgp_names) + "c"
+    metric_display = {"crps": "CRPS", "log_loss": "log-loss", "rmse": "RMSE"}.get(
+        primary_metric, primary_metric.replace("_", "-").upper()
+    )
     lines = [
         "\\begin{table}[htbp]",
         "\\centering",
-        f"\\caption{{Recommended hyperparameter values ({primary_metric.upper()} $\\downarrow$).}}",
+        f"\\caption{{Recommended hyperparameter values ({metric_display} $\\downarrow$).}}",
         "\\label{tab:param-sensitivity}",
         f"\\begin{{tabular}}{{{col_spec}}}",
         "\\toprule",
@@ -1183,25 +1189,32 @@ def generate_latex_recommendation_table(
             grouped = dgp_df.groupby("param_value")[primary_metric].mean()
             best_scoring = grouped.idxmin()
             best_scorings.append(best_scoring)
-            cells.append(str(best_scoring))
+            cells.append(_SCORING_DISPLAY.get(str(best_scoring), str(best_scoring)))
 
         if best_scorings:
             from collections import Counter
 
             most_common = Counter(best_scorings).most_common(1)[0][0]
-            cells.append(str(most_common))
+            cells.append(_SCORING_DISPLAY.get(str(most_common), str(most_common)))
         else:
             cells.append("---")
 
         lines.append("\\midrule")
         lines.append(" & ".join(cells) + " \\\\")
 
+    default_parts = []
+    for name in params:
+        if name in DEFAULT_PARAMS:
+            escaped = name.replace("_", "\\_")
+            default_parts.append(f"{escaped}$={DEFAULT_PARAMS[name]:g}$")
+    sweep_defaults = ", ".join(default_parts)
     lines.extend(
         [
             "\\bottomrule",
             "\\end{tabular}",
-            "\\par\\smallskip\\footnotesize{Best value per DGP (bold = differs from default). "
-            "Recommended = most frequent best value across DGPs.}",
+            "\\par\\smallskip\\footnotesize{Best value per DGP; bold marks values that differ from the "
+            f"sweep baseline ({sweep_defaults}), which is held fixed for the other parameters and need not "
+            "match the public estimator defaults. Recommended = most frequent best value across DGPs.}",
             "\\end{table}",
         ]
     )

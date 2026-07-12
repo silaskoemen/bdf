@@ -47,10 +47,12 @@ y = X[:, 0] + 0.5 * rng.standard_normal(1000)
 
 model = BDFRegressor(
     dist="NormalMuNormal",
-    params={"mu_mu": "auto", "sigma_mu": "auto"},
+    params={"mu_mu": "auto", "sigma_mu": "auto", "sigma_mu_auto_scale": 2.0},
     n_trees=50,
     max_depth=50,
     min_samples_leaf=10,
+    alpha=0.001,
+    delta=0.01,
     gamma=0.1,
 )
 model.fit(X, y)

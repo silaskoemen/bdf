@@ -17,18 +17,18 @@ DGP & $d$ & BDF rate & RF rate & $\Delta$ (BDF$-$RF) & BDF $R^2$ \\
   Additive sinusoidal & 5 & -0.261 & -0.248 & -0.013 & 0.87 \\
 \midrule
 \multicolumn{6}{l}{\textit{Non-smooth}} \\
-  XOR indicator & 1 & -0.206 & -0.753 & 0.547 & 0.83 \\
+  XOR indicator & 1 & -0.206 & -0.753 & \textit{0.547} & 0.83 \\
   XOR indicator & 10 & -0.534 & -0.231 & \textbf{-0.304} & 0.94 \\
   XOR indicator & 5 & -0.740 & -0.409 & \textbf{-0.331} & 0.98 \\
-  Multi-step function & 1 & -0.422 & -1.211 & 0.788 & 0.80 \\
+  Multi-step function & 1 & -0.422 & -1.211 & \textit{0.788} & 0.80 \\
   Multi-step function & 10 & -0.419 & -0.229 & \textbf{-0.190} & 0.97 \\
   Multi-step function & 5 & -0.398 & -0.293 & \textbf{-0.105} & 0.96 \\
 \midrule
 \multicolumn{6}{l}{\textit{Mixed}} \\
-  Sinusoidal + jump & 1 & -0.398 & -0.886 & 0.487 & 0.82 \\
+  Sinusoidal + jump & 1 & -0.398 & -0.886 & \textit{0.487} & 0.82 \\
   Sinusoidal + jump & 10 & -0.591 & -0.413 & \textbf{-0.178} & 0.81 \\
   Sinusoidal + jump & 5 & -0.562 & -0.451 & \textbf{-0.110} & 0.83 \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Rate = slope in $\log(\text{MSE})$ vs $\log(n)$; more negative = faster convergence. Bold $\Delta$ where BDF converges faster by $>$0.05. Averaged over 5 seeds.}
+\par\smallskip\footnotesize{Rate = slope in $\log(\text{MSE})$ vs $\log(n)$; more negative = faster convergence. Bold $\Delta$: BDF converges faster by $>$0.05; italic $\Delta$: RF converges faster by $>$0.05. Averaged over 5 seeds.}
 \end{table}

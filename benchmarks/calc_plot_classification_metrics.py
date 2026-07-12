@@ -50,6 +50,10 @@ BASELINE_MODELS = [
 # Model display names and colors from shared style
 from benchmarks.utils.style import MODEL_COLORS, MODEL_DISPLAY_NAMES
 
+# LaTeX tables call the fused aggregate "BDF-Full" to match the manuscript prose;
+# plots keep the shorter "BDF" legend label.
+TABLE_DISPLAY_NAMES = {**MODEL_DISPLAY_NAMES, "BDF": "BDF-Full"}
+
 # Datasets are discovered at runtime from data/processed/*.meta.json (task=classification).
 # Explicit list preserved for reproducibility / deterministic ordering.
 DATASETS = [
@@ -694,6 +698,7 @@ def main():
         wilcoxon_results=wilcoxon_results,
         metrics_display=METRIC_DISPLAY,
         lower_is_better=LOWER_IS_BETTER,
+        model_display_names=TABLE_DISPLAY_NAMES,
         caption="Classification benchmark results across datasets",
         label="tab:classification-main",
     )
@@ -722,6 +727,7 @@ def main():
         caption="Log Loss per dataset",
         label="tab:log-loss-per-dataset",
         lower_is_better=True,
+        model_display_names=TABLE_DISPLAY_NAMES,
     )
     save_latex_table(per_dataset_table, TABLES_DIR / "log_loss_per_dataset.tex")
 
@@ -731,8 +737,9 @@ def main():
             control_name="BDF",
             challengers=[m for m in models if m != "BDF"],
             wtl_results=wtl_results["log_loss"],
-            caption="Win/Tie/Loss for Log Loss (BDF vs baselines)",
+            caption="Win/Tie/Loss for Log Loss (BDF-Full vs baselines)",
             label="tab:classification-win-tie-loss",
+            model_display_names=TABLE_DISPLAY_NAMES,
         )
         save_latex_table(wtl_table, TABLES_DIR / "classification_win_tie_loss.tex")
 
@@ -744,6 +751,7 @@ def main():
             friedman_p=friedman_results["log_loss"].iman_davenport_p_value,
             caption="Algorithm rankings by Log Loss",
             label="tab:rankings-log-loss",
+            model_display_names=TABLE_DISPLAY_NAMES,
         )
         save_latex_table(ranking_table, TABLES_DIR / "rankings_log_loss.tex")
 
@@ -754,6 +762,7 @@ def main():
             friedman_p=friedman_results["brier"].iman_davenport_p_value,
             caption="Algorithm rankings by Brier Score",
             label="tab:rankings-brier",
+            model_display_names=TABLE_DISPLAY_NAMES,
         )
         save_latex_table(brier_ranking_table, TABLES_DIR / "rankings_brier.tex")
 
@@ -775,7 +784,7 @@ def main():
         rel_to_best_table = generate_rel_to_best_table(
             rel_to_best=rel_to_best_ll,
             metric_name="Log Loss",
-            model_display_names=MODEL_DISPLAY_NAMES,
+            model_display_names=TABLE_DISPLAY_NAMES,
             caption="Average Log Loss relative to best model per dataset (lower is better; 1.0 = always best)",
             label="tab:rel-to-best-log-loss",
         )
@@ -893,6 +902,7 @@ def main():
             caption="Brier Skill Score per dataset (higher is better; baseline = train-prior classifier)",
             label="tab:bss-per-dataset",
             lower_is_better=False,
+            model_display_names=TABLE_DISPLAY_NAMES,
         ),
         TABLES_DIR / "bss_per_dataset.tex",
     )
@@ -904,6 +914,7 @@ def main():
                 friedman_p=friedman_results["bss"].iman_davenport_p_value,
                 caption="Algorithm rankings by Brier Skill Score (higher is better)",
                 label="tab:rankings-bss",
+                model_display_names=TABLE_DISPLAY_NAMES,
             ),
             TABLES_DIR / "rankings_bss.tex",
         )

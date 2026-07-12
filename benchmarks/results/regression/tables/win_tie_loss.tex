@@ -1,22 +1,22 @@
 \begin{table}[htbp]
 \centering
-\caption{Win/Tie/Loss for CRPS (BDF vs baselines)}
+\caption{Win/Tie/Loss for CRPS (BDF-Full vs baselines)}
 \label{tab:win-tie-loss}
 \begin{tabular}{lccccc}
 \toprule
 Comparison & Wins & Ties & Losses & Total & Sign test $p$ \\
 \midrule
-BDF vs bayesridge\_reg & 15 & 0 & 0 & 15 & \textbf{0.000} \\
-BDF vs conflgbm & 6 & 0 & 9 & 15 & 0.607 \\
-BDF vs confrf & 14 & 1 & 0 & 15 & \textbf{0.000} \\
-BDF vs gaussian\_de & 11 & 0 & 4 & 15 & 0.118 \\
-BDF vs qrf & 1 & 0 & 14 & 15 & \textbf{0.001} \\
-BDF vs drf & 2 & 1 & 12 & 15 & 0.013 \\
-BDF vs catbunc\_reg & 7 & 2 & 6 & 15 & 1.000 \\
-BDF vs knnkde & 14 & 0 & 1 & 15 & \textbf{0.001} \\
-BDF vs NGBoost & 11 & 0 & 4 & 15 & 0.118 \\
-BDF vs XGBoostLSS & 11 & 1 & 3 & 15 & 0.057 \\
+BDF-Full vs BayesRidge & 15 & 0 & 0 & 15 & \textbf{$<$0.001} \\
+BDF-Full vs ConfLGBM & 6 & 0 & 9 & 15 & 0.607 \\
+BDF-Full vs ConfRF & 14 & 1 & 0 & 15 & \textbf{$<$0.001} \\
+BDF-Full vs GaussianDE & 11 & 0 & 4 & 15 & 0.118 \\
+BDF-Full vs QRF & 1 & 0 & 14 & 15 & \textbf{$<$0.001} \\
+BDF-Full vs DRF & 2 & 1 & 12 & 15 & 0.013 \\
+BDF-Full vs CatBoostUnc & 7 & 2 & 6 & 15 & 1.000 \\
+BDF-Full vs KNNKDE & 14 & 0 & 1 & 15 & \textbf{$<$0.001} \\
+BDF-Full vs NGBoost & 11 & 0 & 4 & 15 & 0.118 \\
+BDF-Full vs XGBoostLSS & 11 & 1 & 3 & 15 & 0.057 \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Wins = control better, Losses = challenger better. Ties = $<$1\% relative difference. Bold $p$ = significant.}
+\par\smallskip\footnotesize{Wins = BDF-Full better, Losses = baseline better. Ties = $<$1\% relative difference. Bold $p$: significant at the 5\% level after Holm correction across the comparisons in this table.}
 \end{table}

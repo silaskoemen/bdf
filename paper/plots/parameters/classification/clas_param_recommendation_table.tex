@@ -1,6 +1,6 @@
 \begin{table}[htbp]
 \centering
-\caption{Recommended hyperparameter values (LOG_LOSS $\downarrow$).}
+\caption{Recommended hyperparameter values (log-loss $\downarrow$).}
 \label{tab:param-sensitivity-clas}
 \begin{tabular}{lcccc}
 \toprule
@@ -11,8 +11,8 @@ gamma & \textbf{0} & 0.1 & \textbf{0.001} & 0 \\
 delta & \textbf{0.1} & 0.01 & \textbf{0} & 0.1 \\
 min\_samples\_leaf & \textbf{5} & \textbf{5} & \textbf{5} & 5 \\
 \midrule
-score\_method & nll & nle & nll_bic & nll \\
+score\_method & NLL & NLE & NLL+BIC & NLL \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Best value per DGP (bold = differs from default). Recommended = most frequent best value across DGPs.}
+\par\smallskip\footnotesize{Best value per DGP; bold marks values that differ from the sweep baseline (alpha$=0.01$, gamma$=0.1$, delta$=0.01$, min\_samples\_leaf$=10$), which is held fixed for the other parameters and need not match the public estimator defaults. Recommended = most frequent best value across DGPs.}
 \end{table}

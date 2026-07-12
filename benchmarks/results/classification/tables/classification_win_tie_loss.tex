@@ -1,18 +1,18 @@
 \begin{table}[htbp]
 \centering
-\caption{Win/Tie/Loss for Log Loss (BDF vs baselines)}
+\caption{Win/Tie/Loss for Log Loss (BDF-Full vs baselines)}
 \label{tab:classification-win-tie-loss}
 \begin{tabular}{lccccc}
 \toprule
 Comparison & Wins & Ties & Losses & Total & Sign test $p$ \\
 \midrule
-BDF vs rf\_clas & 6 & 6 & 0 & 12 & 0.031 \\
-BDF vs lgbm\_clas & 5 & 3 & 4 & 12 & 1.000 \\
-BDF vs callgbm\_clas & 6 & 3 & 3 & 12 & 0.508 \\
-BDF vs ngboost\_clas & 8 & 0 & 4 & 12 & 0.388 \\
-BDF vs calrf\_clas & 7 & 2 & 3 & 12 & 0.344 \\
-BDF vs knn\_clas & 12 & 0 & 0 & 12 & \textbf{0.000} \\
+BDF-Full vs RF & 6 & 6 & 0 & 12 & 0.031 \\
+BDF-Full vs LightGBM & 5 & 3 & 4 & 12 & 1.000 \\
+BDF-Full vs CalLGBM & 6 & 3 & 3 & 12 & 0.508 \\
+BDF-Full vs NGBoost & 8 & 0 & 4 & 12 & 0.388 \\
+BDF-Full vs CalRF & 7 & 2 & 3 & 12 & 0.344 \\
+BDF-Full vs KNN & 12 & 0 & 0 & 12 & \textbf{$<$0.001} \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Wins = control better, Losses = challenger better. Ties = $<$1\% relative difference. Bold $p$ = significant.}
+\par\smallskip\footnotesize{Wins = BDF-Full better, Losses = baseline better. Ties = $<$1\% relative difference. Bold $p$: significant at the 5\% level after Holm correction across the comparisons in this table.}
 \end{table}
