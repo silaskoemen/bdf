@@ -9,8 +9,9 @@ compatible_target_domains: [real, positive_real, nonnegative_real, integer, nonn
 
 fixed_init_kwargs:
   random_state: 1234
-  # PGBART is efficient; these draws/tune counts give stable posteriors while
-  # keeping runtime manageable. Tuning MCMC length is not meaningful here.
+  # Sized to keep the sweep tractable, not to give a resolved posterior: chains=1
+  # admits no convergence diagnostic, which is why this artifact is excluded from
+  # the reported baselines. A reportable comparison would need >=4 chains.
   n_draws: 500
   n_tune: 500
   chains: 1

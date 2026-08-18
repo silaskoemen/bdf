@@ -243,9 +243,13 @@ class NormalMuNormal(BDFDistribution[NormalMuNormalParams]):
         - Likelihood: yᵢ | μ ~ N(μ, σ²) with σ² estimated from data
 
         The log evidence decomposes as:
-            log p(y) = log p(ȳ | μ₀, σ_μ, σ̂) + log p(residuals | σ̂)
+            log p(y) = log p(ȳ | μ₀, σ_μ, σ̂)
+                       + log p(residuals | σ̂) - 0.5 log(n)
 
         where σ̂ is the sample standard deviation.
+
+        The final term is the Jacobian for using ȳ rather than the
+        unit-length mean coordinate sqrt(n)ȳ.
 
         Edge case: When σ̂ = 0 (constant data), all residuals are zero.
         The residual term vanishes (log p(0|0,σ→0) → 0 in the limit).
@@ -257,9 +261,10 @@ class NormalMuNormal(BDFDistribution[NormalMuNormalParams]):
         # Marginal variance of sample mean under prior
         marginal_var = (sample_std**2 / n) + self.sigma_mu**2
 
-        # Log evidence for sample mean
+        # Log evidence for the unit-length mean coordinate sqrt(n) * sample_mean
         log_ev = -0.5 * np.log(2 * np.pi * marginal_var)
         log_ev -= 0.5 * (sample_mean - self.mu_mu) ** 2 / marginal_var
+        log_ev -= 0.5 * np.log(n)
 
         # Log evidence for deviations from mean (independent of prior)
         # When sample_std=0 (constant data), residuals are all zero → term vanishes

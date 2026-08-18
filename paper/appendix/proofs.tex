@@ -144,7 +144,7 @@ S(\mathcal{D}_{\ell_R})
 =
 \log \mathrm{BF}(s),
 \]
-where $\mathrm{BF}(s)$ is the Bayes factor in favor of splitting node $\ell$ according to $s$.
+where $\mathrm{BF}(s)$ is the Bayes factor \citep{kass1995bayes} in favor of splitting node $\ell$ according to $s$.
 \end{proposition}
 
 \begin{proof}
@@ -344,6 +344,8 @@ $\gamma(\log K+\log m_j)$; for $\gamma\ne1$, this is no longer the log prior odd
 \subsection{BIC as an Asymptotic Surrogate for Split Selection}
 \label{app:bic_uniform}
 
+The following lemma is the standard Laplace/BIC expansion of a marginal likelihood \citep{schwarz1978estimating,kass1995bayes}, specialized to a single leaf sample; we restate it with the constants tracked explicitly because the split-selection argument in Appendix~\ref{app:split_consistency} needs uniformity over the candidate set rather than a pointwise statement.
+
 \begin{lemma}[Laplace expansion for leaf scores]
 \label{lem:laplace_leaf}
 Let $\mathcal{D}_\ell$ be a fixed leaf sample of size $n_\ell$.
@@ -542,7 +544,7 @@ Under misspecification, the likelihood concentrates around the KL minimizer
 \arg\min_{\theta\in\Theta}
 \mathrm{KL}(f_0^\ell\Vert p_\theta).
 \]
-The Laplace expansion remains centered at the pseudo-true parameter under standard misspecified likelihood theory. The curvature term in the posterior approximation is governed by the expected negative Hessian
+The Laplace expansion remains centered at the pseudo-true parameter under standard misspecified likelihood theory \citep{white1982maximum,kleijn2012bernstein}. The curvature term in the posterior approximation is governed by the expected negative Hessian
 \[
 I(\theta^\star)
 =
@@ -573,7 +575,7 @@ The responses are assumed i.i.d.\ from $f_0^\Omega$.
 
 \paragraph{Posterior consistency.}
 By compactness of $\Theta$, continuity of the likelihood, identifiability at the KL minimizer $\theta^\star$, and prior positivity in a neighborhood of $\theta^\star$, every KL neighborhood of $\theta^\star$ has positive prior mass.
-The standard posterior consistency theorem for parametric models therefore yields, for every $\epsilon>0$,
+The standard posterior consistency theorem for parametric models \citep[][Ch.~4]{ghosh2003bayesian} therefore yields, for every $\epsilon>0$,
 \[
 \pi(
 \|\theta-\theta^\star\|>\epsilon
@@ -586,7 +588,7 @@ in $P_0$-probability.
 
 \paragraph{Well-specified Bernstein--von Mises.}
 If $f_0^\Omega=p_{\theta_0}$ for some interior point $\theta_0$, then the smoothness and positive-definite Fisher information assumptions imply local asymptotic normality at $\theta_0$.
-Since the prior is positive and continuous at $\theta_0$, the classical Bernstein--von Mises theorem gives
+Since the prior is positive and continuous at $\theta_0$, the classical Bernstein--von Mises theorem \citep[][Thm.~10.1]{van2000asymptotic} gives
 \[
 \left\|
 \pi(\theta\mid\mathcal{D}_\Omega,\eta)
@@ -614,11 +616,11 @@ I(\theta^\star)
 -\mathbb{E}_{f_0^\Omega}
 \nabla^2\log p_{\theta^\star}(Y),
 \]
-and prior positivity at $\theta^\star$, the misspecified Bernstein--von Mises theorem gives a Gaussian posterior approximation centered near the MLE with covariance
+and prior positivity at $\theta^\star$, the misspecified Bernstein--von Mises theorem \citep{kleijn2012bernstein} gives a Gaussian posterior approximation centered near the MLE with covariance
 \[
 n_\Omega^{-1}I(\theta^\star)^{-1}.
 \]
-The sandwich covariance
+The sandwich covariance \citep{white1982maximum}
 \[
 I(\theta^\star)^{-1}
 J(\theta^\star)

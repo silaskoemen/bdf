@@ -41,20 +41,21 @@
 \makeatletter\let\AND\@undefined\makeatother
 
 \begin{abstract}%   <- trailing '%' for backward compatibility of .sty file
-We introduce Bayesian Distributional Forests (BDF), a distributional forest framework that replaces point-valued leaves with explicit predictive distributions, performs exact Bayesian inference within leaves where the leaf family permits it, and grows trees using a regularized additive log-score objective.
-The scoring interface supports exact or profile evidence for conjugate leaves, Laplace/BIC evidence surrogates, and regularized plug-in predictive scores for fitted Student-$t$ and KDE leaves.
+We introduce Bayesian Distributional Forests (BDF), a framework that replaces point-valued leaves with predictive distributions, performs exact Bayesian inference when the leaf family permits it, and grows trees using a regularized additive log-score objective.
+The scoring interface spans exact or profile evidence for conjugate leaves, Laplace/BIC evidence surrogates, and regularized plug-in scores for fitted Student-$t$ and KDE leaves.
 A depth-dependent structural cost and tempered split-identity penalty control greedy tree growth, while bagging and feature subsampling produce a mixture of leaf-level predictive distributions.
 
-Across 15 real regression benchmarks, validation usually favors Student-$t$ leaves or approximate and plug-in score regimes.
-BDF-Full is the strongest parametric probabilistic model by relative CRPS and attains the best average 90\% interval-score rank; while QRF and DRF remain the aggregate CRPS/CRPSS leaders, BDF-Full is the only method with lower relative CRPS than every boosted-tree baseline and lower relative RMSE than both nonparametric CRPS leaders.
-In binary classification, BDF-Full is competitive with random forests, LightGBM, NGBoost, and calibrated variants, and the fixed-evidence Beta--Bernoulli reference is within a median $+0.47\%$ log-loss of the tuned model.
-Binary classification removes response-support misspecification at the leaf level---conditional on any leaf region, a binary response is Bernoulli---so the remaining modelling error lies in the partition approximation and probability heterogeneity within leaves rather than the outcome family.
-Overall, BDF preserves the computational style of random forests while exposing likelihood-aware predictive leaves, Bayesian parameter uncertainty where available, and validation-selected regularization where a more aggressive split criterion is useful.
+Across 15 real regression benchmarks, validation selects Student-$t$ leaves on 9 datasets and approximate or plug-in score regimes on 14.
+BDF-Full is the strongest parametric probabilistic model by relative CRPS and attains the best average 90\% interval-score rank.
+QRF and DRF lead aggregate CRPS/CRPSS, but only BDF-Full combines lower relative CRPS than every boosted-tree baseline with lower relative RMSE than both nonparametric leaders.
+In binary classification, BDF-Full is competitive with random forests, LightGBM, NGBoost, and calibrated variants, and the fixed-evidence Beta--Bernoulli reference has a median relative log-loss gap of only $+0.47\%$ from the tuned model.
+Because a binary response is Bernoulli conditional on any leaf region, this setting removes leaf-family support misspecification and isolates the partition approximation and probability heterogeneity within leaves rather than the outcome family.
+Overall, BDF retains randomized-forest training while exposing likelihood-aware leaves, Bayesian parameter uncertainty where available, and validation-selected regularization.
 \end{abstract}
 
 \section{Introduction}\label{sec:intro}
 
-Tree ensembles---Random Forests \citep{breiman2001random} and Gradient Boosted Trees \citep{friedman2001greedy,chen2016xgboost,ke2017lightgbm}---are a dominant paradigm for tabular prediction due to their accuracy, robustness, and favorable computational profile.
+Tree ensembles---Random Forests \citep{breiman2001random} and Gradient Boosted Trees \citep{friedman2001greedy,chen2016xgboost,ke2017lightgbm}---are a dominant paradigm for tabular prediction due to their accuracy, robustness, and favorable computational profile, and remain competitive with deep architectures on typical tabular data \citep{grinsztajn2022why}.
 Their strength comes from learning data-adaptive partitions of the covariate space while retaining interpretability through leaf-level structure and post-hoc tools (e.g., feature importance, partial dependence).
 However, most deployed tree implementations are optimized for \emph{point targets} (conditional means/medians or class labels) and provide uncertainty only indirectly (e.g., ensemble variance, quantile losses, post-hoc calibration).
 In many applications---risk-sensitive decision making, selective prediction, monitoring, and downstream optimization---one instead requires a coherent estimate of the \emph{full conditional distribution} $p(y\mid \mathbf{x})$.
@@ -63,7 +64,7 @@ A growing literature equips trees with probabilistic outputs. Likelihood-based d
 
 These methods expose a practical tension. Plug-in and nonparametric forests retain fast randomized tree construction but do not generally integrate local parameter uncertainty; fully Bayesian structure inference provides a coherent joint model but is more costly and less easily combined with diverse leaf families. BDF targets the intermediate regime in which fast split optimization and explicit predictive distributions are both required.
 
-We introduce Bayesian Distributional Forests (BDF), an evidence-regularized distributional forest framework that upgrades classical forests to probabilistic predictors by combining \emph{Bayesian inference within leaves when available} with evidence-regularized fitted leaves otherwise, and by selecting splits via \emph{log predictive scores}. The name reflects the design center---exact Bayesian leaf inference wherever the leaf family supports it---while the title's ``optional'' qualifier is deliberate: the framework does not force a Bayesian reading onto the validation-selected plug-in regimes analyzed below.
+We introduce Bayesian Distributional Forests (BDF), an evidence-regularized distributional forest framework that upgrades classical forests to probabilistic predictors by combining \emph{Bayesian inference within leaves when available} with regularized fitted-density leaves otherwise, and by selecting splits via \emph{log predictive scores}. The name reflects the design center---exact Bayesian leaf inference wherever the leaf family supports it---while the title's ``optional'' qualifier is deliberate: the framework does not force a Bayesian reading onto the validation-selected plug-in regimes analyzed below.
 
 \paragraph{Key idea: probabilistic leaves + regularized log-score split selection.}
 BDF treats each leaf as a local probabilistic model. For conjugate leaves this is a Bayesian model with prior $\pi(\theta_\ell\mid\eta)$, posterior $\pi(\theta_\ell\mid\mathcal{D}_\ell,\eta)$, and posterior predictive $p_\ell(y\mid \mathcal{D}_\ell,\eta)$, conditional on the empirical-Bayes quantities stated in Section~\ref{subsec:leaf_models}; for non-conjugate leaves it is an explicit fitted density scored by an evidence surrogate or by a regularized plug-in log score.
@@ -80,12 +81,10 @@ This retains the computational profile of classical forests while yielding coher
 \paragraph{Positioning.}
 The contribution is the forest framework, likelihood interface, score-regime decomposition, and auditability of the selected leaf/score regimes, not a new posterior sampler over trees.
 BDF is most useful when explicit likelihood leaves, density evaluation, tail-family choice, or interval calibration matter; when aggregate CRPS alone is the objective, QRF and DRF remain strong nonparametric baselines and lead our regression benchmark.
-The implementation exposes the same decomposition through a documented Python API and benchmark artifacts, so the method can be used either as a fixed conjugate-evidence forest or as a regularized distributional-forest framework with selectable leaf laws and score regimes.
+The documented Python API and benchmark artifacts expose this decomposition, supporting both fixed conjugate-evidence forests and validation-selected leaf laws and score regimes.
 
 \paragraph{Two empirical variants.}
-We report two empirical variants.
-\emph{BDF-Core} denotes a small canonical evidence-comparison set of fixed-NLE conjugate leaves: Normal--Normal NLE for regression and Beta--Bernoulli NLE for classification.
-These are not the only conjugate pairs supported by the framework; they are the default real-valued and binary references used to isolate exact evidence scoring.
+We report two empirical variants. \emph{BDF-Core} is a canonical fixed-NLE comparison using Normal--Normal leaves for regression and Beta--Bernoulli leaves for classification; these are the real-valued and binary references used to isolate evidence scoring.
 \emph{BDF-Full} denotes the practical validation-selected aggregate over the canonical leaf families and score regimes under one tuning budget per family.
 For conjugate Normal--Normal/Beta--Bernoulli leaves, the selectable score regimes are NLE, NLL+BIC, and pure NLL; for non-conjugate Student-$t$ leaves, exact evidence is unavailable, so the selectable regimes are NLL+BIC and pure NLL.
 Unless otherwise stated, headline benchmark numbers refer to BDF-Full; Appendix~\ref{app:bdf-leaf-regimes} enumerates the submitted leaf families, score regimes, and fitting status.
@@ -98,23 +97,25 @@ Unless otherwise stated, headline benchmark numbers refer to BDF-Full; Appendix~
 \item We empirically decompose leaf-family and score-regime selection across regression and classification, compare against parametric and nonparametric distributional baselines, and provide reproducible artifacts that expose the selected regimes and computational tradeoffs.
 \end{enumerate}
 
+\noindent The implementation, benchmark harness, model configurations, and locked result artifacts backing every table and figure are available at \url{https://anonymous.4open.science/r/XXXXXXXX}; Appendix~\ref{app:code-availability} documents the environment, protocol lock, and regeneration commands.
+
 \section{Related Work}\label{sec:related-work}
 BDF sits at the intersection of distributional forests, probabilistic boosting, Bayesian tree models, and predictive-score model selection. Its distinguishing feature is not merely the use of a likelihood in a tree, but a common leaf-wise scoring interface that spans integrated evidence, evidence surrogates, and fitted predictive densities.
 
 \paragraph{Distributional tree methods.}
-Distributional regression trees and forests \citep{schlosser2019distributional} specify a parametric response distribution, select partitioning variables through score-instability tests, choose cutpoints by likelihood improvement, and estimate local parameters from forest-induced adaptive weights. BDF instead scores every candidate partition directly through the sum of its leaf predictive scores, integrates leaf parameters when conjugacy permits, and aggregates the resulting per-tree predictive distributions rather than refitting one forest-weighted local likelihood. The distinction is therefore in the split objective and treatment of leaf-parameter uncertainty, not in the mere presence of an explicit response family.
+Distributional regression trees and forests \citep{schlosser2019distributional} specify a parametric response distribution in the GAMLSS tradition \citep{rigby2005generalized}, select partitioning variables through score-instability tests, choose cutpoints by likelihood improvement, and estimate local parameters from forest-induced adaptive weights. Transformation forests \citep{hothorn2021predictive} instead use flexible transformation models as adaptive local likelihood estimators, yielding fully specified distributions that can capture changes beyond location and scale. BDF scores every candidate partition directly through the sum of its leaf predictive scores, integrates leaf parameters when conjugacy permits, and aggregates the resulting per-tree predictive distributions rather than refitting one forest-weighted local likelihood. The distinction is therefore in the split objective and treatment of leaf-parameter uncertainty, not in the mere presence of an explicit response family.
 
 \paragraph{Nonparametric conditional-distribution forests.}
-Quantile regression forests \citep[QRF;][]{meinshausen2006quantile} reuse random-forest neighborhoods to estimate a weighted empirical conditional distribution. Distributional Random Forests \citep[DRF;][]{cevid2022distributional} target changes in the full, potentially multivariate response distribution through an MMD split criterion and likewise predict through forest-induced weights. QRF and DRF are thus the closest nonparametric forest comparators in this paper: they avoid an outcome likelihood and can adapt to irregular distributional shapes, whereas BDF trades that flexibility for explicit tail, count, or binary leaf laws, density evaluation, and parameter-uncertainty integration when available.
+Quantile regression forests \citep[QRF;][]{meinshausen2006quantile} reuse random-forest neighborhoods to estimate a weighted empirical conditional distribution. RFCDE \citep{pospisil2018rfcde} optimizes forest splits for conditional-density loss and applies kernel density estimation to the induced local weights. Distributional Random Forests \citep[DRF;][]{cevid2022distributional} target changes in the full, potentially multivariate response distribution through an MMD split criterion and likewise predict through forest-induced weights. These methods avoid an outcome likelihood and can adapt to irregular distributional shapes, whereas BDF trades that flexibility for explicit tail, count, or binary leaf laws, density evaluation, and parameter-uncertainty integration when available; QRF and DRF are the nonparametric forest comparators evaluated here. A separate line of work quantifies uncertainty \emph{about} a forest's point predictions through subsampling and asymptotic normality \citep{mentch2016quantifying}; that target is the sampling variability of the estimator rather than the conditional law of $Y$, which is what BDF's leaves model.
 
 \paragraph{Probabilistic boosting.}
-NGBoost \citep{duan2020ngboost} and XGBoostLSS-style distributional boosting \citep{marz2019xgboostlss} learn distribution parameters through boosting dynamics and plug-in predictive likelihoods; Treeffuser \citep{beltranvelez2024treeffuser} uses tree-parameterized score models for conditional diffusion prediction. BDF instead keeps the probabilistic model local: distributional shape comes from leaf likelihoods and from mixtures over partitions randomized by bagging and feature subsampling. This makes family choice, leaf fitting, and split-score regularization separately inspectable.
+NGBoost \citep{duan2020ngboost} and XGBoostLSS-style distributional boosting \citep{marz2019xgboostlss}, which carries the GAMLSS parameterization \citep{rigby2005generalized} into gradient boosting, learn distribution parameters through boosting dynamics and plug-in predictive likelihoods; gradient-boosting ensembles can also express predictive uncertainty through virtual ensembles \citep{malinin2021uncertainty}; Treeffuser \citep{beltranvelez2024treeffuser} uses tree-parameterized score models for conditional diffusion prediction. BDF instead keeps the probabilistic model local: distributional shape comes from leaf likelihoods and from mixtures over partitions randomized by bagging and feature subsampling. This makes family choice, leaf fitting, and split-score regularization separately inspectable.
 
 \paragraph{Bayesian tree models.}
-Bayesian CART and BART \citep{denison1998bayesian,chipman2010bart} place priors over tree structures and leaf parameters and typically use posterior simulation over tree topologies. XBART \citep{he2019xbart} accelerates Bayesian additive-tree fitting, while MAPTree \citep{sullivan2024maptree} targets scalable MAP structure inference for a single tree. Mondrian forests \citep{lakshminarayanan2014mondrian} instead use a stochastic partition process suited to online prediction. BDF does not sample or globally optimize a posterior over forest structures. It uses a local Bayes factor when exact evidence is available, a logistic depth cost interpretable as split prior odds, and a split-identity multiplicity term. For that split-identity term, the untempered case $\gamma=1$ has the direct prior interpretation; $\gamma<1$ is an MDL/generalized-Bayes regularizer reflecting an effective rather than nominal number of distinct candidates.
+Bayesian CART and BART \citep{denison1998bayesian,chipman2010bart} place priors over tree structures and leaf parameters and typically use posterior simulation over tree topologies. Distributional extensions such as DR-BART \citep{orlandi2021drbart} use latent-variable tree priors to model the full conditional density. XBART \citep{he2019xbart} accelerates Bayesian additive-tree fitting, while MAPTree \citep{sullivan2024maptree} targets scalable MAP structure inference for a single tree. Mondrian forests \citep{lakshminarayanan2014mondrian} instead use a stochastic partition process suited to online prediction. BDF does not sample or globally optimize a posterior over forest structures. It uses a local Bayes factor when exact evidence is available, a logistic depth cost interpretable as split prior odds, and a split-identity multiplicity term. For that split-identity term, the untempered case $\gamma=1$ has the direct prior interpretation; $\gamma<1$ is a tempered MDL regularizer reflecting an effective rather than nominal number of distinct candidates.
 
 \paragraph{Predictive scores, evidence, and conformal calibration.}
-The prequential view of probabilistic prediction \citep{dawid1984present}, marginal-likelihood and BIC approximations \citep{schwarz1978estimating}, and MDL coding arguments \citep{vitanyi2000minimum} motivate BDF's common additive score. Allowing the score and multiplicity penalty to be validation-selected also connects the framework to generalized and robust Bayesian updating \citep{bissiri2016general,grunwald2017inconsistency}. Conformal prediction \citep{vovk2005algorithmic,lei2018distribution,romano2019conformalized} addresses a different goal: it wraps a predictor to obtain distribution-free marginal coverage, but does not by itself estimate a full conditional density. We therefore treat conformal methods as calibration comparators rather than as the closest distributional-forest relatives.
+The prequential view of probabilistic prediction \citep{dawid1984present}, marginal-likelihood and BIC approximations \citep{schwarz1978estimating,kass1995bayes}, and MDL coding arguments \citep{vitanyi2000minimum} motivate BDF's common additive score. Our evaluation relies throughout on strictly proper scoring rules \citep{gneiting2007strictly}, which is what makes CRPS and log-score comparisons across heterogeneous predictive representations meaningful. General Bayesian loss updating and SafeBayes offer related responses to misspecification \citep{bissiri2016general,grunwald2017inconsistency}, but BDF does not construct a generalized posterior: validation selects its split-score regime and tempers its structural selection penalty. Conformal prediction \citep{vovk2005algorithmic,lei2018distribution,romano2019conformalized} addresses a different goal: it wraps a predictor to obtain distribution-free marginal coverage, but does not by itself estimate a full conditional density. We therefore treat conformal methods as calibration comparators rather than as the closest distributional-forest relatives.
 
 
 % ==========================================
@@ -213,7 +214,7 @@ S_{\mathrm{BIC}}(\mathcal{D}_\ell)
 where $\hat{\theta}_\ell^{\,\mathrm{MAP}}$ is the posterior mode when a prior is specified, the MLE for purely plug-in leaves, and $k_\ell = \dim(\theta_\ell)$. The MAP and MLE coincide asymptotically under regularity conditions, and the $O(1)$ difference between them is absorbed into the remainder of the Laplace expansion (Section~\ref{subsec:theory_surrogates}). Under standard regularity conditions, $S_{\mathrm{BIC}}$ approximates the NLE up to $O(1)$ error as $n_\ell \to \infty$ \citep{schwarz1978estimating}. When a non-conjugate leaf uses faster method-of-moments parameters instead of an MLE/MAP, as in the default Student-$t$ benchmark configuration, the same term should be read as a BIC-sized complexity correction rather than as a formal Laplace evidence approximation. A theoretical comparison of the two criteria, including finite-sample behavior and implications for split selection under misspecification, is given in Section~\ref{subsec:theory_surrogates}.
 
 \paragraph{Predictive-score variants and pure plug-in NLL.}
-The additive framework also permits held-out or approximate out-of-sample log predictive scores, or the pure plug-in NLL without a Laplace/BIC term. In the experiments, the split-score variant is tuned with the leaf family: regression selects exact NLE on 1 of 15 datasets, NLL+BIC on 7, and pure plug-in NLL on 7 (Table~\ref{tab:bdf-selection}). The tuned Normal--Normal candidate remains within a median $+0.81\%$ CRPS of the selected regression variant (Table~\ref{tab:bdf-conjugate-vs-selected-gap}), while the fixed-NLE Beta--Bernoulli reference is within a median $+0.47\%$ log-loss of tuned classification BDF-Full (Table~\ref{tab:bdf-core-vs-full-classification}).
+The additive framework also permits held-out or approximate out-of-sample log predictive scores, or the pure plug-in NLL without a Laplace/BIC term. In the experiments, the split-score variant is tuned with the leaf family: regression selects exact NLE on 1 of 15 datasets, NLL+BIC on 7, and pure plug-in NLL on 7 (Table~\ref{tab:bdf-selection}). On the 9 datasets where tuning preferred a different leaf family, the tuned Normal--Normal candidate costs a median $+2.94\%$ CRPS (Table~\ref{tab:bdf-conjugate-vs-selected-gap}), while the fixed-NLE Beta--Bernoulli reference is within a median $+0.47\%$ log-loss of tuned classification BDF-Full (Table~\ref{tab:bdf-core-vs-full-classification}).
 
 \paragraph{Split gain.}
 Given a candidate split $s$ at leaf $\ell$ producing children $(\ell_L,\ell_R)$, the \emph{split gain} under score $S$ is
@@ -268,27 +269,22 @@ The net gain~\eqref{eq:net_gain} has an MDL interpretation: $\Delta S$ is the re
 The penalty parameters $(\alpha, \delta, \gamma)$ are selected on the tuning fold jointly with the remaining BDF hyperparameters; see Appendix~\ref{app:benchmark-protocol}. Defaults are $\alpha = 0$, $\delta = 0.001$, $\gamma = 0.1$ when no tuning fold is available, matching the public estimator defaults.
 
 \paragraph{Greedy construction.}
-We implement the criterion~\eqref{eq:net_gain} within a best-first greedy strategy (Algorithm~\ref{alg:bdf_tree}), which maintains a priority queue of candidate splits ordered by $\Delta_{\mathrm{net}}$ and expands the highest-gain split at each step.
+We implement the criterion~\eqref{eq:net_gain} by recursive top-down greedy growth (Algorithm~\ref{alg:bdf_tree}): each visited leaf takes its best admissible split and then grows its children.
 
 \begin{algorithm}[t]
 \caption{Greedy construction of a single Bayesian distributional tree}\label{alg:bdf_tree}
 \begin{algorithmic}[1]
 \REQUIRE Dataset $\mathcal{D}$, hyperparameters $\eta$, penalty parameters $(\alpha, \delta, \gamma)$
-\STATE Initialize tree $T$ as a single root leaf $\ell_0$; compute sufficient statistics, the leaf posterior or fitted parameters, and leaf score $S(\mathcal{D}_{\ell_0})$
-\STATE Find the best candidate split $s^*$ at $\ell_0$ maximizing $\Delta_{\mathrm{net}}(s;\ell_0)$ via~\eqref{eq:net_gain}
-\IF{$\Delta_{\mathrm{net}}(s^*;\ell_0) > 0$}
-    \STATE Push $(\ell_0, s^*, \Delta_{\mathrm{net}})$ onto priority queue $\mathcal{Q}$
-\ENDIF
-\WHILE{$\mathcal{Q}$ is not empty}
-    \STATE Pop $(\ell, s, \Delta)$ with largest $\Delta$ from $\mathcal{Q}$
-    \STATE Apply split $s$ to $\ell$, creating children $\ell_L, \ell_R$
-    \FOR{each child $c \in \{\ell_L, \ell_R\}$}
-        \STATE Compute sufficient statistics, the leaf posterior or fitted parameters, and score $S(\mathcal{D}_c)$
-        \STATE Find the best candidate split $s_c$ at depth $d_c$ maximizing $\Delta_{\mathrm{net}}(s_c; c)$
-        \IF{$\Delta_{\mathrm{net}}(s_c; c) > 0$}
-            \STATE Push $(c, s_c, \Delta_{\mathrm{net}})$ onto $\mathcal{Q}$
+\STATE Initialize $T$ as a root leaf $\ell_0$ and compute its fitted leaf object; set the LIFO stack $\mathcal{S} \leftarrow [\ell_0]$
+\WHILE{$\mathcal{S}$ is not empty}
+    \STATE Pop leaf $\ell$ from $\mathcal{S}$
+    \IF{$\ell$ satisfies the depth and sample-size constraints}
+        \STATE Find the admissible split $s^*$ maximizing $\Delta_{\mathrm{net}}(s;\ell)$ via~\eqref{eq:net_gain}
+        \IF{$\Delta_{\mathrm{net}}(s^*;\ell) > 0$}
+            \STATE Split $\ell$ into $\ell_L,\ell_R$ and compute their fitted leaf objects
+            \STATE Push $\ell_R$ and then $\ell_L$ onto $\mathcal{S}$
         \ENDIF
-    \ENDFOR
+    \ENDIF
 \ENDWHILE
 \RETURN Tree $T$ with leaf predictive objects $\{p_\ell(\cdot \mid \mathcal{D}_\ell,\eta)\}_{\ell \in \mathcal{L}(T)}$
 \end{algorithmic}
@@ -340,7 +336,7 @@ m(\mathcal{D}_\ell)
 =
 \prod_{j=1}^{n_\ell} p(y_{\ell,j}\mid y_{\ell,1:j-1}, \eta),
 \]
-for any ordering of the observations in the leaf. Thus the NLE used for split scoring is exactly the cumulative log-loss of a sequential Bayesian forecaster. Since log-loss is strictly proper,
+for any ordering of the observations in the leaf. Thus the NLE used for split scoring is exactly the cumulative log-loss of a sequential Bayesian forecaster. Since log-loss is strictly proper \citep{gneiting2007strictly},
 \begin{equation}\label{eq:proper_log_score}
 \mathbb{E}_{(\mathbf{x},y)\sim P_0}\big[-\log q(y\mid \mathbf{x})\big]
 \ge
@@ -444,7 +440,9 @@ The main limitations follow from this design. BDF depends on the chosen leaf fam
 
 Prediction-time cost is another practical limitation. BDF evaluates a mixture of per-tree predictive distributions rather than reading a scalar leaf value, and stabilizing a full predictive distribution can require more trees than stabilizing a mean. Caching leaf moments, distilling the mixture into a smaller parametric form, or evaluating fewer trees at inference are natural accelerations. Future work should also develop richer leaf families, hierarchical or adaptive priors, and stronger post-selection theory for greedy partitions.
 
-Because BDF is a general-purpose uncertainty estimator for tabular prediction, its main societal risks arise through downstream use rather than through the algorithm in isolation. Predictive uncertainty can support risk-aware decisions, but it does not remove dataset bias, privacy concerns, or the need for domain validation. High-stakes deployments should therefore pair BDF with task-specific evaluation, calibration checks on the deployment population, and appropriate human oversight.
+\section*{Broader Impact Statement}
+
+Because BDF is a general-purpose uncertainty estimator for tabular prediction, its main societal risks arise through downstream use rather than through the algorithm in isolation. Predictive uncertainty can support risk-aware decisions, but it does not remove dataset bias, privacy concerns, or the need for domain validation. In particular, our calibration diagnostics are computed on held-out folds of the training population, so a well-calibrated predictive distribution can still lend unwarranted confidence under deployment shift. High-stakes deployments should therefore pair BDF with task-specific evaluation, calibration checks on the deployment population, and appropriate human oversight.
 
 \newpage
 \bibliographystyle{tmlr}
@@ -632,7 +630,7 @@ p_\ell(y^\star\mid\mathcal{D}_\ell,h_\ell)
 \frac{1}{n_\ell h_\ell}\sum_{i=1}^{n_\ell}
 K\!\left(\frac{y^\star-y_i}{h_\ell}\right),
 \end{equation}
-with Gaussian or Epanechnikov kernels. The benchmark configuration uses the Gaussian kernel with the bandwidth rule tuned as a categorical over Scott and Silverman rules, evaluated under a parent-bandwidth policy in which candidate splits are scored with the parent leaf's bandwidth and the top three candidates are re-scored with child-specific bandwidths. More generally, bandwidth is either fixed, Scott/Silverman rule-of-thumb, or pseudo-Bayesian shrinkage toward a global bandwidth $h_0$:
+with Gaussian or Epanechnikov kernels. The benchmark configuration uses the Gaussian kernel with the bandwidth rule tuned as a categorical over the Scott \citep{scott1992multivariate} and Silverman \citep{silverman1986density} rules, evaluated under a parent-bandwidth policy in which candidate splits are scored with the parent leaf's bandwidth and the top three candidates are re-scored with child-specific bandwidths. More generally, bandwidth is either fixed, Scott/Silverman rule-of-thumb, or pseudo-Bayesian shrinkage toward a global bandwidth $h_0$:
 \begin{equation}\label{eq:kde_bandwidth_shrinkage}
 \log h_\ell^{\mathrm{post}}
 =

@@ -134,7 +134,7 @@ class TestNormalMuNormalMath:
         assert_close(params["posterior_sigma_mu"] ** 2, expected_var, rtol=RTOL_TIGHT)
 
     def test_log_evidence_formula(self):
-        """Log marginal likelihood matches analytical formula."""
+        """Log marginal likelihood matches the covariance-form marginal."""
         mu_mu, sigma_mu = 0.0, 1.0
         rng = np.random.default_rng(42)
         data = rng.normal(0, 1, 50)

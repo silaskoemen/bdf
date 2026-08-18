@@ -16,6 +16,10 @@ Tables~\ref{tab:rel-to-best-crps} and~\ref{tab:rankings-crpss} give the aggregat
 \input{../benchmarks/results/regression/tables/crps_per_dataset.tex}
 \end{landscape}
 
+Table~\ref{tab:ngboost-selection} records which NGBoost family fold-0 tuning selected on each dataset, including the Exponential fit on \texttt{forest\_fires} whose retained catastrophic held-out CRPS dominates that method's scale-sensitive average.
+
+\input{../benchmarks/results/regression/tables/ngboost_distribution_selection.tex}
+
 \input{../benchmarks/results/regression/tables/bdf_distribution_selection.tex}
 
 \begin{landscape}
@@ -47,9 +51,13 @@ Tables~\ref{tab:rel-to-best-crps} and~\ref{tab:rankings-crpss} give the aggregat
 
 \subsection{Classification benchmark details}\label{app:classification-additional}
 
-Tables~\ref{tab:rel-to-best-log-loss} and~\ref{tab:rankings-log-loss} back the log-loss summaries in Section~\ref{subsubsec:exp_classification}; Table~\ref{tab:rankings-brier} shows that the Brier-score ranking gives the same ordering at the top (LightGBM and BDF-Full within 0.25 average rank). Table~\ref{tab:classification-win-tie-loss} reports the Holm-corrected sign tests, and Figure~\ref{fig:classification-cd} the corresponding critical-difference diagrams on both scores.
+Tables~\ref{tab:rel-to-best-log-loss} and~\ref{tab:rankings-log-loss} back the log-loss summaries in Section~\ref{subsubsec:exp_classification}; Table~\ref{tab:rankings-brier} shows that the Brier-score ranking gives the same ordering at the top (LightGBM and BDF-Full within 0.25 average rank). Table~\ref{tab:classification-win-tie-loss} reports the Holm-corrected sign tests, and Figure~\ref{fig:classification-cd} the corresponding critical-difference diagrams on both scores. Table~\ref{tab:log-loss-per-dataset} gives the underlying per-dataset log-loss values with fold standard errors, mirroring the per-dataset CRPS table for regression.
 
 \input{../benchmarks/results/classification/tables/rel_to_best_log_loss.tex}
+
+\begin{landscape}
+\input{../benchmarks/results/classification/tables/log_loss_per_dataset.tex}
+\end{landscape}
 
 \input{../benchmarks/results/classification/tables/rankings_log_loss.tex}
 

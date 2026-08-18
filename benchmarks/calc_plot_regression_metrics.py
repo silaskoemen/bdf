@@ -66,8 +66,9 @@ BASELINE_MODELS = [
     "conflgbm",
     "confrf",
     "gaussian_de",
-    # "gp_reg",  # excluded from main aggregate: scaling/provenance limitations
-    # "pymc_bart",  # prohibitively expensive for adequate chains/draws; supplement only
+    # "gp_reg",  # excluded: no finite CRPS folds on 7 of the 11 datasets attempted
+    # "pymc_bart",  # excluded: completes 15/15 datasets, but chains=1 leaves the posterior
+    # unresolved -- a sampling limitation, not a completeness failure
     "qrf",
     "drf",  # distributional random forest (Cevid et al.) via R drf + rpy2; include after running result file
     "catbunc_reg",
@@ -94,6 +95,8 @@ BDF_VARIANT_META = {
     "bdf_gammamvlambdapoisson": {"family": "Gamma--Poisson", "conjugate": True},
     "bdf_kde": {"family": "KDE", "conjugate": False},
 }
+
+BDF_DEFAULT_FAMILY_LABEL = BDF_VARIANT_META[BDF_DEFAULT_DIST]["family"]
 
 
 def _render_split_score(variant_key: str, best_params: dict) -> str:
@@ -323,6 +326,7 @@ def main():
     student_t_deltas: list[float] = []
     student_t_bic = 0
     deltas: list[float] = []
+    contested_deltas: list[float] = []
     n_nmn_better = 0
     n_compared = 0
     for ds in sorted(bdf_selection_map):
@@ -342,6 +346,11 @@ def main():
         n_compared += 1
         if nmn_mean <= sel_mean:
             n_nmn_better += 1
+        # Datasets where tuning picked a different family are the only informative
+        # comparisons; the rest compare Normal--Normal against itself and contribute
+        # a structural 0.00%, which would deflate any summary taken over all datasets.
+        if BDF_DEFAULT_FAMILY_LABEL not in family_col.get(ds, ""):
+            contested_deltas.append(rel)
 
         nmn_score = _render_split_score(BDF_DEFAULT_DIST, nmn_ds.get("best_params", {}) or {})
         sel_score = split_score_col.get(ds, "--")
@@ -375,7 +384,7 @@ def main():
     gap_lines = [
         r"\begin{table}[htbp]",
         r"\centering",
-        r"\caption{CRPS gap between the conjugate Normal--Normal BDF variant and the variant actually selected by fold-0 tuning. Relative gap is $(\mathrm{CRPS}_{\text{N--N}} - \mathrm{CRPS}_{\text{selected}})/|\mathrm{CRPS}_{\text{selected}}|$; positive values indicate the conjugate variant is worse than the selected variant. Small gaps support the working theory that the architecture's tempered MDL-style split penalty, minimum-leaf-size constraint, ensembling, and distribution selection absorb most of the difference between the exact Bayesian split score and a plug-in surrogate.}",
+        r"\caption{CRPS gap between the conjugate Normal--Normal BDF variant and the variant actually selected by fold-0 tuning. Relative gap is $(\mathrm{CRPS}_{\text{N--N}} - \mathrm{CRPS}_{\text{selected}})/|\mathrm{CRPS}_{\text{selected}}|$; positive values indicate the conjugate variant is worse than the selected variant. Where the gaps are small, they are consistent with the architecture's tempered MDL-style split penalty, minimum-leaf-size constraint, ensembling, and distribution selection absorbing much of the difference between the exact Bayesian split score and a plug-in surrogate; the two double-digit cases show that leaf-family choice still matters on some datasets.}",
         r"\label{tab:bdf-conjugate-vs-selected-gap}",
         r"\begin{tabular}{lrlllrl}",
         r"\toprule",
@@ -389,11 +398,19 @@ def main():
         median_gap = float(np.median(deltas))
         mean_gap = float(np.mean(deltas))
         max_gap = float(np.max(deltas))
+        n_contested = len(contested_deltas)
+        n_self = n_compared - n_contested
         gap_summary = (
-            f"Across {n_compared} datasets the median relative gap is {median_gap:+.2f}\\%, "
-            f"the mean is {mean_gap:+.2f}\\%, and the worst case is {max_gap:+.2f}\\%; "
-            f"the conjugate Normal--Normal variant matches or beats the selected variant on "
-            f"{n_nmn_better}/{n_compared} datasets."
+            f"On {n_self}/{n_compared} datasets fold-0 tuning selected the Normal--Normal "
+            f"variant itself, so those rows compare the variant against itself and are "
+            f"structurally $+0.00\\%$. The informative comparison is over the "
+            f"{n_contested} datasets where a different family was selected: there the "
+            f"median relative gap is {float(np.median(contested_deltas)):+.2f}\\%, the mean is "
+            f"{float(np.mean(contested_deltas)):+.2f}\\%, and the worst case is "
+            f"{float(np.max(contested_deltas)):+.2f}\\%. Taken over all {n_compared} datasets "
+            f"the median is {median_gap:+.2f}\\%, the mean {mean_gap:+.2f}\\%, and the worst case "
+            f"{max_gap:+.2f}\\%; the conjugate Normal--Normal variant matches or beats the "
+            f"selected variant on {n_nmn_better}/{n_compared} datasets."
         )
     else:
         gap_summary = ""

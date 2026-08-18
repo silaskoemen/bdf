@@ -1,9 +1,69 @@
 \section{Experimental Setup and Reproducibility}\label{app:experimental-setup}
 
+\subsection{Code, Data, and Artifact Availability}\label{app:code-availability}
+
+The BDF implementation, the full benchmark harness, every model configuration, and the locked result artifacts backing all tables and figures in this paper are available at:
+
+\begin{center}
+\url{https://anonymous.4open.science/r/XXXXXXXX}
+\end{center}
+
+\noindent The repository is anonymized for review; a permanent archived release and the installable package will replace this link on acceptance.
+
+\paragraph{Environment.}
+Dependencies are managed with \texttt{pixi} and locked in \texttt{pixi.lock}, so the software environment is reproducible from the lockfile rather than from a loose requirements list. Two environments are used. The \emph{default} environment contains BDF and its core dependencies; the \emph{benchmark} environment additionally carries the heavier baseline libraries (LightGBM, CatBoost, NGBoost, XGBoostLSS, and the \texttt{rpy2} bridge to the R \texttt{drf} package), which are isolated because several of them impose mutually incompatible pins. Commands below are annotated with \texttt{-e benchmark} where that environment is required. The performance-critical split-search kernels are Rust extensions built through \texttt{maturin}; \texttt{pixi run setup} installs dependencies, builds the extension, and installs pre-commit hooks in one step.
+
+\paragraph{Protocol lock.}
+Real-data experiments use seed $1234$ with ten shuffled folds (\texttt{KFold} for regression, \texttt{StratifiedKFold} for classification); the main synthetic study uses seed $42$ with the same fold convention. Fold 0 is used only for tuning and folds 1--9 only for evaluation, as described in Appendix~\ref{app:benchmark-protocol}. Every result YAML records the invoking command, the git commit and dirty flag, the seed, the fold count, the tuning metric, the resolved model configuration, the selected hyperparameters, the per-fold metrics, and the dataset metadata, so each reported number is traceable to the run that produced it.
+
+\paragraph{Regeneration.}
+The following sequence reproduces the benchmark artifacts, tables, plots, and the manuscript from a clean checkout. Data acquisition and processing come first; the suite commands run the tuning and evaluation sweeps; the remaining commands rebuild the derived tables and figures consumed by \LaTeX.
+
+\begin{quote}
+\small
+\begin{verbatim}
+pixi install
+pixi run setup
+
+pixi run fetch-data
+pixi run process-data
+
+pixi run reg-suite
+pixi run -e benchmark reg-suite-models
+pixi run clas-suite
+pixi run -e benchmark clas-suite-models
+pixi run python -m benchmarks.make_revision_bdf_tables
+pixi run reg
+pixi run clas
+
+pixi run synth-study
+pixi run -e benchmark synth-study-models --models QRF --result-suffix forests
+pixi run -e benchmark synth-study-models --models DRF --result-suffix drf
+pixi run synth-output
+pixi run python -m benchmarks.make_synthetic_summary_table
+
+pixi run python -m benchmarks.factorial_evidence_study
+pixi run scoring-study
+pixi run complexity
+pixi run effect-params-reg
+pixi run effect-params-clas
+pixi run noise-study
+pixi run convergence
+pixi run ensemble-size-study
+pixi run conform
+
+pixi run paper
+pixi run tmlr-manifest
+\end{verbatim}
+\end{quote}
+
+\paragraph{Artifact manifest.}
+The final command regenerates \texttt{benchmarks/results/TMLR\_ARTIFACT\_MANIFEST.md}, which records the protocol lock above together with SHA-256 digests for every locked result YAML, every generated table snippet, every plot PDF consumed by the manuscript, and the compiled PDF itself. A reviewer or reader can therefore verify that the artifacts in the repository are exactly those that produced the submitted tables and figures, without re-running the sweeps. Re-running the full pipeline end-to-end is compute-intensive---dominated by $50$ Optuna trials per model configuration per dataset across 15 regression and 12 classification datasets---so the locked YAMLs are committed and the table- and plot-generating commands (\texttt{reg}, \texttt{clas}, \texttt{synth-output}, \texttt{paper}) run from them in minutes on a laptop.
+
 \subsection{Models}\label{app:experimental-setup-models}
 
 \subsubsection{Regression Models}\label{app:experimental-setup-reg-models}
-The regression benchmark compares BDF leaf families against probabilistic and calibrated tabular baselines. The locked BDF-Full regression aggregate selects among Normal--Normal, Student-$t$, KDE, and Gamma--Poisson leaves where compatible with the target domain; other implemented leaves are exploratory unless listed in Table~\ref{tab:bdf-leaf-regimes}. The submitted aggregate includes Bayesian ridge regression~\citep{bishop2006pattern}, NGBoost~\citep{duan2020ngboost}, XGBoostLSS~\citep{marz2019xgboostlss}, CatBoost with uncertainty, conformalized LightGBM/random-forest baselines, quantile-regression forests~\citep{meinshausen2006quantile}, distributional random forests~\citep{cevid2022distributional}, Gaussian density estimation, $k$NN-KDE, and a climatological reference model used for skill scores. Exact constructor settings and tuning ranges are specified in the YAML files under \texttt{benchmarks/configs/model/}; the result artifacts record the resolved configuration used for each run.
+The regression benchmark compares BDF leaf families against probabilistic and calibrated tabular baselines. The locked BDF-Full regression aggregate selects among Normal--Normal, Student-$t$, KDE, and Gamma--Poisson leaves where compatible with the target domain; other implemented leaves are exploratory unless listed in Table~\ref{tab:bdf-leaf-regimes}. The submitted aggregate includes Bayesian ridge regression~\citep{bishop2006pattern}, NGBoost~\citep{duan2020ngboost}, XGBoostLSS~\citep{marz2019xgboostlss}, CatBoost with uncertainty~\citep{dorogush2018catboost,malinin2021uncertainty}, conformalized LightGBM/random-forest baselines built on MAPIE~\citep{taquet2022mapie}, quantile-regression forests~\citep{meinshausen2006quantile}, distributional random forests~\citep{cevid2022distributional}, Gaussian deep ensembles~\citep{lakshminarayanan2017simple}, $k$NN-KDE, and a climatological reference model used for skill scores. Exact constructor settings and tuning ranges are specified in the YAML files under \texttt{benchmarks/configs/model/}; the result artifacts record the resolved configuration used for each run.
 
 Distributional random forests and likelihood-based distributional regression forests are closely related approaches for estimating conditional distributions using trees. We include DRF through the R \texttt{drf} package via an isolated \texttt{rpy2} worker process, because the available Python package is deprecated. XGBoostLSS is evaluated as a fused distributional-boosting baseline: Gaussian, Student-$t$, Laplace, and Gaussian-mixture variants are run under the same fold protocol and the variant selected on fold-0 tuning CRPS is used for each dataset. Variants with incomplete evaluation folds are excluded from this fused selection for that dataset. The incomplete XGBoostLSS metric vectors are: Gaussian on \texttt{yacht\_hydrodynamics} (8/9 CRPS folds), Student-$t$ on \texttt{energy\_efficiency} (8/9), Student-$t$ on \texttt{parkinsons\_updrs} (8/9), and Student-$t$ on \texttt{yacht\_hydrodynamics} (6/9). Laplace and Gaussian-mixture XGBoostLSS completed all 15 datasets with 9/9 evaluation folds.
 
@@ -40,11 +100,13 @@ Other implemented leaves & Not consumed by headline TMLR aggregates & Varies by 
 \end{landscape}
 
 \subsection{Benchmark Protocol}\label{app:benchmark-protocol}
-All real-data benchmarks use seed $1234$ and ten deterministic train/test folds. Hyperparameters are selected on fold 0 using Optuna with 50 trials and the task-appropriate proper score: CRPS for regression and log-loss for classification. The selected hyperparameters are then held fixed and evaluated on folds 1--9; tables report means and standard errors over these nine evaluation folds. For BDF, the Optuna search space includes the empirical-Bayes prior-scale hyperparameters jointly with $(\alpha,\delta,\gamma)$, $n_{\text{trees}}$, $\text{max\_depth}$, and $\text{min\_samples\_leaf}$; EB prior locations are fixed to training-fold moments (e.g.~$\mu_0 = \bar y_{\text{train}}$ for Normal--Normal). No information from folds 1--9 enters either the EB step or the Optuna objective: each trial fits BDF on a sub-split of fold 0 and scores on its complement, and the resolved configuration is then refit on fold 0 in full and frozen before fold-1--9 evaluation, ruling out leakage from held-out folds into priors or penalty parameters. To be unambiguous about the EB quantities during evaluation: the frozen configuration stores the \emph{tuned} prior-scale hyperparameters as numbers but keeps prior locations as \texttt{auto} markers, which the estimator re-resolves at fit time from the training partition of whichever fold is being fit. Each evaluation fold therefore recomputes its EB prior centers from its own training data only.
+All real-data benchmarks use seed $1234$ and ten deterministic train/test folds. Hyperparameters are selected on fold 0 using Optuna's TPE sampler \citep{akiba2019optuna} with 50 trials and the task-appropriate strictly proper score \citep{gneiting2007strictly}: CRPS for regression and log-loss for classification. The selected hyperparameters are then held fixed and evaluated on folds 1--9; tables report means and standard errors over these nine evaluation folds. For BDF, the Optuna search space includes the empirical-Bayes prior-scale hyperparameters jointly with $(\alpha,\delta,\gamma)$, $n_{\text{trees}}$, $\text{max\_depth}$, and $\text{min\_samples\_leaf}$; EB prior locations are fixed to training-fold moments (e.g.~$\mu_0 = \bar y_{\text{train}}$ for Normal--Normal). No information from folds 1--9 enters either the EB step or the Optuna objective: each trial fits BDF on a sub-split of fold 0 and scores on its complement, and the resolved configuration is then refit on fold 0 in full and frozen before fold-1--9 evaluation, ruling out leakage from held-out folds into priors or penalty parameters. To be unambiguous about the EB quantities during evaluation: the frozen configuration stores the \emph{tuned} prior-scale hyperparameters as numbers but keeps prior locations as \texttt{auto} markers, which the estimator re-resolves at fit time from the training partition of whichever fold is being fit. Each evaluation fold therefore recomputes its EB prior centers from its own training data only.
 
 The benchmark does not cap the number of training or test observations at 100 or 1000. Those constants refer to the number of predictive draws used by sample-based probabilistic metrics: during Optuna tuning, \texttt{tuning\_sample\_size}=100 predictive samples are drawn for CRPS to keep model selection affordable; during final evaluation, \texttt{sample\_size}=1000 predictive samples are drawn for CRPS, interval scores, coverage, and PIT diagnostics when a model exposes samples rather than analytic CDFs or quantiles. Methods with native quantile outputs, such as QRF, are evaluated on their quantile grid rather than by subsampling observations. Search spaces are defined in \texttt{benchmarks/configs/model/*.yaml}, and each result YAML records the resolved model configuration, dataset metadata, seed, fold count, tuning metric, tuning time, predictive-sample count, and fold-level metrics. New benchmark runs also record per-fold point and probabilistic prediction wall-clock times; the locked real-data YAMLs used for the current paper predate this instrumentation, so Table~\ref{tab:real-benchmark-timing} reports absolute fit/tune times and Table~\ref{tab:complexity} reports controlled prediction overhead.
 
-Failed folds or mathematically undefined predictions are not silently imputed. A candidate/dataset pair is eligible for a fused regression family only when both CRPS and RMSE contain nine finite evaluation-fold values; incomplete pairs are excluded rather than averaged over fewer folds. An audit of the locked real-data artifacts found complete reported folds for all included BDF, QRF, DRF, conformalized forest/boosting, CatBoost-UQ, Gaussian deep-ensemble, Bayesian-ridge, $k$NN-KDE, and classification result files. The incomplete XGBoostLSS and NGBoost candidates are listed above and recorded by the aggregation scripts as ineligible on the affected datasets. Partial BART and GP artifacts are retained for transparency but are not consumed by the main aggregate. The final regression aggregate includes BDF, QRF, DRF, fused XGBoostLSS, fused NGBoost, conformalized LightGBM/RF, CatBoost-UQ, Gaussian deep ensembles, Bayesian ridge, and $k$NN-KDE, plus a climatological reference for CRPSS normalization. The final classification aggregate includes BDF, RF, LightGBM, NGBoost, calibrated RF, calibrated LightGBM, and $k$NN.
+Failed folds or mathematically undefined predictions are not silently imputed. A candidate/dataset pair is eligible for a fused regression family only when both CRPS and RMSE contain nine finite evaluation-fold values; incomplete pairs are excluded rather than averaged over fewer folds. An audit of the locked real-data artifacts found complete reported folds for all included BDF, QRF, DRF, conformalized forest/boosting, CatBoost-UQ, Gaussian deep-ensemble, Bayesian-ridge, $k$NN-KDE, and classification result files. The incomplete XGBoostLSS and NGBoost candidates are listed above and recorded by the aggregation scripts as ineligible on the affected datasets. The Gaussian-process~\citep{williams2006gaussian} artifact is genuinely partial---it returns no finite CRPS folds on 7 of the 11 datasets attempted---and is retained for transparency but not consumed by any aggregate.
+
+The repository also contains a PyMC-BART~\citep{chipman2010bart} run over all 15 datasets. We do not report it: to keep the sweep tractable each fit used a single chain with 500 draws, which gives no between-chain convergence diagnostic, so the posterior is not resolved enough to attribute the resulting numbers to BART. A multi-chain comparison at this scale is left to future work. The final regression aggregate includes BDF, QRF, DRF, fused XGBoostLSS, fused NGBoost, conformalized LightGBM/RF, CatBoost-UQ, Gaussian deep ensembles, Bayesian ridge, and $k$NN-KDE, plus a climatological reference for CRPSS normalization. The final classification aggregate includes BDF, RF, LightGBM, NGBoost, calibrated RF, calibrated LightGBM, and $k$NN.
 
 Table~\ref{tab:compute-budget-selection} summarizes the model-selection budget used by the real-data and synthetic experiments. ``Per variant'' means one Optuna study per dataset and YAML model configuration. Aggregated families such as BDF-Full, XGBoostLSS, and NGBoost are formed only after those studies finish, by choosing the eligible variant with the best fold-0 tuning score for that dataset; fixed-regime BDF configs are used only for ablation tables and are not additional candidates in the BDF-Full aggregate.
 
@@ -150,11 +212,11 @@ titanic & Clas. & binary & 1043 & 8 & OpenML \\
 
 \subsection{Metric Implementation Details}\label{app:computational-setup-regression-metrics}\label{app:computational-setup-classification-metrics}
 
-The real-data regression ranking uses CRPS as the primary probabilistic score,
+The real-data regression ranking uses CRPS \citep{gneiting2007strictly} as the primary probabilistic score,
 \[
     \mathrm{CRPS}(F,y)=\int_{-\infty}^{\infty}\left(F(z)-\mathbf{1}\{y\le z\}\right)^2 dz.
 \]
-When a model exposes analytic quantiles or CDFs we use those outputs directly; when it exposes only predictive samples, the evaluation draws \texttt{sample\_size}=1000 samples and computes CRPS, PIT values, central intervals, empirical coverage, and interval scores from the pooled predictive samples. The central $(1-\alpha)$ interval score is
+When a model exposes analytic quantiles or CDFs we use those outputs directly; when it exposes only predictive samples, the evaluation draws \texttt{sample\_size}=1000 samples and computes CRPS, PIT values, central intervals, empirical coverage, and interval scores from the pooled predictive samples. The central $(1-\alpha)$ interval score \citep{gneiting2007strictly} is
 \[
     (u-l) + \frac{2}{\alpha}(l-y)\mathbf{1}\{y<l\}
     + \frac{2}{\alpha}(y-u)\mathbf{1}\{y>u\}.

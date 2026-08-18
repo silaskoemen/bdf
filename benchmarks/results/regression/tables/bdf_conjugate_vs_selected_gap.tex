@@ -1,6 +1,6 @@
 \begin{table}[htbp]
 \centering
-\caption{CRPS gap between the conjugate Normal--Normal BDF variant and the variant actually selected by fold-0 tuning. Relative gap is $(\mathrm{CRPS}_{\text{N--N}} - \mathrm{CRPS}_{\text{selected}})/|\mathrm{CRPS}_{\text{selected}}|$; positive values indicate the conjugate variant is worse than the selected variant. Small gaps support the working theory that the architecture's tempered MDL-style split penalty, minimum-leaf-size constraint, ensembling, and distribution selection absorb most of the difference between the exact Bayesian split score and a plug-in surrogate.}
+\caption{CRPS gap between the conjugate Normal--Normal BDF variant and the variant actually selected by fold-0 tuning. Relative gap is $(\mathrm{CRPS}_{\text{N--N}} - \mathrm{CRPS}_{\text{selected}})/|\mathrm{CRPS}_{\text{selected}}|$; positive values indicate the conjugate variant is worse than the selected variant. Where the gaps are small, they are consistent with the architecture's tempered MDL-style split penalty, minimum-leaf-size constraint, ensembling, and distribution selection absorbing much of the difference between the exact Bayesian split score and a plug-in surrogate; the two double-digit cases show that leaf-family choice still matters on some datasets.}
 \label{tab:bdf-conjugate-vs-selected-gap}
 \begin{tabular}{lrlllrl}
 \toprule
@@ -23,5 +23,5 @@ wine\_quality & 0.2756 & NLL+BIC & Student-$t$ & 0.2650 & NLL & +4.00\% \\
 yacht\_hydrodynamics & 0.4647 & NLL+BIC & Student-$t$ & 0.4514 & NLL+BIC & +2.94\% \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Across 15 datasets the median relative gap is +0.81\%, the mean is +2.39\%, and the worst case is +10.07\%; the conjugate Normal--Normal variant matches or beats the selected variant on 6/15 datasets.}
+\par\smallskip\footnotesize{On 6/15 datasets fold-0 tuning selected the Normal--Normal variant itself, so those rows compare the variant against itself and are structurally $+0.00\%$. The informative comparison is over the 9 datasets where a different family was selected: there the median relative gap is +2.94\%, the mean is +3.98\%, and the worst case is +10.07\%. Taken over all 15 datasets the median is +0.81\%, the mean +2.39\%, and the worst case +10.07\%; the conjugate Normal--Normal variant matches or beats the selected variant on 6/15 datasets.}
 \end{table}

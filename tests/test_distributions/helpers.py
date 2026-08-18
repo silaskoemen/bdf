@@ -165,24 +165,14 @@ def reference_normal_posterior_variance(data: np.ndarray, sigma_mu: float) -> fl
 def reference_normal_log_evidence(data: np.ndarray, mu_mu: float, sigma_mu: float) -> float:
     """Reference implementation for Normal-Normal log evidence.
 
-    Uses scipy for numerical integration as ground truth.
+    Evaluates the independently derived multivariate-Normal marginal
+    y ~ N(mu_mu 1, sample_var I + sigma_mu^2 11').
     """
     n = len(data)
-    sample_mean = np.mean(data)
     sample_var = np.var(data, ddof=1) if n > 1 else 0.0
-
-    # Marginal variance of sample mean
-    marginal_var = (sample_var / n) + sigma_mu**2
-
-    # Log evidence for sample mean
-    log_ev = -0.5 * np.log(2 * np.pi * marginal_var)
-    log_ev -= 0.5 * (sample_mean - mu_mu) ** 2 / marginal_var
-
-    # Log evidence for deviations from mean (independent of prior)
-    if n > 1:
-        log_ev -= 0.5 * (n - 1) * (1 + np.log(2 * np.pi * sample_var))
-
-    return log_ev
+    mean = np.full(n, mu_mu)
+    covariance = sample_var * np.eye(n) + sigma_mu**2 * np.ones((n, n))
+    return float(stats.multivariate_normal.logpdf(data, mean=mean, cov=covariance, allow_singular=True))
 
 
 def reference_plugin_log_likelihood(data: np.ndarray, mu: float, sigma: float) -> np.ndarray:

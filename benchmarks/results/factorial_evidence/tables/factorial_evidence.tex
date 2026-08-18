@@ -3,6 +3,7 @@
 \small
 \caption{Factorial evidence study on synthetic DGPs: held-out CRPS and negative log predictive density (NLL) by leaf specification, training size, split-score regime, and ensemble size. Means over 10 seeds; bold marks the best score regime within each (DGP, $n$, leaf, $M$) block.}
 \label{tab:factorial-evidence}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{llllcccccc}
 \toprule
  & & & & \multicolumn{3}{c}{Single tree ($M{=}1$)} & \multicolumn{3}{c}{Forest ($M{=}50$)} \\
@@ -33,6 +34,7 @@ Student-$t_3$ noise & 3000 & Normal (misspecified) & NLE & 0.490 & 1.790 & 148 &
 Student-$t_3$ noise & 3000 & Student-$t$ (correct) & NLL+BIC & \textbf{0.468} & \textbf{1.414} & 106 & 0.441 & 1.185 & 119 \\
  & & & NLL & 0.482 & 1.721 & 233 & \textbf{0.426} & \textbf{1.154} & 175 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \par\smallskip\footnotesize{All non-score hyperparameters are fixed at the public estimator defaults; single trees disable bootstrap and row/feature subsampling. NLL is the exact negative log density of the uniform tree mixture. `Leaves' is the mean leaf count per tree.}
 \end{table}

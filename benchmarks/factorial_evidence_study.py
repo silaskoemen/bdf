@@ -188,6 +188,9 @@ def make_table(df: pd.DataFrame) -> str:
         r" density (NLL) by leaf specification, training size, split-score regime, and ensemble size."
         r" Means over 10 seeds; bold marks the best score regime within each (DGP, $n$, leaf, $M$) block.}",
         r"\label{tab:factorial-evidence}",
+        # The 10-column body overruns \textwidth by ~25pt at \small; box it so the
+        # table scales to the margin instead of emitting an overfull \hbox.
+        r"\resizebox{\textwidth}{!}{%",
         r"\begin{tabular}{llllcccccc}",
         r"\toprule",
         r" & & & & \multicolumn{3}{c}{Single tree ($M{=}1$)} & \multicolumn{3}{c}{Forest ($M{=}50$)} \\",
@@ -226,7 +229,8 @@ def make_table(df: pd.DataFrame) -> str:
             lines.append(row_head + " & " + " & ".join(cells_out) + r" \\")
     lines += [
         r"\bottomrule",
-        r"\end{tabular}",
+        r"\end{tabular}%",
+        r"}",
         r"\par\smallskip\footnotesize{All non-score hyperparameters are fixed at the public estimator"
         r" defaults; single trees disable bootstrap and row/feature subsampling. NLL is the exact"
         r" negative log density of the uniform tree mixture. `Leaves' is the mean leaf count per tree.}",

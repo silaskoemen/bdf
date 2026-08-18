@@ -139,8 +139,10 @@ impl DistributionPrimitives for NormalMuNormal {
 
         let marginal_var = (sample_var / n) + self.sigma_mu * self.sigma_mu;
 
+        // Density of the unit-length mean coordinate sqrt(n) * sample_mean.
         let log_ev_mean = -0.5 * (2.0 * PI * marginal_var).ln()
-                          - 0.5 * (sample_mean - self.mu_mu).powi(2) / marginal_var;
+                          - 0.5 * (sample_mean - self.mu_mu).powi(2) / marginal_var
+                          - 0.5 * n.ln();
 
         // The data terms relative to the sample mean (independent of Mu)
         // When sample_var=0 (constant data), residuals are all zero → term vanishes
@@ -166,8 +168,10 @@ impl DistributionPrimitives for NormalMuNormal {
 
         let marginal_var = (sample_var / n) + self.sigma_mu * self.sigma_mu;
 
+        // Density of the unit-length mean coordinate sqrt(n) * sample_mean.
         let log_ev_mean = -0.5 * (2.0 * PI * marginal_var).ln()
-                          - 0.5 * (sample_mean - self.mu_mu).powi(2) / marginal_var;
+                          - 0.5 * (sample_mean - self.mu_mu).powi(2) / marginal_var
+                          - 0.5 * n.ln();
 
         // The data terms relative to the sample mean (independent of Mu)
         // When sample_var=0 (constant data), residuals are all zero → term vanishes

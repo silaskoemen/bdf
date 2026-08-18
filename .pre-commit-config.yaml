@@ -36,7 +36,7 @@ repos:
       #   types: [python]
       - id: ty
         name: ty
-        entry: ty check src --ignore unresolved-import
+        entry: pixi run ty check src --ignore unresolved-import
         language: system
         types: [python]
         exclude: ^(examples|tests|benchmarks)/
