@@ -7,15 +7,16 @@
 Dataset & Leaf family & Split score & Sel.\ CRPS & N--N gap \\
 \midrule
 combined\_cycle\_power\_plant & Student-$t$ & NLL & 1.6418 & +0.81\% \\
-concrete\_strength & Student-$t$ & NLL+BIC & 2.8019 & +0.78\% \\
-energy\_efficiency & Student-$t$ & NLL+BIC & 0.2646 & +10.07\% \\
+concrete\_strength & Student-$t$ & NLL+BIC & 2.8019 & +0.76\% \\
+energy\_efficiency & Student-$t$ & NLL+BIC & 0.2646 & +10.10\% \\
+forest\_fires & Student-$t$ & NLL & 0.7559 & -1.27\% \\
+kin8nm & Student-$t$ & NLL+BIC & 0.0776 & +0.41\% \\
 naval\_propulsion & Student-$t$ & NLL & 0.0005 & +3.29\% \\
 parkinsons\_updrs & Student-$t$ & NLL+BIC & 0.3129 & +9.00\% \\
-protein\_tertiary\_structure & Student-$t$ & NLL & 1.4803 & +2.76\% \\
-superconductor & Student-$t$ & NLL+BIC & 3.5738 & +2.14\% \\
-wine\_quality & Student-$t$ & NLL & 0.2650 & +4.00\% \\
-yacht\_hydrodynamics & Student-$t$ & NLL+BIC & 0.4514 & +2.94\% \\
+protein\_tertiary\_structure & Student-$t$ & NLL & 1.4803 & +3.14\% \\
+superconductor & Student-$t$ & NLL+BIC & 3.5738 & +1.52\% \\
+yacht\_hydrodynamics & Student-$t$ & NLL+BIC & 0.4514 & +2.99\% \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Among the 9 datasets whose selected BDF variant uses Student-$t$ leaves, NLL+BIC is selected on 5/9 and pure NLL on 4/9. The median Normal--Normal-to-selected CRPS gap is +2.94\% (mean +3.98\%). This is stability evidence for the non-conjugate approximation story rather than an exact-reference validation: closed-form Student-$t$ evidence is unavailable in this implementation.}
+\par\smallskip\footnotesize{Among the 10 datasets whose selected BDF variant uses Student-$t$ leaves, NLL+BIC is selected on 6/10 and pure NLL on 4/10. The median Normal--Normal-to-selected CRPS gap is +2.26\% (mean +3.07\%). This is stability evidence for the non-conjugate approximation story rather than an exact-reference validation: closed-form Student-$t$ evidence is unavailable in this implementation.}
 \end{table}

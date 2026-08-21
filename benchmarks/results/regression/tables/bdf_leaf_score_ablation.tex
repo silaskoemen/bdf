@@ -6,11 +6,11 @@
 \toprule
 Leaf family & Split score & Exact Bayes? & Ablation-set rel. CRPS & IS90 rank & Cov@90 & $n$ \\
 \midrule
-Normal--Normal & NLE & Yes & 1.071 & 3.40 & 0.945 & 15 \\
-Normal--Normal & NLL & No & 1.019 & 2.93 & 0.947 & 15 \\
-Normal--Normal & NLL+BIC & No & \textbf{1.018} & 3.47 & 0.949 & 15 \\
-Student-$t$ & NLL & No & 1.023 & \textbf{2.20} & 0.941 & 15 \\
-Student-$t$ & NLL+BIC & No & 1.020 & 3.00 & 0.943 & 15 \\
+Normal--Normal & NLE & Yes & 1.034 & 3.40 & 0.949 & 15 \\
+Normal--Normal & NLL & No & 1.027 & 2.93 & 0.947 & 15 \\
+Normal--Normal & NLL+BIC & No & \textbf{1.026} & 3.40 & 0.949 & 15 \\
+Student-$t$ & NLL & No & 1.032 & \textbf{2.20} & 0.941 & 15 \\
+Student-$t$ & NLL+BIC & No & 1.029 & 3.07 & 0.943 & 15 \\
 \bottomrule
 \end{tabular}
 \par\smallskip\footnotesize{Student-$t$ rows use MoM-fitted plug-in leaves. The BIC row is therefore a BIC-style complexity correction rather than an exact Laplace evidence calculation. No datasets were dropped by the common-metric filter.}

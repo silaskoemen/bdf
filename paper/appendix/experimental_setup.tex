@@ -89,7 +89,7 @@ Two regression defaults are useful for different goals. The public \texttt{BDFRe
 Leaf family / config & Submitted role & Score regimes & Fitting and Bayesian status \\
 \midrule
 Normal--Normal (\texttt{bdf\_normalmunormal}) & Regression BDF-Full candidate; fixed-NLE Core reference & NLE, NLL+BIC, NLL & Exact Normal mean update conditional on leaf-local plug-in variance; EB prior location/scale from training/tuning data \\
-Student-$t$ (\texttt{bdf\_freqstudentt}) & Regression BDF-Full candidate; selected on 9/15 datasets & NLL+BIC, NLL & Method-of-moments plug-in predictive density; BIC is a complexity correction, not exact evidence \\
+Student-$t$ (\texttt{bdf\_freqstudentt}) & Regression BDF-Full candidate; selected on 10/15 datasets & NLL+BIC, NLL & Method-of-moments plug-in predictive density; BIC is a complexity correction, not exact evidence \\
 KDE (\texttt{bdf\_kde}) & Regression BDF-Full candidate; used in synthetic shape diagnostics & LOO-CV score, NLL & Kernel density with selected bandwidth; no closed-form evidence in the current implementation \\
 Gamma--Poisson (\texttt{bdf\_gammamvlambdapoisson}) & Compatible count/positive-target regression BDF-Full candidate & NLE, NLL+BIC, NLL & Conjugate Gamma--Poisson update where the count likelihood is appropriate; filtered by target-domain metadata \\
 Beta--Bernoulli (\texttt{bdf\_betamvbernoulli}) & Binary classification BDF-Full; fixed-NLE Core reference & NLE, NLL+BIC, NLL & Exact conjugate Bernoulli probability update with EB class-frequency prior \\

@@ -13,15 +13,15 @@ california\_housing & normalmunormal & Normal--Normal & Yes & NLL+BIC \\
 combined\_cycle\_power\_plant & freqstudentt & Student-$t$ & No & NLL \\
 concrete\_strength & freqstudentt & Student-$t$ & No & NLL+BIC \\
 energy\_efficiency & freqstudentt & Student-$t$ & No & NLL+BIC \\
-forest\_fires & normalmunormal & Normal--Normal & Yes & NLL \\
-kin8nm & normalmunormal & Normal--Normal & Yes & NLE \\
+forest\_fires & freqstudentt & Student-$t$ & No & NLL \\
+kin8nm & freqstudentt & Student-$t$ & No & NLL+BIC \\
 naval\_propulsion & freqstudentt & Student-$t$ & No & NLL \\
 parkinsons\_updrs & freqstudentt & Student-$t$ & No & NLL+BIC \\
 protein\_tertiary\_structure & freqstudentt & Student-$t$ & No & NLL \\
 superconductor & freqstudentt & Student-$t$ & No & NLL+BIC \\
-wine\_quality & freqstudentt & Student-$t$ & No & NLL \\
+wine\_quality & normalmunormal & Normal--Normal & Yes & NLL+BIC \\
 yacht\_hydrodynamics & freqstudentt & Student-$t$ & No & NLL+BIC \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Selection based on CRPS from the pre-specified fold-0 tuning split; counts are descriptive rather than repeated-split selection-probability estimates. Conjugate leaves selected on 6/15 datasets; NLE selected on 1/15; NLL+BIC selected on 7/15; the remaining 7/15 use plug-in NLL with the architecture-level regularizers in Eq.~\eqref{eq:net_gain} only.}
+\par\smallskip\footnotesize{Selection based on CRPS from the pre-specified fold-0 tuning split; counts are descriptive rather than repeated-split selection-probability estimates. Conjugate leaves selected on 5/15 datasets; NLE selected on 0/15; NLL+BIC selected on 9/15; the remaining 6/15 use plug-in NLL with the architecture-level regularizers in Eq.~\eqref{eq:net_gain} only.}
 \end{table}

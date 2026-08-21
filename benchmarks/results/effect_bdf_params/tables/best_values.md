@@ -2,19 +2,19 @@
 
 | Parameter        | DGP             |   Best Value |   Best CRPS |   Default CRPS |   Improvement (%) |
 |:-----------------|:----------------|-------------:|------------:|---------------:|------------------:|
-| alpha            | friedman1       |        0.01  |      1.2726 |         1.2726 |               0   |
-| alpha            | friedman2       |        0     |     20.9149 |        20.9165 |               0   |
-| alpha            | friedman3       |        0.5   |      0.0747 |         0.0747 |               0   |
-| alpha            | make_regression |        0.5   |     23.8785 |        23.8874 |               0   |
-| gamma            | friedman1       |        0.1   |      1.2726 |         1.2726 |               0   |
-| gamma            | friedman2       |        0     |     20.9089 |        20.9165 |               0   |
-| gamma            | friedman3       |        0.1   |      0.0747 |         0.0747 |               0   |
-| gamma            | make_regression |        0.01  |     23.8829 |        23.8874 |               0   |
-| delta            | friedman1       |        0.01  |      1.2726 |         1.2726 |               0   |
-| delta            | friedman2       |        0.001 |     20.9123 |        20.9165 |               0   |
-| delta            | friedman3       |        0.1   |      0.0747 |         0.0747 |               0   |
-| delta            | make_regression |        0.1   |     23.8701 |        23.8874 |               0.1 |
-| min_samples_leaf | friedman1       |        5     |      1.2416 |         1.2726 |               2.4 |
-| min_samples_leaf | friedman2       |        5     |     17.1616 |        20.9165 |              18   |
-| min_samples_leaf | friedman3       |        5     |      0.0723 |         0.0747 |               3.3 |
-| min_samples_leaf | make_regression |        5     |     22.5512 |        23.8872 |               5.6 |
+| alpha            | friedman1       |        0.1   |      1.2739 |         1.2744 |               0   |
+| alpha            | friedman2       |        0     |     20.9691 |        20.9711 |               0   |
+| alpha            | friedman3       |        0     |      0.0747 |         0.0747 |               0   |
+| alpha            | make_regression |        0.5   |     23.865  |        23.8718 |               0   |
+| gamma            | friedman1       |        0.001 |      1.2726 |         1.2744 |               0.1 |
+| gamma            | friedman2       |        0     |     20.9523 |        20.9711 |               0.1 |
+| gamma            | friedman3       |        0.001 |      0.0747 |         0.0747 |               0   |
+| gamma            | make_regression |        0.001 |     23.8389 |        23.8718 |               0.1 |
+| delta            | friedman1       |        0.01  |      1.2744 |         1.2744 |               0   |
+| delta            | friedman2       |        0     |     20.9637 |        20.9711 |               0   |
+| delta            | friedman3       |        0.001 |      0.0747 |         0.0747 |               0   |
+| delta            | make_regression |        0.001 |     23.8693 |        23.8716 |               0   |
+| min_samples_leaf | friedman1       |        5     |      1.2394 |         1.2744 |               2.7 |
+| min_samples_leaf | friedman2       |        5     |     17.2907 |        20.9711 |              17.5 |
+| min_samples_leaf | friedman3       |        5     |      0.0723 |         0.0747 |               3.2 |
+| min_samples_leaf | make_regression |        5     |     22.5621 |        23.8718 |               5.5 |

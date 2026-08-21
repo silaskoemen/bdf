@@ -10,27 +10,27 @@
 \cmidrule(lr){5-7}\cmidrule(lr){8-10}
 DGP & $n$ & Leaf (spec.) & Score & CRPS & NLL & Leaves & CRPS & NLL & Leaves \\
 \midrule
-Gaussian noise & 300 & Normal (correct) & NLE & 0.442 & 1.331 & 21 & 0.381 & 1.073 & 16 \\
+Gaussian noise & 300 & Normal (correct) & NLE & 0.446 & 1.326 & 19 & 0.384 & 1.078 & 15 \\
  & & & NLL+BIC & 0.439 & 1.300 & 23 & 0.380 & 1.073 & 17 \\
  & & & NLL & \textbf{0.436} & \textbf{1.278} & 23 & \textbf{0.374} & \textbf{1.060} & 18 \\
 Gaussian noise & 300 & Student-$t$ (over-flexible) & NLL+BIC & \textbf{0.432} & \textbf{1.285} & 21 & \textbf{0.378} & \textbf{1.071} & 16 \\
  & & & NLL & 0.434 & 1.322 & 23 & 0.387 & 1.081 & 17 \\
 \midrule
-Gaussian noise & 3000 & Normal (correct) & NLE & 0.326 & \textbf{0.990} & 133 & 0.296 & \textbf{0.788} & 123 \\
+Gaussian noise & 3000 & Normal (correct) & NLE & 0.327 & \textbf{0.955} & 108 & 0.296 & \textbf{0.787} & 103 \\
  & & & NLL+BIC & 0.326 & 1.025 & 200 & 0.295 & 0.792 & 165 \\
  & & & NLL & \textbf{0.325} & 1.062 & 232 & \textbf{0.294} & 0.789 & 174 \\
 Gaussian noise & 3000 & Student-$t$ (over-flexible) & NLL+BIC & \textbf{0.325} & \textbf{0.962} & 121 & 0.295 & \textbf{0.786} & 122 \\
  & & & NLL & 0.327 & 1.082 & 230 & \textbf{0.294} & 0.787 & 174 \\
 \midrule
-Student-$t_3$ noise & 300 & Normal (misspecified) & NLE & 0.567 & 1.956 & 20 & 0.500 & 1.357 & 16 \\
+Student-$t_3$ noise & 300 & Normal (misspecified) & NLE & 0.569 & 1.920 & 18 & 0.502 & 1.364 & 15 \\
  & & & NLL+BIC & \textbf{0.563} & \textbf{1.855} & 23 & \textbf{0.487} & \textbf{1.325} & 17 \\
  & & & NLL & 0.572 & 2.454 & 24 & 0.496 & 1.340 & 18 \\
 Student-$t_3$ noise & 300 & Student-$t$ (correct) & NLL+BIC & 0.571 & 1.681 & 19 & 0.508 & \textbf{1.350} & 16 \\
  & & & NLL & \textbf{0.559} & \textbf{1.651} & 23 & \textbf{0.506} & 1.351 & 17 \\
 \midrule
-Student-$t_3$ noise & 3000 & Normal (misspecified) & NLE & 0.490 & 1.790 & 148 & 0.433 & 1.184 & 133 \\
+Student-$t_3$ noise & 3000 & Normal (misspecified) & NLE & 0.489 & \textbf{1.685} & 116 & 0.432 & 1.183 & 111 \\
  & & & NLL+BIC & 0.484 & 1.825 & 212 & 0.443 & 1.250 & 168 \\
- & & & NLL & \textbf{0.473} & \textbf{1.719} & 233 & \textbf{0.426} & \textbf{1.172} & 174 \\
+ & & & NLL & \textbf{0.473} & 1.719 & 233 & \textbf{0.426} & \textbf{1.172} & 174 \\
 Student-$t_3$ noise & 3000 & Student-$t$ (correct) & NLL+BIC & \textbf{0.468} & \textbf{1.414} & 106 & 0.441 & 1.185 & 119 \\
  & & & NLL & 0.482 & 1.721 & 233 & \textbf{0.426} & \textbf{1.154} & 175 \\
 \bottomrule

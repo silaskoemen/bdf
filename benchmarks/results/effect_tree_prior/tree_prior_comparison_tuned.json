@@ -67,824 +67,824 @@
     ],
     "tuned_params": {
       "friedman1_linear": {
-        "alpha": 0.7762120319752454,
-        "delta": 1.0714845538373178e-05,
-        "best_crps": 1.0225471510016826
+        "alpha": 0.14528246637516026,
+        "delta": 0.00011526449540315612,
+        "best_crps": 1.0181063605773863
       },
       "friedman1_defer": {
-        "alpha": 0.5289837224719315,
-        "delta": 0.8708967697396923,
-        "best_crps": 1.02438762563327
+        "alpha": 0.6124614106306879,
+        "delta": 0.9882443249142756,
+        "best_crps": 1.0200632789549366
       },
       "friedman1_bernoulli": {
-        "alpha": 0.6984078277192283,
-        "delta": 0.9428349271425249,
-        "best_crps": 1.0227061284381087
+        "alpha": 0.7899910178411725,
+        "delta": 0.9057394375899764,
+        "best_crps": 1.0187855134691586
       },
       "friedman2_linear": {
-        "alpha": 6.0268891286825045e-05,
-        "delta": 6.025215736203858e-05,
-        "best_crps": 115.5093022237872
+        "alpha": 0.005449280398972803,
+        "delta": 0.0009167785859319845,
+        "best_crps": 117.5574022679524
       },
       "friedman2_defer": {
         "alpha": 0.9924559039546808,
         "delta": 0.9864547132552175,
-        "best_crps": 115.38301973887548
+        "best_crps": 115.43886072259365
       },
       "friedman2_bernoulli": {
         "alpha": 0.9924559039546808,
         "delta": 0.9864547132552175,
-        "best_crps": 115.03539701006419
+        "best_crps": 115.2025486428428
       },
       "friedman3_linear": {
-        "alpha": 0.53171966339821,
-        "delta": 1.0714845538373178e-05,
-        "best_crps": 0.06145032496679268
+        "alpha": 0.10990063276515033,
+        "delta": 0.00010535988567748919,
+        "best_crps": 0.061687432724611524
       },
       "friedman3_defer": {
-        "alpha": 0.7884821814684375,
-        "delta": 0.907821667801441,
-        "best_crps": 0.06146136555688128
+        "alpha": 0.9039798802582042,
+        "delta": 0.9892512726997328,
+        "best_crps": 0.06157383487677555
       },
       "friedman3_bernoulli": {
-        "alpha": 0.6868955193048338,
-        "delta": 0.9461357327048254,
-        "best_crps": 0.06145150321092498
+        "alpha": 0.6734690818177949,
+        "delta": 0.9863090242115395,
+        "best_crps": 0.061527929303630456
       },
       "make_regression_linear": {
-        "alpha": 0.0019382842175769642,
-        "delta": 0.0002747136449155414,
-        "best_crps": 22.66667688537639
+        "alpha": 0.2793524960211007,
+        "delta": 3.8534332837831915e-05,
+        "best_crps": 22.9861181670996
       },
       "make_regression_defer": {
-        "alpha": 0.8708142242557255,
-        "delta": 0.8655720552605489,
-        "best_crps": 22.46867230695289
+        "alpha": 0.6868955193048338,
+        "delta": 0.9461357327048254,
+        "best_crps": 22.756274389731587
       },
       "make_regression_bernoulli": {
-        "alpha": 0.8356405512053454,
-        "delta": 0.9886827510659728,
-        "best_crps": 22.251645881480787
+        "alpha": 0.8671170370384809,
+        "delta": 0.9864078329600147,
+        "best_crps": 22.337160104869216
       }
     }
   },
-  "timestamp": "2026-02-08T17:33:27.403207",
+  "timestamp": "2026-08-20T09:38:55.174921",
   "results": [
     {
       "dgp": "friedman1",
       "seed": 42,
       "tree_prior_mode": "linear",
-      "alpha": 0.7762120319752454,
-      "delta": 1.0714845538373178e-05,
+      "alpha": 0.14528246637516026,
+      "delta": 0.00011526449540315612,
       "metrics": {
-        "rmse": 1.729298671084504,
-        "mae": 1.353955684229421,
-        "crps": 0.9938388032161345,
-        "interval_score_90": 8.030768413118388,
-        "coverage_50": 0.602,
-        "coverage_90": 0.962,
-        "coverage_95": 0.982
-      },
-      "tree_stats": {
-        "avg_depth": 18.46,
-        "std_depth": 1.4589036979869507,
-        "max_depth": 21.0,
-        "min_depth": 16.0,
-        "avg_nodes": 1054.0,
-        "std_nodes": 13.085870242364471,
-        "max_nodes": 1077.0,
-        "min_nodes": 1007.0
-      },
-      "fit_time": 3.0905470848083496
-    },
-    {
-      "dgp": "friedman1",
-      "seed": 43,
-      "tree_prior_mode": "linear",
-      "alpha": 0.7762120319752454,
-      "delta": 1.0714845538373178e-05,
-      "metrics": {
-        "rmse": 1.6553762489458101,
-        "mae": 1.2926090371292511,
-        "crps": 0.9587423455610683,
-        "interval_score_90": 7.811365834933974,
-        "coverage_50": 0.621,
-        "coverage_90": 0.969,
-        "coverage_95": 0.988
-      },
-      "tree_stats": {
-        "avg_depth": 18.48,
-        "std_depth": 1.486472334084964,
-        "max_depth": 25.0,
-        "min_depth": 16.0,
-        "avg_nodes": 1054.64,
-        "std_nodes": 12.659794627086178,
-        "max_nodes": 1079.0,
-        "min_nodes": 1027.0
-      },
-      "fit_time": 2.403611898422241
-    },
-    {
-      "dgp": "friedman1",
-      "seed": 44,
-      "tree_prior_mode": "linear",
-      "alpha": 0.7762120319752454,
-      "delta": 1.0714845538373178e-05,
-      "metrics": {
-        "rmse": 1.7342130995309157,
-        "mae": 1.3711620846986192,
-        "crps": 1.0062448862870088,
-        "interval_score_90": 7.981870346188348,
-        "coverage_50": 0.585,
-        "coverage_90": 0.967,
-        "coverage_95": 0.989
-      },
-      "tree_stats": {
-        "avg_depth": 18.64,
-        "std_depth": 1.2451505933018705,
-        "max_depth": 23.0,
-        "min_depth": 16.0,
-        "avg_nodes": 1051.56,
-        "std_nodes": 13.278795126064715,
-        "max_nodes": 1077.0,
-        "min_nodes": 1027.0
-      },
-      "fit_time": 2.361415147781372
-    },
-    {
-      "dgp": "friedman1",
-      "seed": 45,
-      "tree_prior_mode": "linear",
-      "alpha": 0.7762120319752454,
-      "delta": 1.0714845538373178e-05,
-      "metrics": {
-        "rmse": 1.6653786459062025,
-        "mae": 1.3131070382575918,
-        "crps": 0.9742990321943501,
-        "interval_score_90": 8.023277018447173,
-        "coverage_50": 0.618,
-        "coverage_90": 0.966,
+        "rmse": 1.7302264211337324,
+        "mae": 1.3449301287311342,
+        "crps": 0.9930941509269822,
+        "interval_score_90": 8.075344176056143,
+        "coverage_50": 0.608,
+        "coverage_90": 0.96,
         "coverage_95": 0.983
       },
       "tree_stats": {
-        "avg_depth": 18.78,
-        "std_depth": 1.3898201322473351,
-        "max_depth": 23.0,
-        "min_depth": 16.0,
-        "avg_nodes": 1049.16,
-        "std_nodes": 15.893847866391575,
-        "max_nodes": 1085.0,
-        "min_nodes": 999.0
-      },
-      "fit_time": 2.3911569118499756
-    },
-    {
-      "dgp": "friedman1",
-      "seed": 46,
-      "tree_prior_mode": "linear",
-      "alpha": 0.7762120319752454,
-      "delta": 1.0714845538373178e-05,
-      "metrics": {
-        "rmse": 1.8174854984593398,
-        "mae": 1.43158607535214,
-        "crps": 1.0443293001755891,
-        "interval_score_90": 8.144501653817946,
-        "coverage_50": 0.57,
-        "coverage_90": 0.944,
-        "coverage_95": 0.977
-      },
-      "tree_stats": {
-        "avg_depth": 18.34,
-        "std_depth": 1.6566230711903056,
-        "max_depth": 22.0,
-        "min_depth": 15.0,
-        "avg_nodes": 1052.6,
-        "std_nodes": 13.734627770711516,
-        "max_nodes": 1085.0,
-        "min_nodes": 1023.0
-      },
-      "fit_time": 2.327651023864746
-    },
-    {
-      "dgp": "friedman1",
-      "seed": 42,
-      "tree_prior_mode": "defer",
-      "alpha": 0.5289837224719315,
-      "delta": 0.8708967697396923,
-      "metrics": {
-        "rmse": 1.7345887673707199,
-        "mae": 1.3556726434959043,
-        "crps": 0.9992479334088143,
-        "interval_score_90": 8.199834111857344,
-        "coverage_50": 0.608,
-        "coverage_90": 0.958,
-        "coverage_95": 0.979
-      },
-      "tree_stats": {
-        "avg_depth": 17.26,
-        "std_depth": 1.2297967311714568,
-        "max_depth": 22.0,
-        "min_depth": 15.0,
-        "avg_nodes": 939.0,
-        "std_nodes": 17.946587419339643,
-        "max_nodes": 977.0,
-        "min_nodes": 897.0
-      },
-      "fit_time": 3.06510591506958
-    },
-    {
-      "dgp": "friedman1",
-      "seed": 43,
-      "tree_prior_mode": "defer",
-      "alpha": 0.5289837224719315,
-      "delta": 0.8708967697396923,
-      "metrics": {
-        "rmse": 1.682574393661812,
-        "mae": 1.306286577137012,
-        "crps": 0.973616432093409,
-        "interval_score_90": 7.932045695559904,
-        "coverage_50": 0.631,
-        "coverage_90": 0.964,
-        "coverage_95": 0.985
-      },
-      "tree_stats": {
-        "avg_depth": 17.42,
-        "std_depth": 1.06,
-        "max_depth": 21.0,
-        "min_depth": 16.0,
-        "avg_nodes": 947.92,
-        "std_nodes": 17.641813965689582,
-        "max_nodes": 983.0,
-        "min_nodes": 905.0
-      },
-      "fit_time": 2.439114809036255
-    },
-    {
-      "dgp": "friedman1",
-      "seed": 44,
-      "tree_prior_mode": "defer",
-      "alpha": 0.5289837224719315,
-      "delta": 0.8708967697396923,
-      "metrics": {
-        "rmse": 1.741972519767284,
-        "mae": 1.3769556091528252,
-        "crps": 1.0118481047333547,
-        "interval_score_90": 7.988416555026422,
-        "coverage_50": 0.593,
-        "coverage_90": 0.966,
-        "coverage_95": 0.984
-      },
-      "tree_stats": {
-        "avg_depth": 17.44,
-        "std_depth": 1.2515590277729614,
-        "max_depth": 20.0,
-        "min_depth": 15.0,
-        "avg_nodes": 941.28,
-        "std_nodes": 17.577303547472802,
-        "max_nodes": 969.0,
-        "min_nodes": 905.0
-      },
-      "fit_time": 2.376392126083374
-    },
-    {
-      "dgp": "friedman1",
-      "seed": 45,
-      "tree_prior_mode": "defer",
-      "alpha": 0.5289837224719315,
-      "delta": 0.8708967697396923,
-      "metrics": {
-        "rmse": 1.6800668358008441,
-        "mae": 1.3307047831448175,
-        "crps": 0.9794310026355736,
-        "interval_score_90": 8.080890222144806,
-        "coverage_50": 0.633,
-        "coverage_90": 0.965,
-        "coverage_95": 0.984
-      },
-      "tree_stats": {
-        "avg_depth": 17.54,
-        "std_depth": 1.0992724866929038,
-        "max_depth": 20.0,
-        "min_depth": 16.0,
-        "avg_nodes": 940.96,
-        "std_nodes": 21.415844601602803,
-        "max_nodes": 1003.0,
-        "min_nodes": 879.0
-      },
-      "fit_time": 2.4068689346313477
-    },
-    {
-      "dgp": "friedman1",
-      "seed": 46,
-      "tree_prior_mode": "defer",
-      "alpha": 0.5289837224719315,
-      "delta": 0.8708967697396923,
-      "metrics": {
-        "rmse": 1.8250262372636499,
-        "mae": 1.4338410294055297,
-        "crps": 1.0521611884803583,
-        "interval_score_90": 8.218356340582362,
-        "coverage_50": 0.571,
-        "coverage_90": 0.951,
-        "coverage_95": 0.976
-      },
-      "tree_stats": {
-        "avg_depth": 17.3,
-        "std_depth": 1.02469507659596,
-        "max_depth": 20.0,
-        "min_depth": 16.0,
-        "avg_nodes": 948.84,
-        "std_nodes": 16.330780752921765,
-        "max_nodes": 995.0,
-        "min_nodes": 905.0
-      },
-      "fit_time": 2.3914759159088135
-    },
-    {
-      "dgp": "friedman1",
-      "seed": 42,
-      "tree_prior_mode": "bernoulli",
-      "alpha": 0.6984078277192283,
-      "delta": 0.9428349271425249,
-      "metrics": {
-        "rmse": 1.7206517019717669,
-        "mae": 1.3389954602441299,
-        "crps": 0.9916079339972699,
-        "interval_score_90": 8.039507026781033,
-        "coverage_50": 0.612,
-        "coverage_90": 0.952,
-        "coverage_95": 0.984
-      },
-      "tree_stats": {
         "avg_depth": 18.7,
-        "std_depth": 1.4594519519326423,
-        "max_depth": 25.0,
+        "std_depth": 1.3304134695650072,
+        "max_depth": 23.0,
         "min_depth": 17.0,
-        "avg_nodes": 1113.76,
-        "std_nodes": 10.031071727387856,
-        "max_nodes": 1137.0,
-        "min_nodes": 1093.0
+        "avg_nodes": 1058.04,
+        "std_nodes": 14.681907233053886,
+        "max_nodes": 1091.0,
+        "min_nodes": 1021.0
       },
-      "fit_time": 2.8440351486206055
+      "fit_time": 1.614419937133789
     },
     {
       "dgp": "friedman1",
       "seed": 43,
-      "tree_prior_mode": "bernoulli",
-      "alpha": 0.6984078277192283,
-      "delta": 0.9428349271425249,
+      "tree_prior_mode": "linear",
+      "alpha": 0.14528246637516026,
+      "delta": 0.00011526449540315612,
       "metrics": {
-        "rmse": 1.6446880028073896,
-        "mae": 1.2774236014033986,
-        "crps": 0.9543239882428777,
-        "interval_score_90": 7.783598511910679,
-        "coverage_50": 0.636,
-        "coverage_90": 0.969,
+        "rmse": 1.6565215458625138,
+        "mae": 1.2878404809508153,
+        "crps": 0.9628850119402248,
+        "interval_score_90": 7.78362528785543,
+        "coverage_50": 0.625,
+        "coverage_90": 0.968,
         "coverage_95": 0.991
       },
       "tree_stats": {
-        "avg_depth": 18.62,
-        "std_depth": 0.9357350052231668,
-        "max_depth": 20.0,
-        "min_depth": 17.0,
-        "avg_nodes": 1113.2,
-        "std_nodes": 9.61041102138717,
-        "max_nodes": 1135.0,
-        "min_nodes": 1093.0
+        "avg_depth": 18.96,
+        "std_depth": 1.4277254638059798,
+        "max_depth": 25.0,
+        "min_depth": 16.0,
+        "avg_nodes": 1056.72,
+        "std_nodes": 15.646136903402065,
+        "max_nodes": 1103.0,
+        "min_nodes": 1027.0
       },
-      "fit_time": 3.1533660888671875
+      "fit_time": 1.5337438583374023
+    },
+    {
+      "dgp": "friedman1",
+      "seed": 44,
+      "tree_prior_mode": "linear",
+      "alpha": 0.14528246637516026,
+      "delta": 0.00011526449540315612,
+      "metrics": {
+        "rmse": 1.7459705754181396,
+        "mae": 1.3798570034842372,
+        "crps": 1.010022584467745,
+        "interval_score_90": 7.940206081186114,
+        "coverage_50": 0.582,
+        "coverage_90": 0.966,
+        "coverage_95": 0.986
+      },
+      "tree_stats": {
+        "avg_depth": 19.44,
+        "std_depth": 1.5383107618423528,
+        "max_depth": 24.0,
+        "min_depth": 16.0,
+        "avg_nodes": 1056.32,
+        "std_nodes": 12.934357347777276,
+        "max_nodes": 1083.0,
+        "min_nodes": 1027.0
+      },
+      "fit_time": 1.5494298934936523
+    },
+    {
+      "dgp": "friedman1",
+      "seed": 45,
+      "tree_prior_mode": "linear",
+      "alpha": 0.14528246637516026,
+      "delta": 0.00011526449540315612,
+      "metrics": {
+        "rmse": 1.672395563871365,
+        "mae": 1.3211480235630206,
+        "crps": 0.9760968581033974,
+        "interval_score_90": 7.9935758864793005,
+        "coverage_50": 0.621,
+        "coverage_90": 0.963,
+        "coverage_95": 0.982
+      },
+      "tree_stats": {
+        "avg_depth": 19.22,
+        "std_depth": 1.269488085804668,
+        "max_depth": 22.0,
+        "min_depth": 17.0,
+        "avg_nodes": 1050.96,
+        "std_nodes": 17.257995248579714,
+        "max_nodes": 1083.0,
+        "min_nodes": 1005.0
+      },
+      "fit_time": 1.5966122150421143
+    },
+    {
+      "dgp": "friedman1",
+      "seed": 46,
+      "tree_prior_mode": "linear",
+      "alpha": 0.14528246637516026,
+      "delta": 0.00011526449540315612,
+      "metrics": {
+        "rmse": 1.8171848545788898,
+        "mae": 1.4258751673046595,
+        "crps": 1.0442338666100333,
+        "interval_score_90": 8.113260867809862,
+        "coverage_50": 0.569,
+        "coverage_90": 0.946,
+        "coverage_95": 0.985
+      },
+      "tree_stats": {
+        "avg_depth": 18.82,
+        "std_depth": 1.4654692081377894,
+        "max_depth": 22.0,
+        "min_depth": 16.0,
+        "avg_nodes": 1053.52,
+        "std_nodes": 14.879838708803263,
+        "max_nodes": 1085.0,
+        "min_nodes": 1021.0
+      },
+      "fit_time": 1.5251739025115967
+    },
+    {
+      "dgp": "friedman1",
+      "seed": 42,
+      "tree_prior_mode": "defer",
+      "alpha": 0.6124614106306879,
+      "delta": 0.9882443249142756,
+      "metrics": {
+        "rmse": 1.7311228586693714,
+        "mae": 1.3532858800858274,
+        "crps": 0.9936600046913777,
+        "interval_score_90": 8.118054996639591,
+        "coverage_50": 0.621,
+        "coverage_90": 0.956,
+        "coverage_95": 0.981
+      },
+      "tree_stats": {
+        "avg_depth": 18.76,
+        "std_depth": 1.4636939570825587,
+        "max_depth": 22.0,
+        "min_depth": 16.0,
+        "avg_nodes": 1076.56,
+        "std_nodes": 15.111796716472863,
+        "max_nodes": 1117.0,
+        "min_nodes": 1045.0
+      },
+      "fit_time": 1.8429667949676514
+    },
+    {
+      "dgp": "friedman1",
+      "seed": 43,
+      "tree_prior_mode": "defer",
+      "alpha": 0.6124614106306879,
+      "delta": 0.9882443249142756,
+      "metrics": {
+        "rmse": 1.6514433946146265,
+        "mae": 1.281785439702016,
+        "crps": 0.9558233050747759,
+        "interval_score_90": 7.924625567728029,
+        "coverage_50": 0.636,
+        "coverage_90": 0.965,
+        "coverage_95": 0.989
+      },
+      "tree_stats": {
+        "avg_depth": 18.98,
+        "std_depth": 1.3489254983133798,
+        "max_depth": 22.0,
+        "min_depth": 17.0,
+        "avg_nodes": 1084.32,
+        "std_nodes": 15.081697517189502,
+        "max_nodes": 1121.0,
+        "min_nodes": 1057.0
+      },
+      "fit_time": 1.83856201171875
+    },
+    {
+      "dgp": "friedman1",
+      "seed": 44,
+      "tree_prior_mode": "defer",
+      "alpha": 0.6124614106306879,
+      "delta": 0.9882443249142756,
+      "metrics": {
+        "rmse": 1.7354334706066439,
+        "mae": 1.3725819053942745,
+        "crps": 1.006707729513792,
+        "interval_score_90": 8.062975017546789,
+        "coverage_50": 0.585,
+        "coverage_90": 0.957,
+        "coverage_95": 0.98
+      },
+      "tree_stats": {
+        "avg_depth": 19.24,
+        "std_depth": 1.1757550765359253,
+        "max_depth": 22.0,
+        "min_depth": 17.0,
+        "avg_nodes": 1076.36,
+        "std_nodes": 12.871301410502358,
+        "max_nodes": 1105.0,
+        "min_nodes": 1031.0
+      },
+      "fit_time": 1.7987251281738281
+    },
+    {
+      "dgp": "friedman1",
+      "seed": 45,
+      "tree_prior_mode": "defer",
+      "alpha": 0.6124614106306879,
+      "delta": 0.9882443249142756,
+      "metrics": {
+        "rmse": 1.6728948519475202,
+        "mae": 1.3208538333655129,
+        "crps": 0.9741498157453898,
+        "interval_score_90": 7.9798283279360005,
+        "coverage_50": 0.624,
+        "coverage_90": 0.965,
+        "coverage_95": 0.983
+      },
+      "tree_stats": {
+        "avg_depth": 18.98,
+        "std_depth": 1.174563748802082,
+        "max_depth": 21.0,
+        "min_depth": 17.0,
+        "avg_nodes": 1075.04,
+        "std_nodes": 14.557417353363201,
+        "max_nodes": 1101.0,
+        "min_nodes": 1049.0
+      },
+      "fit_time": 1.8359019756317139
+    },
+    {
+      "dgp": "friedman1",
+      "seed": 46,
+      "tree_prior_mode": "defer",
+      "alpha": 0.6124614106306879,
+      "delta": 0.9882443249142756,
+      "metrics": {
+        "rmse": 1.7910810251820488,
+        "mae": 1.4130356671766344,
+        "crps": 1.0368910569579157,
+        "interval_score_90": 8.059179089703303,
+        "coverage_50": 0.554,
+        "coverage_90": 0.95,
+        "coverage_95": 0.983
+      },
+      "tree_stats": {
+        "avg_depth": 18.96,
+        "std_depth": 1.370547335920945,
+        "max_depth": 22.0,
+        "min_depth": 16.0,
+        "avg_nodes": 1077.88,
+        "std_nodes": 13.339625182140615,
+        "max_nodes": 1107.0,
+        "min_nodes": 1047.0
+      },
+      "fit_time": 1.8579671382904053
+    },
+    {
+      "dgp": "friedman1",
+      "seed": 42,
+      "tree_prior_mode": "bernoulli",
+      "alpha": 0.7899910178411725,
+      "delta": 0.9057394375899764,
+      "metrics": {
+        "rmse": 1.7365183996925309,
+        "mae": 1.3497739791827388,
+        "crps": 0.9979036240344754,
+        "interval_score_90": 8.223323468646281,
+        "coverage_50": 0.62,
+        "coverage_90": 0.951,
+        "coverage_95": 0.982
+      },
+      "tree_stats": {
+        "avg_depth": 18.24,
+        "std_depth": 1.158619868636819,
+        "max_depth": 22.0,
+        "min_depth": 16.0,
+        "avg_nodes": 1034.84,
+        "std_nodes": 15.888813675035653,
+        "max_nodes": 1071.0,
+        "min_nodes": 989.0
+      },
+      "fit_time": 2.001746892929077
+    },
+    {
+      "dgp": "friedman1",
+      "seed": 43,
+      "tree_prior_mode": "bernoulli",
+      "alpha": 0.7899910178411725,
+      "delta": 0.9057394375899764,
+      "metrics": {
+        "rmse": 1.6476293155327504,
+        "mae": 1.2826206840229006,
+        "crps": 0.9598566197527877,
+        "interval_score_90": 7.846645626735076,
+        "coverage_50": 0.626,
+        "coverage_90": 0.971,
+        "coverage_95": 0.989
+      },
+      "tree_stats": {
+        "avg_depth": 17.92,
+        "std_depth": 0.9967948635501689,
+        "max_depth": 21.0,
+        "min_depth": 16.0,
+        "avg_nodes": 1036.56,
+        "std_nodes": 14.166382742252873,
+        "max_nodes": 1071.0,
+        "min_nodes": 995.0
+      },
+      "fit_time": 1.93821382522583
     },
     {
       "dgp": "friedman1",
       "seed": 44,
       "tree_prior_mode": "bernoulli",
-      "alpha": 0.6984078277192283,
-      "delta": 0.9428349271425249,
+      "alpha": 0.7899910178411725,
+      "delta": 0.9057394375899764,
       "metrics": {
-        "rmse": 1.7296509788392174,
-        "mae": 1.373548914006298,
-        "crps": 1.0015882731769679,
-        "interval_score_90": 7.992844190378821,
-        "coverage_50": 0.606,
-        "coverage_90": 0.965,
-        "coverage_95": 0.985
+        "rmse": 1.7350298160155757,
+        "mae": 1.3718426503787982,
+        "crps": 1.0034112018353762,
+        "interval_score_90": 7.948260196016418,
+        "coverage_50": 0.586,
+        "coverage_90": 0.961,
+        "coverage_95": 0.987
       },
       "tree_stats": {
-        "avg_depth": 18.86,
-        "std_depth": 1.4284257068535275,
-        "max_depth": 22.0,
-        "min_depth": 17.0,
-        "avg_nodes": 1111.76,
-        "std_nodes": 9.926852471957059,
-        "max_nodes": 1131.0,
-        "min_nodes": 1083.0
+        "avg_depth": 18.12,
+        "std_depth": 1.2106196760337244,
+        "max_depth": 21.0,
+        "min_depth": 16.0,
+        "avg_nodes": 1031.16,
+        "std_nodes": 15.408257526404471,
+        "max_nodes": 1069.0,
+        "min_nodes": 995.0
       },
-      "fit_time": 3.290912628173828
+      "fit_time": 1.928656816482544
     },
     {
       "dgp": "friedman1",
       "seed": 45,
       "tree_prior_mode": "bernoulli",
-      "alpha": 0.6984078277192283,
-      "delta": 0.9428349271425249,
+      "alpha": 0.7899910178411725,
+      "delta": 0.9057394375899764,
       "metrics": {
-        "rmse": 1.6769469492903846,
-        "mae": 1.3285649148400516,
-        "crps": 0.9777720824662604,
-        "interval_score_90": 7.99119255733856,
-        "coverage_50": 0.614,
+        "rmse": 1.6762613940386808,
+        "mae": 1.3301791118664652,
+        "crps": 0.9773842796106661,
+        "interval_score_90": 7.982263948209587,
+        "coverage_50": 0.621,
         "coverage_90": 0.962,
-        "coverage_95": 0.984
+        "coverage_95": 0.986
       },
       "tree_stats": {
-        "avg_depth": 18.68,
-        "std_depth": 1.3332666649999168,
-        "max_depth": 23.0,
+        "avg_depth": 18.28,
+        "std_depth": 1.0961751684835777,
+        "max_depth": 20.0,
         "min_depth": 16.0,
-        "avg_nodes": 1112.12,
-        "std_nodes": 13.07920486879841,
-        "max_nodes": 1143.0,
-        "min_nodes": 1089.0
+        "avg_nodes": 1026.36,
+        "std_nodes": 14.363509320496856,
+        "max_nodes": 1057.0,
+        "min_nodes": 999.0
       },
-      "fit_time": 2.821417808532715
+      "fit_time": 1.9175570011138916
     },
     {
       "dgp": "friedman1",
       "seed": 46,
       "tree_prior_mode": "bernoulli",
-      "alpha": 0.6984078277192283,
-      "delta": 0.9428349271425249,
+      "alpha": 0.7899910178411725,
+      "delta": 0.9057394375899764,
       "metrics": {
-        "rmse": 1.8082460154238096,
-        "mae": 1.413977767907692,
-        "crps": 1.0415332726353426,
-        "interval_score_90": 8.222828194954975,
-        "coverage_50": 0.573,
-        "coverage_90": 0.947,
-        "coverage_95": 0.977
+        "rmse": 1.8118016440719906,
+        "mae": 1.4240032943047949,
+        "crps": 1.0420241116679254,
+        "interval_score_90": 8.141335601525284,
+        "coverage_50": 0.566,
+        "coverage_90": 0.937,
+        "coverage_95": 0.979
       },
       "tree_stats": {
-        "avg_depth": 18.78,
-        "std_depth": 1.3753544997563356,
-        "max_depth": 22.0,
+        "avg_depth": 18.02,
+        "std_depth": 1.3926952286842949,
+        "max_depth": 21.0,
         "min_depth": 16.0,
-        "avg_nodes": 1115.32,
-        "std_nodes": 11.145294971421796,
-        "max_nodes": 1145.0,
-        "min_nodes": 1093.0
+        "avg_nodes": 1034.4,
+        "std_nodes": 18.327029219161517,
+        "max_nodes": 1063.0,
+        "min_nodes": 983.0
       },
-      "fit_time": 2.867842197418213
+      "fit_time": 1.9587981700897217
     },
     {
       "dgp": "friedman2",
       "seed": 42,
       "tree_prior_mode": "linear",
-      "alpha": 6.0268891286825045e-05,
-      "delta": 6.025215736203858e-05,
+      "alpha": 0.005449280398972803,
+      "delta": 0.0009167785859319845,
       "metrics": {
-        "rmse": 260.49180816473,
-        "mae": 156.07226189535763,
-        "crps": 113.69454756701303,
-        "interval_score_90": 966.2671828852609,
-        "coverage_50": 0.623,
-        "coverage_90": 0.909,
-        "coverage_95": 0.939
+        "rmse": 261.6563691537986,
+        "mae": 157.17229339676825,
+        "crps": 114.6124034300975,
+        "interval_score_90": 970.5221615429139,
+        "coverage_50": 0.619,
+        "coverage_90": 0.906,
+        "coverage_95": 0.938
       },
       "tree_stats": {
         "avg_depth": 10.28,
-        "std_depth": 0.8953211714239757,
+        "std_depth": 0.9600000000000001,
         "max_depth": 13.0,
         "min_depth": 8.0,
-        "avg_nodes": 113.92,
-        "std_nodes": 6.575226231849364,
-        "max_nodes": 135.0,
-        "min_nodes": 99.0
+        "avg_nodes": 106.4,
+        "std_nodes": 6.861486719363377,
+        "max_nodes": 123.0,
+        "min_nodes": 93.0
       },
-      "fit_time": 0.21534991264343262
+      "fit_time": 0.1165781021118164
     },
     {
       "dgp": "friedman2",
       "seed": 43,
       "tree_prior_mode": "linear",
-      "alpha": 6.0268891286825045e-05,
-      "delta": 6.025215736203858e-05,
+      "alpha": 0.005449280398972803,
+      "delta": 0.0009167785859319845,
       "metrics": {
-        "rmse": 240.06906606058135,
-        "mae": 142.43573309987076,
-        "crps": 104.62755933433688,
-        "interval_score_90": 901.988064710902,
-        "coverage_50": 0.647,
+        "rmse": 240.1030140956461,
+        "mae": 142.62236460259558,
+        "crps": 104.72651107316354,
+        "interval_score_90": 902.3990908131178,
+        "coverage_50": 0.645,
         "coverage_90": 0.926,
         "coverage_95": 0.955
       },
       "tree_stats": {
-        "avg_depth": 10.0,
-        "std_depth": 0.8246211251235321,
+        "avg_depth": 9.9,
+        "std_depth": 0.8544003745317531,
         "max_depth": 12.0,
         "min_depth": 9.0,
-        "avg_nodes": 103.64,
-        "std_nodes": 7.369559009872979,
-        "max_nodes": 123.0,
-        "min_nodes": 89.0
+        "avg_nodes": 97.96,
+        "std_nodes": 6.069464556285011,
+        "max_nodes": 113.0,
+        "min_nodes": 87.0
       },
-      "fit_time": 0.1839280128479004
+      "fit_time": 0.1154470443725586
     },
     {
       "dgp": "friedman2",
       "seed": 44,
       "tree_prior_mode": "linear",
-      "alpha": 6.0268891286825045e-05,
-      "delta": 6.025215736203858e-05,
+      "alpha": 0.005449280398972803,
+      "delta": 0.0009167785859319845,
       "metrics": {
-        "rmse": 240.81977370701847,
-        "mae": 138.3638545209772,
-        "crps": 102.3260849709223,
-        "interval_score_90": 897.1648764867466,
+        "rmse": 241.68012127978068,
+        "mae": 139.10605954517436,
+        "crps": 102.92388992466559,
+        "interval_score_90": 902.069084614974,
+        "coverage_50": 0.678,
+        "coverage_90": 0.927,
+        "coverage_95": 0.953
+      },
+      "tree_stats": {
+        "avg_depth": 10.02,
+        "std_depth": 0.8364209466530593,
+        "max_depth": 12.0,
+        "min_depth": 9.0,
+        "avg_nodes": 100.36,
+        "std_nodes": 7.41285370151064,
+        "max_nodes": 121.0,
+        "min_nodes": 81.0
+      },
+      "fit_time": 0.1246330738067627
+    },
+    {
+      "dgp": "friedman2",
+      "seed": 45,
+      "tree_prior_mode": "linear",
+      "alpha": 0.005449280398972803,
+      "delta": 0.0009167785859319845,
+      "metrics": {
+        "rmse": 247.7755822849861,
+        "mae": 146.53753578983344,
+        "crps": 106.4578578745426,
+        "interval_score_90": 908.2340320441449,
+        "coverage_50": 0.654,
+        "coverage_90": 0.93,
+        "coverage_95": 0.951
+      },
+      "tree_stats": {
+        "avg_depth": 9.84,
+        "std_depth": 0.783836717690617,
+        "max_depth": 12.0,
+        "min_depth": 9.0,
+        "avg_nodes": 103.48,
+        "std_nodes": 8.750405704880203,
+        "max_nodes": 119.0,
+        "min_nodes": 81.0
+      },
+      "fit_time": 0.13238215446472168
+    },
+    {
+      "dgp": "friedman2",
+      "seed": 46,
+      "tree_prior_mode": "linear",
+      "alpha": 0.005449280398972803,
+      "delta": 0.0009167785859319845,
+      "metrics": {
+        "rmse": 278.22910386924565,
+        "mae": 164.8151273217114,
+        "crps": 120.39521704572637,
+        "interval_score_90": 1057.250456075514,
+        "coverage_50": 0.629,
+        "coverage_90": 0.904,
+        "coverage_95": 0.933
+      },
+      "tree_stats": {
+        "avg_depth": 9.92,
+        "std_depth": 0.7440430095095311,
+        "max_depth": 12.0,
+        "min_depth": 8.0,
+        "avg_nodes": 107.56,
+        "std_nodes": 8.236892617971902,
+        "max_nodes": 129.0,
+        "min_nodes": 91.0
+      },
+      "fit_time": 0.12790989875793457
+    },
+    {
+      "dgp": "friedman2",
+      "seed": 42,
+      "tree_prior_mode": "defer",
+      "alpha": 0.9924559039546808,
+      "delta": 0.9864547132552175,
+      "metrics": {
+        "rmse": 260.53311030487356,
+        "mae": 156.02988457801683,
+        "crps": 113.74580076740057,
+        "interval_score_90": 964.4226816026306,
+        "coverage_50": 0.623,
+        "coverage_90": 0.908,
+        "coverage_95": 0.939
+      },
+      "tree_stats": {
+        "avg_depth": 10.44,
+        "std_depth": 0.8039900496896712,
+        "max_depth": 13.0,
+        "min_depth": 9.0,
+        "avg_nodes": 125.04,
+        "std_nodes": 7.761340090474066,
+        "max_nodes": 141.0,
+        "min_nodes": 107.0
+      },
+      "fit_time": 0.1488192081451416
+    },
+    {
+      "dgp": "friedman2",
+      "seed": 43,
+      "tree_prior_mode": "defer",
+      "alpha": 0.9924559039546808,
+      "delta": 0.9864547132552175,
+      "metrics": {
+        "rmse": 240.0254862722564,
+        "mae": 142.38848901167617,
+        "crps": 104.5164396809911,
+        "interval_score_90": 901.1491250629418,
+        "coverage_50": 0.654,
+        "coverage_90": 0.926,
+        "coverage_95": 0.956
+      },
+      "tree_stats": {
+        "avg_depth": 10.38,
+        "std_depth": 0.845931439302264,
+        "max_depth": 12.0,
+        "min_depth": 9.0,
+        "avg_nodes": 113.48,
+        "std_nodes": 8.56560564116747,
+        "max_nodes": 139.0,
+        "min_nodes": 93.0
+      },
+      "fit_time": 0.1447277069091797
+    },
+    {
+      "dgp": "friedman2",
+      "seed": 44,
+      "tree_prior_mode": "defer",
+      "alpha": 0.9924559039546808,
+      "delta": 0.9864547132552175,
+      "metrics": {
+        "rmse": 240.8178631708759,
+        "mae": 138.32938076666179,
+        "crps": 102.29761216214382,
+        "interval_score_90": 896.8897802292264,
         "coverage_50": 0.678,
         "coverage_90": 0.93,
         "coverage_95": 0.954
       },
       "tree_stats": {
-        "avg_depth": 10.02,
-        "std_depth": 0.7871467461661771,
+        "avg_depth": 10.24,
+        "std_depth": 0.8138795979750322,
         "max_depth": 12.0,
         "min_depth": 9.0,
-        "avg_nodes": 106.12,
-        "std_nodes": 7.757937870336421,
-        "max_nodes": 129.0,
-        "min_nodes": 89.0
+        "avg_nodes": 115.36,
+        "std_nodes": 7.372272376954069,
+        "max_nodes": 135.0,
+        "min_nodes": 101.0
       },
-      "fit_time": 0.21064186096191406
+      "fit_time": 0.18036603927612305
     },
     {
       "dgp": "friedman2",
       "seed": 45,
-      "tree_prior_mode": "linear",
-      "alpha": 6.0268891286825045e-05,
-      "delta": 6.025215736203858e-05,
+      "tree_prior_mode": "defer",
+      "alpha": 0.9924559039546808,
+      "delta": 0.9864547132552175,
       "metrics": {
-        "rmse": 247.00959678228253,
-        "mae": 145.7286957197534,
-        "crps": 105.82616731138927,
-        "interval_score_90": 903.941808794673,
-        "coverage_50": 0.655,
-        "coverage_90": 0.929,
+        "rmse": 247.00095630795624,
+        "mae": 145.63358677176865,
+        "crps": 105.75021595374578,
+        "interval_score_90": 903.2340817124139,
+        "coverage_50": 0.651,
+        "coverage_90": 0.93,
         "coverage_95": 0.951
       },
       "tree_stats": {
-        "avg_depth": 9.9,
-        "std_depth": 0.7000000000000001,
+        "avg_depth": 10.12,
+        "std_depth": 0.7909487973314075,
         "max_depth": 12.0,
         "min_depth": 9.0,
-        "avg_nodes": 110.64,
-        "std_nodes": 8.28193214171669,
-        "max_nodes": 129.0,
-        "min_nodes": 95.0
+        "avg_nodes": 122.2,
+        "std_nodes": 8.217055433669655,
+        "max_nodes": 141.0,
+        "min_nodes": 105.0
       },
-      "fit_time": 0.1995398998260498
+      "fit_time": 0.1460261344909668
     },
     {
       "dgp": "friedman2",
       "seed": 46,
-      "tree_prior_mode": "linear",
-      "alpha": 6.0268891286825045e-05,
-      "delta": 6.025215736203858e-05,
+      "tree_prior_mode": "defer",
+      "alpha": 0.9924559039546808,
+      "delta": 0.9864547132552175,
       "metrics": {
-        "rmse": 278.1264180384908,
-        "mae": 164.60479380931423,
-        "crps": 120.23387216855747,
-        "interval_score_90": 1055.336150493443,
-        "coverage_50": 0.632,
+        "rmse": 278.20661290774876,
+        "mae": 164.6081739207269,
+        "crps": 120.24048468453164,
+        "interval_score_90": 1056.0998822738898,
+        "coverage_50": 0.631,
         "coverage_90": 0.904,
-        "coverage_95": 0.934
+        "coverage_95": 0.933
       },
       "tree_stats": {
-        "avg_depth": 10.02,
-        "std_depth": 0.7068238818828916,
+        "avg_depth": 10.3,
+        "std_depth": 0.7,
         "max_depth": 12.0,
         "min_depth": 9.0,
-        "avg_nodes": 113.04,
-        "std_nodes": 7.509886816723672,
-        "max_nodes": 129.0,
-        "min_nodes": 95.0
+        "avg_nodes": 124.36,
+        "std_nodes": 8.394664972469121,
+        "max_nodes": 141.0,
+        "min_nodes": 103.0
       },
-      "fit_time": 0.18139910697937012
+      "fit_time": 0.14467597007751465
     },
     {
       "dgp": "friedman2",
       "seed": 42,
-      "tree_prior_mode": "defer",
+      "tree_prior_mode": "bernoulli",
       "alpha": 0.9924559039546808,
       "delta": 0.9864547132552175,
       "metrics": {
-        "rmse": 260.47946894702153,
-        "mae": 155.88996701535916,
-        "crps": 113.58563639083835,
-        "interval_score_90": 965.4264096850201,
-        "coverage_50": 0.628,
-        "coverage_90": 0.909,
+        "rmse": 260.45833301704727,
+        "mae": 155.6518623830986,
+        "crps": 113.40481361131047,
+        "interval_score_90": 962.4750590258969,
+        "coverage_50": 0.633,
+        "coverage_90": 0.907,
         "coverage_95": 0.939
       },
       "tree_stats": {
-        "avg_depth": 10.4,
-        "std_depth": 0.7745966692414834,
+        "avg_depth": 10.66,
+        "std_depth": 0.7901898506055365,
         "max_depth": 13.0,
         "min_depth": 9.0,
-        "avg_nodes": 131.08,
-        "std_nodes": 7.210658777115999,
-        "max_nodes": 147.0,
-        "min_nodes": 113.0
+        "avg_nodes": 158.84,
+        "std_nodes": 8.008395594624432,
+        "max_nodes": 187.0,
+        "min_nodes": 145.0
       },
-      "fit_time": 0.21561598777770996
+      "fit_time": 0.18683218955993652
     },
     {
       "dgp": "friedman2",
       "seed": 43,
-      "tree_prior_mode": "defer",
+      "tree_prior_mode": "bernoulli",
       "alpha": 0.9924559039546808,
       "delta": 0.9864547132552175,
       "metrics": {
-        "rmse": 239.65789670955232,
-        "mae": 141.9878678738454,
-        "crps": 104.27520874378453,
-        "interval_score_90": 898.845160911829,
-        "coverage_50": 0.65,
+        "rmse": 239.670109420345,
+        "mae": 141.87735416226656,
+        "crps": 104.04673866054657,
+        "interval_score_90": 898.0180718417895,
+        "coverage_50": 0.655,
         "coverage_90": 0.926,
         "coverage_95": 0.957
       },
       "tree_stats": {
-        "avg_depth": 10.42,
-        "std_depth": 0.8506468127254695,
+        "avg_depth": 10.7,
+        "std_depth": 0.7810249675906654,
         "max_depth": 12.0,
         "min_depth": 9.0,
-        "avg_nodes": 121.08,
-        "std_nodes": 8.418645971888827,
-        "max_nodes": 139.0,
-        "min_nodes": 103.0
+        "avg_nodes": 147.04,
+        "std_nodes": 8.489899881624046,
+        "max_nodes": 165.0,
+        "min_nodes": 131.0
       },
-      "fit_time": 0.27020883560180664
+      "fit_time": 0.16528010368347168
     },
     {
       "dgp": "friedman2",
       "seed": 44,
-      "tree_prior_mode": "defer",
-      "alpha": 0.9924559039546808,
-      "delta": 0.9864547132552175,
-      "metrics": {
-        "rmse": 240.79434590521996,
-        "mae": 138.19838120249554,
-        "crps": 102.19304954839652,
-        "interval_score_90": 896.2749360401531,
-        "coverage_50": 0.678,
-        "coverage_90": 0.929,
-        "coverage_95": 0.954
-      },
-      "tree_stats": {
-        "avg_depth": 10.26,
-        "std_depth": 0.7952358140828417,
-        "max_depth": 12.0,
-        "min_depth": 9.0,
-        "avg_nodes": 121.44,
-        "std_nodes": 7.550258273728124,
-        "max_nodes": 137.0,
-        "min_nodes": 105.0
-      },
-      "fit_time": 0.20697593688964844
-    },
-    {
-      "dgp": "friedman2",
-      "seed": 45,
-      "tree_prior_mode": "defer",
-      "alpha": 0.9924559039546808,
-      "delta": 0.9864547132552175,
-      "metrics": {
-        "rmse": 246.02028736106755,
-        "mae": 144.69319718831846,
-        "crps": 105.06462215470549,
-        "interval_score_90": 898.327859310863,
-        "coverage_50": 0.658,
-        "coverage_90": 0.928,
-        "coverage_95": 0.952
-      },
-      "tree_stats": {
-        "avg_depth": 10.08,
-        "std_depth": 0.744043009509531,
-        "max_depth": 12.0,
-        "min_depth": 9.0,
-        "avg_nodes": 126.84,
-        "std_nodes": 8.018378888528527,
-        "max_nodes": 149.0,
-        "min_nodes": 111.0
-      },
-      "fit_time": 0.23224496841430664
-    },
-    {
-      "dgp": "friedman2",
-      "seed": 46,
-      "tree_prior_mode": "defer",
-      "alpha": 0.9924559039546808,
-      "delta": 0.9864547132552175,
-      "metrics": {
-        "rmse": 277.59901173442597,
-        "mae": 163.9734893130638,
-        "crps": 119.74948217528754,
-        "interval_score_90": 1051.8176886012573,
-        "coverage_50": 0.637,
-        "coverage_90": 0.904,
-        "coverage_95": 0.935
-      },
-      "tree_stats": {
-        "avg_depth": 10.34,
-        "std_depth": 0.6514598989960932,
-        "max_depth": 12.0,
-        "min_depth": 9.0,
-        "avg_nodes": 130.8,
-        "std_nodes": 9.280086206496145,
-        "max_nodes": 151.0,
-        "min_nodes": 113.0
-      },
-      "fit_time": 0.23569321632385254
-    },
-    {
-      "dgp": "friedman2",
-      "seed": 42,
       "tree_prior_mode": "bernoulli",
       "alpha": 0.9924559039546808,
       "delta": 0.9864547132552175,
       "metrics": {
-        "rmse": 260.3547443031857,
-        "mae": 155.45058402586554,
-        "crps": 113.09843154851903,
-        "interval_score_90": 963.2189114169304,
-        "coverage_50": 0.635,
-        "coverage_90": 0.909,
-        "coverage_95": 0.937
-      },
-      "tree_stats": {
-        "avg_depth": 10.6,
-        "std_depth": 0.7745966692414834,
-        "max_depth": 13.0,
-        "min_depth": 9.0,
-        "avg_nodes": 164.28,
-        "std_nodes": 7.753811965736595,
-        "max_nodes": 177.0,
-        "min_nodes": 147.0
-      },
-      "fit_time": 0.2568800449371338
-    },
-    {
-      "dgp": "friedman2",
-      "seed": 43,
-      "tree_prior_mode": "bernoulli",
-      "alpha": 0.9924559039546808,
-      "delta": 0.9864547132552175,
-      "metrics": {
-        "rmse": 239.1269796227186,
-        "mae": 141.22504649286665,
-        "crps": 103.63598370765101,
-        "interval_score_90": 895.8267349030277,
-        "coverage_50": 0.652,
+        "rmse": 240.70091970412747,
+        "mae": 137.82235249252085,
+        "crps": 101.92121047612251,
+        "interval_score_90": 893.7830770986636,
+        "coverage_50": 0.676,
         "coverage_90": 0.929,
         "coverage_95": 0.955
       },
       "tree_stats": {
-        "avg_depth": 10.7,
-        "std_depth": 0.7280109889280518,
-        "max_depth": 12.0,
+        "avg_depth": 10.62,
+        "std_depth": 0.9141115905621151,
+        "max_depth": 13.0,
         "min_depth": 9.0,
-        "avg_nodes": 152.72,
-        "std_nodes": 8.57913748578492,
-        "max_nodes": 171.0,
-        "min_nodes": 135.0
+        "avg_nodes": 144.56,
+        "std_nodes": 7.922524850071472,
+        "max_nodes": 161.0,
+        "min_nodes": 129.0
       },
-      "fit_time": 0.27820277214050293
-    },
-    {
-      "dgp": "friedman2",
-      "seed": 44,
-      "tree_prior_mode": "bernoulli",
-      "alpha": 0.9924559039546808,
-      "delta": 0.9864547132552175,
-      "metrics": {
-        "rmse": 240.7046911853438,
-        "mae": 137.71349892443604,
-        "crps": 101.87358334341569,
-        "interval_score_90": 894.0736740424859,
-        "coverage_50": 0.678,
-        "coverage_90": 0.929,
-        "coverage_95": 0.956
-      },
-      "tree_stats": {
-        "avg_depth": 10.52,
-        "std_depth": 0.8059776671843955,
-        "max_depth": 12.0,
-        "min_depth": 9.0,
-        "avg_nodes": 149.16,
-        "std_nodes": 8.369850655776363,
-        "max_nodes": 167.0,
-        "min_nodes": 133.0
-      },
-      "fit_time": 0.23302507400512695
+      "fit_time": 0.19395208358764648
     },
     {
       "dgp": "friedman2",
@@ -893,25 +893,25 @@
       "alpha": 0.9924559039546808,
       "delta": 0.9864547132552175,
       "metrics": {
-        "rmse": 244.94057267582053,
-        "mae": 143.41931684373662,
-        "crps": 104.24333811116173,
-        "interval_score_90": 888.9598123318763,
-        "coverage_50": 0.651,
-        "coverage_90": 0.927,
+        "rmse": 245.69562218987832,
+        "mae": 144.22416941960645,
+        "crps": 104.72332924930195,
+        "interval_score_90": 893.4841016502298,
+        "coverage_50": 0.652,
+        "coverage_90": 0.928,
         "coverage_95": 0.951
       },
       "tree_stats": {
-        "avg_depth": 10.3,
-        "std_depth": 0.6708203932499369,
+        "avg_depth": 10.36,
+        "std_depth": 0.7144228439796702,
         "max_depth": 12.0,
         "min_depth": 9.0,
-        "avg_nodes": 158.12,
-        "std_nodes": 8.439526053043501,
-        "max_nodes": 177.0,
-        "min_nodes": 137.0
+        "avg_nodes": 152.92,
+        "std_nodes": 8.27487764259992,
+        "max_nodes": 171.0,
+        "min_nodes": 135.0
       },
-      "fit_time": 0.3082849979400635
+      "fit_time": 0.1778240203857422
     },
     {
       "dgp": "friedman2",
@@ -920,835 +920,835 @@
       "alpha": 0.9924559039546808,
       "delta": 0.9864547132552175,
       "metrics": {
-        "rmse": 276.77423712745644,
-        "mae": 162.92092065431646,
-        "crps": 118.87918365895786,
-        "interval_score_90": 1042.654000412487,
+        "rmse": 276.8879946901222,
+        "mae": 163.17249616120912,
+        "crps": 119.12209674715565,
+        "interval_score_90": 1044.9027846183076,
         "coverage_50": 0.641,
-        "coverage_90": 0.903,
-        "coverage_95": 0.935
+        "coverage_90": 0.904,
+        "coverage_95": 0.934
       },
       "tree_stats": {
-        "avg_depth": 10.66,
-        "std_depth": 0.7378346698278687,
-        "max_depth": 13.0,
+        "avg_depth": 10.68,
+        "std_depth": 0.705407683541936,
+        "max_depth": 12.0,
         "min_depth": 10.0,
-        "avg_nodes": 163.76,
-        "std_nodes": 8.008895054874923,
-        "max_nodes": 187.0,
-        "min_nodes": 143.0
+        "avg_nodes": 157.36,
+        "std_nodes": 7.361412907859469,
+        "max_nodes": 175.0,
+        "min_nodes": 141.0
       },
-      "fit_time": 0.2728710174560547
+      "fit_time": 0.19382810592651367
     },
     {
       "dgp": "friedman3",
       "seed": 42,
       "tree_prior_mode": "linear",
-      "alpha": 0.53171966339821,
-      "delta": 1.0714845538373178e-05,
+      "alpha": 0.10990063276515033,
+      "delta": 0.00010535988567748919,
       "metrics": {
-        "rmse": 0.10778832227552347,
-        "mae": 0.08400041114226123,
-        "crps": 0.0607046426331611,
-        "interval_score_90": 0.4684672207901958,
-        "coverage_50": 0.532,
-        "coverage_90": 0.925,
-        "coverage_95": 0.96
-      },
-      "tree_stats": {
-        "avg_depth": 12.58,
-        "std_depth": 1.184736257569591,
-        "max_depth": 17.0,
-        "min_depth": 11.0,
-        "avg_nodes": 344.56,
-        "std_nodes": 22.923490135666515,
-        "max_nodes": 403.0,
-        "min_nodes": 299.0
-      },
-      "fit_time": 0.4535529613494873
-    },
-    {
-      "dgp": "friedman3",
-      "seed": 43,
-      "tree_prior_mode": "linear",
-      "alpha": 0.53171966339821,
-      "delta": 1.0714845538373178e-05,
-      "metrics": {
-        "rmse": 0.11356232529175651,
-        "mae": 0.08873853508902523,
-        "crps": 0.06420062615442854,
-        "interval_score_90": 0.4864097799162229,
-        "coverage_50": 0.522,
-        "coverage_90": 0.901,
-        "coverage_95": 0.953
-      },
-      "tree_stats": {
-        "avg_depth": 13.14,
-        "std_depth": 1.4143549766589718,
-        "max_depth": 17.0,
-        "min_depth": 10.0,
-        "avg_nodes": 341.2,
-        "std_nodes": 28.049242414011825,
-        "max_nodes": 413.0,
-        "min_nodes": 277.0
-      },
-      "fit_time": 0.5217761993408203
-    },
-    {
-      "dgp": "friedman3",
-      "seed": 44,
-      "tree_prior_mode": "linear",
-      "alpha": 0.53171966339821,
-      "delta": 1.0714845538373178e-05,
-      "metrics": {
-        "rmse": 0.11032686917553355,
-        "mae": 0.0857647197280986,
-        "crps": 0.06196557838260893,
-        "interval_score_90": 0.4793637580602947,
-        "coverage_50": 0.538,
-        "coverage_90": 0.9,
-        "coverage_95": 0.946
-      },
-      "tree_stats": {
-        "avg_depth": 12.42,
-        "std_depth": 1.3577923257994944,
-        "max_depth": 18.0,
-        "min_depth": 11.0,
-        "avg_nodes": 345.52,
-        "std_nodes": 30.01548933467519,
-        "max_nodes": 427.0,
-        "min_nodes": 273.0
-      },
-      "fit_time": 0.544158935546875
-    },
-    {
-      "dgp": "friedman3",
-      "seed": 45,
-      "tree_prior_mode": "linear",
-      "alpha": 0.53171966339821,
-      "delta": 1.0714845538373178e-05,
-      "metrics": {
-        "rmse": 0.10745273748169915,
-        "mae": 0.08494031030720477,
-        "crps": 0.06126429223234553,
-        "interval_score_90": 0.4579824612572107,
-        "coverage_50": 0.515,
-        "coverage_90": 0.916,
-        "coverage_95": 0.959
-      },
-      "tree_stats": {
-        "avg_depth": 12.66,
-        "std_depth": 1.3207573584879244,
-        "max_depth": 16.0,
-        "min_depth": 11.0,
-        "avg_nodes": 362.72,
-        "std_nodes": 23.725125921689017,
-        "max_nodes": 443.0,
-        "min_nodes": 313.0
-      },
-      "fit_time": 0.7651379108428955
-    },
-    {
-      "dgp": "friedman3",
-      "seed": 46,
-      "tree_prior_mode": "linear",
-      "alpha": 0.53171966339821,
-      "delta": 1.0714845538373178e-05,
-      "metrics": {
-        "rmse": 0.10923679924682757,
-        "mae": 0.08601468165616981,
-        "crps": 0.06150917493086991,
-        "interval_score_90": 0.46913615854297486,
-        "coverage_50": 0.509,
-        "coverage_90": 0.906,
-        "coverage_95": 0.955
-      },
-      "tree_stats": {
-        "avg_depth": 12.72,
-        "std_depth": 1.2812493902437574,
-        "max_depth": 16.0,
-        "min_depth": 10.0,
-        "avg_nodes": 363.64,
-        "std_nodes": 25.007007018033967,
-        "max_nodes": 413.0,
-        "min_nodes": 317.0
-      },
-      "fit_time": 0.7811870574951172
-    },
-    {
-      "dgp": "friedman3",
-      "seed": 42,
-      "tree_prior_mode": "defer",
-      "alpha": 0.7884821814684375,
-      "delta": 0.907821667801441,
-      "metrics": {
-        "rmse": 0.10782788520773649,
-        "mae": 0.08405518172462982,
-        "crps": 0.06071851514550808,
-        "interval_score_90": 0.4685952775833464,
-        "coverage_50": 0.533,
-        "coverage_90": 0.921,
-        "coverage_95": 0.961
-      },
-      "tree_stats": {
-        "avg_depth": 12.16,
-        "std_depth": 0.7578918128598566,
-        "max_depth": 14.0,
-        "min_depth": 11.0,
-        "avg_nodes": 348.64,
-        "std_nodes": 23.195482318761986,
-        "max_nodes": 415.0,
-        "min_nodes": 305.0
-      },
-      "fit_time": 0.7072100639343262
-    },
-    {
-      "dgp": "friedman3",
-      "seed": 43,
-      "tree_prior_mode": "defer",
-      "alpha": 0.7884821814684375,
-      "delta": 0.907821667801441,
-      "metrics": {
-        "rmse": 0.11343657745481613,
-        "mae": 0.0887028142725707,
-        "crps": 0.06419854031223646,
-        "interval_score_90": 0.48722367530001076,
-        "coverage_50": 0.519,
-        "coverage_90": 0.897,
-        "coverage_95": 0.952
-      },
-      "tree_stats": {
-        "avg_depth": 12.38,
-        "std_depth": 1.12942463227964,
-        "max_depth": 15.0,
-        "min_depth": 10.0,
-        "avg_nodes": 341.76,
-        "std_nodes": 27.677832285061633,
-        "max_nodes": 409.0,
-        "min_nodes": 285.0
-      },
-      "fit_time": 0.6900639533996582
-    },
-    {
-      "dgp": "friedman3",
-      "seed": 44,
-      "tree_prior_mode": "defer",
-      "alpha": 0.7884821814684375,
-      "delta": 0.907821667801441,
-      "metrics": {
-        "rmse": 0.11024810059866137,
-        "mae": 0.08576893825207575,
-        "crps": 0.06194730880471083,
-        "interval_score_90": 0.4787072004102373,
-        "coverage_50": 0.539,
-        "coverage_90": 0.898,
-        "coverage_95": 0.944
-      },
-      "tree_stats": {
-        "avg_depth": 12.18,
-        "std_depth": 1.0897706180660223,
-        "max_depth": 16.0,
-        "min_depth": 11.0,
-        "avg_nodes": 351.48,
-        "std_nodes": 27.444664326604542,
-        "max_nodes": 409.0,
-        "min_nodes": 277.0
-      },
-      "fit_time": 0.47833871841430664
-    },
-    {
-      "dgp": "friedman3",
-      "seed": 45,
-      "tree_prior_mode": "defer",
-      "alpha": 0.7884821814684375,
-      "delta": 0.907821667801441,
-      "metrics": {
-        "rmse": 0.10749299103695963,
-        "mae": 0.08500673980907444,
-        "crps": 0.06136154955573352,
-        "interval_score_90": 0.45851599787853586,
-        "coverage_50": 0.52,
-        "coverage_90": 0.915,
-        "coverage_95": 0.96
-      },
-      "tree_stats": {
-        "avg_depth": 12.34,
-        "std_depth": 1.050904372433572,
-        "max_depth": 16.0,
-        "min_depth": 11.0,
-        "avg_nodes": 366.0,
-        "std_nodes": 20.08083663595718,
-        "max_nodes": 431.0,
-        "min_nodes": 329.0
-      },
-      "fit_time": 0.6623549461364746
-    },
-    {
-      "dgp": "friedman3",
-      "seed": 46,
-      "tree_prior_mode": "defer",
-      "alpha": 0.7884821814684375,
-      "delta": 0.907821667801441,
-      "metrics": {
-        "rmse": 0.10925213652353541,
-        "mae": 0.08602497292913923,
-        "crps": 0.06151640552032935,
-        "interval_score_90": 0.46905542945493034,
-        "coverage_50": 0.51,
-        "coverage_90": 0.901,
-        "coverage_95": 0.955
-      },
-      "tree_stats": {
-        "avg_depth": 12.44,
-        "std_depth": 1.2354756169184402,
-        "max_depth": 16.0,
-        "min_depth": 10.0,
-        "avg_nodes": 366.24,
-        "std_nodes": 24.30766134369985,
-        "max_nodes": 415.0,
-        "min_nodes": 321.0
-      },
-      "fit_time": 0.6350090503692627
-    },
-    {
-      "dgp": "friedman3",
-      "seed": 42,
-      "tree_prior_mode": "bernoulli",
-      "alpha": 0.6868955193048338,
-      "delta": 0.9461357327048254,
-      "metrics": {
-        "rmse": 0.10741778670998063,
-        "mae": 0.08364789754939093,
-        "crps": 0.060589004351823544,
-        "interval_score_90": 0.4685709130559497,
-        "coverage_50": 0.527,
-        "coverage_90": 0.915,
+        "rmse": 0.10773432809739113,
+        "mae": 0.0839977266964622,
+        "crps": 0.06079559899887317,
+        "interval_score_90": 0.4712417501505588,
+        "coverage_50": 0.542,
+        "coverage_90": 0.93,
         "coverage_95": 0.957
       },
       "tree_stats": {
+        "avg_depth": 11.86,
+        "std_depth": 0.8487638069569178,
+        "max_depth": 13.0,
+        "min_depth": 10.0,
+        "avg_nodes": 292.72,
+        "std_nodes": 16.861838571164178,
+        "max_nodes": 325.0,
+        "min_nodes": 251.0
+      },
+      "fit_time": 0.2538759708404541
+    },
+    {
+      "dgp": "friedman3",
+      "seed": 43,
+      "tree_prior_mode": "linear",
+      "alpha": 0.10990063276515033,
+      "delta": 0.00010535988567748919,
+      "metrics": {
+        "rmse": 0.11430730702522067,
+        "mae": 0.08933784978854853,
+        "crps": 0.06457591759440115,
+        "interval_score_90": 0.4905842467087438,
+        "coverage_50": 0.53,
+        "coverage_90": 0.902,
+        "coverage_95": 0.953
+      },
+      "tree_stats": {
+        "avg_depth": 11.96,
+        "std_depth": 1.0947145746723208,
+        "max_depth": 15.0,
+        "min_depth": 10.0,
+        "avg_nodes": 281.84,
+        "std_nodes": 19.677764100628913,
+        "max_nodes": 331.0,
+        "min_nodes": 243.0
+      },
+      "fit_time": 0.2918212413787842
+    },
+    {
+      "dgp": "friedman3",
+      "seed": 44,
+      "tree_prior_mode": "linear",
+      "alpha": 0.10990063276515033,
+      "delta": 0.00010535988567748919,
+      "metrics": {
+        "rmse": 0.11031373457524787,
+        "mae": 0.08588542597540001,
+        "crps": 0.06196302775722505,
+        "interval_score_90": 0.4795168767817728,
+        "coverage_50": 0.537,
+        "coverage_90": 0.902,
+        "coverage_95": 0.951
+      },
+      "tree_stats": {
+        "avg_depth": 11.86,
+        "std_depth": 1.0394229168149027,
+        "max_depth": 14.0,
+        "min_depth": 10.0,
+        "avg_nodes": 290.68,
+        "std_nodes": 23.618162502616496,
+        "max_nodes": 351.0,
+        "min_nodes": 229.0
+      },
+      "fit_time": 0.2733919620513916
+    },
+    {
+      "dgp": "friedman3",
+      "seed": 45,
+      "tree_prior_mode": "linear",
+      "alpha": 0.10990063276515033,
+      "delta": 0.00010535988567748919,
+      "metrics": {
+        "rmse": 0.10755376140176728,
+        "mae": 0.08497745045648687,
+        "crps": 0.06144419469659114,
+        "interval_score_90": 0.4598793565645988,
+        "coverage_50": 0.51,
+        "coverage_90": 0.917,
+        "coverage_95": 0.963
+      },
+      "tree_stats": {
+        "avg_depth": 12.08,
+        "std_depth": 1.0552724766618335,
+        "max_depth": 16.0,
+        "min_depth": 11.0,
+        "avg_nodes": 305.44,
+        "std_nodes": 24.81383485074405,
+        "max_nodes": 365.0,
+        "min_nodes": 261.0
+      },
+      "fit_time": 0.28027796745300293
+    },
+    {
+      "dgp": "friedman3",
+      "seed": 46,
+      "tree_prior_mode": "linear",
+      "alpha": 0.10990063276515033,
+      "delta": 0.00010535988567748919,
+      "metrics": {
+        "rmse": 0.10952422742849768,
+        "mae": 0.08630350664478649,
+        "crps": 0.06153829889426185,
+        "interval_score_90": 0.47330577311655875,
+        "coverage_50": 0.521,
+        "coverage_90": 0.904,
+        "coverage_95": 0.956
+      },
+      "tree_stats": {
+        "avg_depth": 12.04,
+        "std_depth": 1.3410443691392169,
+        "max_depth": 17.0,
+        "min_depth": 10.0,
+        "avg_nodes": 307.24,
+        "std_nodes": 21.016717155635888,
+        "max_nodes": 367.0,
+        "min_nodes": 263.0
+      },
+      "fit_time": 0.2728080749511719
+    },
+    {
+      "dgp": "friedman3",
+      "seed": 42,
+      "tree_prior_mode": "defer",
+      "alpha": 0.9039798802582042,
+      "delta": 0.9892512726997328,
+      "metrics": {
+        "rmse": 0.10721027319776505,
+        "mae": 0.08378664404998083,
+        "crps": 0.06046477744171237,
+        "interval_score_90": 0.46480616068018527,
+        "coverage_50": 0.534,
+        "coverage_90": 0.921,
+        "coverage_95": 0.962
+      },
+      "tree_stats": {
+        "avg_depth": 13.66,
+        "std_depth": 1.1421033228215387,
+        "max_depth": 16.0,
+        "min_depth": 12.0,
+        "avg_nodes": 452.28,
+        "std_nodes": 24.284184153477337,
+        "max_nodes": 499.0,
+        "min_nodes": 399.0
+      },
+      "fit_time": 0.40964794158935547
+    },
+    {
+      "dgp": "friedman3",
+      "seed": 43,
+      "tree_prior_mode": "defer",
+      "alpha": 0.9039798802582042,
+      "delta": 0.9892512726997328,
+      "metrics": {
+        "rmse": 0.11290848349248685,
+        "mae": 0.08833276935807757,
+        "crps": 0.06396563646940126,
+        "interval_score_90": 0.48750786696158616,
+        "coverage_50": 0.507,
+        "coverage_90": 0.896,
+        "coverage_95": 0.949
+      },
+      "tree_stats": {
+        "avg_depth": 14.4,
+        "std_depth": 1.6370705543744897,
+        "max_depth": 19.0,
+        "min_depth": 12.0,
+        "avg_nodes": 448.52,
+        "std_nodes": 29.094494324528135,
+        "max_nodes": 515.0,
+        "min_nodes": 373.0
+      },
+      "fit_time": 0.4453732967376709
+    },
+    {
+      "dgp": "friedman3",
+      "seed": 44,
+      "tree_prior_mode": "defer",
+      "alpha": 0.9039798802582042,
+      "delta": 0.9892512726997328,
+      "metrics": {
+        "rmse": 0.1093000290690668,
+        "mae": 0.08536447701970766,
+        "crps": 0.06168114077587243,
+        "interval_score_90": 0.4742661631782361,
+        "coverage_50": 0.533,
+        "coverage_90": 0.9,
+        "coverage_95": 0.943
+      },
+      "tree_stats": {
         "avg_depth": 14.02,
-        "std_depth": 1.2081390648431165,
+        "std_depth": 1.4069825869569246,
+        "max_depth": 18.0,
+        "min_depth": 12.0,
+        "avg_nodes": 455.12,
+        "std_nodes": 29.910292542868916,
+        "max_nodes": 525.0,
+        "min_nodes": 403.0
+      },
+      "fit_time": 0.4002830982208252
+    },
+    {
+      "dgp": "friedman3",
+      "seed": 45,
+      "tree_prior_mode": "defer",
+      "alpha": 0.9039798802582042,
+      "delta": 0.9892512726997328,
+      "metrics": {
+        "rmse": 0.10713586048881785,
+        "mae": 0.0848608393494129,
+        "crps": 0.06116479711714365,
+        "interval_score_90": 0.4582045526419421,
+        "coverage_50": 0.511,
+        "coverage_90": 0.908,
+        "coverage_95": 0.957
+      },
+      "tree_stats": {
+        "avg_depth": 13.96,
+        "std_depth": 1.5615377036754508,
+        "max_depth": 20.0,
+        "min_depth": 12.0,
+        "avg_nodes": 475.04,
+        "std_nodes": 34.30332928448782,
+        "max_nodes": 579.0,
+        "min_nodes": 385.0
+      },
+      "fit_time": 0.42757391929626465
+    },
+    {
+      "dgp": "friedman3",
+      "seed": 46,
+      "tree_prior_mode": "defer",
+      "alpha": 0.9039798802582042,
+      "delta": 0.9892512726997328,
+      "metrics": {
+        "rmse": 0.10850208090148533,
+        "mae": 0.08544706756926129,
+        "crps": 0.06114734674192531,
+        "interval_score_90": 0.4687560748769481,
+        "coverage_50": 0.512,
+        "coverage_90": 0.904,
+        "coverage_95": 0.956
+      },
+      "tree_stats": {
+        "avg_depth": 14.3,
+        "std_depth": 1.2206555615733703,
         "max_depth": 17.0,
         "min_depth": 12.0,
-        "avg_nodes": 502.96,
-        "std_nodes": 28.189331315233428,
-        "max_nodes": 561.0,
+        "avg_nodes": 481.88,
+        "std_nodes": 31.824921052533654,
+        "max_nodes": 553.0,
         "min_nodes": 427.0
       },
-      "fit_time": 0.7358677387237549
+      "fit_time": 0.446850061416626
+    },
+    {
+      "dgp": "friedman3",
+      "seed": 42,
+      "tree_prior_mode": "bernoulli",
+      "alpha": 0.6734690818177949,
+      "delta": 0.9863090242115395,
+      "metrics": {
+        "rmse": 0.10696800724728885,
+        "mae": 0.08357522022542756,
+        "crps": 0.060345828228883985,
+        "interval_score_90": 0.46357030870772586,
+        "coverage_50": 0.528,
+        "coverage_90": 0.92,
+        "coverage_95": 0.961
+      },
+      "tree_stats": {
+        "avg_depth": 14.86,
+        "std_depth": 1.4833745312630928,
+        "max_depth": 19.0,
+        "min_depth": 13.0,
+        "avg_nodes": 541.08,
+        "std_nodes": 32.6654802505642,
+        "max_nodes": 615.0,
+        "min_nodes": 473.0
+      },
+      "fit_time": 0.5569112300872803
     },
     {
       "dgp": "friedman3",
       "seed": 43,
       "tree_prior_mode": "bernoulli",
-      "alpha": 0.6868955193048338,
-      "delta": 0.9461357327048254,
+      "alpha": 0.6734690818177949,
+      "delta": 0.9863090242115395,
       "metrics": {
-        "rmse": 0.11261504066250697,
-        "mae": 0.08809288736305992,
-        "crps": 0.06396441837805726,
-        "interval_score_90": 0.4873272404909686,
+        "rmse": 0.11257161325793352,
+        "mae": 0.08810248479343943,
+        "crps": 0.06386104176630433,
+        "interval_score_90": 0.48872345318690114,
         "coverage_50": 0.504,
-        "coverage_90": 0.893,
-        "coverage_95": 0.948
+        "coverage_90": 0.899,
+        "coverage_95": 0.944
       },
       "tree_stats": {
-        "avg_depth": 14.82,
-        "std_depth": 1.3811589336495635,
-        "max_depth": 19.0,
+        "avg_depth": 15.62,
+        "std_depth": 1.7987773625437917,
+        "max_depth": 20.0,
         "min_depth": 12.0,
-        "avg_nodes": 497.28,
-        "std_nodes": 30.952893241181833,
-        "max_nodes": 555.0,
-        "min_nodes": 421.0
+        "avg_nodes": 541.08,
+        "std_nodes": 38.92343253106026,
+        "max_nodes": 647.0,
+        "min_nodes": 465.0
       },
-      "fit_time": 0.925560712814331
+      "fit_time": 0.5261120796203613
     },
     {
       "dgp": "friedman3",
       "seed": 44,
       "tree_prior_mode": "bernoulli",
-      "alpha": 0.6868955193048338,
-      "delta": 0.9461357327048254,
+      "alpha": 0.6734690818177949,
+      "delta": 0.9863090242115395,
       "metrics": {
-        "rmse": 0.10964480526250062,
-        "mae": 0.08557985490740194,
-        "crps": 0.06185383486747778,
-        "interval_score_90": 0.47671011582150047,
-        "coverage_50": 0.528,
-        "coverage_90": 0.898,
+        "rmse": 0.10901815854418603,
+        "mae": 0.08526440407699337,
+        "crps": 0.06166991795539897,
+        "interval_score_90": 0.47461230191041825,
+        "coverage_50": 0.527,
+        "coverage_90": 0.897,
         "coverage_95": 0.942
       },
       "tree_stats": {
-        "avg_depth": 14.32,
-        "std_depth": 1.2560254774486066,
+        "avg_depth": 15.12,
+        "std_depth": 1.4232357499725756,
         "max_depth": 18.0,
         "min_depth": 12.0,
-        "avg_nodes": 503.8,
-        "std_nodes": 26.387876003953032,
-        "max_nodes": 559.0,
-        "min_nodes": 435.0
+        "avg_nodes": 546.2,
+        "std_nodes": 32.266391183397005,
+        "max_nodes": 619.0,
+        "min_nodes": 483.0
       },
-      "fit_time": 0.9576447010040283
+      "fit_time": 0.5360047817230225
     },
     {
       "dgp": "friedman3",
       "seed": 45,
       "tree_prior_mode": "bernoulli",
-      "alpha": 0.6868955193048338,
-      "delta": 0.9461357327048254,
+      "alpha": 0.6734690818177949,
+      "delta": 0.9863090242115395,
       "metrics": {
-        "rmse": 0.10711088902822055,
-        "mae": 0.08478773157064223,
-        "crps": 0.061247070703933364,
-        "interval_score_90": 0.45785567293856305,
-        "coverage_50": 0.499,
-        "coverage_90": 0.907,
-        "coverage_95": 0.96
+        "rmse": 0.10712711515193109,
+        "mae": 0.0848790462095388,
+        "crps": 0.0612247476046542,
+        "interval_score_90": 0.4587865387456745,
+        "coverage_50": 0.508,
+        "coverage_90": 0.902,
+        "coverage_95": 0.962
       },
       "tree_stats": {
-        "avg_depth": 14.12,
-        "std_depth": 1.0703270528207722,
-        "max_depth": 16.0,
-        "min_depth": 12.0,
-        "avg_nodes": 519.0,
-        "std_nodes": 26.089078174592522,
-        "max_nodes": 593.0,
-        "min_nodes": 469.0
+        "avg_depth": 15.28,
+        "std_depth": 1.6252999723128034,
+        "max_depth": 20.0,
+        "min_depth": 13.0,
+        "avg_nodes": 567.92,
+        "std_nodes": 35.19365851968221,
+        "max_nodes": 643.0,
+        "min_nodes": 479.0
       },
-      "fit_time": 0.9048502445220947
+      "fit_time": 0.5511910915374756
     },
     {
       "dgp": "friedman3",
       "seed": 46,
       "tree_prior_mode": "bernoulli",
-      "alpha": 0.6868955193048338,
-      "delta": 0.9461357327048254,
+      "alpha": 0.6734690818177949,
+      "delta": 0.9863090242115395,
       "metrics": {
-        "rmse": 0.10847337309822204,
-        "mae": 0.08547277286870449,
-        "crps": 0.06129425565243274,
-        "interval_score_90": 0.46852088376840206,
-        "coverage_50": 0.505,
-        "coverage_90": 0.903,
-        "coverage_95": 0.956
+        "rmse": 0.10854952783187494,
+        "mae": 0.08548488575555939,
+        "crps": 0.0612763566824248,
+        "interval_score_90": 0.47252654297019187,
+        "coverage_50": 0.51,
+        "coverage_90": 0.9,
+        "coverage_95": 0.95
       },
       "tree_stats": {
-        "avg_depth": 14.36,
-        "std_depth": 1.3965672200076873,
+        "avg_depth": 15.52,
+        "std_depth": 1.2367699866992246,
         "max_depth": 19.0,
-        "min_depth": 12.0,
-        "avg_nodes": 523.04,
-        "std_nodes": 29.15747588526826,
-        "max_nodes": 585.0,
-        "min_nodes": 467.0
+        "min_depth": 13.0,
+        "avg_nodes": 574.52,
+        "std_nodes": 34.890824008612924,
+        "max_nodes": 649.0,
+        "min_nodes": 507.0
       },
-      "fit_time": 0.9202580451965332
+      "fit_time": 0.5663862228393555
     },
     {
       "dgp": "make_regression",
       "seed": 42,
       "tree_prior_mode": "linear",
-      "alpha": 0.0019382842175769642,
-      "delta": 0.0002747136449155414,
+      "alpha": 0.2793524960211007,
+      "delta": 3.8534332837831915e-05,
       "metrics": {
-        "rmse": 43.694208289692526,
-        "mae": 29.834717843794753,
-        "crps": 22.4215022546486,
-        "interval_score_90": 193.31215248222642,
-        "coverage_50": 0.683,
-        "coverage_90": 0.953,
-        "coverage_95": 0.978
+        "rmse": 44.28422592803179,
+        "mae": 30.321788587487134,
+        "crps": 22.77443235860367,
+        "interval_score_90": 195.02762090432714,
+        "coverage_50": 0.684,
+        "coverage_90": 0.951,
+        "coverage_95": 0.979
       },
       "tree_stats": {
-        "avg_depth": 13.82,
-        "std_depth": 0.9097252332435328,
-        "max_depth": 17.0,
+        "avg_depth": 13.64,
+        "std_depth": 0.8662563131083085,
+        "max_depth": 16.0,
         "min_depth": 12.0,
-        "avg_nodes": 443.08,
-        "std_nodes": 15.752891798016007,
-        "max_nodes": 471.0,
-        "min_nodes": 393.0
+        "avg_nodes": 409.92,
+        "std_nodes": 17.41819738090024,
+        "max_nodes": 445.0,
+        "min_nodes": 369.0
       },
-      "fit_time": 1.1485240459442139
+      "fit_time": 0.6597011089324951
     },
     {
       "dgp": "make_regression",
       "seed": 43,
       "tree_prior_mode": "linear",
-      "alpha": 0.0019382842175769642,
-      "delta": 0.0002747136449155414,
+      "alpha": 0.2793524960211007,
+      "delta": 3.8534332837831915e-05,
       "metrics": {
-        "rmse": 51.65968554421399,
-        "mae": 38.749973419511704,
-        "crps": 28.487327569948384,
-        "interval_score_90": 239.65470867966278,
-        "coverage_50": 0.638,
-        "coverage_90": 0.953,
-        "coverage_95": 0.978
+        "rmse": 52.43342971563567,
+        "mae": 39.37562614249111,
+        "crps": 28.871275017258302,
+        "interval_score_90": 243.41109186816612,
+        "coverage_50": 0.642,
+        "coverage_90": 0.96,
+        "coverage_95": 0.981
       },
       "tree_stats": {
-        "avg_depth": 13.44,
-        "std_depth": 0.7787168933572715,
-        "max_depth": 15.0,
+        "avg_depth": 13.54,
+        "std_depth": 1.0432641084595982,
+        "max_depth": 16.0,
         "min_depth": 12.0,
-        "avg_nodes": 436.44,
-        "std_nodes": 16.961320703294305,
-        "max_nodes": 473.0,
-        "min_nodes": 395.0
+        "avg_nodes": 394.32,
+        "std_nodes": 19.15665941650579,
+        "max_nodes": 437.0,
+        "min_nodes": 353.0
       },
-      "fit_time": 1.6572141647338867
+      "fit_time": 0.680354118347168
     },
     {
       "dgp": "make_regression",
       "seed": 44,
       "tree_prior_mode": "linear",
-      "alpha": 0.0019382842175769642,
-      "delta": 0.0002747136449155414,
+      "alpha": 0.2793524960211007,
+      "delta": 3.8534332837831915e-05,
       "metrics": {
-        "rmse": 64.79228026782424,
-        "mae": 45.498409982874904,
-        "crps": 33.9798127807661,
-        "interval_score_90": 298.70916728532774,
-        "coverage_50": 0.638,
-        "coverage_90": 0.948,
-        "coverage_95": 0.968
+        "rmse": 64.77678708888313,
+        "mae": 45.51241262993697,
+        "crps": 34.04727614326405,
+        "interval_score_90": 298.7444648738387,
+        "coverage_50": 0.648,
+        "coverage_90": 0.949,
+        "coverage_95": 0.976
       },
       "tree_stats": {
-        "avg_depth": 13.0,
-        "std_depth": 1.0,
-        "max_depth": 15.0,
+        "avg_depth": 13.06,
+        "std_depth": 1.2068139873236472,
+        "max_depth": 16.0,
         "min_depth": 11.0,
-        "avg_nodes": 406.48,
-        "std_nodes": 15.465109116976832,
-        "max_nodes": 435.0,
-        "min_nodes": 375.0
+        "avg_nodes": 363.64,
+        "std_nodes": 15.525153783457347,
+        "max_nodes": 403.0,
+        "min_nodes": 325.0
       },
-      "fit_time": 1.1308388710021973
+      "fit_time": 0.6351690292358398
     },
     {
       "dgp": "make_regression",
       "seed": 45,
       "tree_prior_mode": "linear",
-      "alpha": 0.0019382842175769642,
-      "delta": 0.0002747136449155414,
+      "alpha": 0.2793524960211007,
+      "delta": 3.8534332837831915e-05,
       "metrics": {
-        "rmse": 50.256898624421396,
-        "mae": 36.592334348174504,
-        "crps": 27.298171034107167,
-        "interval_score_90": 231.90030340106634,
-        "coverage_50": 0.619,
+        "rmse": 50.29562827009424,
+        "mae": 36.632973413108296,
+        "crps": 27.450855356945716,
+        "interval_score_90": 234.4930362441012,
+        "coverage_50": 0.636,
         "coverage_90": 0.946,
         "coverage_95": 0.969
       },
       "tree_stats": {
-        "avg_depth": 13.96,
-        "std_depth": 0.8708616422830897,
-        "max_depth": 16.0,
+        "avg_depth": 13.98,
+        "std_depth": 0.9693296652842107,
+        "max_depth": 17.0,
         "min_depth": 12.0,
-        "avg_nodes": 507.28,
-        "std_nodes": 18.787272287375835,
-        "max_nodes": 555.0,
-        "min_nodes": 467.0
+        "avg_nodes": 461.2,
+        "std_nodes": 16.100931650062986,
+        "max_nodes": 499.0,
+        "min_nodes": 423.0
       },
-      "fit_time": 1.3386642932891846
+      "fit_time": 0.7820248603820801
     },
     {
       "dgp": "make_regression",
       "seed": 46,
       "tree_prior_mode": "linear",
-      "alpha": 0.0019382842175769642,
-      "delta": 0.0002747136449155414,
+      "alpha": 0.2793524960211007,
+      "delta": 3.8534332837831915e-05,
       "metrics": {
-        "rmse": 34.742277699638734,
-        "mae": 23.793496477580383,
-        "crps": 17.91286414425327,
-        "interval_score_90": 153.14288399317175,
-        "coverage_50": 0.651,
-        "coverage_90": 0.948,
-        "coverage_95": 0.976
+        "rmse": 35.47017722611783,
+        "mae": 24.358835974348132,
+        "crps": 18.31587215447699,
+        "interval_score_90": 154.95552395978015,
+        "coverage_50": 0.641,
+        "coverage_90": 0.95,
+        "coverage_95": 0.979
       },
       "tree_stats": {
-        "avg_depth": 14.26,
-        "std_depth": 0.9961927524329817,
+        "avg_depth": 14.44,
+        "std_depth": 1.061319932913728,
         "max_depth": 17.0,
         "min_depth": 13.0,
-        "avg_nodes": 479.64,
-        "std_nodes": 15.478707956415484,
-        "max_nodes": 509.0,
-        "min_nodes": 447.0
+        "avg_nodes": 442.12,
+        "std_nodes": 14.892467894878942,
+        "max_nodes": 481.0,
+        "min_nodes": 407.0
       },
-      "fit_time": 1.2452831268310547
+      "fit_time": 0.7293181419372559
     },
     {
       "dgp": "make_regression",
       "seed": 42,
       "tree_prior_mode": "defer",
-      "alpha": 0.8708142242557255,
-      "delta": 0.8655720552605489,
+      "alpha": 0.6868955193048338,
+      "delta": 0.9461357327048254,
       "metrics": {
-        "rmse": 43.70890057469181,
-        "mae": 29.773588667869838,
-        "crps": 22.436616098326194,
-        "interval_score_90": 193.39703396891503,
+        "rmse": 44.00729845134823,
+        "mae": 30.053822453685363,
+        "crps": 22.647562878399615,
+        "interval_score_90": 194.37815368848132,
         "coverage_50": 0.683,
-        "coverage_90": 0.952,
+        "coverage_90": 0.953,
         "coverage_95": 0.975
       },
       "tree_stats": {
         "avg_depth": 13.62,
-        "std_depth": 1.0562196741208714,
+        "std_depth": 0.845931439302264,
         "max_depth": 16.0,
         "min_depth": 12.0,
-        "avg_nodes": 413.32,
-        "std_nodes": 13.725071948809594,
-        "max_nodes": 443.0,
-        "min_nodes": 385.0
+        "avg_nodes": 411.04,
+        "std_nodes": 16.48994845352768,
+        "max_nodes": 451.0,
+        "min_nodes": 377.0
       },
-      "fit_time": 1.217071771621704
+      "fit_time": 0.7698109149932861
     },
     {
       "dgp": "make_regression",
       "seed": 43,
       "tree_prior_mode": "defer",
-      "alpha": 0.8708142242557255,
-      "delta": 0.8655720552605489,
+      "alpha": 0.6868955193048338,
+      "delta": 0.9461357327048254,
       "metrics": {
-        "rmse": 51.786830592139275,
-        "mae": 38.910464803620066,
-        "crps": 28.62212985837394,
-        "interval_score_90": 240.7637960949686,
-        "coverage_50": 0.641,
-        "coverage_90": 0.951,
-        "coverage_95": 0.978
+        "rmse": 52.19828121871772,
+        "mae": 39.17521632746876,
+        "crps": 28.765608773433268,
+        "interval_score_90": 242.8485326802808,
+        "coverage_50": 0.64,
+        "coverage_90": 0.955,
+        "coverage_95": 0.977
       },
       "tree_stats": {
-        "avg_depth": 13.06,
-        "std_depth": 0.9035485598461214,
+        "avg_depth": 13.24,
+        "std_depth": 0.7889233169326408,
         "max_depth": 16.0,
-        "min_depth": 11.0,
-        "avg_nodes": 403.56,
-        "std_nodes": 16.560386468920342,
-        "max_nodes": 431.0,
-        "min_nodes": 367.0
+        "min_depth": 12.0,
+        "avg_nodes": 397.4,
+        "std_nodes": 17.73583942191629,
+        "max_nodes": 433.0,
+        "min_nodes": 357.0
       },
-      "fit_time": 1.200805902481079
+      "fit_time": 0.763542890548706
     },
     {
       "dgp": "make_regression",
       "seed": 44,
       "tree_prior_mode": "defer",
-      "alpha": 0.8708142242557255,
-      "delta": 0.8655720552605489,
+      "alpha": 0.6868955193048338,
+      "delta": 0.9461357327048254,
       "metrics": {
-        "rmse": 64.33462205711817,
-        "mae": 45.04844215634161,
-        "crps": 33.768643525213555,
-        "interval_score_90": 296.9369637699827,
-        "coverage_50": 0.646,
-        "coverage_90": 0.952,
-        "coverage_95": 0.973
+        "rmse": 64.7042369153442,
+        "mae": 45.45918063846296,
+        "crps": 34.01643096797315,
+        "interval_score_90": 299.53404499738673,
+        "coverage_50": 0.653,
+        "coverage_90": 0.95,
+        "coverage_95": 0.976
       },
       "tree_stats": {
-        "avg_depth": 12.72,
-        "std_depth": 0.8726969691708572,
-        "max_depth": 15.0,
+        "avg_depth": 12.98,
+        "std_depth": 1.0675204916066012,
+        "max_depth": 16.0,
         "min_depth": 11.0,
-        "avg_nodes": 373.68,
-        "std_nodes": 16.305140293784657,
-        "max_nodes": 413.0,
-        "min_nodes": 339.0
+        "avg_nodes": 365.28,
+        "std_nodes": 15.839242406125361,
+        "max_nodes": 409.0,
+        "min_nodes": 329.0
       },
-      "fit_time": 1.1875290870666504
+      "fit_time": 0.7174739837646484
     },
     {
       "dgp": "make_regression",
       "seed": 45,
       "tree_prior_mode": "defer",
-      "alpha": 0.8708142242557255,
-      "delta": 0.8655720552605489,
+      "alpha": 0.6868955193048338,
+      "delta": 0.9461357327048254,
       "metrics": {
-        "rmse": 50.42502699354943,
-        "mae": 36.87317149349965,
-        "crps": 27.456600497704216,
-        "interval_score_90": 233.0109556225979,
-        "coverage_50": 0.634,
-        "coverage_90": 0.946,
-        "coverage_95": 0.971
+        "rmse": 50.4777662437937,
+        "mae": 36.84761484413514,
+        "crps": 27.540494955831463,
+        "interval_score_90": 235.20969651404664,
+        "coverage_50": 0.639,
+        "coverage_90": 0.947,
+        "coverage_95": 0.968
       },
       "tree_stats": {
-        "avg_depth": 13.76,
-        "std_depth": 0.928654941299512,
-        "max_depth": 16.0,
+        "avg_depth": 13.92,
+        "std_depth": 1.1285388783732708,
+        "max_depth": 17.0,
         "min_depth": 12.0,
-        "avg_nodes": 466.76,
-        "std_nodes": 18.993219842880777,
-        "max_nodes": 521.0,
-        "min_nodes": 429.0
+        "avg_nodes": 459.52,
+        "std_nodes": 17.608225350670633,
+        "max_nodes": 507.0,
+        "min_nodes": 419.0
       },
-      "fit_time": 1.3781898021697998
+      "fit_time": 0.8544509410858154
     },
     {
       "dgp": "make_regression",
       "seed": 46,
       "tree_prior_mode": "defer",
-      "alpha": 0.8708142242557255,
-      "delta": 0.8655720552605489,
+      "alpha": 0.6868955193048338,
+      "delta": 0.9461357327048254,
       "metrics": {
-        "rmse": 34.856145888296695,
-        "mae": 24.005285221886947,
-        "crps": 17.99522820229017,
-        "interval_score_90": 152.5241974690437,
-        "coverage_50": 0.643,
-        "coverage_90": 0.947,
-        "coverage_95": 0.977
+        "rmse": 35.28527564395243,
+        "mae": 24.210001679039213,
+        "crps": 18.240245651910246,
+        "interval_score_90": 155.1979351103591,
+        "coverage_50": 0.657,
+        "coverage_90": 0.949,
+        "coverage_95": 0.979
       },
       "tree_stats": {
-        "avg_depth": 14.16,
-        "std_depth": 1.0650821564555477,
+        "avg_depth": 14.42,
+        "std_depth": 0.9400000000000001,
         "max_depth": 17.0,
-        "min_depth": 12.0,
-        "avg_nodes": 444.12,
-        "std_nodes": 15.466919538162731,
-        "max_nodes": 481.0,
-        "min_nodes": 409.0
+        "min_depth": 13.0,
+        "avg_nodes": 441.36,
+        "std_nodes": 14.359331460760977,
+        "max_nodes": 475.0,
+        "min_nodes": 411.0
       },
-      "fit_time": 1.2780098915100098
+      "fit_time": 0.8037118911743164
     },
     {
       "dgp": "make_regression",
       "seed": 42,
       "tree_prior_mode": "bernoulli",
-      "alpha": 0.8356405512053454,
-      "delta": 0.9886827510659728,
+      "alpha": 0.8671170370384809,
+      "delta": 0.9864078329600147,
       "metrics": {
-        "rmse": 43.391082820271116,
-        "mae": 29.1335239079049,
-        "crps": 22.118494331403987,
-        "interval_score_90": 194.48592916073937,
+        "rmse": 43.442641780637366,
+        "mae": 29.350002445003277,
+        "crps": 22.23921410218544,
+        "interval_score_90": 193.82189890791184,
         "coverage_50": 0.683,
-        "coverage_90": 0.95,
-        "coverage_95": 0.976
+        "coverage_90": 0.947,
+        "coverage_95": 0.975
       },
       "tree_stats": {
-        "avg_depth": 14.24,
-        "std_depth": 0.8616263691415207,
-        "max_depth": 17.0,
+        "avg_depth": 14.38,
+        "std_depth": 1.0934349546269317,
+        "max_depth": 18.0,
         "min_depth": 13.0,
-        "avg_nodes": 540.64,
-        "std_nodes": 14.8361180906597,
-        "max_nodes": 575.0,
-        "min_nodes": 509.0
+        "avg_nodes": 523.84,
+        "std_nodes": 15.263498943558124,
+        "max_nodes": 551.0,
+        "min_nodes": 485.0
       },
-      "fit_time": 1.511836051940918
+      "fit_time": 0.9880590438842773
     },
     {
       "dgp": "make_regression",
       "seed": 43,
       "tree_prior_mode": "bernoulli",
-      "alpha": 0.8356405512053454,
-      "delta": 0.9886827510659728,
+      "alpha": 0.8671170370384809,
+      "delta": 0.9864078329600147,
       "metrics": {
-        "rmse": 52.46497725679038,
-        "mae": 39.31058459388328,
-        "crps": 28.73147915937588,
-        "interval_score_90": 242.8386945752589,
-        "coverage_50": 0.626,
+        "rmse": 52.60765594358213,
+        "mae": 39.4048912118808,
+        "crps": 28.843274314105678,
+        "interval_score_90": 245.74410233255725,
+        "coverage_50": 0.622,
         "coverage_90": 0.943,
-        "coverage_95": 0.975
+        "coverage_95": 0.977
       },
       "tree_stats": {
-        "avg_depth": 14.3,
-        "std_depth": 0.9848857801796106,
+        "avg_depth": 14.44,
+        "std_depth": 0.9624967532412771,
         "max_depth": 17.0,
         "min_depth": 13.0,
-        "avg_nodes": 558.8,
-        "std_nodes": 19.213536894595958,
-        "max_nodes": 595.0,
-        "min_nodes": 517.0
+        "avg_nodes": 536.96,
+        "std_nodes": 18.002177646051603,
+        "max_nodes": 569.0,
+        "min_nodes": 497.0
       },
-      "fit_time": 1.598505973815918
+      "fit_time": 1.0382859706878662
     },
     {
       "dgp": "make_regression",
       "seed": 44,
       "tree_prior_mode": "bernoulli",
-      "alpha": 0.8356405512053454,
-      "delta": 0.9886827510659728,
+      "alpha": 0.8671170370384809,
+      "delta": 0.9864078329600147,
       "metrics": {
-        "rmse": 65.803722680085,
-        "mae": 45.87195895256462,
-        "crps": 34.13493860021156,
-        "interval_score_90": 303.2607235616722,
-        "coverage_50": 0.626,
-        "coverage_90": 0.945,
-        "coverage_95": 0.969
+        "rmse": 65.36391900629296,
+        "mae": 45.715574630694945,
+        "crps": 33.9987788609752,
+        "interval_score_90": 301.819711930105,
+        "coverage_50": 0.632,
+        "coverage_90": 0.947,
+        "coverage_95": 0.97
       },
       "tree_stats": {
-        "avg_depth": 14.12,
-        "std_depth": 1.3059862173851606,
-        "max_depth": 18.0,
+        "avg_depth": 14.16,
+        "std_depth": 1.286234815265082,
+        "max_depth": 17.0,
         "min_depth": 12.0,
-        "avg_nodes": 546.96,
-        "std_nodes": 18.161453686310466,
-        "max_nodes": 581.0,
-        "min_nodes": 495.0
+        "avg_nodes": 522.08,
+        "std_nodes": 19.92068271922426,
+        "max_nodes": 569.0,
+        "min_nodes": 483.0
       },
-      "fit_time": 1.585935115814209
+      "fit_time": 0.9791111946105957
     },
     {
       "dgp": "make_regression",
       "seed": 45,
       "tree_prior_mode": "bernoulli",
-      "alpha": 0.8356405512053454,
-      "delta": 0.9886827510659728,
+      "alpha": 0.8671170370384809,
+      "delta": 0.9864078329600147,
       "metrics": {
-        "rmse": 51.10727048984309,
-        "mae": 37.13501293854625,
-        "crps": 27.496250137588525,
-        "interval_score_90": 234.40106310836475,
-        "coverage_50": 0.612,
-        "coverage_90": 0.939,
-        "coverage_95": 0.964
+        "rmse": 50.9557657283141,
+        "mae": 37.06113443678594,
+        "crps": 27.49625772511913,
+        "interval_score_90": 235.0008562022823,
+        "coverage_50": 0.617,
+        "coverage_90": 0.942,
+        "coverage_95": 0.968
       },
       "tree_stats": {
-        "avg_depth": 15.22,
-        "std_depth": 1.100727032465361,
+        "avg_depth": 14.88,
+        "std_depth": 1.0703270528207722,
         "max_depth": 18.0,
         "min_depth": 13.0,
-        "avg_nodes": 643.56,
-        "std_nodes": 19.952102646087205,
-        "max_nodes": 699.0,
-        "min_nodes": 607.0
+        "avg_nodes": 616.0,
+        "std_nodes": 18.37498299318941,
+        "max_nodes": 655.0,
+        "min_nodes": 561.0
       },
-      "fit_time": 1.7908580303192139
+      "fit_time": 1.2015950679779053
     },
     {
       "dgp": "make_regression",
       "seed": 46,
       "tree_prior_mode": "bernoulli",
-      "alpha": 0.8356405512053454,
-      "delta": 0.9886827510659728,
+      "alpha": 0.8671170370384809,
+      "delta": 0.9864078329600147,
       "metrics": {
-        "rmse": 34.70391343118382,
-        "mae": 23.77713115715748,
-        "crps": 17.781682352605856,
-        "interval_score_90": 152.3365476320338,
-        "coverage_50": 0.642,
-        "coverage_90": 0.944,
-        "coverage_95": 0.979
+        "rmse": 34.8487755252723,
+        "mae": 23.862364919052144,
+        "crps": 17.844717921873272,
+        "interval_score_90": 152.91191424340207,
+        "coverage_50": 0.634,
+        "coverage_90": 0.947,
+        "coverage_95": 0.976
       },
       "tree_stats": {
-        "avg_depth": 15.22,
-        "std_depth": 1.063766891757776,
+        "avg_depth": 15.1,
+        "std_depth": 1.044030650891055,
         "max_depth": 18.0,
-        "min_depth": 14.0,
-        "avg_nodes": 579.24,
-        "std_nodes": 13.825425852392396,
-        "max_nodes": 619.0,
-        "min_nodes": 547.0
+        "min_depth": 13.0,
+        "avg_nodes": 565.28,
+        "std_nodes": 16.776221267019576,
+        "max_nodes": 607.0,
+        "min_nodes": 525.0
       },
-      "fit_time": 1.633296012878418
+      "fit_time": 2.854773998260498
     }
   ]
 }

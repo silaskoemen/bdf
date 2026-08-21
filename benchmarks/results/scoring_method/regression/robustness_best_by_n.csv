@@ -1,2 +1,2 @@
 n_samples,best_method,best_value,improvement_%,fit_time_s
-500,nle,43.0786,0.11%,0.14
+500,nll,0.2161,0.13%,0.05

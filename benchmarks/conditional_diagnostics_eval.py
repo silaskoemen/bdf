@@ -38,6 +38,7 @@ from sklearn.model_selection import KFold
 from benchmarks.metrics.regression import get_percentile_from_prediction, precompute_percentiles
 from benchmarks.pipeline.data import DatasetMetadata, available_regression_datasets
 from benchmarks.pipeline.orchestrators import get_model_prediction_type, get_model_quantiles
+from benchmarks.utils.score_regime import expand_score_regime
 from benchmarks.utils.yaml_loader import aggregate_bdf_models, load_yaml_result
 
 RESULTS_DIR = Path("benchmarks/results/regression")
@@ -92,11 +93,13 @@ def _split_best_params(model_cfg: OmegaConf, best_params: dict[str, Any]) -> dic
 
     tunable_init = model_cfg.get("tunable_init_kwargs", {}) or {}
     tunable_params = model_cfg.get("tunable_params", {}) or {}
+    fixed_params = model_cfg.get("fixed_params", {}) or {}
+    expanded_score_fields = {"score_method", "score_correction"} if "score_regime" in tunable_params else set()
 
     for key, value in best_params.items():
         if key in tunable_init:
             tuned_init_kwargs[key] = value
-        elif key in tunable_params:
+        elif key in tunable_params or key in expanded_score_fields:
             tuned_params[key] = value
         else:
             # Keep unknown keys as init kwargs. This is useful for older results
@@ -104,13 +107,12 @@ def _split_best_params(model_cfg: OmegaConf, best_params: dict[str, Any]) -> dic
             tuned_init_kwargs[key] = value
 
     combined_params: dict[str, Any] = {}
-    fixed_params = model_cfg.get("fixed_params", None)
     if fixed_params:
         combined_params.update(OmegaConf.to_container(fixed_params, resolve=True))
     if tuned_params:
         combined_params.update(tuned_params)
     if combined_params:
-        tuned_init_kwargs["params"] = combined_params
+        tuned_init_kwargs["params"] = expand_score_regime(combined_params)
 
     return tuned_init_kwargs
 
