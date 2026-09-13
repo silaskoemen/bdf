@@ -1,6 +1,6 @@
 \section{Proofs and Derivations}\label{app:proofs}
 
-The results in this appendix justify BDF's leaf prediction and split scoring under fixed candidate partitions and regularity conditions. They do not prove posterior inference over tree structures or global consistency of the adaptive greedy forest; those limitations are stated in Section~\ref{sec:theory}.
+The results in this appendix justify BDF's leaf prediction and split scoring under fixed candidate partitions and regularity conditions. Evidence-based prequential and Bayes-factor identities assume fixed likelihood and prior specifications; for Normal--Normal this includes a fixed, assumed-known observation variance. The implemented leaf-local variance gives a profile/EB score, while Beta--Bernoulli and Gamma--Poisson integrate their likelihood parameters fully at fixed prior hyperparameters. The results do not prove posterior inference over tree structures or global consistency of the adaptive greedy forest.
 
 \paragraph{Proof map.}
 Appendix~\ref{app:evidence_decomposition} gives the evidence and prequential identities used to interpret leaf scores. Appendix~\ref{app:split_bayes_factor} shows that the split gain is a local log Bayes factor under a fixed parent partition. Appendix~\ref{app:bic_uniform} derives the BIC/Laplace surrogate. Appendix~\ref{app:proof_leaf_concentration} proves Proposition~\ref{prop:leaf_concentration}. Appendices~\ref{app:split_consistency}--\ref{app:ensemble_bound} collect auxiliary fixed-node split, depth-growth, empirical-Bayes perturbation, and ensemble log-loss arguments.
@@ -132,7 +132,7 @@ $\prod_i p(y_{\ell,i}\mid\theta_\ell)$ is symmetric in the observations. Integra
 \begin{proposition}[Split gain as log Bayes factor]
 \label{prop:split_bf}
 Fix a node $\ell$ and a candidate split $s$ producing children $\ell_L$ and $\ell_R$.
-Under independent child priors,
+Let $S=-\log m$ for marginal likelihoods under fixed model specifications and independent child priors. Then
 \[
 \Delta S(s;\ell)
 =

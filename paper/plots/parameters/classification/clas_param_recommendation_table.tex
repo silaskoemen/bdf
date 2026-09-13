@@ -1,10 +1,10 @@
 \begin{table}[htbp]
 \centering
-\caption{Recommended hyperparameter values (log-loss $\downarrow$).}
+\caption{Best hyperparameter values in the sensitivity sweep (log-loss $\downarrow$).}
 \label{tab:param-sensitivity-clas}
 \begin{tabular}{lcccc}
 \toprule
-Parameter & circles & make\_classification & moons & Recommended \\
+Parameter & circles & make\_classification & moons & Modal best \\
 \midrule
 alpha & \textbf{0.1} & \textbf{0.5} & \textbf{0.1} & 0.1 \\
 gamma & \textbf{0} & 0.1 & \textbf{0.001} & 0 \\
@@ -14,5 +14,5 @@ min\_samples\_leaf & \textbf{5} & \textbf{5} & \textbf{5} & 5 \\
 score\_method & NLL & NLE & NLL+BIC & NLL \\
 \bottomrule
 \end{tabular}
-\par\smallskip\footnotesize{Best value per DGP; bold marks values that differ from the sweep baseline (alpha$=0.01$, gamma$=0.1$, delta$=0.01$, min\_samples\_leaf$=10$), which is held fixed for the other parameters and need not match the public estimator defaults. Recommended = most frequent best value across DGPs.}
+\par\smallskip\footnotesize{Best value per DGP; bold marks values that differ from the sweep baseline (alpha$=0.01$, gamma$=0.1$, delta$=0.01$, min\_samples\_leaf$=10$), which is held fixed for the other parameters and need not match the public estimator defaults. Modal best = most frequent best value across DGPs.}
 \end{table}

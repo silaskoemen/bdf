@@ -1017,7 +1017,7 @@ def generate_summary_tables(
                     "Best Value": best_val,
                     f"Best {primary_metric.upper()}": f"{best_metric:.4f}",
                     f"Default {primary_metric.upper()}": f"{default_metric:.4f}",
-                    "Improvement (%)": f"{100*(default_metric-best_metric)/default_metric:.1f}",
+                    "Improvement (%)": f"{100 * (default_metric - best_metric) / default_metric:.1f}",
                 }
             )
 
@@ -1084,7 +1084,7 @@ def generate_summary_tables(
             {
                 "Parameter": param_name,
                 f"Avg {primary_metric.upper()} Range": f"{avg_range:.4f}",
-                "Relative Sensitivity (%)": f"{100*avg_range/avg_metric:.1f}",
+                "Relative Sensitivity (%)": f"{100 * avg_range / avg_metric:.1f}",
             }
         )
 
@@ -1133,14 +1133,14 @@ def generate_latex_recommendation_table(
     lines = [
         "\\begin{table}[htbp]",
         "\\centering",
-        f"\\caption{{Recommended hyperparameter values ({metric_display} $\\downarrow$).}}",
+        f"\\caption{{Best hyperparameter values in the sensitivity sweep ({metric_display} $\\downarrow$).}}",
         "\\label{tab:param-sensitivity}",
         f"\\begin{{tabular}}{{{col_spec}}}",
         "\\toprule",
     ]
 
     dgp_headers = " & ".join(d.replace("_", "\\_") for d in dgp_names)
-    lines.append(f"Parameter & {dgp_headers} & Recommended \\\\")
+    lines.append(f"Parameter & {dgp_headers} & Modal best \\\\")
     lines.append("\\midrule")
 
     for param_name in params:
@@ -1214,7 +1214,7 @@ def generate_latex_recommendation_table(
             "\\end{tabular}",
             "\\par\\smallskip\\footnotesize{Best value per DGP; bold marks values that differ from the "
             f"sweep baseline ({sweep_defaults}), which is held fixed for the other parameters and need not "
-            "match the public estimator defaults. Recommended = most frequent best value across DGPs.}",
+            "match the public estimator defaults. Modal best = most frequent best value across DGPs.}",
             "\\end{table}",
         ]
     )

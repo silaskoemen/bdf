@@ -55,11 +55,11 @@ BDF_SCORE_ABLATION_MODELS = [
 ]
 
 BDF_SCORE_ABLATION_META = {
-    "bdf_normalmunormal_nle": ("Normal--Normal", "NLE", "Yes"),
-    "bdf_normalmunormal_nll": ("Normal--Normal", "NLL", "No"),
-    "bdf_normalmunormal_nll_bic": ("Normal--Normal", "NLL+BIC", "No"),
-    "bdf_freqstudentt_nll": ("Student-$t$", "NLL", "No"),
-    "bdf_freqstudentt_nll_bic": ("Student-$t$", "NLL+BIC", "No"),
+    "bdf_normalmunormal_nle": ("Normal--Normal", "NLE", "Profile"),
+    "bdf_normalmunormal_nll": ("Normal--Normal", "NLL", "Plug-in"),
+    "bdf_normalmunormal_nll_bic": ("Normal--Normal", "NLL+BIC", "Plug-in"),
+    "bdf_freqstudentt_nll": ("Student-$t$", "NLL", "Plug-in"),
+    "bdf_freqstudentt_nll_bic": ("Student-$t$", "NLL+BIC", "Plug-in"),
 }
 
 XGBOOSTLSS_SELECTION_MODELS = [
@@ -427,7 +427,7 @@ def make_core_vs_full_table(model_results: dict[str, dict[str, Any]], output_dir
         output_dir / "bdf_normal_nle_vs_full.tex",
         ["Model", "Table-set rel. CRPS", "Median gap vs Full", "IS90 rank", "Cov@90", "$n$"],
         rows,
-        "Exact Normal--Normal NLE BDF versus BDF-Full and selected regression baselines.",
+        "Normal--Normal profile-NLE BDF versus BDF-Full and selected regression baselines.",
         "tab:bdf-normal-nle-vs-full",
         "Geometric mean relative CRPS is computed relative to the best model per dataset within this table "
         "(lower is better). IS90 rank is the average rank of the 90\\% interval score "
@@ -459,7 +459,7 @@ def make_score_ablation_table(model_results: dict[str, dict[str, Any]], output_d
     best_rank = min(is_rank.values()) if is_rank else None
     rows = []
     for model in models:
-        family, score, exact = BDF_SCORE_ABLATION_META[model]
+        family, score, score_type = BDF_SCORE_ABLATION_META[model]
         coverage_values = [_mean_metric(model_results[model], dataset, "coverage_90") for dataset in datasets]
         coverage = _mean_optional(coverage_values)
         rel_value = rel_crps.get(model)
@@ -468,7 +468,7 @@ def make_score_ablation_table(model_results: dict[str, dict[str, Any]], output_d
             [
                 family,
                 score,
-                exact,
+                score_type,
                 _bold_if_best(_format_float(rel_value, 3), rel_value == best_rel),
                 _bold_if_best(_format_float(rank_value, 2), rank_value == best_rank),
                 _format_float(coverage, 3),
@@ -478,7 +478,7 @@ def make_score_ablation_table(model_results: dict[str, dict[str, Any]], output_d
 
     _write_table(
         output_dir / "bdf_leaf_score_ablation.tex",
-        ["Leaf family", "Split score", "Exact Bayes?", "Ablation-set rel. CRPS", "IS90 rank", "Cov@90", "$n$"],
+        ["Leaf family", "Split score", "Score type", "Ablation-set rel. CRPS", "IS90 rank", "Cov@90", "$n$"],
         rows,
         "Leaf-family and split-score ablation for fixed BDF configurations.",
         "tab:bdf-leaf-score-ablation",
